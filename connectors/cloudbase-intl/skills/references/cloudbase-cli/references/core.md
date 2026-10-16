@@ -1,13 +1,15 @@
 # Core — CloudBase CLI
 
 > Core foundation for all CloudBase CLI operations (云开发 CLI 核心基础).
-> This reference covers authentication, environment setup, documentation queries, config, and error handling.
+> Covers authentication (incl. site selection), picking the working environment, documentation
+> queries, `cloudbaserc.json`, and error diagnosis.
 
 ## When to Use
 
 - **Any** CloudBase CLI operation (always start here)
 - Authenticating with `tcb login` or switching environments with `tcb env use`
-- Querying CLI docs with `tcb docs` or checking command help with `--help`
+- Choosing between the domestic site and the international site
+- Querying CLI docs with `tcb docs` or checking command help
 - Diagnosing CLI errors via exit codes
 - **First-session fallback:** CloudBase MCP tools are not in this conversation yet (not installed, or installed but session not restarted) — use `tcb login` + the matching domain command now while MCP is configured for next time (do **not** use `tcb deploy`; see guideline `tooling-fallback.md` if npm/npx is missing)
 
@@ -16,6 +18,17 @@
 - CloudBase SDK development (use matching SDK skills)
 - CloudBase MCP server operations when MCP tools are already available (prefer MCP unless the user asked for CLI)
 - Tencent Cloud console-only operations (this reference is CLI-only)
+
+## Route elsewhere
+
+| Task | Read |
+|------|------|
+| Create / modify / renew / destroy an environment, API Keys, login policy, safe domains | `env.md` |
+| `tcb config` (CLI settings, `cloudbaserc.json` sync), `tcb init` / `pull` / `validate` / `self-update` | `config.md` |
+| Log search | `logs.md` |
+| Metric monitoring | `monitor.md` |
+| Data model / PostgreSQL migrations | `schema.md` |
+| Sandbox / Agent / Integration instances | `sandbox.md` / `agent.md` / `integration.md` |
 
 ## First-session + MCP coexistence
 
@@ -37,8 +50,29 @@ tcb login --flow web           # Web authorization (same-machine only)
 tcb login --cloudbase-api-key <cloudbaseApiKey> -e <envId>  # Env API Key (no Tencent Cloud account)
 tcb login --apiKeyId <Id> --apiKey <Key>            # CI / Tencent Cloud SecretId+SecretKey
 tcb login --apiKeyId <Id> --apiKey <Key> --token <T> # Temp token (CI, more secure)
+tcb login --intl true          # Use the INTERNATIONAL site for this process only
+tcb login --intl false         # Use the DOMESTIC site for this process only
+tcb login -k                   # Interactive secret-key input mode (permanent key)
+tcb login --endpoint <url>     # Custom device-authorization endpoint
 tcb logout                     # Clear account-level credentials (account-login mode only)
 ```
+
+### Site selection (国内站 / 国际站) — read this before debugging "invalid token"
+
+`tcb` talks to **one** site at a time. A credential issued on one site does not work on the other, and
+the failure looks like an auth problem rather than a site problem.
+
+| Scope | How |
+|-------|-----|
+| This process only | `tcb login --intl true` / `tcb login --intl false` (persisted for the login, effective immediately) |
+| Persistent | `tcb config set isIntl true` / `false` (see `config.md`) |
+| CI / one-off | `TCB_IS_INTL=true` environment variable |
+
+> ⚠️ Pick **one** mechanism per session and keep it consistent. Mixing a persistent `isIntl false` with
+> a one-off `--intl true` produces credentials the other half of the session cannot use.
+
+> ⚠️ `--cloudbase-api-key` is a CloudBase **environment** API Key; `--apiKeyId` / `--apiKey` are Tencent
+> Cloud **account** credentials. Do not confuse them (see the table above).
 
 > ⚠️ `tcb logout` clears **account-level** logins only. In **environment API Key** mode the CLI refuses it (`LOGOUT_NOT_ALLOWED`) — there is no account session to clear; remove the credential file instead (see *Where credentials are read from* below).
 
@@ -202,21 +236,17 @@ User knows envId?
 
 ```bash
 tcb env use <envId>                          # Set default env for all subsequent commands
+tcb env use --unset                          # Clear the global default env
 tcb env detail <envId>                       # View environment details
 tcb env rename <newAlias> --env-id <envId> --yes  # Rename alias
-tcb env create --alias <name> --package <packageId> --yes  # Create new env
-```
-
-To put a new environment's **cloud storage** on a shared COS bucket (one bucket for many environments, each under its own BasePath), pass all three `--external-storage-*` flags. They apply to cloud storage only; the static hosting bucket is chosen by the platform when hosting is enabled and has no CLI flag. Use them only when the user provides the bucket.
-
-```bash
-tcb env create --alias tenant-a --package baas_personal --yes \
-  --external-storage-bucket my-bucket-1250000000 \
-  --external-storage-region ap-shanghai \
-  --external-storage-base-path tenant-a
+tcb env list                                 # List environments (pagination: --limit / --offset)
 ```
 
 > ⚠️ `tcb env list` may return incomplete results under sub-account permissions. Use only when user explicitly asks.
+
+Creating, changing the package, renewing, destroying an environment, plus **API Keys / login policy /
+safe domains**, are all covered in `env.md`. Do not improvise those flags here — the create-only and
+modify-only flags differ and mixing them is rejected.
 
 ### Per-Command Override
 
@@ -320,16 +350,85 @@ Help shows API doc link?
 > Without reading it, agents construct wrong `Command` field format (should be a JSON-encoded
 > string of MongoDB shell syntax, NOT a raw array). **This mistake cost 10+ minutes. Don't repeat it.**
 
+> ⚠️ **`--help` is unreliable on this CLI version — do not read its failure as "the command does not exist".**
+> Documented behaviour (verified against 3.8.7):
+> - `tcb <cmd> --help` works for most **top-level** commands (`tcb cloudrun --help`, `tcb fn --help`).
+> - Many **second-level** commands reject it with `error: unknown option '--help'` (e.g. `tcb docs list --help`,
+>   `tcb cloudrun traffic --help`, `tcb db nosql -h`). Some of those accept `-h` instead; others accept neither.
+> - `tcb help <cmd>` (the help subcommand) works one level deep only — `tcb help cloudrun` is fine,
+>   `tcb help env create` is rejected.
+>
+> So when help fails: try `-h`, then `tcb help <cmd>`, and only after that fall back to
+> `tcb docs search "<keyword>"`. **Never** conclude a command is missing because its `--help` errored.
+
+> ⚠️ **`tcb --help` is a hand-maintained static list, not an enumeration of what exists** (the CLI
+> source has a hardcoded `COMMAND_LINES` array). Commands absent from it are **not** deprecated — this
+> group includes `tcb init`, `tcb pull`, `tcb new`, `tcb open`, `tcb rollback`, `tcb self-update`,
+> `tcb monitor`, `tcb integration`, `tcb service`, `tcb cloudfunction`, `tcb cloudrunfunction` and
+> `tcb run:deprecated`.
+>
+> **Two different things must not be conflated:**
+>
+> - *Absence from `tcb --help`* says **nothing** about lifecycle. Never call a command removed/obsolete
+>   because it is missing there.
+> - *A `[已废弃]` / `[已下线]` / `[Retired]` prefix in the command description* is a **sufficient** signal
+>   of deprecation — but its **absence is NOT proof of endorsement**. Some commands are "not recommended"
+>   purely by **product decision** and carry no marker at all.
+>
+> Read the marker to *find* deprecation; do **not** read "no marker" as "still endorsed". The authoritative
+> status list follows.
+
+### Command lifecycle (authoritative)
+
+Absence/presence in `tcb --help` is **not** the criterion — the table below is.
+
+| Command | In `tcb --help` | Code marker | Status |
+|---------|:---:|---|---|
+| `tcb monitor` | ✗ | — | ✅ **Officially supported** — recommend it normally |
+| `tcb integration` | ✗ | — | ✅ **Officially supported** — recommend it normally |
+| `tcb init` / `pull` / `new` / `open` / `rollback` / `self-update` | ✗ | — | ✅ Normal commands, just not listed |
+| `tcb ai` / `lowcode` / `sync-model-dts` / `validate` | ✓ | — | ✅ Normal |
+| `tcb service` | ✗ | — | 🚫 **Not recommended** (product decision, no marker) → use `tcb routes` / `tcb domains` |
+| `tcb cloudfunction` / `tcb cloudrunfunction` | ✗ | — | 🚫 **Not recommended** (legacy families, no marker) → use `tcb fn` |
+| `tcb permission` | ✓ | `[已下线]` | ⛔ Offline — calling it only prints a migration notice → use `tcb policy` |
+| `tcb framework` / `tcb run` / `tcb run:deprecated` | ✗ | `[已废弃]` | ⚠️ Deprecated, will be removed → `tcb app deploy` / `tcb cloudrun` |
+| `tcb fn config` / `tcb fn log` | ✓ | `已废弃` | ⚠️ Deprecated → `tcb config update fn` / `tcb logs search` |
+
+> ⚠️ The three states are distinct — do not merge them:
+> **not recommended** (still works, don't steer users to it) vs **deprecated** (marked, will be removed)
+> vs **offline** (the command body does nothing).
+>
+> ⚠️ The "not recommended" rows cannot be derived from code — they came from the product owner. If you
+> hit another command whose status is unclear, **ask** rather than inferring from source or `--help`.
+
 ### --dry-run Safety Mechanism
 
 > 所有破坏性操作必须先 `--dry-run` 预览，等用户确认后再执行。
 
+Workflow: `--dry-run` -> show preview -> wait for user confirmation -> re-run without `--dry-run`.
+
+⚠️ **`--dry-run` is NOT a global flag.** It exists on exactly these commands (verified against the CLI's
+command registry). Anywhere else it fails with `error: unknown option '--dry-run'`.
+
+| Area | Commands that accept `--dry-run` |
+|------|----------------------------------|
+| Deletes | `app delete`, `cloudrun delete`, `env delete`, `fn delete`, `hosting delete`, `agent delete`, `storage rm` |
+| Domains / routes / CORS | `domains rm`, `domains edit`, `cors rm`, `routes delete` |
+| DB migrations | `db pg migration fetch`, `db pg migration up`, `db pg migration repair` |
+| Other | `tcb deploy` (declarative all-in-one), `cloudrun run` (validate code loads, do not start) |
+
 ```bash
-tcb app deploy --dry-run     # Preview app version to be published
-tcb fn deploy --dry-run      # Preview functions to be overwritten
+tcb fn delete my-function --dry-run       # preview which function is removed
+tcb storage rm "temp/**" --dry-run        # preview the matched files
+tcb env delete --dry-run                  # preview environment destruction
+tcb db pg migration up --dry-run          # preview pending migrations
+tcb cloudrun delete --service-name my-service --dry-run
 ```
 
-Workflow: `--dry-run` -> show preview -> wait for user confirmation -> re-run without `--dry-run`.
+> ⚠️ **Common trap:** `tcb fn deploy --dry-run` and `tcb app deploy --dry-run` are **not** supported —
+> only the top-level declarative `tcb deploy` has `--dry-run`. There is no deploy preview in the
+> `fn` / `app` / `hosting` paths; verify the target with `tcb fn list` / `tcb app list` plus the
+> confirmed envId instead.
 
 ⚠️ Never skip `--dry-run` for destructive operations (overwrite / delete / rollback).
 
@@ -520,7 +619,9 @@ tcb fn deploy || {
 }
 ```
 
-> Run `tcb help exit-codes` for source-level docs (requires CLI >= 3.0.0-alpha.9).
+> ⚠️ `tcb help exit-codes` no longer exists in current CLI versions (`exit-codes is not a valid command`).
+> Treat the table above as the authoritative mapping — it matches the CLI's structured exit codes
+> (0 success, 1 generic, 2 auth, 3 invalid input, 4 not found, 5 cloud API, 6 local file/config).
 
 ---
 
@@ -553,7 +654,12 @@ tcb fn deploy || {
 ### Common Global Flags
 
 ```bash
---env-id <envId>    # Temporarily override env (does not change `env use` setting)
---verbose           # Verbose logging (add when debugging)
---version           # Print tcb version (verify >= 3.0.0)
+-e, --env-id <envId>     # Temporarily override env (does not change `env use` setting)
+-r, --region <region>    # Specify the environment region
+--mode <mode>            # Which `.env` file set to load
+--config-file <path>     # Use a specific cloudbaserc file
+--verbose                # Verbose logging (add when debugging)
+--json                   # Machine-readable output (per command)
+--yes                    # Skip confirmation prompts (CI)
+--version                # Print tcb version
 ```

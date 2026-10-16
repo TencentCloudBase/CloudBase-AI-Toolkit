@@ -1,23 +1,30 @@
 # Permission — CloudBase CLI
 
-CloudBase access control has **three independent layers** — know which one to use before running any command:
+CloudBase access control has **four independent layers** — know which one to use before running any command:
 
 | Layer | Command | Controls |
 |-------|---------|----------|
-| **Resource Permission** | `tcb permission get/set` | Access level on a specific resource (table, collection, function, storage) |
+| **Resource Authorization (OPA Rego)** | `tcb policy list / get / set` | Environment-level Rego policy that the gateway evaluates for resource access |
+| **Resource Permission (legacy)** | `tcb permission get/set` — ⚠️ **offline** | Prints a migration notice and performs nothing. Do not use. |
 | **Role** | `tcb role ...` | Policy bundles + member assignments (identity dimension) |
 | **User** | `tcb user ...` | Account attributes only (name, email, status) — NOT role binding |
 
-> ⚠️ Role policies and resource permissions are **two parallel systems with NO automatic sync**. Changing a role policy does NOT affect `permission get` results, and vice versa. Audit both separately.
+> ⚠️ **`tcb permission get/set` has been taken offline.** These commands now only print
+> "请使用 tcb policy …" and execute no operation — they are not deprecated aliases, they do nothing.
+> Any task that used to be done with `tcb permission` must go through `tcb policy`.
+
+> ⚠️ Saving a Rego policy with `tcb policy set` **immediately disables legacy gateway authorization** —
+> after that, the role/gateway policies no longer decide access. Role policies and the Rego policy are
+> **two parallel systems with NO automatic sync**: audit both separately.
 
 ---
 
 ## When to Use
 
-- Managing resource-level access (table/collection/function/storage access levels)
+- Managing resource-level authorization (now: environment OPA Rego policy via `tcb policy`)
 - Creating, updating, or deleting roles with policies and user assignments
 - Managing user accounts (create, update status, delete)
-- Auditing permission state across resources and roles
+- Auditing authorization state across policies and roles
 
 ## Do NOT use for
 
@@ -27,44 +34,62 @@ CloudBase access control has **three independent layers** — know which one to 
 
 ---
 
-## Workflow 1: Manage Resource Permissions (`tcb permission`)
+## Workflow 1: Manage Resource Authorization (`tcb policy`)
 
-### Step 1 — Query current state
-
-```bash
-tcb permission get --env-id <envId>                        # all resource types
-tcb permission get table --env-id <envId>                  # all tables
-tcb permission get table:users,orders --env-id <envId>     # specific resources (max 100)
-tcb permission get function --env-id <envId>               # functions
-```
-
-> ⚠️ Do NOT use `function:` (colon with empty resource) — returns empty results. Use `function` instead.
-
-### Step 2 — Set permissions
+### Step 1 — Inspect the current policy
 
 ```bash
-# Fixed level
-tcb permission set table:users --level readonly --env-id <envId>
-tcb permission set storage:assets --level private --env-id <envId>
-
-# Function (custom only, --rule required)
-tcb permission set function --level custom \
-  --rule '{"*":{"invoke":"auth != null && auth.loginType != '\''ANONYMOUS'\''"}}' \
-  --env-id <envId>
-
-# Rule without level => defaults to custom
-tcb permission set collection:posts --rule '{"read": true, "write": false}' --env-id <envId>
+tcb policy list --env-id <envId>                    # legacy gateway authorization policy list
+tcb policy list --resource-type policy --env-id <envId>
+tcb policy get --env-id <envId>                     # the user-configured policy
+tcb policy get --extension --env-id <envId>          # the policy configured specifically for this environment
 ```
 
-**Combination rules:**
-- Must provide at least `--level` or `--rule`
-- `--rule` without `--level` => auto `custom`; `custom` level requires `--rule`
-- `function` only supports `custom`
-- ⚠️ `set` requires `type:resource` for table/collection/storage — only `function` can omit resource name
+> ⚠️ `tcb policy list` returns an **empty list for PG environments and OPA-engine environments** — that
+> is expected, not an error. Use `tcb policy get` to read the effective policy in those environments.
 
-### Allowed levels by resource type
+### Step 2 — Set the Rego policy
 
-| Resource | Levels |
+```bash
+# Inline Rego (quoted)
+tcb policy set 'package authz.user
+
+default allow := false
+
+# 放通匿名用户访问云函数
+allow if {
+  input.cloudbase.resource_type == "functions"
+  input.subject.auth_type == "anonymous"
+}' --env-id <envId>
+
+# From a file
+tcb policy set "$(cat policy.rego)" --env-id <envId>
+```
+
+> ⚠️ `tcb policy set` asks for confirmation — saving **immediately disables legacy gateway authorization**.
+> In CI/scripts add `--yes`. Show the policy to the user and get explicit approval before writing it.
+
+**Rego entry points seen in the CLI's own examples:**
+- `package authz.user` + `default allow := false` — the rule set is the user policy
+- `input.cloudbase.resource_type` — e.g. `"functions"` (resource type being accessed)
+- `input.subject.auth_type` — e.g. `"anonymous"` (caller identity type)
+
+> ⚠️ Verify field names against `tcb policy get` output and the official docs before authoring a
+> non-trivial policy — an incorrect Rego policy takes effect immediately.
+
+### Step 3 — Verify
+
+```bash
+tcb policy get --env-id <envId>          # read back the policy you just wrote
+tcb policy list --env-id <envId>         # confirm legacy list state
+```
+
+### Legacy level model (historical reference only — NOT settable via CLI)
+
+The old `tcb permission set --level <level>` model used these levels. **`tcb permission` is offline**,
+so these values can no longer be applied through the CLI — express the equivalent intent as Rego.
+
+| Resource | Old levels |
 |----------|--------|
 | `table` | `readonly`, `private`, `adminwrite`, `adminonly` |
 | `collection` | `readonly`, `private`, `adminwrite`, `adminonly`, `custom` |
@@ -182,9 +207,10 @@ tcb user delete u1001 u1002 --yes --env-id <envId>
 # 1) Full role inventory
 tcb role list --detail --env-id <envId> --json
 
-# 2) Spot-check critical resources
-tcb permission get table:users,orders --env-id <envId>
-tcb permission get function --env-id <envId>
+# 2) Read the effective resource authorization policy
+tcb policy get --env-id <envId>
+tcb policy get --extension --env-id <envId>
+tcb policy list --env-id <envId>
 
 # 3) Revoke temporary access
 tcb role update --id <roleId> --remove-users "u_temp" --yes --env-id <envId>
@@ -199,19 +225,21 @@ tcb user update u_temp --status BLOCKED --env-id <envId>
 
 | Goal | Command |
 |------|---------|
-| Change a resource's access level | `permission set` |
+| Change a resource's authorization | `policy set` (OPA Rego) |
+| Read the effective authorization | `policy get` / `policy list` |
 | Manage access policies for an identity group | `role create/update` |
 | Assign user to a role | `role create --users` (new) or `role update --add-users` (existing) |
 | Change user profile/status | `user update` |
-| Full audit | `role list --detail` + `permission get` on key resources |
+| Full audit | `role list --detail` + `policy get` on the environment |
 
 ---
 
 ## Command Quick Reference
 
 ```bash
-tcb permission get [resourceArg]       # Query resource permissions
-tcb permission set <resourceArg>       # Set resource permissions
+tcb policy list [--resource-type policy]   # List legacy gateway authorization policies
+tcb policy get [--extension]               # Read the effective Rego policy
+tcb policy set '<regoContent>'             # Set the user Rego policy (disables legacy gateway authz)
 
 tcb role list                          # List roles
 tcb role get                           # Get single role (--id/--identity/--name, pick ONE)
@@ -234,11 +262,12 @@ tcb user delete <uids...>             # Delete users (max 100)
 | Error | Cause | Fix |
 |-------|-------|-----|
 | "请且仅传入一个查询条件" | `role get` with multiple or zero query conditions | Use exactly one of `--id`/`--identity`/`--name` |
-| "资源类型不支持权限级别" | `permission set` level incompatible with resource type | Check allowed levels table above |
-| "权限级别为 custom 时，需要提供 --rule" | Missing `--rule` with custom level | Add `--rule` JSON |
+| "permission set 命令已下线，不再执行实际操作" | `tcb permission set` is offline | Use `tcb policy set '<regoContent>'` |
+| "permission get 命令已下线，不再执行实际操作" | `tcb permission get` is offline | Use `tcb policy get` / `tcb policy list` |
+| "请提供 Rego 策略内容" | `tcb policy set` called without an argument | Pass Rego inline or `"$(cat policy.rego)"` |
+| "设置 Rego 策略失败" | Invalid Rego syntax, or wrong envId | Validate the Rego policy; confirm `--env-id` |
 | JSON parse error | `--policies`/`--add-policies` not valid JSON array | Validate JSON before execution |
 | Role update silently fails | Violating system role constraints | Check system role table — admin can't change policies, etc. |
-| "不存在的命令" | Using `permission list` or `role detail` | Correct: `permission get` / `role get` |
 
 ---
 
@@ -278,22 +307,26 @@ tcb role create --name "clerk" --identity shop_clerk \
   --policies '[{"code":"clerk_pos","name":"POS Only","effect":"allow","expression":{"version":"1.0","statement":[{"action":"functions:/shop/pos/*","resource":"*","effect":"allow"},{"action":"functions:/shop/pos/refund/*","resource":"*","effect":"deny"}]}}]' \
   --env-id <envId>
 
-# Resource baseline (separate from role policies!)
-tcb permission set table:orders --level private --yes --env-id <envId>
-tcb permission set function --level custom --rule '{"*":{"invoke":"auth != null"}}' --yes --env-id <envId>
+# Resource authorization baseline (separate from role policies!)
+tcb policy get --env-id <envId>          # read the effective Rego policy before changing anything
 ```
+
+> ⚠️ `tcb permission set --level ...` no longer works (offline). To change the resource baseline,
+> author a Rego policy and apply it with `tcb policy set` — and review it with the user first, because
+> saving disables the legacy gateway authorization immediately.
 
 ---
 
 ## Self-Check
 
 - [ ] `tcb` >= 3.0.0 and logged in with correct environment
-- [ ] Identified correct command: `permission` (resource) vs `role` (identity) vs `user` (account)
-- [ ] For `permission set`: resource format is `type:resource` (except `function`)
+- [ ] Identified correct command: `policy` (resource authorization) vs `role` (identity) vs `user` (account)
+- [ ] Did NOT use `tcb permission get/set` — those commands are **offline** and only print a migration notice
+- [ ] For `policy set`: policy is valid Rego; legacy gateway authorization is disabled immediately; user confirmed
 - [ ] For `role create`: using `--policies`/`--users` (NOT `--add-*`)
 - [ ] For `role update`: using `--add-*`/`--remove-*` (NOT `--policies`), `--id` is set
 - [ ] For `role get`: exactly ONE of `--id`/`--identity`/`--name`
 - [ ] System role constraints checked before update
 - [ ] Policy JSON: `expression` is object (not string), has `version` + `statement`
 - [ ] `--yes` added for CI; `--json` added for programmatic parsing
-- [ ] Audited BOTH role policies AND resource permissions (they are independent)
+- [ ] Audited BOTH role policies AND the Rego resource policy (they are independent)

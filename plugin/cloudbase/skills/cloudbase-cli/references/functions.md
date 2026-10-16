@@ -30,20 +30,42 @@ Covers both Event Functions (普通云函数) and HTTP Functions (HTTP 云函数
 | Deploy HTTP + WebSocket | `tcb fn deploy <name> --httpFn --ws` |
 | Deploy multiple | `tcb fn deploy fn1 fn2` |
 | Update code only (仅更新代码) | `tcb fn code update <name>` |
-| Update config only (仅更新配置) | `tcb fn config update <name>` |
+| Download deployed code | `tcb fn code download <name> [dest]` |
+| Update config only (仅更新配置) | `tcb config update fn [name]` |
 | Invoke remotely (调用函数) | `tcb fn invoke <name>` |
 | Invoke with params | `tcb fn invoke <name> --params '{"key":"val"}'` |
 | Run locally (本地调试) | `tcb fn run <name>` |
-| View logs (查看日志) | `tcb fn log <name>` |
-| View log by RequestId | `tcb fn log <name> --reqId <id>` |
-| Create trigger (创建触发器) | `tcb fn trigger create <name>` |
-| Delete trigger | `tcb fn trigger delete <name> --name <trigger>` |
+| View logs (查看日志) | `tcb logs search --query 'function_name:"<name>"'` |
+| View log by RequestId | `tcb logs search --query 'request_id:("<requestId>")'` |
+| Create trigger (创建触发器) | `tcb fn trigger create <functionName> --trigger-name <t> --cron <cron>` |
+| List triggers | `tcb fn detail <name>` (triggers are shown in the detail output) |
+| Delete trigger | `tcb fn trigger delete <functionName> <triggerName>` |
 | List layers (层) | `tcb fn layer list` |
 | Publish version (发布版本) | `tcb fn publish-version <name>` |
-| Copy to another env | `tcb fn copy <name> --envId <target>` |
+| List versions (版本列表) | `tcb fn list-function-versions <name>` |
+| Copy to another env | `tcb fn copy <name> --env-id <target>` |
 | Delete function | `tcb fn delete <name>` |
 
 > Always run `tcb fn <subcommand> --help` first to check current syntax.
+
+> ⚠️ **Renamed / deprecated (命令已改名或废弃，别再用旧写法):**
+> - `tcb fn list-version` → **`tcb fn list-function-versions <name>`**
+> - `tcb fn config update` → **`tcb config update fn [name]`** (deprecated; the new command additionally supports `--all`, `--timeout`, `--memory`, `--runtime`, `--handler`, `--vpc`)
+> - `tcb fn log <name>` → **`tcb logs search`** (deprecated since v3.0.0; CLS query syntax, see Workflow 3)
+
+> 🚫 **Two separate function command families still register and are NOT `tcb fn`.** They are
+> **not recommended for use** — always answer with `tcb fn`:
+> - **`tcb cloudfunction <deploy|download|run>`** — 云函数服务 (older service API; uses
+>   `-s/--serviceName` + `--source`, not `fn`'s `--path` / `--dir` / `[name]` shape)
+> - **`tcb cloudrunfunction <deploy|download|run>`** — 云函数 2.0 服务 (函数型云托管 lineage)
+>
+> Status: **not recommended** (product decision). They carry **no `[已废弃]` marker** and are absent from
+> `tcb --help`, so this status is not discoverable from code — but do not propose them for new work, and
+> do not offer them as an alternative to `tcb fn`. If the user already has working tooling on them, they
+> still run; if they ask which to use, say `tcb fn`.
+>
+> ⚠️ Do not describe them as "deprecated" either — the CLI marks deprecation explicitly
+> (`[已废弃]`, e.g. `tcb framework`, `tcb run`), and these are not marked.
 
 ---
 
@@ -80,8 +102,17 @@ tcb fn deploy func-a func-b func-c
 ### Config-Only Update (仅更新配置，不上传代码)
 
 ```bash
-tcb fn config update my-function
+# Push cloudbaserc.json function config to the cloud (no code upload)
+tcb config update fn my-function
+
+# Override individual fields from the CLI
+tcb config update fn my-function --timeout 30 --memory 512
+
+# Batch: push every function listed in cloudbaserc.json
+tcb config update fn --all
 ```
+
+> ⚠️ `tcb fn config update <name>` is **deprecated** — use `tcb config update fn`. The old form does not support `--all` / `--timeout` / `--memory` / `--runtime` / `--handler` / `--vpc`.
 
 > ⚠️ **Function type is locked after creation (函数类型创建后不可更改).**
 > Cannot change Event → HTTP or vice versa. To switch: delete → recreate.
@@ -115,10 +146,19 @@ When only code changed (no config changes):
 tcb fn code update my-function
 ```
 
+When you need the **deployed** code locally (e.g. to inspect what is actually running):
+
+```bash
+tcb fn code download my-function              # newest code into ./my-function
+tcb fn code download my-function ./out
+tcb fn code download my-function --fn-version 3   # a published version (default $LATEST)
+tcb fn code download my-function --code-secret <secret>  # if code encryption is enabled
+```
+
 When only config changed (timeout, memory, env vars):
 
 ```bash
-tcb fn config update my-function
+tcb config update fn my-function
 ```
 
 Typical iteration cycle:
@@ -130,7 +170,7 @@ tcb fn code update my-function
 # 3. Invoke to test
 tcb fn invoke my-function --params '{"action":"test"}'
 # 4. Check logs
-tcb fn log my-function
+tcb logs search --query 'function_name:"my-function"' --timeRange 30m
 ```
 
 ---
@@ -139,25 +179,32 @@ tcb fn log my-function
 
 ### Step 1: Query Logs (查询日志)
 
+`tcb fn log` is deprecated (since v3.0.0). Use `tcb logs search` (CLS query syntax):
+
 ```bash
-# Recent logs (default last 10 minutes)
-tcb fn log my-function
+# Recent logs (default: last 1h, 20 entries; --timeRange accepts 30m/1h/6h/1d or an absolute "start,end" range)
+tcb logs search --query 'function_name:"my-function"'
 
-# Filter by time range
-tcb fn log my-function --offset 0 --limit 100
+# Wider window / more entries (limit max 100)
+tcb logs search --query 'function_name:"my-function"' --timeRange 6h --limit 100
 
-# Search for errors
-tcb fn log my-function --keyword "Error"
-tcb fn log my-function --keyword "timeout"
+# Search for errors (full-text AND)
+tcb logs search --query 'function_name:"my-function" AND "Error"'
+tcb logs search --query 'function_name:"my-function" AND "timeout"'
 
-# Filter failures only
-tcb fn log my-function --success false
+# Failures only (aggregate by request_id; 202 = START/END middle state, must be excluded)
+tcb logs search --query 'function_name:"my-function" | select request_id, max(status_code) as status_code, max(ret_msg) as ret_msg where status_code>200 AND status_code!=202 AND retry_num=0 group by request_id limit 10'
+
+# Page through results: pass the Context returned by the previous call
+tcb logs search --query 'function_name:"my-function"' --context "<context>"
 ```
+
+Useful cloud-function fields in `--query`: `function_name`, `request_id`, `status_code` (200 = success), `src` (`system` = platform log, `app` = user-code log), `log` (message body), `namespace` (envId), `qualifier` (version, `$LATEST`), `retry_num`.
 
 ### Step 2: Get Detailed Log by RequestId
 
 ```bash
-tcb fn log my-function --reqId "abc-123-def-456"
+tcb logs search --query 'request_id:("abc-123-def-456")' --sort asc
 ```
 
 ### Step 3: Invoke and Inspect
@@ -203,12 +250,14 @@ Config in `cloudbaserc.json`:
 ```
 
 ```bash
-# Deploy the trigger
+# Deploy the trigger (reads functions[].triggers from cloudbaserc.json)
 tcb fn trigger create daily-cleanup
-# List triggers
-tcb fn trigger list daily-cleanup
-# Delete a trigger
-tcb fn trigger delete daily-cleanup --name daily-timer
+# Or create one directly from the CLI
+tcb fn trigger create daily-cleanup --trigger-name daily-timer --cron "0 0 2 * * * *"
+# Verify: triggers appear in the function detail (there is no `fn trigger list`)
+tcb fn detail daily-cleanup
+# Delete a trigger — both args are POSITIONAL (there is no --name flag)
+tcb fn trigger delete daily-cleanup daily-timer
 ```
 
 > Cron format: `秒 分 时 日 月 星期 年` (7 fields — note the leading seconds field).
@@ -238,21 +287,63 @@ tcb fn trigger create daily-cleanup
 
 ```bash
 tcb fn publish-version my-function
-tcb fn list-version my-function
+tcb fn list-function-versions my-function
 ```
 
-> ⚠️ **Traffic / concurrency (流量与并发):** Traffic split between versions and
-> reserved concurrency are configured via console or API, not CLI.
+> ⚠️ **Traffic / concurrency (流量与并发) ARE available in the CLI** — do not tell users
+> that the console is the only option:
+> - Version traffic split: `tcb fn config-route <name> <version1> <traffic1> [version2] [traffic2]`
+>   (read back with `tcb fn get-route <name>`)
+> - Provisioned concurrency (预置并发): `tcb fn set-provisioned-concurrency <name> <version> <concurrency>`,
+>   `tcb fn get-provisioned-concurrency <name> [version]`, `tcb fn delete-provisioned-concurrency <name> <version>`
+> - Version lifecycle: `tcb fn delete-version <name> <version>`
 
 ### Layers (层)
 
+Layers share dependencies across functions — useful for large libraries
+(`puppeteer`, `ffmpeg`) that would exceed the code size limit. They can be managed through the CLI
+**or** declared in `cloudbaserc.json`.
+
 ```bash
+# Inspect
 tcb fn layer list
+tcb fn layer list --name my-function          # layers bound to one function
+tcb fn layer list --layer my-layer            # a specific layer alias
+
+# Create / remove
+tcb fn layer create my-layer --file ./layer.zip --runtime Nodejs18.15,Nodejs16.13
+tcb fn layer delete                            # delete a layer in this env (interactive pick)
+
+# Bind / unbind
+tcb fn layer bind my-function --layer my-layer --layer-version 1
+tcb fn layer unbind my-function --layer my-layer
+tcb fn layer sort my-function                  # re-order bound layers (path priority!)
+
+# Download a layer's content
+tcb fn layer download --dest ./layers
 ```
 
-Layers share dependencies across functions — useful for large libraries
-(`puppeteer`, `ffmpeg`) that would exceed the code size limit.
-Bind layers via `cloudbaserc.json` `layers` array.
+`--code-secret <codeSecret>` is available on `list` / `bind` / `unbind` / `sort` for functions whose
+code is encrypted.
+
+> ⚠️ **Order matters.** Layer contents are merged into `/opt` in binding order; on conflicts the
+> **last** layer wins. Use `tcb fn layer sort <name>` to change priority rather than re-binding.
+
+> ⚠️ A layer must be compatible with the function's runtime. `--runtime` is a comma-separated list;
+> a layer built for a runtime the function does not use will not mount.
+
+You can also declare layers in `cloudbaserc.json` (`layers` array) and let `tcb fn deploy` bind them.
+
+### Function environment variables (`tcb fn env`)
+
+```bash
+# Pull the deployed environment variables of a function into a local file
+tcb fn env pull my-function
+tcb fn env pull my-function --output-file .env.local
+```
+
+This is the read side. To **write** env vars, edit `envVariables` in `cloudbaserc.json` and push with
+`tcb config update fn <name>` — see *Secrets Injection* below for the merge caveat.
 
 ---
 
@@ -275,10 +366,15 @@ Inject secrets via environment variables — never hardcode credentials.
 
 ```bash
 # Update env vars without redeploying code
-tcb fn config update my-function
+tcb config update fn my-function
 # Verify
 tcb fn detail my-function
+tcb fn env pull my-function --output-file .env.local   # or dump them to a file
 ```
+
+> 💡 For values you do not want in git, prefer CloudBase-managed configuration over a committed
+> `cloudbaserc.json`. The CLI has no per-function secret store — `tcb secrets`
+> only returns session credentials (see `cloudrun.md`).
 
 > ⚠️ **Env var update is a full replace, not a merge (环境变量更新为全量覆盖).**
 > Always include ALL env vars in the config — omitting one will delete it.
@@ -398,7 +494,7 @@ tcb fn deploy my-http-fn --httpFn
 ```bash
 tcb fn detail my-function      # check current timeout
 # Increase in cloudbaserc.json → "timeout": 60
-tcb fn config update my-function
+tcb config update fn my-function
 ```
 Also check: infinite loops, unresolved promises, slow external API calls.
 
@@ -441,8 +537,8 @@ After deploying:
 
 - [ ] Verified with `tcb fn detail <name>`?
 - [ ] Tested with `tcb fn invoke <name>`?
-- [ ] Checked logs with `tcb fn log <name>` for startup errors?
-- [ ] Triggers working? (`tcb fn trigger list <name>`)
+- [ ] Checked logs with `tcb logs search --query 'function_name:"<name>"'` for startup errors?
+- [ ] Triggers working? (`tcb fn detail <name>` — triggers are listed there; there is no `fn trigger list`)
 
 When updating env vars:
 

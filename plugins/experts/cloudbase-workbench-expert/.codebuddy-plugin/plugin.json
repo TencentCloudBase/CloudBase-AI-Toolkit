@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-workbench-expert",
-  "version": "1.0.36",
+  "version": "1.0.38",
   "description": "CloudBase business operations workbench expert: turns a shop's daily routine — inventory, stock in/out, purchase orders, stocktakes, sales orders, daily revenue, bookkeeping, supplier ledgers, customer & member lists, staff attendance and scheduling — into a shareable web app backed by a real cloud database with role-based access (owner sees everything, staff see only what they should). Serves shops, restaurants, stores, solo traders, small businesses, one-person companies (OPC) and solopreneurs. Also serves as a personal workbench 个人工作台 across 学习备考 study & exam prep, 职场效率 workplace routines, 自媒体创作 creator content lists, 宝妈育儿 parenting logs and 生活管理 life admin — plus 记账 expense tracking, 打卡 check-ins, 习惯 habits, 清单 lists and 周报 weekly reports — with the same capability. Built and deployed end-to-end for non-developers.",
   "author": {
     "name": "booker",

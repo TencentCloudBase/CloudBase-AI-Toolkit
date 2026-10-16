@@ -1,6 +1,6 @@
 {
   "name": "miniprogram-clouddev-expert",
-  "version": "1.0.48",
+  "version": "1.0.50",
   "description": "WeChat mini program development expert 微信小程序开发: builds and deploys native 微信原生 mini programs (WXML / WXSS / app.json) with frontend, backend (cloud functions), cloud database, message push callbacks, AI/LLM integration, and virtual payment integration, powered by Tencent CloudBase (WeChat Cloud Dev / 微信云开发). 零基础也能做：需求分诊 → 复制即用代码 → 云开发免服务器 → 备案到提审发布，先跑通再优化。主体选择、类目资质、算法备案、审核风险都覆盖；No server needed for either 个人主体 or 企业主体.",
   "author": {
     "name": "booker",

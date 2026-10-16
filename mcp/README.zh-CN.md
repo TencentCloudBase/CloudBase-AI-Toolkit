@@ -130,7 +130,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 
 ## 破坏性操作的执行前确认
 
-删除云函数、集合、集合内的文档、云存储文件、云托管服务或 MySQL 实例时，调用会在执行前暂停，等你在确认框里选一次——框里写清**这次要动什么**（例如「即将删除云函数 `hello`（环境 `env-abc`）」），而不是只问一句"确定吗"。它基于 MCP 的表单式 elicitation，所以只在**声明了该能力、并且真的会问用户**的客户端里出现。
+删除云函数、集合、集合内的文档、云存储文件、云托管服务或 MySQL 实例时，调用会在执行前暂停，等你在确认框里选一次——框里写清**这次要动什么**（例如「即将删除云函数 `hello`（环境 `env-abc`）」），而不是只问一句"确定吗"。同一批删除如果改走 `callCloudApi`，也按写死的 `service` + `Action` 停下来确认：`tcb`/`scf` 的 `DeleteFunction`、`tcb.DeleteTable`、`tcb.DeleteItem`、`tcb.DestroyEnv`、`tcb.DestroyPlatformEnv`、`tcb.DestroyMySQL`、`tcbr.DeleteCloudRunServer`，以及 `tcbr.DeleteCloudRunVersions` 且 `IsDeleteServer` 为 true。不会按 `Delete` 前缀去拦其它云 API。云存储删除不走 `callCloudApi`。PostgreSQL 的 `execute` / `applyMigration` 只在语句本身是 `DELETE`、`DROP`、`TRUNCATE` 或 `ALTER … DROP` 时才停下来；`INSERT` / `UPDATE` / `CREATE TABLE` 不拦。它基于 MCP 的表单式 elicitation，所以只在**声明了该能力、并且真的会问用户**的客户端里出现。
 
 | 情况 | 行为 |
 | --- | --- |
@@ -143,7 +143,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 
 | 变量 | 作用 |
 | --- | --- |
-| `CLOUDBASE_MCP_SKIP_ELICITATIONS` | 逗号分隔。可写工具名（`manageFunctions`）或单个动作（`manageFunctions.deleteFunction`）；区分大小写、无通配。无法识别的条目会记日志并忽略，不会让服务起不来 |
+| `CLOUDBASE_MCP_SKIP_ELICITATIONS` | 逗号分隔。可写工具名（`manageFunctions`、`callCloudApi`）或单个动作（`manageFunctions.deleteFunction`、`callCloudApi.tcb.DeleteFunction`）；区分大小写、无通配。无法识别的条目会记日志并忽略，不会让服务起不来 |
 | `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE` | `allow`（默认）：客户端自己应答时放行；`block`：这种情况也按"未确认"处理 |
 
 客户端自己的"工具审批"框**不是**这个确认：它问的是"允不允许这个工具运行"，不是"你要删的就是这个资源吗"。

@@ -23,19 +23,38 @@ Execute MongoDB-style commands against CloudBase document database — CRUD, agg
 
 ```
 tcb db nosql execute              Run Mongo-style commands
+tcb db nosql dump <collection>    Export a collection's data
 tcb db nosql backup time          Discover restoreable timestamps
 tcb db nosql backup collection    List restoreable collections at a given time
 tcb db nosql backup restore       Submit a restore task
 tcb db nosql backup task          Track restore task status
 ```
 
-⚠️ Don't confuse `tcb db nosql ...` (NoSQL) with `tcb db ...` (MySQL) — they are different command families.
+⚠️ Three similarly-named families — keep them apart:
+
+| Command | What it is |
+|---------|-----------|
+| `tcb db nosql <...>` | **NoSQL** document DB (this file) |
+| `tcb db <instance\|backup\|execute\|monitor>` | **MySQL** (see `mysql.md`) — note `db backup` is the MySQL backup |
+| `tcb db model <list\|pull\|push>` | Low-code **data model** definitions (see `schema.md`) |
 
 ### Global options
 
-- `-e, --envId <envId>` — target environment
+- `-e, --env-id <envId>` — target environment
 - `--json` — structured output (use for automation)
 - `--tag <tag>` — select instance when multiple document DBs exist in the environment
+
+> ⚠️ Use the kebab-case `--env-id`. The old camelCase `--envId` still resolves as a hidden deprecated
+> alias, but it prints `⚠️ --envId 已废弃，请使用 --env-id` on every call — do not generate it.
+
+### Export a collection
+
+```bash
+tcb db nosql dump orders -e <envId>
+tcb db nosql dump orders --fields "_id,status,createdAt" -e <envId>   # CSV requires --fields
+```
+
+`--fields` is a comma-separated field list and is **required for CSV output**.
 
 ---
 

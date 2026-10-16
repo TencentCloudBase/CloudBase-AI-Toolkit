@@ -1,6 +1,13 @@
 # Cloud Storage Management (`tcb storage`)
 
-Manage CloudBase cloud storage — upload, download, delete, copy/move files, generate temp URLs, and configure ACL rules.
+Manage CloudBase cloud storage — upload, download, delete, copy/move files, generate temp URLs, search
+files, and configure ACL rules.
+
+> ⚠️ **Two storage generations share one command.** Check the environment first:
+> - **COS storage** (default / NoSQL / MySQL environments) → the commands below plus `storage rules`
+> - **PG storage** (`pgstore`, PostgreSQL environments) → `storage buckets` / `storage policies` /
+>   `storage objects`
+> See *COS vs PG storage* at the end of this file.
 
 ## When to Use
 
@@ -8,13 +15,16 @@ Manage CloudBase cloud storage — upload, download, delete, copy/move files, ge
 - Delete files (single, batch, or wildcard-based)
 - Generate temporary access URLs for stored files
 - Copy or move files within cloud storage
+- Search for files by name pattern
 - Manage storage ACL permission rules
+- (PG envs) manage buckets, objects and RLS policies
 
 ## Do NOT use for
 
 - Static website hosting with CDN → use `references/hosting.md`
 - Web app deployment → use `references/app.md`
 - Database operations → use `references/mysql.md` or `references/nosql.md`
+- PostgreSQL RLS **design** and `pgstore` semantics → `../postgresql-development-cloudbase/SKILL.md`
 - In-app file operations via Web/Mini-Program SDK → use `cloud-storage-web` skill
 - Large-scale data migration (>10 GB) → use the console bulk-import tool
 
@@ -28,6 +38,7 @@ tcb storage list          List files in storage
 tcb storage url           Get temporary access URL
 tcb storage detail        Get file metadata
 tcb storage cp            Copy or move files in cloud
+tcb storage search        Find files by name pattern
 tcb storage rules get     Get storage ACL rules
 tcb storage rules update  Update storage ACL rules
 ```
@@ -296,13 +307,69 @@ tcb storage rm file.txt --json -e <envId>         # script-friendly output
 
 ---
 
+## Workflow 7: Search files (`storage search`)
+
+```bash
+tcb storage search "*.png" -e <envId>
+tcb storage search "logo" --path assets/ -e <envId>
+```
+
+`--path <dir>` scopes the search to a directory prefix. The pattern is matched against the object key —
+quote it so the shell does not expand `*`.
+
+---
+
+## COS vs PG storage
+
+| | COS storage (default) | PG storage (`pgstore`) |
+|---|---|---|
+| Environments | NoSQL / MySQL / default | **PostgreSQL-mode** environments |
+| Object ops | `storage upload / download / rm / list / url / detail / cp / search` | `storage objects upload / download / stat / list / rm / cp / mv / sign` |
+| Buckets | one implicit environment bucket | `storage buckets list` (multi-bucket) |
+| Permission model | `storage rules get / update` (ACL rules) | `storage policies list` — **RLS policies** on `buckets` / `objects` |
+
+### PG object commands
+
+```bash
+tcb storage buckets list --env-id <envId>
+tcb storage policies list --env-id <envId>
+tcb storage policies list --table objects --env-id <envId>   # --table: buckets | objects
+
+tcb storage objects list --env-id <envId>
+tcb storage objects list --sort-by created_at --sort-order desc --env-id <envId>
+tcb storage objects upload ./file.png my-key -b <bucketId> --content-type image/png
+tcb storage objects upload ./file.png my-key --upsert          # overwrite if it exists
+tcb storage objects download <key> ./local.png -b <bucketId>
+tcb storage objects stat <key> -m HEAD
+tcb storage objects cp <srcKey> <dstKey> --dst-bucket <bucketId>
+tcb storage objects mv <srcKey> <dstKey> --dst-bucket <bucketId>
+tcb storage objects rm <key1> <key2>
+tcb storage objects sign <key1> --expires-in 600     # download mode
+tcb storage objects sign <key1> --upsert             # upload mode
+```
+
+> ⚠️ `storage objects cp` / `mv` vs `storage cp`:
+> - `tcb storage cp <src> <dst>` — **COS** copy, with `--move` for a move
+> - `tcb storage objects cp|mv <srcKey> <dstKey>` — **PG** object copy/move, with `--dst-bucket`
+> They are not interchangeable; using the COS form on a PG environment targets the wrong store.
+
+> ⚠️ `storage objects sign --expires-in` applies to **download** mode only; `--upsert` applies to
+> **upload** mode only. Passing the wrong one is silently ignored.
+
+> ⚠️ For anything beyond moving bytes — RLS policy design, `pgstore` semantics, auth integration —
+> read `../postgresql-development-cloudbase/SKILL.md` instead of improvising from these flags.
+
+---
+
 ## Self-Check
 
+- [ ] Confirmed which storage generation the environment uses (COS vs PG)?
 - [ ] `cloudPath` does NOT start with `/`?
 - [ ] `cloudPath` does NOT include the environment's BasePath (shared-bucket environments resolve it automatically)?
 - [ ] Used `--dry-run` before batch/wildcard deletions?
-- [ ] Wildcard patterns are properly quoted in shell?
+- [ ] Wildcard/search patterns are properly quoted in shell?
 - [ ] Used new commands (`rm`, `rules get/update`) not deprecated ones?
 - [ ] Used `--dir` for directory download/delete?
 - [ ] Used `--force` for non-interactive CI/script usage?
+- [ ] For PG objects: passed `-b/--bucket`, and used the flag that matches the mode (upload vs download)?
 - [ ] Verified result with `list` / `detail` after each operation?

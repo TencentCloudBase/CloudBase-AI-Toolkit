@@ -147,6 +147,57 @@ function asText(value: unknown): string | undefined {
     return undefined;
 }
 
+function capiParams(args: Record<string, unknown>): Record<string, unknown> {
+    const params = args.params;
+    if (params !== null && typeof params === "object" && !Array.isArray(params)) {
+        return params as Record<string, unknown>;
+    }
+    return {};
+}
+
+/** DeleteItem is one match unless MgoIsMulti is set. A missing flag is not a count of 1. */
+function capiDeleteItemTarget(args: Record<string, unknown>): DestructiveTarget {
+    const params = capiParams(args);
+    return {
+        resource: asText(params.TableName),
+        messageKey:
+            params.MgoIsMulti === true
+                ? "confirmation.message.deleteDocumentsQuery"
+                : "confirmation.message.deleteDocumentsOne",
+    };
+}
+
+/** DestroyEnv / DestroyPlatformEnv name the environment in params.EnvId, not the session binding. */
+function capiDestroyEnvTarget(args: Record<string, unknown>): DestructiveTarget {
+    return { resource: asText(capiParams(args).EnvId) };
+}
+
+/** DestroyMySQL takes EnvId only. The dialog must not invent an instance id. */
+function capiDestroyMysqlTarget(): DestructiveTarget {
+    return {
+        resource: t("confirmation.message.mysqlThisEnv"),
+        messageKey: "confirmation.message.destroyMysqlEnv",
+    };
+}
+
+function capiCloudRunVersionServers(args: Record<string, unknown>): string | undefined {
+    const versions = capiParams(args).SimpleVersions;
+    if (!Array.isArray(versions)) {
+        return undefined;
+    }
+    const names: string[] = [];
+    for (const item of versions) {
+        if (item === null || typeof item !== "object" || Array.isArray(item)) {
+            continue;
+        }
+        const name = asText((item as Record<string, unknown>).ServerName);
+        if (name && !names.includes(name)) {
+            names.push(name);
+        }
+    }
+    return names.length > 0 ? names.join(", ") : undefined;
+}
+
 /**
  * Document delete is keyed by `query` plus `isMulti`, not by a count.
  * `isMulti: true` removes every match; otherwise the API removes one match.
@@ -228,6 +279,95 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
 };
 
 /**
+ * Whole-resource deletes that the dedicated tools already confirm, when the
+ * same call arrives as `callCloudApi`. Match `service` + `Action` exactly
+ * (case-insensitive, so a casing variant cannot skip the dialog). A Delete /
+ * Destroy prefix is not a match: that would also stop CVM, security-group and
+ * read calls.
+ *
+ * Cloud storage has no entry. COS is outside the `callCloudApi` service allow-list.
+ * `RunCommands` and `RunSql` stay out: they carry free-form commands, not one Action.
+ */
+export type CapiDestructiveCall = {
+    service: string;
+    action: string;
+    messageKey: MessageKey;
+    /** Omit to confirm every call of this pair. */
+    when?: (args: Record<string, unknown>) => boolean;
+    target: (args: Record<string, unknown>) => DestructiveTarget;
+};
+
+export const CAPI_DESTRUCTIVE_CALLS: readonly CapiDestructiveCall[] = [
+    {
+        service: "tcb",
+        action: "DeleteFunction",
+        messageKey: "confirmation.message.deleteFunction",
+        target: (args) => ({ resource: asText(capiParams(args).FunctionName) }),
+    },
+    {
+        service: "scf",
+        action: "DeleteFunction",
+        messageKey: "confirmation.message.deleteFunction",
+        target: (args) => ({ resource: asText(capiParams(args).FunctionName) }),
+    },
+    {
+        service: "tcb",
+        action: "DeleteTable",
+        messageKey: "confirmation.message.deleteCollection",
+        target: (args) => ({ resource: asText(capiParams(args).TableName) }),
+    },
+    {
+        service: "tcb",
+        action: "DeleteItem",
+        messageKey: "confirmation.message.deleteDocumentsOne",
+        target: capiDeleteItemTarget,
+    },
+    {
+        service: "tcb",
+        action: "DestroyEnv",
+        messageKey: "confirmation.message.destroyEnv",
+        target: capiDestroyEnvTarget,
+    },
+    {
+        service: "tcb",
+        action: "DestroyPlatformEnv",
+        messageKey: "confirmation.message.destroyEnv",
+        target: capiDestroyEnvTarget,
+    },
+    {
+        service: "tcb",
+        action: "DestroyMySQL",
+        messageKey: "confirmation.message.destroyMysqlEnv",
+        target: capiDestroyMysqlTarget,
+    },
+    {
+        service: "tcbr",
+        action: "DeleteCloudRunServer",
+        messageKey: "confirmation.message.deleteCloudRun",
+        target: (args) => ({ resource: asText(capiParams(args).ServerName) }),
+    },
+    {
+        service: "tcbr",
+        action: "DeleteCloudRunVersions",
+        messageKey: "confirmation.message.deleteCloudRun",
+        when: (args) => capiParams(args).IsDeleteServer === true,
+        target: (args) => ({ resource: capiCloudRunVersionServers(args) }),
+    },
+];
+
+export function capiDestructiveKey(service: string, action: string): string {
+    return `callCloudApi.${service}.${action}`;
+}
+
+/** Keys a skip-list entry may name: `tool.action`, or `callCloudApi.service.Action`. */
+export function destructiveConfirmationKeys(): string[] {
+    return [
+        ...Object.keys(DESTRUCTIVE_ACTIONS),
+        ...CAPI_DESTRUCTIVE_CALLS.map((spec) => capiDestructiveKey(spec.service, spec.action)),
+    ];
+}
+
+/**
  * 名字像破坏性、但**有意不做执行前确认**的动作。每条都要写理由。
  *
  * 两类理由：① 可重建 / 影响面小，误删代价低；② 风险性质不同、需换别的手段（见 PLAN 的 D 系列决策）。
@@ -265,18 +405,41 @@ export type ResolvedDestructiveAction = {
     spec: DestructiveActionSpec;
 };
 
+function resolveCapiDestructive(args: Record<string, unknown>): ResolvedDestructiveAction | undefined {
+    const service = asText(args.service)?.toLowerCase();
+    const action = asText(args.action)?.toLowerCase();
+    if (!service || !action) {
+        return undefined;
+    }
+    const matched = CAPI_DESTRUCTIVE_CALLS.find(
+        (spec) => spec.service.toLowerCase() === service && spec.action.toLowerCase() === action,
+    );
+    if (!matched || (matched.when && !matched.when(args))) {
+        return undefined;
+    }
+    return {
+        key: capiDestructiveKey(matched.service, matched.action),
+        action: matched.action,
+        spec: { messageKey: matched.messageKey, target: matched.target },
+    };
+}
+
 /**
- * 判断这次调用是否命中名单。两个触发面，**都不做模糊匹配** ——
- * 名单是可审计的，猜出来的"像破坏性"会在评审里失去意义：
- *   1. **按 action**：`DESTRUCTIVE_ACTIONS` 里有 `工具名.action` 即命中；
- *   2. **按参数谓词**：条目带 `when` 时，还要它返回 true 才算命中（SQL 这类"同名 action 下
- *      既可能读也可能删"的场景靠它区分）。
+ * Decide whether this call is on the confirmation list. No path guesses from a name prefix:
+ *   1. `callCloudApi` matches an explicit `service` + `Action` pair.
+ *   2. Dedicated tools match `tool.action` exactly.
+ *   3. An entry with `when` matches only when that predicate returns true, so one action
+ *      can cover both a read and a delete (SQL).
  */
 export function resolveDestructiveAction(
     toolName: string,
     args: unknown,
 ): ResolvedDestructiveAction | undefined {
-    const action = (args as Record<string, unknown> | undefined)?.action;
+    const record = (args ?? {}) as Record<string, unknown>;
+    if (toolName === "callCloudApi") {
+        return resolveCapiDestructive(record);
+    }
+    const action = record.action;
     if (typeof action !== "string") {
         return undefined;
     }

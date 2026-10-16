@@ -53,6 +53,31 @@ CLI auto-completes: detect framework -> infer build command + output dir -> uplo
 
 ---
 
+## Workflow 1b: Local build for declarative hosting (`tcb app build`)
+
+For **declarative hosting** projects (a `hosting[]` array in `cloudbaserc.json`), the CLI no longer
+builds locally during deploy. The two steps are now separate:
+
+```bash
+tcb app build        # 1. Run the configured build commands (local only)
+tcb deploy           # 2. Upload the built artifacts
+```
+
+`tcb app build`:
+- reads `cloudbaserc.json` and runs each hosting item's `buildCommand`
+- **does NOT install dependencies** — run your package manager first
+- **does NOT deploy** anything
+- is a **pure local command**: no envId, no auth required
+
+> ⚠️ If you run `tcb deploy` while the build output directory is missing or empty, it fails and tells you
+> to run `tcb app build` first.
+>
+> ⚠️ If the output directory exists but is **stale**, `tcb deploy` uploads it as-is and only warns. It
+> cannot tell whether the sources changed — always `tcb app build` before `tcb deploy` after editing
+> code, or you will ship the previous build.
+
+---
+
 ## Workflow 2: Redeployment
 
 ```bash
@@ -154,12 +179,29 @@ Auto-saved after first deployment:
 ```bash
 tcb deploy [name] --env-id <id>              # Deploy (shorthand)
 tcb app deploy [name] --env-id <id>          # Deploy (full form)
+tcb app build                                 # Local build for declarative hosting (no deploy)
 tcb app list                                  # List all apps
 tcb app info <name> --env-id <id>            # App details
 tcb app versions list <name> --env-id <id>   # List versions
 tcb app versions detail <name> --env-id <id> # Version details
 tcb app delete <name> --env-id <id>          # Delete app
 ```
+
+### Deprecated predecessors (do not use, will be removed)
+
+| Old command | Use instead |
+|-------------|-------------|
+| `tcb framework deploy` | `tcb app deploy` (prints `[已废弃]`) |
+| `tcb framework compile` | `tcb app deploy` |
+| `tcb framework run` | `tcb app deploy` |
+| `tcb run service:list` | `tcb cloudrun list` |
+| `tcb run service:deploy` | `tcb cloudrun deploy` |
+| `tcb run deploy` | `tcb cloudrun deploy` |
+| `tcb run service:config` | no direct replacement — see the CloudRun docs |
+| `tcb run:deprecated version *` / `tcb run:deprecated image *` | `tcb cloudrun version *` |
+
+> ⚠️ These still run but print a `[已废弃] 此命令将被移除` warning. Never introduce them in new scripts;
+> migrate existing ones when you touch them.
 
 Key flags:
 

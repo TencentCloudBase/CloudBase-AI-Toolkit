@@ -25,6 +25,7 @@ export const confirmation = defineModule(
     "message.deleteCloudRun": "即将删除云托管服务 {resource}（环境 {envId}）。服务会下线，需要重新部署才能恢复。",
     "message.destroyMysql": "即将销毁 MySQL 实例 {resource}（环境 {envId}）。实例与数据都会删除，无法恢复。",
     "message.destroyMysqlEnv": "即将销毁当前环境的 MySQL 实例（环境 {envId}）。实例与数据都会删除，无法恢复。",
+    "message.destroyEnv": "即将销毁环境 {resource}。环境本身以及其中的云函数、数据库和存储都会删除，无法恢复。",
     "message.mysqlThisEnv": "当前环境的 MySQL 实例",
     // PostgreSQL：按**参数里的 SQL** 判定才拦，所以文案要把命中的语句点名出来（{resource}）
     "message.pgExecuteDestructiveSql":
@@ -61,6 +62,7 @@ export const confirmation = defineModule(
     "message.deleteCloudRun": "About to delete the CloudRun service {resource} (env {envId}). The service goes offline and needs a redeploy to come back.",
     "message.destroyMysql": "About to destroy the MySQL instance {resource} (env {envId}). The instance and its data are deleted and cannot be recovered.",
     "message.destroyMysqlEnv": "About to destroy this environment's MySQL instance (env {envId}). The instance and its data are deleted and cannot be recovered.",
+    "message.destroyEnv": "About to destroy the environment {resource}. The environment itself, and the functions, databases and storage inside it, are deleted and cannot be recovered.",
     "message.mysqlThisEnv": "this environment's MySQL instance",
     "message.pgExecuteDestructiveSql":
       "About to run data-changing SQL in env {envId}: {resource}. This statement drops data or schema and cannot be undone - confirm it is the one you meant to run.",

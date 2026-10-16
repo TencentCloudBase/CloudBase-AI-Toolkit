@@ -2,7 +2,7 @@ import type { RequestId } from "@modelcontextprotocol/sdk/types.js";
 import { getCachedEnvId } from "../cloudbase-manager.js";
 import { t } from "../i18n/index.js";
 import { isFormElicitationSupported, requestChoiceElicitation } from "./elicitation.js";
-import { DESTRUCTIVE_ACTIONS, resolveDestructiveAction } from "./destructive-actions.js";
+import { destructiveConfirmationKeys, resolveDestructiveAction } from "./destructive-actions.js";
 import { debug } from "./logger.js";
 import { isSkippedByList, parseSkipList } from "./skip-list.js";
 
@@ -76,7 +76,7 @@ let warnedSkipEntries = false;
  */
 function knownSkipNames(): Set<string> {
     const names = new Set<string>();
-    for (const key of Object.keys(DESTRUCTIVE_ACTIONS)) {
+    for (const key of destructiveConfirmationKeys()) {
         names.add(key);
         names.add(key.slice(0, key.indexOf(".")));
     }
