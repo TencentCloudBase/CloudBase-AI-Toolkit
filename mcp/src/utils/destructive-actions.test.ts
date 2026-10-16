@@ -133,15 +133,30 @@ describe("破坏性动作名单与工具面保持同步", () => {
         expect(emptyReason, `这些豁免条目没写清理由：${emptyReason.join(", ")}`).toEqual([]);
     });
 
-    it("名字不像破坏性的 action 不应出现在名单里（避免名单随手扩张）", () => {
+    it("名字不像破坏性的 action 若要进名单，必须带 `when` 谓词（避免名单随手扩张）", () => {
+        // 规则细化：名单原本只收"名字就像破坏性"的 action。谓词触发面（SQL 这类同名 action 下
+        // 既可能读也可能删的场景）进来后，名字不再必须像破坏性 —— 但**必须**用 `when` 把范围
+        // 收窄，否则就是"随手扩名单"。无谓词的不像破坏性的条目一律红。
         const suspicious = Object.keys(DESTRUCTIVE_ACTIONS).filter((key) => {
             const action = key.slice(key.indexOf(".") + 1);
-            return !DESTRUCTIVE_NAME_PATTERN.test(action);
+            if (DESTRUCTIVE_NAME_PATTERN.test(action)) {
+                return false;
+            }
+            return !DESTRUCTIVE_ACTIONS[key].when;
         });
         expect(
             suspicious,
-            `这些 action 名字不像破坏性动作，确认前请重新评估是否该进名单：${suspicious.join(", ")}`,
+            `这些 action 名字不像破坏性动作、又没有参数谓词收窄范围，确认前请重新评估：${suspicious.join(", ")}`,
         ).toEqual([]);
+    });
+
+    it("谓词型条目的 when 必须是纯判定：空参数返回 false，而不是命中", () => {
+        for (const [key, spec] of Object.entries(DESTRUCTIVE_ACTIONS)) {
+            if (!spec.when) {
+                continue;
+            }
+            expect(spec.when({}), `${key} 的 when({}) 不该命中（没有 SQL 就没有破坏性）`).toBe(false);
+        }
     });
 
     it("target() 取不到字段时返回占位而不是抛错", () => {

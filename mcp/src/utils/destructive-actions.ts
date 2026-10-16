@@ -1,4 +1,5 @@
 import { t, type MessageKey } from "../i18n/index.js";
+import { getSqlVerb, isDestructiveSql, splitSqlStatements, stripLeadingSqlComments } from "./sql-risk.js";
 
 /**
  * 破坏性动作的**单一真源**。
@@ -12,6 +13,15 @@ import { t, type MessageKey } from "../i18n/index.js";
  *   2. 名字像破坏性、但有意不确认的，必须写进 `DESTRUCTIVE_EXEMPT_ACTIONS` **并给理由**，
  *      由 `destructive-actions.test.ts` 保证"既不登记、也不豁免"的动作会让测试变红。
  */
+
+/**
+ * 谓词触发面：有些动作**只有参数确实危险时**才该确认（典型是 SQL —— `execute` 里既可能跑
+ * `SELECT` 也可能跑 `DELETE`，只看 action 名会把两者一起拦下）。
+ *
+ * 约定：`when` 返回 `false` ⇒ **这次调用不命中**，按未登记处理（既不弹确认、也不走拦截返回）；
+ * 省略 `when` ⇒ 与既有条目一致（命中 action 即触发）。谓词必须是纯函数、只看参数，不读文件/不联网。
+ */
+export type DestructiveActionPredicate = (args: Record<string, unknown>) => boolean;
 
 /** 需要用户核对的信息：只取标识类字段，密钥类一律不取 */
 export type DestructiveTarget = {
@@ -28,7 +38,78 @@ export type DestructiveActionSpec = {
     messageKey: MessageKey;
     /** 从入参抽"这次要动什么"；取不到时返回占位，不抛错 */
     target: (args: Record<string, unknown>) => DestructiveTarget;
+    /** 可选的参数谓词：只有它返回 true 时这次调用才命中（见类型注释） */
+    when?: DestructiveActionPredicate;
 };
+
+// ---- PostgreSQL：按**参数里的 SQL** 判定，而不是按 action 名 ----
+
+/** 语句预览长度上限：确认框里要能看清"是哪条语句"，又不至于把整段脚本倒进去 */
+const SQL_PREVIEW_MAX = 240;
+
+function asSqlText(value: unknown): string {
+    return typeof value === "string" ? value : "";
+}
+
+function sqlPreview(statement: string): string {
+    const flattened = statement.replace(/\s+/g, " ").trim();
+    return flattened.length > SQL_PREVIEW_MAX
+        ? `${flattened.slice(0, SQL_PREVIEW_MAX)}…`
+        : flattened;
+}
+
+/**
+ * 从 SQL 脚本里挑出**需要确认的**语句。判据复用 `sql-risk.ts` 的 `isDestructiveSql`
+ * （DROP / TRUNCATE / DELETE / ALTER…DROP|RENAME），再按调用点的**范围**收窄：
+ *   - 交互式 `execute`：**DELETE 要拦**；DDL 类（DROP / TRUNCATE / ALTER…DROP）只在
+ *     `allowDdlViaExecute === true` 时才可能执行，所以那时才拦（默认 false 时 DDL 走 migration，
+ *     在那边拦）；
+ *   - `applyMigration`：只拦 DDL 类（迁移里的 DELETE 不额外确认 —— 它是迁移的正常内容，
+ *     而 Booker 给的清单就是 DROP / TRUNCATE / ALTER…DROP）。
+ * `ALTER … RENAME` 在 `isDestructiveSql` 里也算破坏性，但它不改数据、也不在清单里，这里不收。
+ */
+function pgDestructiveStatements(
+    args: Record<string, unknown>,
+    scope: { allowDelete: boolean; allowDdl: boolean },
+): string[] {
+    const sqlText = asSqlText(args.sql);
+    if (!sqlText.trim()) {
+        return [];
+    }
+    return splitSqlStatements(sqlText).filter((statement) => {
+        if (!isDestructiveSql(statement)) {
+            return false;
+        }
+        const normalized = stripLeadingSqlComments(statement);
+        const verb = getSqlVerb(normalized);
+        if (verb === "DELETE") {
+            return scope.allowDelete;
+        }
+        if (verb === "ALTER") {
+            return scope.allowDdl && /\bDROP\b/i.test(normalized);
+        }
+        return scope.allowDdl && (verb === "DROP" || verb === "TRUNCATE");
+    });
+}
+
+function pgExecuteDestructiveStatements(args: Record<string, unknown>): string[] {
+    return pgDestructiveStatements(args, {
+        allowDelete: true,
+        allowDdl: args.allowDdlViaExecute === true,
+    });
+}
+
+function pgApplyMigrationDestructiveStatements(args: Record<string, unknown>): string[] {
+    return pgDestructiveStatements(args, { allowDelete: false, allowDdl: true });
+}
+
+function statementsTarget(statements: string[]): DestructiveTarget {
+    const first = statements[0];
+    return {
+        resource: first ? sqlPreview(first) : undefined,
+        ...(statements.length > 1 ? { count: statements.length } : {}),
+    };
+}
 
 function asText(value: unknown): string | undefined {
     if (typeof value === "string" && value.trim().length > 0) {
@@ -98,6 +179,18 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
         messageKey: "confirmation.message.destroyMysql",
         target: mysqlDestroyTarget,
     },
+
+    // 谓词型（参数里确实有破坏性 SQL 才拦）：
+    "managePgDatabase.execute": {
+        messageKey: "confirmation.message.pgExecuteDestructiveSql",
+        when: (args) => pgExecuteDestructiveStatements(args).length > 0,
+        target: (args) => statementsTarget(pgExecuteDestructiveStatements(args)),
+    },
+    "managePgDatabase.applyMigration": {
+        messageKey: "confirmation.message.pgApplyMigrationDestructive",
+        when: (args) => pgApplyMigrationDestructiveStatements(args).length > 0,
+        target: (args) => statementsTarget(pgApplyMigrationDestructiveStatements(args)),
+    },
 };
 
 /**
@@ -139,8 +232,11 @@ export type ResolvedDestructiveAction = {
 };
 
 /**
- * 判断这次调用是否命中名单。**只按 action 命中**，不做模糊匹配 ——
- * 名单是可审计的，猜出来的"像破坏性"会在评审里失去意义。
+ * 判断这次调用是否命中名单。两个触发面，**都不做模糊匹配** ——
+ * 名单是可审计的，猜出来的"像破坏性"会在评审里失去意义：
+ *   1. **按 action**：`DESTRUCTIVE_ACTIONS` 里有 `工具名.action` 即命中；
+ *   2. **按参数谓词**：条目带 `when` 时，还要它返回 true 才算命中（SQL 这类"同名 action 下
+ *      既可能读也可能删"的场景靠它区分）。
  */
 export function resolveDestructiveAction(
     toolName: string,
@@ -152,5 +248,11 @@ export function resolveDestructiveAction(
     }
     const key = `${toolName}.${action}`;
     const spec = DESTRUCTIVE_ACTIONS[key];
-    return spec ? { key, action, spec } : undefined;
+    if (!spec) {
+        return undefined;
+    }
+    if (spec.when && spec.when((args ?? {}) as Record<string, unknown>) !== true) {
+        return undefined;
+    }
+    return { key, action, spec };
 }
