@@ -864,6 +864,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         ? 'hosting.manageDescriptionCloud'
         : 'hosting.manageDescription',
       inputSchema: manageHostingInputSchema,
+      // MCP Apps：部署结果挂产物卡片面板（只读展示 + 把写意图交给会话）。
+      // 不设 visibility——缺省即 model+app；只含 "model" 会让宿主 reject 面板发起的 ui/message。
+      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,

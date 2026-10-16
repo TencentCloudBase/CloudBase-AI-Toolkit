@@ -36,6 +36,7 @@ import { wrapServerWithTelemetry, applyCategoryAnnotationMeta, type ToolAnnotati
 import { normalizeClientName } from "./utils/telemetry.js";
 import { registerGetStartedResource } from "./resources/get-started.js";
 import { registerEnvCreditsResource } from "./resources/env-credits.js";
+import { registerArtifactCardResource } from "./resources/artifact-card.js";
 
 // 插件定义
 interface PluginDefinition {
@@ -452,6 +453,10 @@ export async function createCloudBaseMcpServer(options?: {
   // MCP Apps 环境资源用量面板（ui://cloudbase/env-credits）。同样一次性注册；
   // 只读用量与套餐，不执行计费（引导交给会话里的技能）。
   registerEnvCreditsResource(server);
+
+  // MCP Apps 产物卡片面板（ui://cloudbase/artifact-card）。挂在三个部署类工具上；
+  // 只读展示部署状态与访问地址，写意图一律交给会话。
+  registerArtifactCardResource(server);
 
   return server;
 }

@@ -30,6 +30,7 @@ import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
 import { mcpUi } from "./modules/mcpUi.js";
 import { mcpUiCredits } from "./modules/mcpUiCredits.js";
+import { mcpUiArtifact } from "./modules/mcpUiArtifact.js";
 
 export const en = {
   env: env.en,
@@ -63,4 +64,5 @@ export const en = {
   feedback: feedback.en,
   mcpUi: mcpUi.en,
   mcpUiCredits: mcpUiCredits.en,
+  mcpUiArtifact: mcpUiArtifact.en,
 };

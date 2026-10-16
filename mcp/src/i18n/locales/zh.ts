@@ -30,6 +30,7 @@ import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
 import { mcpUi } from "./modules/mcpUi.js";
 import { mcpUiCredits } from "./modules/mcpUiCredits.js";
+import { mcpUiArtifact } from "./modules/mcpUiArtifact.js";
 
 export const zh = {
   env: env.zh,
@@ -63,6 +64,7 @@ export const zh = {
   feedback: feedback.zh,
   mcpUi: mcpUi.zh,
   mcpUiCredits: mcpUiCredits.zh,
+  mcpUiArtifact: mcpUiArtifact.zh,
 };
 
 export type Messages = typeof zh;

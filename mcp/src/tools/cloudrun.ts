@@ -1845,6 +1845,8 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
       title: "cloudrun.manage.title",
       description: "cloudrun.manage.description",
       inputSchema: ManageCloudRunInputSchema,
+      // MCP Apps：部署结果挂产物卡片面板（只读展示 + 把写意图交给会话）。
+      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,

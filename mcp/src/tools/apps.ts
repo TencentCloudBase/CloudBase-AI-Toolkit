@@ -424,6 +424,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .optional()
           .describe("apps.schema.manageVersionName"),
       },
+      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
