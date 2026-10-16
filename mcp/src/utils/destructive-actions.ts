@@ -103,6 +103,20 @@ function pgApplyMigrationDestructiveStatements(args: Record<string, unknown>): s
     return pgDestructiveStatements(args, { allowDelete: false, allowDdl: true });
 }
 
+/**
+ * **`rollbackSql` 有意不扫**（按裁定先判定再决定，结论：它不该被拦）。
+ *
+ * 判定依据（看代码，不靠印象）：`args.rollbackSql` 只在 `databasePG.ts:2443` 与 `:2593`
+ * 被**存进迁移记录**（`pending.Rollback = args.rollbackSql`，类型见 `:766` `Rollback?: string`），
+ * 全仓**没有任何路径执行它**——没有读 `.Rollback` 去执行的地方，也没有 migration down / rollback
+ * 动作；`repairMigration` 的 `reverted` 分支（`:3218-3224`）只改 `Status`，`applied` 分支传的是
+ * 修复用的 `Query`（正向前进 SQL），都不是回滚脚本。
+ *
+ * 所以本次调用**不会执行** rollbackSql ⇒ 因它拦下这次 forward apply 是**误报**，不收。
+ * 后续项：将来若新增"真正执行回滚"的入口（例如 migration down / rollback 动作），
+ * 那个入口必须挂同一道闸（`when` 判 `rollbackSql`，范围同 ②）。
+ */
+
 function statementsTarget(statements: string[]): DestructiveTarget {
     const first = statements[0];
     return {

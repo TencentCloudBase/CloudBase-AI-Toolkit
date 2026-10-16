@@ -94,6 +94,20 @@ describe("谓词触发面：只有参数里确实有破坏性 SQL 才命中", ()
     );
   });
 
+  it("rollbackSql 不参与判定：forward 是普通语句时，不能因回滚脚本把这次迁移拦下", () => {
+    // 判定依据（见 destructive-actions.ts 的注释）：rollbackSql 只被存进迁移记录
+    // （databasePG.ts:2443/:2593），本次调用不执行它 ⇒ 拦它是误报。
+    const benignForward = 'INSERT INTO "orders" ("id") VALUES (1)';
+    expect(
+      pgResolve("applyMigration", { sql: benignForward, rollbackSql: DDL_SQL })?.key,
+      "forward 不破坏时不该因 rollbackSql 命中",
+    ).toBeUndefined();
+    // 反向：forward 确实破坏时照常命中（回滚脚本的存在与否不影响）
+    expect(pgResolve("applyMigration", { sql: DDL_SQL, rollbackSql: benignForward })?.key).toBe(
+      "managePgDatabase.applyMigration",
+    );
+  });
+
   it("⑥ 未命中时既有行为不变：不动名单里的其它动作，也不改它们的判定", () => {
     // 其它条目仍然是"命中 action 即触发"（没有 when）
     expect(

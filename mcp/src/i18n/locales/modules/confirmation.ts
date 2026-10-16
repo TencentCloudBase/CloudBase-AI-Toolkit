@@ -10,6 +10,9 @@ import { defineModule } from "../types.js";
  */
 export const confirmation = defineModule(
   {
+    // 按钮文案**有意保留全局这一份**（裁定：不改）：本护栏拦下来的动作，无论是删函数、
+    // 删集合、销毁实例，还是 PostgreSQL 的 DROP TABLE / TRUNCATE / ALTER…DROP，本质都是
+    // "删数据或删对象" —— "确认删除"不误导；改成"确认执行"反而更含糊（执行什么？）。
     "option.confirm": "确认删除",
     "option.cancel": "取消",
 
