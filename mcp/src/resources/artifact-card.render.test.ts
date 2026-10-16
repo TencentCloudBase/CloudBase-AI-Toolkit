@@ -375,6 +375,38 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     }
   });
 
+  it("兜底：只收到失败标记（isError）时显示「部署失败」，并保留上一次的身份", () => {
+    const panel = render(payloadPublished()); // 先有一次真实结果：身份（类型/名称/环境 ID）来自它
+    expect(panel.el("c-title").textContent).toContain("my-blog");
+
+    panel.dispatch({ content: [{ type: "text", text: "boom" }], isError: true });
+
+    // 主路是"失败也带载荷"；这条兜底保证只拿到失败标记时也不显示「未确认」
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiArtifact.state.failed"));
+    expect(panel.el("st-dot").className).toContain("err");
+    // 身份保留（否则用户不知道"什么失败了"）：标题里的产物名 + 环境 ID 都还在
+    expect(panel.el("c-title").textContent).toContain("my-blog");
+    expect(panel.el("brand-alias").title).toContain("my-env-3gk9ab");
+    expect(panel.el("btn-copy-env").hidden).toBe(false);
+    // 但不留旧地址（那属于上一次结果），也不给「打开」
+    expect(panel.el("f-url").hidden).toBe(true);
+    expect(panel.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
+    // 原文只进折叠区，不进正文
+    expect(panel.el("raw-out").textContent).toContain("boom");
+    expect(panel.el("c-hint").textContent).toBe("");
+    expect(panel.el("c-hint").hidden).toBe(true);
+  });
+
+  it("兜底：没有任何上一次身份时也不崩（失败态、无标题、无地址）", () => {
+    const panel = loadPanel(HTML);
+    panel.dispatch({ content: [{ type: "text", text: "boom" }], isError: true });
+
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiArtifact.state.failed"));
+    expect(panel.el("c-title").hidden).toBe(true);
+    expect(panel.el("f-url").hidden).toBe(true);
+    expect(panel.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
+  });
+
   it("读不懂的返回只进折叠区，卡片回到未确认（正文不摊原文）", () => {
     const junk = '<img src=x onerror="alert(1)"> not-a-payload';
     const panel = loadPanel(HTML);

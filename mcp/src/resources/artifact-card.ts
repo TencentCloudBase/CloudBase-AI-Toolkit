@@ -330,6 +330,9 @@ body {
   var FALLBACK = { site: ${J(siteText)}, region: ${J(regionText)}, envId: ${J(fallback.envId ?? "")} };
   var SITE_TEXT = FALLBACK.site;
   var current = { envId: FALLBACK.envId, url: "", state: "unknown", kind: "", name: "" };
+  // The last payload that actually carried a state: the fallback below reuses its identity
+  // (kind / name / alias / env / plan / place) so a failure still says *what* failed.
+  var lastPayload = null;
   var busy = false;
 
   // Unknown codes are dropped rather than printed: an internal code on screen reads worse than a blank.
@@ -350,6 +353,23 @@ body {
     if (region && site) { return region + T.placeOpen + site + T.placeClose; }
     return region || site;
   }
+  /**
+   * Fallback for "the call failed and no readable payload came with it": we still know it failed,
+   * so show the failed state, reuse the identity from the last payload, and leave the error text to
+   * the raw fold (the body never shows unreadable text).
+   */
+  function identityOnlyFailure() {
+    var previous = lastPayload || {};
+    var payload = { state: "failed" };
+    if (previous.artifact_kind) { payload.artifact_kind = previous.artifact_kind; }
+    if (previous.artifact_name) { payload.artifact_name = previous.artifact_name; }
+    if (previous.env_alias) { payload.env_alias = previous.env_alias; }
+    if (previous.env_id) { payload.env_id = previous.env_id; }
+    if (previous.plan) { payload.plan = previous.plan; }
+    if (previous.current_region) { payload.current_region = previous.current_region; }
+    if (previous.site) { payload.site = previous.site; }
+    return payload;
+  }
   function stateOf(payload) {
     if (!payload || typeof payload.state !== "string") { return "unknown"; }
     return Object.prototype.hasOwnProperty.call(T.state, payload.state) ? payload.state : "unknown";
@@ -363,7 +383,8 @@ body {
     return kind || name;
   }
 
-  function render(payload) {
+  function render(payload, synthetic) {
+    if (!synthetic && payload && typeof payload.state === "string") { lastPayload = payload; }
     var state = stateOf(payload);
     current.state = state;
     var url = payload && typeof payload.access_url === "string" ? payload.access_url : "";
@@ -400,7 +421,9 @@ body {
     setText(el("k-place"), placeOf(payload) || "");
 
     var fUrl = el("f-url");
-    var showUrl = state === "published" && url !== "";
+    // An address is shown whenever the result carried one; whether it can be opened is a separate
+    // question (the main action only exists when the source says it is publicly reachable).
+    var showUrl = url !== "";
     if (fUrl) { fUrl.hidden = !showUrl; }
     if (showUrl) {
       setText(el("k-url"), url);
@@ -546,7 +569,15 @@ body {
     if (data.method === "ui/notifications/tool-result") {
       var payload = readPayload(data.params);
       // A result we cannot read is never spread across the card: it goes to the fold only.
-      if (payload) { render(payload); } else { render(null); }
+      if (payload) {
+        render(payload);
+      } else if (data.params && data.params.isError === true) {
+        // The main path carries a payload even on failure; this is the fallback for a host that
+        // only forwards the error mark: still show the failed state, keeping the last identity.
+        render(identityOnlyFailure(), true);
+      } else {
+        render(null);
+      }
       setText(el("raw-out"), JSON.stringify(data.params, null, 2));
       reportSize();
       return;

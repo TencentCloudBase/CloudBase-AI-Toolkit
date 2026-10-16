@@ -9,6 +9,7 @@ import {
 } from "./artifact-card-payload.js";
 
 const BASE = { site: "domestic", region: "ap-shanghai" } as const;
+const PUBLIC_URL_FOR_TEST = "https://my-blog.tcloudbaseapp.com";
 
 describe("resolveArtifactState（四态 + 未确认）", () => {
   it("success=false → failed", () => {
@@ -121,7 +122,7 @@ describe("buildArtifactCardPayload", () => {
     expect(payload.access_url_scope).toBeUndefined();
   });
 
-  it("已知不可达的地址不展示（拿不到可用地址就不显示，状态落回未确认）", () => {
+  it("明确不可达：地址照实展示，但状态不算「已上线」（因此面板不给「打开」）", () => {
     const payload = buildArtifactCardPayload({
       ...BASE,
       success: true,
@@ -130,8 +131,20 @@ describe("buildArtifactCardPayload", () => {
       accessUrlReachable: false,
     });
 
-    expect(payload).not.toHaveProperty("access_url");
+    expect(payload.access_url).toBe("https://disabled.tcloudbaseapp.com");
     expect(payload.state).toBe("unknown");
+  });
+
+  it("可达性缺失 ≠ 不可达：公网来源 + 没有 reachable 字段 ⇒ 仍是「已上线」", () => {
+    const payload = buildArtifactCardPayload({
+      ...BASE,
+      success: true,
+      accessUrl: PUBLIC_URL_FOR_TEST,
+      accessUrlSource: "hosting.staticDomain",
+    });
+
+    expect(payload.state).toBe("published");
+    expect(payload.access_url_scope).toBe("public");
   });
 
   it("部署中：即使带着地址也不展示地址（那是已有服务的地址）", () => {

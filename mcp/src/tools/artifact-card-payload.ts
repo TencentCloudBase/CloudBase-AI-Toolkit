@@ -57,8 +57,13 @@ export interface ArtifactStateInput {
   success?: boolean;
   /** 工具自报"还在进行中"（例：cloudrun 的 `status: "deploying"` / `deployAccepted`）。 */
   pending?: boolean;
-  /** 本次部署对应的访问地址（已确认可达的才传）。 */
+  /** 本次部署对应的访问地址（有就传，是否可达由 `accessUrlReachable` 表达）。 */
   accessUrl?: string | null;
+  /**
+   * 地址是否可达。**只有显式 `false` 才算"明确不可达"**：缺失是"没这个信息"，
+   * 不能当成不可达（缺失 ≠ 不可达，这是两条口径）。
+   */
+  accessUrlReachable?: boolean | null;
   /** 失败原因的后端原文。 */
   errorText?: string | null;
 }
@@ -67,7 +72,7 @@ export interface ArtifactStateInput {
  * 状态判定（顺序即优先级）：
  *   1. `success === false` 或**有后端错误原文** → `failed`；
  *   2. 工具自报进行中 → `deploying`（**优先于地址**：`cloudrun` 部署中也会带已有服务的地址）；
- *   3. 有可用访问地址 → `published`；
+ *   3. 有访问地址且**未被明确标为不可达**（`accessUrlReachable !== false`）→ `published`；
  *   4. 其余 → `unknown`。
  */
 export function resolveArtifactState(input: ArtifactStateInput): ArtifactState {
@@ -78,7 +83,9 @@ export function resolveArtifactState(input: ArtifactStateInput): ArtifactState {
   if (input.pending === true) {
     return "deploying";
   }
-  if (typeof input.accessUrl === "string" && input.accessUrl.trim() !== "") {
+  const hasUrl = typeof input.accessUrl === "string" && input.accessUrl.trim() !== "";
+  // 明确不可达的地址不算"已上线"（地址仍会展示，但不给「打开」，状态落回未确认）。
+  if (hasUrl && input.accessUrlReachable !== false) {
     return "published";
   }
   return "unknown";
@@ -111,8 +118,10 @@ function trimmedOrNull(value?: string | null): string | null {
 /**
  * 组装面板载荷。
  *
- * `accessUrlReachable === false` 时**不把地址传给面板**：一个已知不可达的"名义地址"不是访问地址，
- * 显示它只会让用户去点一个打不开的链接（拿不到就不显示）。此时状态自然落回 `unknown`。
+ * 地址与"能不能打开"是两件事：有地址就展示（用户可能想复制/排查），
+ * **是否给「打开」由来源与"明确不可达"决定**（见 `accessUrlScopeOf` 与面板的主行动分支）。
+ * 工具只说"不可达"（`accessUrlReachable === false`）时，状态不算「已上线」，落回未确认——
+ * 我们不给一个打不开的链接配一个「打开」按钮。
  */
 export function buildArtifactCardPayload(input: {
   success?: boolean;
@@ -129,11 +138,12 @@ export function buildArtifactCardPayload(input: {
   site: string;
   region: string;
 }): ArtifactCardPayload {
-  const reachable = input.accessUrlReachable === false ? null : trimmedOrNull(input.accessUrl);
+  const accessUrl = trimmedOrNull(input.accessUrl);
   const state = resolveArtifactState({
     success: input.success,
     pending: input.pending,
-    accessUrl: reachable,
+    accessUrl,
+    accessUrlReachable: input.accessUrlReachable,
     errorText: input.errorText,
   });
   // 只有"已上线"才带地址与可见范围；其余状态下地址不参与展示（部署中/失败都没有可用地址）。
@@ -152,7 +162,8 @@ export function buildArtifactCardPayload(input: {
     state,
     ...(input.kind ? { artifact_kind: input.kind } : {}),
     ...(artifactName ? { artifact_name: artifactName } : {}),
-    ...(state === "published" && reachable ? { access_url: reachable } : {}),
+    // 地址照实给（部署中除外：那时带的地址属于上一个版本的服务，不是这次的产物）。
+    ...(state !== "deploying" && accessUrl ? { access_url: accessUrl } : {}),
     ...(scope ? { access_url_scope: scope } : {}),
     // 后端原文，逐字透传；没有就不给（面板不显示说明句，不用错误码或通用文案顶替）。
     ...(errorText ? { error_text: errorText } : {}),
