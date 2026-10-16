@@ -52,12 +52,12 @@ If the user specifies "Node.js 18", use runtime `Nodejs18.15` and the path `/var
 const http = require("http");
 const { URL } = require("url");
 
-// CORS headers — default to * for simple cross-origin APIs
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+// CORS: leave this empty when the function is reached through the HTTP gateway.
+// The gateway already fills Access-Control-Allow-Origin from the environment
+// security-domain allowlist; adding a second value makes the header illegal
+// ('<origin>,*') and browsers block every request. Only set CORS headers here
+// when the function is called directly, outside the gateway.
+const CORS_HEADERS = {};
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -134,7 +134,7 @@ server.listen(9000);
 - If you intentionally use ES Modules, use `import ...` consistently and do not rely on CommonJS-only globals such as bare `__dirname`, `require(...)`, or `module.exports`. When you need the current file path in ESM, derive it from `import.meta.url`.
 - Treat routing, method checks, and body parsing as part of the function code. With the native `http` module, parse `req.url` yourself and read the request body from the stream before calling `JSON.parse`.
 - Return JSON responses explicitly and set `Content-Type` yourself, for example `application/json; charset=utf-8`.
-- **Handle CORS headers**. Browsers block cross-origin requests without proper CORS headers. Default to `Access-Control-Allow-Origin: *` for simple APIs, and always respond to `OPTIONS` preflight requests with `200` and CORS headers.
+- **Handle CORS headers — but first check who terminates CORS.** A function reached through the HTTP gateway must **not** set `Access-Control-Allow-Origin` itself: the gateway already fills it from the environment security-domain allowlist, and an extra value yields `<origin>,*`, which browsers reject outright — every request fails with a CORS error that looks like the service is down. Only set CORS headers when the function is called directly, outside the gateway. Either way, make `OPTIONS` preflight return an empty `204`.
 - Keep unsupported routes and methods explicit. Return `404` for unknown paths, and return `405` when the path exists but the HTTP method is not allowed.
 - Keep `scf_bootstrap`, `index.js`, `package.json`, and any bundled dependencies in the function directory that will be uploaded.
 - Keep credentials out of the function package. Inject them through function environment variables and preserve existing variables when updating the configuration.
@@ -164,12 +164,12 @@ That combination avoids the common ESM pitfall where `__dirname` is not defined.
 const http = require("http");
 const { URL } = require("url");
 
-// CORS headers — default to * for simple cross-origin APIs
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+// CORS: leave this empty when the function is reached through the HTTP gateway.
+// The gateway already fills Access-Control-Allow-Origin from the environment
+// security-domain allowlist; adding a second value makes the header illegal
+// ('<origin>,*') and browsers block every request. Only set CORS headers here
+// when the function is called directly, outside the gateway.
+const CORS_HEADERS = {};
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -266,8 +266,8 @@ Follow these steps in order when creating a managed-runtime HTTP Function:
 1. **Write the function code** — create the directory with `index.js`, `scf_bootstrap`, and `package.json`.
 2. **Configure SDK credentials when needed** — if the function uses `@cloudbase/node-sdk` or `@cloudbase/manager-node`, follow `./http-function-credentials.md`. For a Node SDK server API Key, use `manageAppAuth(action="createApiKey", keyType="api_key")` and inject `CLOUDBASE_APIKEY`. Manager SDK requires Tencent Cloud `SecretId` / `SecretKey`.
 3. **Deploy with `manageFunctions`** — set `type: "HTTP"`, `protocolType: "HTTP"`, and `runtime` explicitly.
-4. **Configure security rules** — HTTP Functions default to a restrictive security rule. If the function should be publicly accessible, call `managePermissions(action="updateResourcePermission")` with `resourceType="function"`. Note: anonymous login is disabled by default for new environments; use `permission: "CUSTOM"` with `securityRule: '{"invoke":"true"}'` for truly public endpoints rather than relying on anonymous auth.
-5. **Verify** — call the function URL and confirm it returns the expected response. If the function uses a CloudBase SDK, exercise one harmless SDK read and check logs for expired-token or authorization failures. If you get `EXCEED_AUTHORITY` at invocation, the function security rule needs to be updated (step 4).
+4. **Choose how the function is reached — gateway route first.** Anything a browser, game client or mobile app calls should go through a gateway route (`manageGateway(action="createRoute", upstreamResourceType="WEB_SCF", path="/api/...")`): it is per-route, it needs no change to the environment-wide authorization document, and the gateway handles CORS for you. Only when the `/v1/functions/<name>` platform path itself must accept callers should you change the function security rule — read "Security rule configuration" first for the PostgreSQL caveat.
+5. **Verify against the real entry point** — the gateway route for browser/public access, the platform path with a credential otherwise. Failures come in two distinct shapes: **no credential at all → `401 MISSING_CREDENTIALS`**; **credential present but not allowed → `403 EXCEED_AUTHORITY`** (that one means the security rule needs updating, step 4). If the function uses a CloudBase SDK, exercise one harmless SDK read and check logs for expired-token or authorization failures.
 
 ## Deployment flow
 
@@ -296,11 +296,13 @@ manageFunctions({
 
 ### Security rule configuration
 
-After creating an HTTP Function, it will reject unauthenticated callers with `EXCEED_AUTHORITY` by default. If the function should be publicly accessible:
+After creating an HTTP Function, a call with no credential fails with `401 MISSING_CREDENTIALS`, and a call that carries a credential but is not allowed fails with `403 EXCEED_AUTHORITY`. If the function should be publicly accessible, **prefer a gateway route** ("HTTP access path for browser/public access" below) and only touch the rule when the platform path itself must accept callers:
 
 > ⚠️ **Note:** Anonymous login is disabled by default for new environments. For public endpoints, use `rule: "true"` to allow all callers regardless of auth state, rather than relying on anonymous login being enabled.
 >
 > ⚠️ **PostgreSQL environments:** platform `ModifyResourcePermission` / `DescribeResourcePermission` reject PG envs. Current MCP aligns with CLI `tcb policy set/get`: `managePermissions` / `queryPermissions` for `resourceType="function"` automatically fall back to Manager SDK `modifyEnvAuthzConfig` / `describeEnvAuthzConfig` (`authz.user.rego`). Passing `securityRule: '{"invoke":true}'` generates a public-functions OPA allow policy; you can also pass a full Rego document starting with `package authz.user`. See https://docs.cloudbase.net/cli-v1/policy/management
+>
+> ⚠️ **This document is environment-wide, not per-function.** Writing it replaces the policy for the **whole environment**, so any allow rule another owner already configured is silently dropped. In a shared environment, read the current document first (`queryPermissions` / `describeEnvAuthzConfig`) and prefer a gateway route (`auth: false`) instead of editing it.
 
 ```javascript
 managePermissions({
@@ -337,14 +339,14 @@ manageFunctions({
 
 ## Invocation options
 
-### HTTP API with token
+### Platform path with a credential (server-to-server only)
 
 ```bash
 curl -L "https://{envId}.api.intl.tcloudbasegateway.com/v1/functions/{name}?webfn=true" \
   -H "Authorization: Bearer <TOKEN>"
 ```
 
-This is suitable for authenticated server-to-server access.
+This path always wants a credential: with none it returns `401 MISSING_CREDENTIALS`, with a front-end-safe publishable key it returns `403 EXCEED_AUTHORITY`, and it only succeeds with an admin (`service_role`) credential. **Do not hand this path — or an admin key — to browser or client code.** Browser, game and mobile clients use the gateway route described next.
 
 ### HTTP access path for browser/public access
 

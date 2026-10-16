@@ -634,6 +634,8 @@ export const reportToolCall =  async (params: {
     duration?: number;
     error?: string;
     inputParams?: any; // 入参上报
+    /** 工具级 action（如 auth 的 status/set_env），用于区分"同一个工具做了什么" */
+    action?: string;
     cloudBaseOptions?: CloudBaseOptions; // 新增：CloudBase 配置选项
     ide?: string; // 新增：集成IDE信息
     client?: string; // 新增：MCP client 来源标识（hosted 场景由上游解析传入）
@@ -677,6 +679,11 @@ export const reportToolCall =  async (params: {
         arch,
         mcpVersion
     };
+
+    // 工具级 action：不再依赖 inputParams 前 500 字符去猜"做了什么"
+    if (params.action !== undefined) {
+        eventData.action = params.action;
+    }
 
     // 添加入参信息（如果提供）
     if (params.inputParams !== undefined) {
@@ -799,6 +806,73 @@ export const reportElicitationResult = async (params: {
     appendMcpClientCapabilityFields(eventData, params.mcpClientCapabilities);
 
     telemetryReporter.report('toolkit_elicitation', eventData);
+};
+
+// ---- UI 资源读取 ----
+//
+// 为什么单独一个事件：MCP Apps 的一期落点是 `resources/read ui://cloudbase/get-started`，
+// 而在此之前资源读**零埋点**——声明了扩展也无法证明"客户端真的来拉了"。
+// 这个事件只回答两个问题：是否出现 `ui://cloudbase/*` 的读取、带什么体积/时延/成败。
+// 它证明不了"被渲染"（渲染率需客户端侧观测点），所以只用作"声明→拉取"闭环的证据。
+export const reportResourceRead = async (params: {
+    /** 被读取的资源 URI（如 ui://cloudbase/get-started） */
+    resourceUri: string;
+    /** resources/read 返回的 mimeType */
+    mimeType: string;
+    /** 返回内容的字节数（utf8） */
+    bytes: number;
+    /** 从进入 read 回调到组包完成的耗时（ms） */
+    durationMs: number;
+    success: boolean;
+    error?: string;
+    cloudBaseOptions?: CloudBaseOptions;
+    ide?: string;
+    client?: string;
+    mcpClientInfo?: McpClientInfo;
+    mcpClientCapabilities?: McpClientCapabilities;
+}) => {
+    const {
+        nodeVersion,
+        osType,
+        osRelease,
+        arch,
+        mcpVersion
+    } = telemetryReporter.getUserAgent();
+
+    const { envId } = resolveEnvId(params.cloudBaseOptions);
+    const siteRegion = resolveTelemetrySiteRegion(params.cloudBaseOptions);
+    const loginUin = await resolveLoginUin(params.cloudBaseOptions);
+
+    const eventData: { [key: string]: any } = {
+        resourceUri: params.resourceUri,
+        mimeType: params.mimeType,
+        bytes: String(params.bytes),
+        duration: String(params.durationMs),
+        success: params.success ? 'true' : 'false',
+        // 与工具调用同一套截断规则，避免长错误撑爆列
+        error: params.error ? params.error.substring(0, 200) : undefined,
+        envId: envId || 'unknown',
+        region: siteRegion.region,
+        site: siteRegion.site,
+        login_uin: loginUin,
+        nodeVersion,
+        osType,
+        osRelease,
+        arch,
+        mcpVersion,
+    };
+
+    if (params.ide) {
+        eventData.ide = params.ide;
+    }
+    const client = resolveClientName(params.client);
+    if (client) {
+        eventData.client = client;
+    }
+    appendMcpClientInfoFields(eventData, params.mcpClientInfo);
+    appendMcpClientCapabilityFields(eventData, params.mcpClientCapabilities);
+
+    telemetryReporter.report('toolkit_resource_read', eventData);
 };
 
 // Toolkit 生命周期上报

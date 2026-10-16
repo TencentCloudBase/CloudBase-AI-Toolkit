@@ -29,28 +29,6 @@ describe('EnvId Management Tests', () => {
     delete process.env.CLOUDBASE_ENV_ID;
   });
 
-  describe('Timeout Configuration', () => {
-    test('ENV_ID_TIMEOUT should be 10 minutes (600000ms)', async () => {
-      // Import the constant to verify
-      const fs = await import('fs');
-      const path = await import('path');
-      const { fileURLToPath } = await import('url');
-      const { dirname } = await import('path');
-      
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
-      
-      const managerCode = fs.readFileSync(
-        path.join(__dirname, '../mcp/src/cloudbase-manager.ts'),
-        'utf8'
-      );
-      
-      // Check that timeout is set to 600000 (10 minutes)
-      expect(managerCode).toMatch(/ENV_ID_TIMEOUT\s*=\s*600000/);
-      expect(managerCode).toMatch(/10 minutes/);
-    });
-  });
-
   describe('getEnvId - Priority Order', () => {
     test('should prioritize cloudBaseOptions.envId over cached envId', async () => {
       // Set up cached envId

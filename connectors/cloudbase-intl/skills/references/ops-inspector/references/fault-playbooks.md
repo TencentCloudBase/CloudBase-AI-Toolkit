@@ -1,6 +1,6 @@
 # Fault Playbooks (故障剧本)
 
-Four high-frequency KA / ops triage playbooks. Use the matching playbook when the symptom matches; always prefer MCP tools listed here — **never** invent Monitor/TCB Actions via `callCloudApi`.
+Six high-frequency KA / ops triage playbooks. Use the matching playbook when the symptom matches; always prefer MCP tools listed here — **never** invent Monitor/TCB Actions via `callCloudApi`.
 
 Shared prerequisites for every playbook:
 
@@ -138,3 +138,69 @@ Shared prerequisites for every playbook:
 
 - Do not conclude "platform outage" from a single empty series without checking gateway QPS and function existence
 - Do not use `callCloudApi` to pull custom monitor Actions
+
+---
+
+## Playbook 5 — AI model call returns 429 / Token quota exceeded
+
+> **This is not Playbook 1.** Gateway/QPS 429 is the environment's own traffic ceiling; an **AI model** 429 comes from the model pool and has its own two layers. Treating one as the other sends the user to raise a package quota that was never the limit.
+
+### Symptoms
+
+- `wx.cloud.extend.AI` / `createModel` calls return **429 Too Many Requests**, or `EXCEED_TOKEN_QUOTA_LIMIT`
+- User says the model is 限流, or that a request was rejected even though the last one was long ago
+- User reports the Token pack "did not apply" while resource points were charged
+
+### Tools (in order)
+
+1. Console → **AI module** → per-model **Token** consumption (the only place that shows quota side)
+2. `DescribeAIModels` — which groups/models are actually enabled for this environment (`hunyuan-exp` / `cloudbase` / custom)
+3. `DescribeActivityInfo` — 小程序成长计划 enrollment (`ai_miniprogram_inspire_plan`), then `DescribeEnvPostpayPackage` for the Token Credits pack
+
+### Decision tree
+
+| Evidence | Likely cause | What to tell the user |
+| --- | --- | --- |
+| Single environment under its own limits, but requests still 429 | **Pool-level** concurrency: per-environment concurrency is 10, and the shared pool has its own ceiling — other users' volume can 429 you | 这是设计内的两层并发（环境级 + 整体资源池），不是故障；**稍后重试**或**换模型**（不同模型资源池相互独立） |
+| Requests concentrated / bursty | Per-environment concurrency (10) exceeded | 控制并发、指数退避重试；不要对流式请求做无限重试（会放大流量） |
+| Quota-side error (`EXCEED_TOKEN_QUOTA_LIMIT`) | Model/Token quota exhausted for that path | 换模型或配置自定义模型 API Key；必要时提工单申请提额 |
+| Token pack present but resource points were charged | **Call origin outside the gifted Token's scope** | 成长计划赠送的 Token 仅限**小程序端调用**与**管理员身份调用**（含控制台体验、云函数内调用）；来源不符即落到资源点池，不是"没抵扣" |
+
+### Do not
+
+- Do not run Playbook 1's QPS metrics as the primary evidence and recommend a package upgrade for an AI-model 429
+- Do not state a specific RPM/TPM number — the published baseline is "10 concurrent per environment + pool-level ceiling"; anything more precise must come from the console or the model team
+- Do not hard-code the model roster when suggesting a switch — query it (`DescribeManagedAIModelList` / `DescribeAIModels`)
+
+---
+
+## Playbook 6 — Cloud function timeout / poll-retry exhausted
+
+### Symptoms
+
+- Client SDK reports `-404005` (`超出最大正常结果轮询尝试次数`), or a function returns **433 TimeLimitReached**
+- Call waited tens of seconds (e.g. 60s+) then failed
+- Metrics show the invocation **counted**, but the log window has **no `START` log** — the user asks which layer it was stuck in
+
+### Tools (in order)
+
+1. `queryFunctions(action="getFunctionDetail", functionName="...")` — runtime, timeout setting, memory, `MinNum` (cold start), last update
+2. `queryFunctions(action="listFunctionLogs", functionName="...")` — presence/absence of `START` + `END` for the failing window
+3. `queryEnv(action="metrics", metricName="FunctionInvocation", resourceID="<functionName>")` — invocation vs error counts in the same window
+4. `queryLogs(action="searchLogs", queryString="timeout OR 404005 OR 433 OR coldStart OR 冷启动", ...)` — cross-function correlation
+
+### Decision tree
+
+| Evidence | Likely cause | What to tell the user |
+| --- | --- | --- |
+| Invocation counted, **no `START` log**, errors spread across functions at the same time | Execution never started — platform-side (cold start / host resources), not the code | 这是平台侧；**不要改代码**。留证（时间窗 + 函数名 + RequestId）后走工单/公告，同时看是否同地域多函数同时中招 |
+| `START` + `END` present, duration ≈ configured timeout | Function genuinely ran out of time | 查慢查询/外部调用；按需调大超时或用异步执行 |
+| `START` present, no `END`, memory metric pinned | OOM / crash | 调大内存、查内存泄漏 |
+| Consistently slow only on first invocation | Cold start | `MinNum: 1` 预热；冷启动优化 |
+| `-404005` on the **client** while server logs look normal | Client-side poll-retry exhausted | 这是**客户端 SDK 的轮询超时码**，不等于服务端故障；先看上面三步再定性 |
+
+### Do not
+
+- Do not read `-404005` as "the service failed" — it is a client SDK code meaning the result poll exhausted its retries; the server side may have completed
+- Do not push a code change while the evidence points at "execution never started"
+- Do not report a single function's timeout as a region-wide incident without the cross-function correlation in step 4

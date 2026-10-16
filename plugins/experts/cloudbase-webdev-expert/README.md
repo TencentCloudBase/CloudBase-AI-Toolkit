@@ -1,6 +1,6 @@
 # cloudbase-webdev-expert（腾讯云 CloudBase 全栈工程师）
 
-CloudBase Web 全栈单专家。定位：**前端页面 + PostgreSQL + RLS 行级权限 + 云函数 + AI 大模型接入**，从需求到部署跑通。
+CloudBase 全栈单专家（主推，四个专家里覆盖场景最广）。定位：**网站与业务系统 + PostgreSQL + RLS 行级权限 + 云函数 + AI 大模型接入**，从需求到部署跑通。
 
 服务对象：
 

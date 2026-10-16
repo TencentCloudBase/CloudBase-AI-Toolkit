@@ -376,7 +376,7 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
 | `CLOUDBASE_MCP_TELEMETRY_DISABLED` | 设为 `true` 关闭遥测上报（可选） | 默认上报 |
 | `CLOUDBASE_LOG_DIR` | 日志目录（可选） | 默认 `~/.cloudbase-mcp/logs` |
 
-**遥测说明**：CloudBase MCP 默认上报使用统计，用于产品改进与用量统计，包含工具名、调用结果与耗时、错误摘要（截断）、环境 ID、地域 / 站点、IDE 与 MCP 客户端标识及其声明的能力（例如是否支持交互式输入）、设备标识，以及环境所属主账号 uin（字段名 `login_uin`，与 CloudBase CLI 保持一致）。上报内容会做截断与敏感字段过滤，不用于其他用途。如需关闭，设 `CLOUDBASE_MCP_TELEMETRY_DISABLED=true` 即可完全关闭。
+**遥测说明**：CloudBase MCP 默认上报使用统计，用于产品改进与用量统计，包含工具名、调用结果与耗时、工具级 `action`（如 `auth` 的 `status` / `set_env`）、错误摘要（截断）、环境 ID、地域 / 站点、IDE 与 MCP 客户端标识及其声明的能力（例如是否支持交互式输入）、设备标识，以及环境所属主账号 uin（字段名 `login_uin`，与 CloudBase CLI 保持一致）。当客户端读取 `ui://` 面板资源时会额外上报一条资源读取事件（事件名 `toolkit_resource_read`，含资源 URI、MIME、内容字节数、耗时与成败，并复用上面同一套环境 / 站点 / 客户端字段）。上报内容会做截断与敏感字段过滤，不用于其他用途。如需关闭，设 `CLOUDBASE_MCP_TELEMETRY_DISABLED=true` 即可完全关闭。
 
 ### 登录相关环境变量怎么选
 

@@ -1,7 +1,7 @@
 {
   "name": "cloudbase-collect-form-expert",
-  "version": "1.0.14",
-  "description": "CloudBase collect-form expert: replaces 'collecting replies in the group chat' — generates sign-up forms, surveys, polls, and info-collection forms, deploys them online, and returns a QR code. Respondents scan and fill without installing anything; the organizer watches responses come in live with auto-summarized stats and CSV export. Built and deployed end-to-end for non-developers.",
+  "version": "1.0.22",
+  "description": "CloudBase collect-form expert: generates sign-up forms, surveys, polls, and info-collection forms, deploys them online, and returns a QR code. Respondents scan and fill without installing anything; the organizer watches responses come in live with auto-summarized stats and CSV export. Built and deployed end-to-end for non-developers.",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
@@ -21,8 +21,8 @@
     "zh": "小工具开发专家"
   },
   "displayDescription": {
-    "en": "Sign-up forms, surveys, polls, and info collection generated in one sentence and live on a QR code: share it in the group chat, people scan and fill — no app needed — and responses are summarized for you automatically.",
-    "zh": "报名表、收集表、问卷一句话生成上线：发微信群扫码即填，无需装App，结果自动汇总统计。"
+    "en": "Sign-up forms, surveys, polls, and info collection generated in one sentence and live on a QR code: people scan and fill — no app needed — and responses are summarized for you automatically.",
+    "zh": "报名表、收集表、问卷一句话生成上线：扫码即填，无需装 App，结果自动汇总统计。"
   },
   "avatar": "avatars/cloudbase-collect-form-expert.png",
   "categoryId": "02-Engineering",
@@ -56,8 +56,8 @@
       "en": "Build a family-event sign-up form: parents scan and fill in their child's name and contact; I watch the sign-up list update in real time."
     },
     {
-      "zh": "做一个客户需求收集表：发到微信群里让客户自己填，提交的内容自动汇总到一张表里",
-      "en": "Build a client intake form: share it in the group chat, clients fill it themselves, and submissions are summarized into one table."
+      "zh": "做一个客户需求收集表：发给客户自己填，提交的内容自动汇总到一张表里",
+      "en": "Build a client intake form: send it to your clients, they fill it in themselves, and submissions are summarized into one table."
     },
     {
       "zh": "做一个团建投票：选项是烧烤、密室、剧本杀，每人只能投一次，投完能看到实时结果",

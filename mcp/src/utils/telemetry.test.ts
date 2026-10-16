@@ -6,6 +6,7 @@ import {
   readClientCapabilitiesFromServer,
   readMcpClientInfoFromServer,
   reportElicitationResult,
+  reportResourceRead,
   reportToolCall,
   reportToolkitLifecycle,
   telemetryReporter,
@@ -475,6 +476,35 @@ describe("client capabilities (本地支持矩阵的唯一来源)", () => {
       field: "goal",
       optionCount: "3",
       toolName: "auth",
+    });
+  });
+
+  it("工具调用上报带上 action 字段（区分同一工具做了什么）", async () => {
+    const reportSpy = vi.spyOn(telemetryReporter, "report").mockResolvedValue(undefined);
+
+    await reportToolCall({ toolName: "auth", success: true, action: "status" });
+
+    expect(payloadAt(reportSpy, 0)).toMatchObject({ action: "status" });
+  });
+
+  it("资源读取用独立事件上报（resourceUri / mimeType / bytes / duration / success）", async () => {
+    const reportSpy = vi.spyOn(telemetryReporter, "report").mockResolvedValue(undefined);
+
+    await reportResourceRead({
+      resourceUri: "ui://cloudbase/get-started",
+      mimeType: "text/html;profile=mcp-app",
+      bytes: 4096,
+      durationMs: 7,
+      success: true,
+    });
+
+    expect(reportSpy.mock.calls.map((c) => c[0])).toEqual(["toolkit_resource_read"]);
+    expect(payloadAt(reportSpy, 0)).toMatchObject({
+      resourceUri: "ui://cloudbase/get-started",
+      mimeType: "text/html;profile=mcp-app",
+      bytes: "4096",
+      duration: "7",
+      success: "true",
     });
   });
 });

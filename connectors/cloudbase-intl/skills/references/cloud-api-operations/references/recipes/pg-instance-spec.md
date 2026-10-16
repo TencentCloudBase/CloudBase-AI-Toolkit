@@ -120,7 +120,9 @@ only shared (multi-tenant) instance can be upgraded to dedicated, current form: 
 
 要注意**「云开发侧写着独享」和「PG 侧是什么形态」是两套话**：实测一个 `DescribeEnvInfo` 里 `TenantType: DEDICATED` 的实例，PG 侧形态是 `small_tenant`，调这个接口就被上面那句拒了。所以动手前先看 `TenantType` —— 只有 `SHARED` 才走 B2，`DEDICATED` 走 B1 调规格。
 
-能升独享的是**早期环境遗留的共享形态**；新开的云开发 PG 基本已经是独享。手上只有 `DEDICATED` 实例时，这条链路的正确动作是**不要调**，直接告诉用户当前实例不需要升独享 —— 别把「接口报错」讲成「升级失败」。
+**实例形态一律按 `DescribeEnvInfo` 的 `TenantType` 判断，不要按套餐名、购买页或环境新旧推断** —— 个人版默认就是**共享（多租户）**形态，「个人版 = 独享」这个印象通常是错的；反过来也确实存在 `DEDICATED` 的实例。所以每次先跑序列 A 拿到 `TenantType`，再决定走 B1 还是 B2，别让用户按购买页的表述去预期实例形态。
+
+手上实例已经是 `DEDICATED` 时，这条链路的正确动作是**不要调**，如实告诉用户它不需要升独享 —— 别把「接口报错」讲成「升级失败」。
 
 返回 `TaskId`，用序列 C 回查进度。
 

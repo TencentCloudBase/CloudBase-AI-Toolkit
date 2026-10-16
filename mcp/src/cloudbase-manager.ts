@@ -12,10 +12,6 @@ import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
 import { readProjectEnvId } from './utils/project-config.js';
 import { createLocalCloudApiRequestFn, resolveLocalEndpoint } from './local-endpoint.js';
 
-// Timeout for envId auto-resolution flow.
-// 10 minutes (600 seconds) - matches InteractiveServer timeout
-const ENV_ID_TIMEOUT = 600000;
-
 export type EnvCandidate = {
     envId: string;
     alias?: string;

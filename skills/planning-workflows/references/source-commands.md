@@ -14,7 +14,7 @@ Force use of complete spec workflow for development. Suitable for new feature de
 Please note! You must follow the rules below, and each phase must be confirmed by me before proceeding to the next phase;
 
 ### 1. Requirements Clarification
-If you determine that my input presents a new requirement, you can work independently according to standard software engineering practices, asking me when necessary, and can use the interactiveDialog tool to collect information
+If you determine that my input presents a new requirement, you can work independently according to standard software engineering practices, asking me when necessary, by asking questions directly in the conversation
 
 ### 2. Requirements Analysis
 Whenever I input a new requirement, to standardize requirement quality and acceptance criteria, you must first clarify the problem and requirements, and then proceed to the next phase

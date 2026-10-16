@@ -45,6 +45,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Existing app + TCP database networking -> `references/vpc-and-database.md`
 - Container image deploy failure / probe / `deploy_failed` -> `references/image-deploy-troubleshooting.md`
 - Service calls CloudBase resources through an SDK (credential source / injection / revocation) -> `../cloud-functions/references/http-function-credentials.md`
+- Billing questions about a CloudRun charge ("why was I charged when nothing was deployed", "the free quota wasn't used up") -> `../cloud-api-operations/references/recipes/billing-charges-explained.md` (the gifted quota is a **3-month total**, and a container bills while **instance count is not 0**)
 
 ### Do NOT use for
 

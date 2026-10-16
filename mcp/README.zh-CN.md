@@ -160,6 +160,17 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 | --- | --- |
 | `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD` | 逗号分隔。可写工具名（`manageCloudRun`）或单个动作（`manageCloudRun.updateConfig`）；区分大小写、无通配。无法识别的条目会记日志并忽略，不会让服务起不来 |
 
+## 起步面板（MCP Apps）
+
+当客户端声明了 `io.modelcontextprotocol/ui` 扩展时，`auth` 会额外打开一个小型只读面板
+（`ui://cloudbase/get-started`）：它直接消费这次 `auth` 调用已经送回来的结构化结果，用人话展示连接状态
+——位置（站点 + 地域，如「上海（中国站）」）、可访问范围与环境 ID——并只给出一个当前该做的主行动
+（未登录给登录、已登录未绑定给选环境、已就绪给接一个示例项目）。面板唯一会发出的调用是只读的
+`auth(status)`（点「重新检查」触发），其余操作只是把一句话交给会话。原始返回折在「查看原始返回」里。
+
+不渲染 MCP Apps 的客户端不受影响：`auth` 的标题、描述、参数与输出保持不变，`resources/list` 仍为空数组，
+资源面板里不会多出任何新条目。
+
 ## IDE 配置片段
 
 <details>
