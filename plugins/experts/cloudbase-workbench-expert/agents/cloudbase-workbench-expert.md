@@ -3,7 +3,7 @@ name: cloudbase-workbench-expert
 displayName:
   en: "Cloud Workbench"
   zh: "云端工作台"
-description: "Business operations workbench expert on CloudBase (微信小程序 / 微信云开发). Turns a shop's daily routine into a cloud workbench 经营工作台: 库存管理 inventory & stock levels, 进货 purchase orders, 出入库 stock in/out, 盘点 stocktake, 订单管理 orders, 营业统计 sales & 营业额报表, 店铺记账 bookkeeping, 供应商台账 suppliers & 应付账款, 客户会员 customers & members, 员工考勤 attendance, 排班 scheduling, 多店管理 multi-store — for 小店铺 shops, 餐厅 restaurants, 门店 stores, 个体户 solo traders, 小微企业 small businesses. Built as a web app or 微信小程序 on a real cloud database with 按角色分权限: 老板看全部、店员只看自己该看的，多人协作、数据不丢、换设备还在。Also works as a personal workbench 个人工作台 for one person: 记账 expense tracking, 打卡 check-ins, 习惯 habits, 清单 lists, 周报 weekly reports — same cloud workbench, for an individual, a family, a shop or a team. Just describe what you want to keep track of: no coding required for non-developers. Use for 进销存、库存预警、营业报表、排班考勤、客户管理 or any tool that should store data in the cloud and be shared across people."
+description: "Business operations workbench expert on CloudBase (微信小程序 / 微信云开发). Turns a shop's daily routine into a cloud workbench 经营工作台: 库存管理 inventory & stock levels, 进货 purchase orders, 出入库 stock in/out, 盘点 stocktake, 订单管理 orders, 营业统计 sales & 营业额报表, 店铺记账 bookkeeping, 供应商台账 suppliers & 应付账款, 客户会员 customers & members, 员工考勤 attendance, 排班 scheduling, 多店管理 multi-store — for 小店铺 shops, 餐厅 restaurants, 门店 stores, 个体户 solo traders, 小微企业 small businesses, and 一人公司 / OPC (One-Person Company) 超级个体 solopreneurs who run everything alone. Built as a web app or 微信小程序 on a real cloud database with 按角色分权限: 老板看全部、店员只看自己该看的，多人协作、数据不丢、换设备还在。Also works as a personal workbench 个人工作台 for one person: 记账 expense tracking, 打卡 check-ins, 习惯 habits, 清单 lists, 周报 weekly reports — same cloud workbench, for an individual, a family, a shop or a team. Just describe what you want to keep track of: no coding required for non-developers. Use for 进销存、库存预警、营业报表、排班考勤、客户管理 or any tool that should store data in the cloud and be shared across people."
 categoryId: "02-Engineering"
 ---
 
@@ -18,6 +18,7 @@ categoryId: "02-Engineering"
 - **开小店 / 门店的人**：进货出货各记一笔，剩多少库存、哪些该补货一眼看到，不用再翻本子对账
 - **开餐厅 / 做本地服务的人**：每日营业、客户预约、店员排班放在一处，忙起来也不乱
 - **个体户 / 小微团队**：老板带几个店员，各记各的、老板看全盘——权限在数据层兜底，不靠自觉
+- **一个人做一门生意的人（一人公司 / OPC / 超级个体）**：没有同事，进货、订单、客户、收支都靠你自己——放进一个工作台，比记在手机备忘录和聊天记录里靠得住；哪天雇了人，加个登录就能分权限
 - **个人自己用**：一个人的记账、打卡、清单、周报——同一套工作台，个人用就是随身记录本（数据在云端，换手机不丢），哪天想拉人一起用，加个登录就成多人版
 
 ## 引用优先原则

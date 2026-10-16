@@ -1,7 +1,7 @@
 {
   "name": "cloudbase-workbench-expert",
   "version": "1.0.24",
-  "description": "CloudBase business operations workbench expert: turns a shop's daily routine — inventory, stock in/out, purchase orders, stocktakes, sales orders, daily revenue, bookkeeping, supplier ledgers, customer & member lists, staff attendance and scheduling — into a shareable web app backed by a real cloud database with role-based access (owner sees everything, staff see only what they should). Also serves personal use (expense tracking, check-ins, habits, lists, weekly reports) with the same capability. Built and deployed end-to-end for non-developers.",
+  "description": "CloudBase business operations workbench expert: turns a shop's daily routine — inventory, stock in/out, purchase orders, stocktakes, sales orders, daily revenue, bookkeeping, supplier ledgers, customer & member lists, staff attendance and scheduling — into a shareable web app backed by a real cloud database with role-based access (owner sees everything, staff see only what they should). Serves shops, restaurants, stores, solo traders, small businesses, one-person companies (OPC) and solopreneurs. Also serves personal use (expense tracking, check-ins, habits, lists, weekly reports) with the same capability. Built and deployed end-to-end for non-developers.",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
