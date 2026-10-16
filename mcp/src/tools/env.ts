@@ -57,10 +57,11 @@ import {
 } from "./env-setup.js";
 import {
   buildEnvCreditsPayload,
+  buildEnvMetricsPayload,
   isBillingExpired,
   resolveIsolatedDaysLeft,
 } from "./env-credits-payload.js";
-import type { EnvCreditsPayload } from "../resources/env-credits.js";
+import type { EnvCreditsPayload, EnvMetricsPayload } from "../resources/env-credits.js";
 import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/tcb.interface.js";
 
 /**
@@ -3001,10 +3002,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     }) => {
       try {
         let result;
-        // MCP Apps：queryEnv(action="usage") 额外把同一次查询换算成 `ui://cloudbase/env-credits`
-        // 面板的载荷，随结果一起返回（structuredContent）。其它 action 不带——面板会退回本地兜底态。
-        // 只读、best-effort：任何一步拿不到都不影响上面的文本回执。
+        // MCP Apps：`ui://cloudbase/env-credits` 挂在整个 queryEnv 上（resourceUri 是工具级单值），
+        // 所以两个视图靠载荷里的 `kind` 分派：usage → 用量卡（credits，缺省），metrics → 指标卡。
+        // 面板按 `ui/notifications/tool-result` 收到的 structuredContent 渲染；不带载荷的 action
+        // （list/info/domains）面板退回本地兜底态。只读、best-effort：任何一步拿不到都不影响文本回执。
         let creditsPayload: EnvCreditsPayload | undefined;
+        let metricsPayload: EnvMetricsPayload | undefined;
         // region 是否真正透传到按地域的 DescribeEnvs：环境级凭证会 pin 到绑定
         // envId 改走 describeEnvInfo（见下方 list 分支），此时 region 不生效，
         // 回执必须如实告知，避免调用方据此误判环境地域。
@@ -3336,6 +3339,50 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               Curve: curve,
               Summary: summarizeEnvMetricCurve(curve ?? {}),
             };
+
+            // 指标卡载荷：与 usage 同样 best-effort 取一次环境信息，只为品牌条的身份行
+            // （别名 + 套餐）；失败就按字段缺失降级（面板身份回退站点人话）。
+            // 曲线已在 buildEnvMetricsPayload 里按上限均匀抽样——`Curve` 原样不进载荷。
+            let metricsEnvInfo: any;
+            try {
+              metricsEnvInfo = await cloudbaseMetrics.env.describeEnvInfo({
+                EnvId: metricsEnvId,
+              });
+              logCloudBaseResult(server.logger, metricsEnvInfo);
+            } catch (envInfoError) {
+              debug(
+                "queryEnv(metrics) describeEnvInfo 失败，面板按字段缺失降级:",
+                envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)),
+              );
+            }
+            const metricsBaseInfo = metricsEnvInfo?.EnvInfo?.EnvBaseInfo;
+            const metricsPlanRaw =
+              (typeof metricsBaseInfo?.PackageId === "string" && metricsBaseInfo.PackageId) ||
+              (typeof metricsBaseInfo?.PackageName === "string" &&
+                metricsBaseInfo.PackageName) ||
+              null;
+            const metricsPlace = resolveSiteAndRegion({
+              site: cloudBaseOptions?.site,
+              region:
+                (typeof metricsBaseInfo?.Region === "string" && metricsBaseInfo.Region) ||
+                region,
+            });
+            metricsPayload = buildEnvMetricsPayload({
+              envId: metricsEnvId,
+              envAlias:
+                typeof metricsBaseInfo?.Alias === "string" ? metricsBaseInfo.Alias : null,
+              metricName: resolvedMetricName,
+              site: metricsPlace.site,
+              region: metricsPlace.region,
+              planRaw: metricsPlanRaw,
+              periodSeconds:
+                resolvedPeriod ??
+                (typeof curve?.Period === "number" ? curve.Period : null),
+              startTime: timeRange.startTime,
+              endTime: timeRange.endTime,
+              summary: result.Summary,
+              curve,
+            });
             break;
           }
 
@@ -3352,9 +3399,12 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               text: responseText,
             },
           ],
-          // 面板契约（见 resources/env-credits.ts 的 EnvCreditsPayload）：只在 usage 时附带，
+          // 面板契约（见 resources/env-credits.ts 的 EnvCreditsPayload / EnvMetricsPayload）：
+          // usage 带用量载荷、metrics 带指标载荷（同一资源、按 kind 分派）；
           // 文本回执逐字不变，不支持 UI 的客户端拿到的是纯加法。
-          ...(creditsPayload ? { structuredContent: creditsPayload } : {}),
+          ...(creditsPayload || metricsPayload
+            ? { structuredContent: creditsPayload ?? metricsPayload }
+            : {}),
         };
       } catch (error) {
         const toolPayloadResult = toolPayloadErrorToResult(error);

@@ -2411,6 +2411,90 @@ describe("env tools - queryEnv", () => {
     });
   });
 
+  // 同一个资源（ui://cloudbase/env-credits）现在承载两个视图，靠载荷里的 kind 分派：
+  // metrics 必须真的把载荷带出来，且**文本回执逐字不变**（不支持 UI 的客户端只看文本）。
+  it("queryEnv(metrics) 附带指标卡载荷（kind=metrics），且文本回执不变", async () => {
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvBaseInfo: {
+          EnvId: "env-metrics",
+          Alias: "演示环境",
+          PackageId: "baas_free",
+          Region: "ap-shanghai",
+        },
+      },
+    });
+    const describeCurveData = vi.fn().mockResolvedValue({
+      Period: 300,
+      NewValues: [0, 1, 2, 3],
+      Time: [1760000000, 1760000300, 1760000600, 1760000900],
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeEnvInfo },
+      monitor: { describeCurveData },
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({
+      action: "metrics",
+      envId: "env-metrics",
+      metricName: "FunctionError",
+    });
+
+    // 文本回执不变：Curve 在文本里仍是原样的 4 个点 + 时间轴
+    const receipt = JSON.parse(result.content[0].text);
+    expect(receipt).toMatchObject({
+      EnvId: "env-metrics",
+      MetricName: "FunctionError",
+      TimeSource: "defaultLast24h",
+      Summary: { sampleCount: 4, max: 3, min: 0, latest: 3, allZero: false },
+    });
+    expect(receipt.Curve.NewValues).toEqual([0, 1, 2, 3]);
+    expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-metrics" });
+
+    // 载荷：裁剪后的曲线 + 由数据推出的状态，且不带原样的 Curve / Summary
+    expect(result.structuredContent).toMatchObject({
+      kind: "metrics",
+      state: "data",
+      metric: "FunctionError",
+      env_id: "env-metrics",
+      env_alias: "演示环境",
+      plan: "trial",
+      sample_count: 4,
+      latest: 3,
+      max: 3,
+      min: 0,
+      avg: 1.5,
+      period_seconds: 300,
+    });
+    expect(result.structuredContent.spark).toHaveLength(4);
+    expect(result.structuredContent).not.toHaveProperty("Curve");
+    expect(result.structuredContent).not.toHaveProperty("Summary");
+  });
+
+  it("queryEnv(metrics) 环境信息拿不到时不挡住载荷：按字段缺失降级、指标与状态照给", async () => {
+    const describeCurveData = vi.fn().mockResolvedValue({ NewValues: [0, 0], Time: [1760000000, 1760000300] });
+    // 只给 monitor，不给 env.describeEnvInfo ⇒ 身份行降级，但指标数据必须照常进载荷
+    mockGetCloudBaseManager.mockResolvedValue({ monitor: { describeCurveData } });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({
+      action: "metrics",
+      envId: "env-metrics",
+      metricName: "EnvQPSAll",
+    });
+
+    expect(result.structuredContent).toMatchObject({
+      kind: "metrics",
+      metric: "EnvQPSAll",
+      env_id: "env-metrics",
+      env_alias: null,
+      plan: null,
+      state: "noData",
+      sample_count: 2,
+    });
+  });
+
   it("queryEnv(usage) 付费套餐的 total 也走配额表（个人版 40000）", async () => {
     const describeEnvAccountCircle = vi.fn().mockResolvedValue({
       StartTime: "2026-08-01 00:00:00",
