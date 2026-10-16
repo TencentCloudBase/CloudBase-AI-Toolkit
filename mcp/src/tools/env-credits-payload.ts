@@ -574,13 +574,29 @@ export function buildEnvMetricsPayload(input: {
     typeof v === "number" && Number.isFinite(v) ? v : null;
   const values = pickMetricSeries(input.curve);
   const sampleCount = num(summary.sampleCount) ?? values.length;
-  // 无流量只有一种成立方式：**确实看到一段非空且全零的曲线**。
-  //   - 空数组的 every() 恒为 true，直接拿它当判据会把"曲线缺失"误报成"没流量"
-  //     （同屏还会出现"288 个样本、峰值 5"的自相矛盾）；
-  //   - 曲线与摘要 allZero 冲突时**以曲线为准**（曲线是我们实际读到的数据，allZero 只是摘要）；
-  //   - 曲线缺失时**不下"无流量"结论**：宁可按有数据处理，也不给一个无法支撑的结论。
-  const sawAllZeroCurve = values.length > 0 && values.every((v) => v === 0);
-  const state: MetricsState = sawAllZeroCurve ? "noData" : "data";
+  // 状态词只允许断言我们证得了的事，分两种情况：
+  //
+  // 1) **曲线在**（`Curve` 里有可用数值）⇒ 曲线说了算：非空且全零才是"无流量"，否则"有数据"。
+  //    - 空数组的 every() 恒为 true，所以判据必须**同时**要求 `values.length > 0`，
+  //      否则"曲线缺失"会被误报成"没流量"（同屏出现"288 个样本、峰值 5"的自相矛盾）；
+  //    - 曲线与摘要 `allZero` 冲突时**以曲线为准**（曲线是我们实际读到的数据，摘要只是摘要）。
+  //
+  // 2) **曲线不在** ⇒ 只凭样本数下结论：`sampleCount > 0` 才敢说"有数据"，
+  //    否则一律 `noData`。这里**刻意选 noData 而不是新增一个"未确认"档**：
+  //    样本数为 0 或缺失（后者只手写载荷可达——服务端摘要恒带 sampleCount）时，
+  //    我们手上既没有数字也没有曲线，"没有数据"至少是"我们什么都没读到"的如实陈述，
+  //    而"有数据"是在断言存在数据——后者才是真正证不了的。
+  const sawCurve = values.length > 0;
+  // 注意：这里**不**再重复写 `sawCurve &&`——下面的三元已经先判 `sawCurve`，
+  // 而这个值只在"曲线在"那一支被读；空数组的 every() 恒为 true 这个坑由结构本身挡住。
+  const curveIsAllZero = values.every((v) => v === 0);
+  const state: MetricsState = sawCurve
+    ? curveIsAllZero
+      ? "noData"
+      : "data"
+    : sampleCount > 0
+      ? "data"
+      : "noData";
 
   // 时间轴：只为曲线与峰值时间服务；对不上就都不给
   const times = pickMetricTimes(input.curve, values.length);

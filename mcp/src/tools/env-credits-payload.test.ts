@@ -646,11 +646,22 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     expect(payload.latest).toBe(0);
   });
 
-  it("曲线缺失 ⇒ 不下「无流量」结论（不把 every() 对空数组恒真当成没流量）", () => {
-    const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: summaryOf([]), curve: { NewValues: [] } });
-    expect(payload.state).not.toBe("noData");
-    expect(payload.sample_count).toBe(0);
-    expect(payload).not.toHaveProperty("spark");
+  // 零样本（sampleCount 明确为 0）⇒ noData：真的没有样本，"没有数据"是能证的那句。
+  // 注意这里**不能**反过来断言 not.toBe("noData")——那只是在两个证不了的结论之间换一个。
+  it("零样本 ⇒ noData（sampleCount 为 0 或缺失，且没有曲线）", () => {
+    const explicitZero = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      summary: { sampleCount: 0 },
+      curve: { NewValues: [] },
+    });
+    expect(explicitZero.state).toBe("noData");
+    expect(explicitZero.sample_count).toBe(0);
+    expect(explicitZero).not.toHaveProperty("spark");
+
+    // 兜底口径：sampleCount 缺失 + 没有曲线 + 没有任何数字 ⇒ 也不得显示「有数据」
+    const nothingAtAll = buildEnvMetricsPayload({ ...METRICS_BASE, summary: {}, curve: null });
+    expect(nothingAtAll.state).toBe("noData");
+    expect(nothingAtAll.sample_count).toBe(0);
   });
 
   it("不编数：summary 缺字段 ⇒ 相应字段为 null，不拿 0 兜底", () => {
