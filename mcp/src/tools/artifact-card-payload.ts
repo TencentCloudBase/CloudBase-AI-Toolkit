@@ -146,7 +146,6 @@ export function buildArtifactCardPayload(input: {
     accessUrlReachable: input.accessUrlReachable,
     errorText: input.errorText,
   });
-  // 只有"已上线"才带地址与可见范围；其余状态下地址不参与展示（部署中/失败都没有可用地址）。
   const scope = state === "published" ? accessUrlScopeOf(input.accessUrlSource) : null;
   const { plan, plan_raw } = resolvePlanCode(input.planRaw);
 
@@ -158,11 +157,15 @@ export function buildArtifactCardPayload(input: {
   // 若这里塞 null，面板会把"这一级没有"误读成"就是没有环境 ID"，链条就断了。
   const envId = trimmedOrNull(input.envId);
 
+  // 地址的携带口径（**只有这一处说法**，别再写第二种）：
+  //   - 有地址、且状态不是「部署中」⇒ 带 `access_url`；部署中即便带着地址也**不带、也不说已上线**
+  //     （那时的地址属于上一个版本的服务，不是这次的产物）；
+  //   - `access_url_scope` 只在「已上线」时给（来源认不出就不给，面板据此不给「打开」）；
+  //   - 实际调用方只在成功路径传地址，所以「失败 / 未确认」自然不会带地址。
   return {
     state,
     ...(input.kind ? { artifact_kind: input.kind } : {}),
     ...(artifactName ? { artifact_name: artifactName } : {}),
-    // 地址照实给（部署中除外：那时带的地址属于上一个版本的服务，不是这次的产物）。
     ...(state !== "deploying" && accessUrl ? { access_url: accessUrl } : {}),
     ...(scope ? { access_url_scope: scope } : {}),
     // 后端原文，逐字透传；没有就不给（面板不显示说明句，不用错误码或通用文案顶替）。
