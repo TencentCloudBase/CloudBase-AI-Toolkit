@@ -4,10 +4,14 @@ import { buildEnvCreditsHtml } from "../resources/env-credits.js";
 import {
   buildCreditsSpark,
   buildEnvCreditsPayload,
+  buildEnvMetricsPayload,
   CREDITS_MODULE_KEYS,
+  downsampleMetricIndices,
+  formatCurveTime,
   isBillingExpired,
   isCreditsSumComplete,
   mapCreditsModules,
+  METRICS_SPARK_MAX_POINTS,
   moduleKeyOf,
   resolveCreditsBranch,
   resolveIsolatedDaysLeft,
@@ -588,5 +592,106 @@ describe("buildEnvCreditsPayload", () => {
     expect(payload).not.toHaveProperty("credits");
     expect(payload).not.toHaveProperty("modules");
     expect(payload).not.toHaveProperty("spark");
+  });
+});
+
+describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
+  const METRICS_BASE = {
+    envId: "env-demo",
+    metricName: "FunctionError",
+    site: "domestic",
+    region: "ap-shanghai",
+  };
+  const summaryOf = (values: number[], times?: number[]) => ({
+    sampleCount: values.length,
+    max: values.length ? Math.max(...values) : null,
+    min: values.length ? Math.min(...values) : null,
+    avg: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null,
+    latest: values.length ? values[values.length - 1] : null,
+    peakTimestamp: times ? times[values.indexOf(Math.max(...values))] : null,
+    allZero: values.length > 0 && values.every((v) => v === 0),
+  });
+
+  it("有数据：state=data、带上 latest/max/avg，并且 Curve 被抽样到上限内", () => {
+    const values = Array.from({ length: 288 }, (_, i) => i);
+    const payload = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      periodSeconds: 300,
+      startTime: "2026-10-15 00:00:00",
+      endTime: "2026-10-15 23:59:59",
+      summary: summaryOf(values),
+      curve: { NewValues: values },
+    });
+
+    expect(payload.kind).toBe("metrics");
+    expect(payload.state).toBe("data");
+    expect(payload.sample_count).toBe(288);
+    expect(payload.latest).toBe(287);
+    expect(payload.max).toBe(287);
+    expect(payload.min).toBe(0);
+    expect(payload.avg).toBeCloseTo(143.5, 3);
+    expect(payload.period_seconds).toBe(300);
+    // 抽样上限：288 → ≤ 48，且首尾一定被取到（否则曲线两端会缺角）
+    expect(payload.spark?.length).toBeLessThanOrEqual(METRICS_SPARK_MAX_POINTS);
+    expect(payload.spark?.[0].credits_value).toBe(0);
+    expect(payload.spark?.[payload.spark.length - 1].credits_value).toBe(287);
+    // Curve 原样不进载荷
+    expect(payload).not.toHaveProperty("Curve");
+    expect(payload).not.toHaveProperty("Summary");
+  });
+
+  it("全零 ⇒ state=noData（无流量），数值仍如实带上、不改成 null", () => {
+    const values = [0, 0, 0, 0];
+    const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: summaryOf(values), curve: { Values: values } });
+    expect(payload.state).toBe("noData");
+    expect(payload.sample_count).toBe(4);
+    expect(payload.max).toBe(0);
+    expect(payload.latest).toBe(0);
+  });
+
+  it("空曲线 ⇒ state=noData，且不带 spark（不编一条直线）", () => {
+    const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: summaryOf([]), curve: { NewValues: [] } });
+    expect(payload.state).toBe("noData");
+    expect(payload.sample_count).toBe(0);
+    expect(payload).not.toHaveProperty("spark");
+  });
+
+  it("不编数：summary 缺字段 ⇒ 相应字段为 null，不拿 0 兜底", () => {
+    const payload = buildEnvMetricsPayload({ ...METRICS_BASE, summary: { sampleCount: 3 }, curve: { NewValues: [1, 2, 3] } });
+    expect(payload.latest).toBeNull();
+    expect(payload.max).toBeNull();
+    expect(payload.min).toBeNull();
+    expect(payload.avg).toBeNull();
+    expect(payload.peak_time).toBeNull();
+    // 有样本就不再是"无流量"
+    expect(payload.state).toBe("data");
+  });
+
+  it("非有限数与长度不符的时间轴一律丢弃：不给值也不给时间", () => {
+    const payload = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      summary: { sampleCount: 3 },
+      curve: { NewValues: [1, Number.NaN, 3, "x"], Time: [1] },
+    });
+    expect(payload.spark?.map((p) => p.credits_value)).toEqual([1, 3]);
+    expect(payload.spark?.every((p) => !("calc_time" in p))).toBe(true);
+  });
+
+  it("时间轴等长时给出可读时间（秒/毫秒两种口径都能读）", () => {
+    const seconds = 1_760_000_000;
+    const payload = buildEnvMetricsPayload({
+      ...METRICS_BASE,
+      summary: { sampleCount: 2, peakTimestamp: seconds },
+      curve: { NewValues: [1, 5], Time: [seconds, seconds + 300] },
+    });
+    expect(payload.spark?.[0].calc_time).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    expect(payload.peak_time).toBe(formatCurveTime(seconds));
+    expect(formatCurveTime(seconds * 1000)).toBe(formatCurveTime(seconds));
+  });
+
+  it("kind 缺省即 credits：用量载荷不带 kind 键（旧路径逐字不变）", () => {
+    const credits = buildEnvCreditsPayload({ envId: "env-demo", usages: null, site: "domestic", region: "ap-shanghai" });
+    expect(credits).not.toHaveProperty("kind");
+    expect(buildEnvMetricsPayload({ ...METRICS_BASE, summary: summaryOf([]) }).kind).toBe("metrics");
   });
 });

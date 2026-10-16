@@ -1,4 +1,4 @@
-import type { CreditsBranch, EnvCreditsPayload, PlanCode } from "../resources/env-credits.js";
+import type { CreditsBranch, EnvCreditsPayload, EnvMetricsPayload, MetricsState, PlanCode } from "../resources/env-credits.js";
 
 /**
  * `queryEnv(action="usage")` 的结果 → `ui://cloudbase/env-credits` 面板载荷的映射。
@@ -450,5 +450,167 @@ export function buildEnvCreditsPayload(input: {
     ...(typeof input.isolatedDaysLeft === "number"
       ? { isolated_days_left: input.isolatedDaysLeft }
       : {}),
+  };
+}
+
+/**
+ * 指标曲线的抽样上限。
+ *
+ * 为什么是 48：面板曲线画布宽 280px（`resources/env-credits.ts` 的 `spark-svg`），48 点约合
+ * 每 5.8px 一个点——再密在视觉上没有区别；而默认查询（最近 24h、粒度 300s）会产生约 288 个样本，
+ * 原样塞进 `structuredContent` 是 **288×2 个数**，抽样后 ≤ 96 个数，载荷体积与宿主时延都可控。
+ * 抽样是**均匀取点**（含首尾），不改变"峰值在哪里"这一结论——峰值本身来自 `Summary.max`，
+ * 不依赖抽样是否恰好取到那个点。
+ */
+export const METRICS_SPARK_MAX_POINTS = 48;
+
+/** 曲线里能用的值（优先 `NewValues`，退回 `Values`；非有限数一律丢弃，不当 0）。 */
+function pickMetricSeries(curve: {
+  Values?: unknown;
+  NewValues?: unknown;
+} | null | undefined): number[] {
+  const raw = curve && Array.isArray(curve.NewValues) && curve.NewValues.length > 0
+    ? curve.NewValues
+    : curve && Array.isArray(curve.Values)
+      ? curve.Values
+      : [];
+  const out: number[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const value = raw[i];
+    if (typeof value === "number" && Number.isFinite(value)) { out.push(value); }
+  }
+  return out;
+}
+
+/**
+ * 曲线时间轴（与值一一对应才可用）。
+ *
+ * `describeCurveData` 的 `Time` 真机形状未实测（本仓只有类型层面的 `unknown` 防御）：
+ * 这里**只接受与值等长的数组**，元素原样转成短字符串，认不出就不给时间——
+ * 宁可不显示时间，也不编一个时间。
+ */
+function pickMetricTimes(curve: { Time?: unknown } | null | undefined, length: number): string[] | null {
+  const raw = curve && Array.isArray(curve.Time) ? curve.Time : null;
+  if (!raw || raw.length !== length) { return null; }
+  const out: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (typeof item === "number" && Number.isFinite(item)) {
+      out.push(formatCurveTime(item));
+    } else if (typeof item === "string" && item.length > 0) {
+      out.push(item);
+    } else {
+      return null;
+    }
+  }
+  return out;
+}
+
+/**
+ * 曲线时间点 → 可读短串。
+ *
+ * **未实测的假设**：值 ≥ 1e12 视为毫秒，否则视为秒（这是 `describeCurveData` 常见的两种口径）。
+ * 判断错的后果只是时间显示不对，不会影响数值与状态——所以这里选择"给出可读时间"而不是"因为不确定就不给"，
+ * 但把它记在报告里作为待真机确认项。
+ */
+export function formatCurveTime(value: number): string {
+  const ms = value >= 1e12 ? value : value * 1000;
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) { return String(value); }
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** 均匀抽样（含首尾），返回原数组的索引。 */
+export function downsampleMetricIndices(length: number, maxPoints: number): number[] {
+  if (length <= 0) { return []; }
+  if (length <= maxPoints) {
+    const all: number[] = [];
+    for (let i = 0; i < length; i++) { all.push(i); }
+    return all;
+  }
+  const out: number[] = [];
+  const step = (length - 1) / (maxPoints - 1);
+  for (let i = 0; i < maxPoints; i++) {
+    const index = Math.round(i * step);
+    if (out[out.length - 1] !== index) { out.push(index); }
+  }
+  return out;
+}
+
+/**
+ * `queryEnv(action="metrics")` 的结果 → 监控指标卡载荷。
+ *
+ * 纪律（与用量卡同一套）：
+ *   1. **不编阈值**：状态只有"有数据 / 无流量"两种由数据推出的结论（`failed` 由面板在
+ *      `isError` 的结果上置位，不由这里猜）；**没有阈值字段就不显示"正常/异常"**。
+ *   2. **不编数**：`Summary` 里拿不到的字段一律不带（面板隐藏该行）；`Curve` 非有限数一律丢弃；
+ *      时间轴对不上就不给时间。
+ *   3. **裁剪**：曲线按 `METRICS_SPARK_MAX_POINTS` 均匀抽样；`Curve` 原样**不进**载荷。
+ */
+export function buildEnvMetricsPayload(input: {
+  envId: string;
+  envAlias?: string | null;
+  metricName: string;
+  site: string;
+  region: string;
+  planRaw?: string | null;
+  periodSeconds?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  summary?: {
+    sampleCount?: unknown;
+    max?: unknown;
+    min?: unknown;
+    avg?: unknown;
+    latest?: unknown;
+    peakTimestamp?: unknown;
+    allZero?: unknown;
+  } | null;
+  curve?: { Values?: unknown; NewValues?: unknown; Time?: unknown } | null;
+}): EnvMetricsPayload {
+  const summary = input.summary ?? {};
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? v : null;
+  const values = pickMetricSeries(input.curve);
+  const sampleCount = num(summary.sampleCount) ?? values.length;
+  const allZero = summary.allZero === true || (sampleCount > 0 && values.every((v) => v === 0));
+  const state: MetricsState = sampleCount === 0 || allZero ? "noData" : "data";
+
+  // 时间轴：只为曲线与峰值时间服务；对不上就都不给
+  const times = pickMetricTimes(input.curve, values.length);
+  const indices = downsampleMetricIndices(values.length, METRICS_SPARK_MAX_POINTS);
+  const spark = indices.length
+    ? indices.map((index) => ({
+        ...(times ? { calc_time: times[index] } : {}),
+        credits_value: values[index],
+      }))
+    : undefined;
+
+  // 峰值时间：Summary 只给下标对应的时间戳，且真机形状未实测 ⇒ 认不出就整项不显示
+  const peakTimestamp = num(summary.peakTimestamp);
+  const peakTime = peakTimestamp === null ? null : formatCurveTime(peakTimestamp);
+
+  const { plan } = resolvePlanCode(input.planRaw ?? null);
+
+  return {
+    kind: "metrics",
+    state,
+    metric: input.metricName,
+    env_alias: typeof input.envAlias === "string" && input.envAlias !== "" ? input.envAlias : null,
+    env_id: input.envId,
+    current_region: input.region,
+    site: input.site,
+    plan,
+    sample_count: sampleCount,
+    ...(typeof input.periodSeconds === "number" ? { period_seconds: input.periodSeconds } : {}),
+    ...(input.startTime ? { start_time: input.startTime } : {}),
+    ...(input.endTime ? { end_time: input.endTime } : {}),
+    latest: num(summary.latest),
+    max: num(summary.max),
+    min: num(summary.min),
+    avg: num(summary.avg),
+    peak_time: peakTime,
+    ...(spark ? { spark } : {}),
   };
 }
