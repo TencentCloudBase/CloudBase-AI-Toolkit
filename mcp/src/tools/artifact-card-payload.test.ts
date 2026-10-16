@@ -3,6 +3,8 @@ import {
   ACCESS_URL_SCOPE_BY_SOURCE,
   accessUrlScopeOf,
   buildArtifactCardPayload,
+  errorTextOf,
+  resolveArtifactEnvContext,
   resolveArtifactState,
 } from "./artifact-card-payload.js";
 
@@ -175,7 +177,6 @@ describe("buildArtifactCardPayload", () => {
       "env_alias",
       "artifact_kind",
       "artifact_name",
-      "updated_at",
     ]) {
       expect(payload, `${key} 不应出现`).not.toHaveProperty(key);
     }
@@ -194,5 +195,92 @@ describe("buildArtifactCardPayload", () => {
     const payload = buildArtifactCardPayload({ ...BASE, envAlias: "生产环境" });
     expect(payload).not.toHaveProperty("env_id");
     expect(payload.env_alias).toBe("生产环境");
+  });
+});
+
+describe("resolveArtifactEnvContext（别名 / 套餐 / 位置：一次只读调用，失败逐字段降级）", () => {
+  const managerWith = (impl: (args: { EnvId: string }) => Promise<unknown>) => ({
+    env: { describeEnvInfo: impl },
+  });
+
+  it("拿到环境信息时取别名、套餐码与地域（站点随之解析）", async () => {
+    let calls = 0;
+    const ctx = await resolveArtifactEnvContext({
+      manager: managerWith(async () => {
+        calls += 1;
+        return {
+          EnvInfo: {
+            EnvBaseInfo: { Alias: "生产环境", PackageId: "baas_personal", Region: "ap-guangzhou" },
+          },
+        };
+      }),
+      envId: "env-abc",
+    });
+
+    expect(ctx).toEqual({
+      envAlias: "生产环境",
+      planRaw: "baas_personal",
+      site: "domestic",
+      region: "ap-guangzhou",
+    });
+    // 每次部署只多这一次只读调用
+    expect(calls).toBe(1);
+  });
+
+  it("没有 PackageId 时用 PackageName 兜底；认不出照样交给 plan_raw", async () => {
+    const ctx = await resolveArtifactEnvContext({
+      manager: managerWith(async () => ({
+        EnvInfo: { EnvBaseInfo: { PackageName: "baas_ultra" } },
+      })),
+      envId: "env-abc",
+    });
+
+    expect(ctx.planRaw).toBe("baas_ultra");
+  });
+
+  it("查不到 / 抛错 / 没有这个方法 ⇒ 逐字段降级，绝不抛，站点与地域仍按配置解析", async () => {
+    for (const manager of [
+      managerWith(async () => {
+        throw new Error("DescribeEnvInfo denied");
+      }),
+      managerWith(async () => ({})),
+      managerWith(async () => ({ EnvInfo: {} })),
+      {},
+      null,
+      undefined,
+    ]) {
+      const ctx = await resolveArtifactEnvContext({
+        manager: manager as never,
+        envId: "env-abc",
+        site: "intl",
+        region: "ap-singapore",
+      });
+      expect(ctx.envAlias).toBeNull();
+      expect(ctx.planRaw).toBeNull();
+      expect(ctx.site).toBe("intl");
+      expect(ctx.region).toBe("ap-singapore");
+    }
+  });
+
+  it("没有 envId 时一次调用都不发（不为品牌条额外付费）", async () => {
+    let calls = 0;
+    const ctx = await resolveArtifactEnvContext({
+      manager: managerWith(async () => {
+        calls += 1;
+        return {};
+      }),
+      envId: null,
+    });
+
+    expect(calls).toBe(0);
+    expect(ctx.envAlias).toBeNull();
+  });
+});
+
+describe("errorTextOf（后端原文，不改写）", () => {
+  it("Error 取 message，其它类型直接 String()", () => {
+    expect(errorTextOf(new Error("端口 8080 未响应"))).toBe("端口 8080 未响应");
+    expect(errorTextOf("plain")).toBe("plain");
+    expect(errorTextOf(undefined)).toBe("undefined");
   });
 });

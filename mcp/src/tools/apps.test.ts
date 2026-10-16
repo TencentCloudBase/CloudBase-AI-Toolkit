@@ -171,6 +171,14 @@ describe("app tools", () => {
     });
     const payload = JSON.parse(result.content[0].text);
 
+    // MCP Apps：文本回执之外，同一份结果也交给产物卡片面板（只读展示）
+    expect(result.structuredContent).toMatchObject({
+      state: 'published',
+      access_url_scope: 'public',
+      artifact_kind: 'apps',
+      artifact_name: 'demo-app',
+    });
+
     expect(mockUploadCode).toHaveBeenCalledWith({
       deployType: "static-hosting",
       serviceName: "demo-app",
@@ -203,6 +211,18 @@ describe("app tools", () => {
         accessUrl: "https://demo-app-env-test.webapps.tcloudbase.com",
       },
     });
+  });
+
+  it("manageApps(action=deployApp) attaches the failure state to the artifact card payload", async () => {
+    // 缺 serviceName → 在任何网络调用之前就失败；失败态是这张卡的主要价值，必须同样带上
+    const result = await tools.manageApps.handler({ action: "deployApp" });
+
+    expect(result.structuredContent.state).toBe("failed");
+    expect(result.structuredContent.artifact_kind).toBe("apps");
+    expect(typeof result.structuredContent.error_text).toBe("string");
+    expect(result.structuredContent.error_text.length).toBeGreaterThan(0);
+    // 文本回执照旧（仓库既有的失败信封）
+    expect(JSON.parse(result.content[0].text).success).toBe(false);
   });
 
   it("manageApps(action=deployApp) should normalize access URL from app details", async () => {

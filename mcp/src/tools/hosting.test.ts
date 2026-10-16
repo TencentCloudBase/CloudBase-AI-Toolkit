@@ -366,11 +366,12 @@ describe('hosting tools', () => {
 
   it('manageHosting(action=upload) should upload and return access URL plus next action', async () => {
     const tools = createMockServer();
-    const payload = JSON.parse((await tools.manageHosting.handler({
+    const result = await tools.manageHosting.handler({
       action: 'upload',
       localPath: '/tmp/site-dist',
       cloudPath: 'site',
-    })).content[0].text);
+    });
+    const payload = JSON.parse(result.content[0].text);
 
     expect(payload.success).toBe(true);
     expect(mockUploadFiles).toHaveBeenCalledWith({
@@ -387,6 +388,26 @@ describe('hosting tools', () => {
       action: 'findFiles',
     });
     expect(mockSendDeployNotification).toHaveBeenCalled();
+
+    // MCP Apps：文本回执之外，同一份结果也交给产物卡片面板（只读展示）
+    expect(result.structuredContent).toMatchObject({
+      state: 'published',
+      access_url: 'https://static.example.com/site/',
+      access_url_scope: 'public',
+      artifact_kind: 'hosting',
+    });
+  });
+
+  it('manageHosting(action=upload) attaches the failure state to the artifact card payload', async () => {
+    const tools = createMockServer();
+    // 缺参数 → 在任何网络调用之前就失败；失败态是这张卡的主要价值，必须同样带上
+    const result = await tools.manageHosting.handler({ action: 'upload' });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(result.structuredContent.state).toBe('failed');
+    expect(result.structuredContent.error_text).toBe(t('hosting.uploadArgsRequired', undefined, 'zh'));
+    expect(result.structuredContent.artifact_kind).toBe('hosting');
   });
 
   it('manageHosting(action=upload) should keep the static hosting domain + cloudPath when other apps share the same STATIC_STORE', async () => {

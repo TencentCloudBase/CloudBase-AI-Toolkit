@@ -43,8 +43,6 @@ export const mcpUiArtifact = defineModule(
     // 关键信息行
     "field.place": "位置",
     "field.accessUrl": "访问地址",
-    "field.updatedAt": "更新时间",
-    "field.failedAt": "失败时间",
 
     // 标签
     "tag.internalOnly": "仅内网",
@@ -91,8 +89,6 @@ export const mcpUiArtifact = defineModule(
 
     "field.place": "Location",
     "field.accessUrl": "Access address",
-    "field.updatedAt": "Updated",
-    "field.failedAt": "Failed",
 
     "tag.internalOnly": "Internal only",
 

@@ -227,10 +227,6 @@ body {
 </button>
 </div>
 </div>
-<div class="field" id="f-time" hidden>
-<p class="k" id="k-time-label"></p>
-<p class="v" id="k-time"></p>
-</div>
 </div>
 <div class="acts">
 <button class="btn primary" type="button" id="btn-main" hidden></button>
@@ -288,8 +284,6 @@ body {
       publishedInternal: ${S("mcpUiArtifact.hint.publishedInternal")},
       unknown: ${S("mcpUiArtifact.hint.unknown")}
     },
-    fieldUpdatedAt: ${S("mcpUiArtifact.field.updatedAt")},
-    fieldFailedAt: ${S("mcpUiArtifact.field.failedAt")},
     envIdLabel: ${S("mcpUiArtifact.brand.envIdLabel")},
     copyEnvId: ${S("mcpUiCredits.brand.copyEnvId")},
     actionOpenUrl: ${S("mcpUiArtifact.action.openUrl")},
@@ -415,15 +409,6 @@ body {
         setText(urlTag, T.internalTag);
         urlTag.hidden = scope !== "internal";
       }
-    }
-
-    // Timestamp is shown as given by the server (no relative-time rewriting on the client).
-    var fTime = el("f-time");
-    var updatedAt = payload && typeof payload.updated_at === "string" ? payload.updated_at : "";
-    if (fTime) { fTime.hidden = updatedAt === ""; }
-    if (updatedAt !== "") {
-      setText(el("k-time-label"), state === "failed" ? T.fieldFailedAt : T.fieldUpdatedAt);
-      setText(el("k-time"), updatedAt);
     }
 
     // Brand: alias (falling back to the site's human name), plan tag, copy the environment ID.

@@ -180,6 +180,37 @@ describe("manageCloudRun deploy imageUrl branch", () => {
     });
     // 镜像部署未传 targetPath 时应保持 undefined，交给 SDK 走 DeployType=image 分支。
     expect(deployCall.targetPath).toBeUndefined();
+
+    // MCP Apps：文本回执之外，同一份结果也交给产物卡片面板；deploy 是异步注册，
+    // 所以状态是「部署中」——即使结果里带着已有服务的地址也不说成已上线。
+    expect(res.structuredContent).toMatchObject({
+      state: 'deploying',
+      artifact_kind: 'cloudrun',
+      artifact_name: 'hermes-agent',
+    });
+    expect(res.structuredContent).not.toHaveProperty('access_url');
+  });
+
+  it("returns the artifact card failure state when the deploy call itself fails", async () => {
+    const manager = makeManager({
+      deployImpl: () => Promise.reject(new Error('backend said no')),
+    });
+    mockGetCloudBaseManager.mockReturnValue(manager);
+    const { tools } = await createCloudRunTools();
+
+    const res = await tools.manageCloudRun.handler({
+      action: 'deploy',
+      serverName: 'hermes-agent',
+      imageUrl: 'ccr.ccs.tencentyun.com/ns/hermes:v1',
+    });
+
+    // 文本与"抛给运行时包装"同源：同一句 message、isError 同为 true，只多一个 structuredContent
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toContain('backend said no');
+    expect(res.structuredContent.state).toBe('failed');
+    expect(res.structuredContent.error_text).toBe(res.content[0].text);
+    expect(res.structuredContent.artifact_kind).toBe('cloudrun');
+    expect(res.structuredContent.artifact_name).toBe('hermes-agent');
   });
 
   it("documents imageUrl-first semantics in schema descriptions", async () => {

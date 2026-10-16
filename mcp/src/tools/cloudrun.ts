@@ -10,6 +10,11 @@ import { debug } from '../utils/logger.js';
 import { requireProjectRoot } from '../utils/project-config.js';
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
+import { buildTextErrorResult } from '../utils/tool-result.js';
+import {
+  buildArtifactCardPayload,
+  resolveArtifactEnvContext,
+} from './artifact-card-payload.js';
 import { buildCamAuthGuidance, isCamAuthError } from './capi.js';
 import {
   listLikelyRedeployFields,
@@ -2410,7 +2415,32 @@ for await (let x of res.textStream) {
             try {
               result = await cloudrunService.deploy(deployParams);
             } catch (error) {
-              throw new Error(buildManageCloudRunErrorMessage('deploy', input.serverName, error));
+              // MCP Apps：部署调用失败就直接给出失败态（含**后端原文**）。文本与"抛给运行时包装"
+              // 完全一致（content 里是同一句 message、isError 同为 true），只多一个 structuredContent。
+              // 注意：这次的 message 是仓里既有的 deploy 失败呈现（buildManageCloudRunErrorMessage），
+              // 与文本回执同源，不另写一套措辞。
+              const failureMessage = buildManageCloudRunErrorMessage('deploy', input.serverName, error);
+              const failureEnvId = await getEnvId(cloudBaseOptions);
+              const failureCardEnv = await resolveArtifactEnvContext({
+                manager,
+                envId: failureEnvId,
+                site: cloudBaseOptions?.site,
+                region: cloudBaseOptions?.region,
+              });
+              return {
+                ...buildTextErrorResult(failureMessage),
+                structuredContent: buildArtifactCardPayload({
+                  success: false,
+                  errorText: failureMessage,
+                  kind: 'cloudrun',
+                  artifactName: input.serverName,
+                  envAlias: failureCardEnv.envAlias,
+                  envId: failureEnvId,
+                  planRaw: failureCardEnv.planRaw,
+                  site: failureCardEnv.site,
+                  region: failureCardEnv.region,
+                }),
+              };
             }
 
             // Generate cloudbaserc.json configuration file (source-build only; image deploy has no local project dir)
@@ -2532,6 +2562,15 @@ for await (let x of res.textStream) {
               registered: registration.registered,
             });
 
+            // MCP Apps：把这次部署的结果同时交给产物卡片面板（只读展示 + 把写意图交给会话）。
+            // 文本回执逐字不变；环境上下文 best-effort（只多一次只读调用），失败不冒泡。
+            const deployCardEnv = await resolveArtifactEnvContext({
+              manager,
+              envId: currentEnvId,
+              site: cloudBaseOptions?.site,
+              region: cloudBaseOptions?.region,
+            });
+
             return {
               content: [
                 {
@@ -2603,7 +2642,22 @@ for await (let x of res.textStream) {
                       warningSuffix
                   }, null, 2)
                 }
-              ]
+              ],
+              structuredContent: buildArtifactCardPayload({
+                success: true,
+                // 这次 deploy 是异步注册：工具自己就把 status 标成 deploying，
+                // 即使同时带上了"已有服务"的地址，也不能说成已上线。
+                pending: true,
+                accessUrl: preferredAccessUrl,
+                accessUrlSource: preferredAccessSource,
+                kind: 'cloudrun',
+                artifactName: input.serverName,
+                envAlias: deployCardEnv.envAlias,
+                envId: currentEnvId,
+                planRaw: deployCardEnv.planRaw,
+                site: deployCardEnv.site,
+                region: deployCardEnv.region,
+              }),
             };
           }
 

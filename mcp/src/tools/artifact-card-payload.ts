@@ -1,4 +1,5 @@
 import type { PlanCode } from "../resources/env-credits.js";
+import { resolveSiteAndRegion } from "../utils/site-map.js";
 import { resolvePlanCode } from "./env-credits-payload.js";
 
 /**
@@ -97,7 +98,6 @@ export interface ArtifactCardPayload {
   plan_raw?: string | null;
   current_region?: string;
   site?: string;
-  updated_at?: string | null;
 }
 
 function trimmedOrNull(value?: string | null): string | null {
@@ -128,7 +128,6 @@ export function buildArtifactCardPayload(input: {
   planRaw?: string | null;
   site: string;
   region: string;
-  updatedAt?: string | null;
 }): ArtifactCardPayload {
   const reachable = input.accessUrlReachable === false ? null : trimmedOrNull(input.accessUrl);
   const state = resolveArtifactState({
@@ -144,7 +143,6 @@ export function buildArtifactCardPayload(input: {
   const artifactName = trimmedOrNull(input.artifactName);
   const errorText = trimmedOrNull(input.errorText);
   const envAlias = trimmedOrNull(input.envAlias);
-  const updatedAt = trimmedOrNull(input.updatedAt);
   // env_id 逐字来自**本次工具结果**：拿不到就**整个键省略**，让面板按
   // 「①工具结果 → ②配置/环境变量 → ③进程缓存 → ④不显示」的链条回落到服务端解析出的兜底值。
   // 若这里塞 null，面板会把"这一级没有"误读成"就是没有环境 ID"，链条就断了。
@@ -164,6 +162,81 @@ export function buildArtifactCardPayload(input: {
     plan_raw,
     current_region: input.region,
     site: input.site,
-    ...(updatedAt ? { updated_at: updatedAt } : {}),
   };
+}
+
+/** 错误 → **后端原文**：与运行时抛出的文本同源（`error.message`），不改写、不包装。 */
+export function errorTextOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** 环境上下文：别名 / 套餐码 / 站点 / 地域（面板品牌条与「位置」用）。 */
+export interface ArtifactEnvContext {
+  envAlias: string | null;
+  planRaw: string | null;
+  site: string;
+  region: string;
+}
+
+/** `DescribeEnvInfo` 里本模块真正读到的字段（best-effort，形状按 SDK 类型）。 */
+interface EnvInfoLike {
+  env?: { describeEnvInfo?: (args: { EnvId: string }) => Promise<unknown> };
+}
+
+function envBaseInfoOf(info: unknown): Record<string, unknown> | null {
+  if (!info || typeof info !== "object") {
+    return null;
+  }
+  const envInfo = (info as { EnvInfo?: unknown }).EnvInfo;
+  if (!envInfo || typeof envInfo !== "object") {
+    return null;
+  }
+  const base = (envInfo as { EnvBaseInfo?: unknown }).EnvBaseInfo;
+  return base && typeof base === "object" ? (base as Record<string, unknown>) : null;
+}
+
+/**
+ * 取环境上下文：**一次** best-effort 的只读 `DescribeEnvInfo`（与用量卡同一口径与同一字段），
+ * 失败**逐字段降级**——别名 / 套餐为空、站点与地域回落到站点解析链，**绝不抛**、也绝不影响
+ * 调用方的文本回执。位置（站点 / 地域）即使不发这次调用也能算出，所以它是兜底那一级。
+ */
+export async function resolveArtifactEnvContext(input: {
+  manager?: EnvInfoLike | null;
+  envId?: string | null;
+  site?: string | null;
+  region?: string | null;
+}): Promise<ArtifactEnvContext> {
+  let actionRegion: string | undefined;
+  let actionSite: string | undefined;
+  let envAlias: string | null = null;
+  let planRaw: string | null = null;
+
+  const envId = typeof input.envId === "string" && input.envId.trim() !== "" ? input.envId.trim() : null;
+  const describe = input.manager?.env?.describeEnvInfo;
+  if (envId && typeof describe === "function") {
+    try {
+      const base = envBaseInfoOf(await describe.call(input.manager?.env, { EnvId: envId }));
+      if (base) {
+        if (typeof base.Alias === "string" && base.Alias.trim() !== "") {
+          envAlias = base.Alias.trim();
+        }
+        const packageId = typeof base.PackageId === "string" ? base.PackageId.trim() : "";
+        const packageName = typeof base.PackageName === "string" ? base.PackageName.trim() : "";
+        planRaw = packageId || packageName || null;
+        if (typeof base.Region === "string" && base.Region.trim() !== "") {
+          actionRegion = base.Region.trim();
+        }
+      }
+    } catch {
+      // Best-effort only: the card degrades field by field, and the tool result is unaffected.
+    }
+  }
+
+  const resolved = resolveSiteAndRegion({
+    ...(input.site ? { site: input.site } : {}),
+    region: actionRegion ?? input.region ?? undefined,
+  });
+  actionSite = resolved.site;
+
+  return { envAlias, planRaw, site: actionSite, region: resolved.region };
 }
