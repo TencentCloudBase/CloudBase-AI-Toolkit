@@ -207,6 +207,9 @@ describe("manageCloudRun deploy imageUrl branch", () => {
       imageUrl: 'ccr.ccs.tencentyun.com/ns/hermes:v1',
     });
 
+    // 收紧到"抛的是仓里的组合句"：裸 error.message 也满足 /backend said no/，
+    // 那样就钉不住 wrapper 真正收到的那句（含 [manageCloudRun/deploy] 前缀与建议段）。
+    await expect(promise).rejects.toThrow(/\[manageCloudRun\/deploy\]/);
     await expect(promise).rejects.toThrow(/backend said no/);
   });
 

@@ -626,6 +626,9 @@ export function registerAppTools(server: ExtendedMcpServer) {
           let accessUrls: string[] = [];
           let accessUrlSource: string | undefined;
           let accessUrlLookupWarning: string | undefined;
+          // 这次部署已经解析出的 envId（那个 try 自带优雅降级）。产品卡片的身份复用它的结果，
+          // **不能**在外面再 `await getEnvId()`：那是未兜底的调用，抛了就把"已经成功的部署"丢掉。
+          let deployEnvId: string | undefined;
           try {
             appInfo = await appService.describeAppInfo({
               deployType: "static-hosting",
@@ -634,6 +637,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
             logCloudBaseResult(server.logger, appInfo);
             ({ domain, accessUrl } = normalizeAccessUrlFromDomain(appInfo?.Domain));
             const envId = await getEnvId(cloudBaseOptions);
+            deployEnvId = envId;
             const gateway = await resolveGatewayAccessUrls({
               envId,
               upstreamResourceName: serviceName,
@@ -707,12 +711,11 @@ export function registerAppTools(server: ExtendedMcpServer) {
 
           // MCP Apps：把这次部署的结果同时交给产物卡片面板（只读展示 + 把写意图交给会话）。
           // 文本回执逐字不变，只多一个 structuredContent；环境上下文 best-effort，失败不冒泡。
-          const deployEnvId = await getEnvId(cloudBaseOptions);
-          // 复用本次部署已经拿到的实例：这里**不能**再 `await getManager()`——那是实参求值，
-          // 落在 helper 的 try/catch 之外，一旦初始化抛错就会把"已经成功的部署"丢掉。
+          // 实例与 envId 都复用上面已经拿到的：这里**不能**再 `await getManager()` /
+          // `await getEnvId()`——那些是未兜底的调用，抛了就会把"已经成功的部署"丢成失败卡。
           const deployCardEnv = await resolveArtifactEnvContext({
             manager: cloudbase,
-            envId: deployEnvId,
+            envId: deployEnvId ?? null,
             site: cloudBaseOptions?.site,
             region: cloudBaseOptions?.region,
           });
@@ -726,7 +729,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
               kind: "apps",
               artifactName: serviceName,
               envAlias: deployCardEnv.envAlias,
-              envId: deployEnvId,
+              ...(deployEnvId ? { envId: deployEnvId } : {}),
               planRaw: deployCardEnv.planRaw,
               site: deployCardEnv.site,
               region: deployCardEnv.region,

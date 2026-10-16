@@ -220,6 +220,27 @@ describe("app tools", () => {
     });
   });
 
+  it("manageApps(action=deployApp) 在 getEnvId 抛错时仍按成功返回（不把成功的部署丢成失败卡）", async () => {
+    // 一直失败：这样"在卡片块里再调一次 getEnvId"就会真的抛（只失败一次的话，
+    // 那次会被上面那个带兜底的 try 吃掉，反而测不出这里的风险）
+    mockGetEnvId.mockRejectedValue(new Error("env id unavailable"));
+
+    const result = await tools.manageApps.handler({
+      action: "deployApp",
+      serviceName: "demo-app",
+      filePath: "/tmp/demo-app",
+      appPath: "/demo-app",
+      buildPath: "dist",
+    });
+
+    // 部署本身已经成功：环境身份取不到只该降级，不该把它变成失败卡
+    expect(JSON.parse(result.content[0].text).success).toBe(true);
+    expect(result.structuredContent.state).toBe("published");
+    // 身份字段留空（省略），而不是编一个或报错
+    expect(result.structuredContent).not.toHaveProperty("env_id");
+    expect(result.structuredContent.plan).toBeNull();
+  });
+
   it("manageApps(action=deployApp) attaches the failure state to the artifact card payload", async () => {
     // 缺 serviceName → 在任何网络调用之前就失败；失败态是这张卡的主要价值，必须同样带上
     const result = await tools.manageApps.handler({ action: "deployApp" });
