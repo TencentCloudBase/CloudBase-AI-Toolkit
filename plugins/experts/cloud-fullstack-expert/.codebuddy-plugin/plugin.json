@@ -1,0 +1,66 @@
+{
+  "name": "cloud-fullstack-expert",
+  "version": "1.0.0",
+  "description": "CloudBase cloud full-stack delivery expert: turns existing code or a chosen language stack into a running service on Tencent CloudBase — HTTP APIs, microservices, data pipelines, cron jobs, WebSocket services and high-concurrency endpoints written in Java / Go / Rust / C++ / Python / Node.js / PHP / .NET, deployed to CloudRun (Docker containers) or HTTP cloud functions. Real platform resources included: PostgreSQL, document database, object storage, static hosting and a free trial environment. Delivers a live URL, not just an implementation plan.",
+  "author": {
+    "name": "booker",
+    "email": "booker@cloudbase.net"
+  },
+  "agents": [
+    "./agents/cloud-fullstack-expert.md"
+  ],
+  "skills": [],
+  "expertType": "agent",
+  "agentName": "cloud-fullstack-expert",
+  "displayName": {
+    "en": "Cloud Full-Stack Engineer",
+    "zh": "云上全栈工程师"
+  },
+  "profession": {
+    "en": "Cloud Full-Stack Delivery Expert",
+    "zh": "云上全栈交付专家"
+  },
+  "displayDescription": {
+    "en": "Give me your code and language — Java, Go, Rust, Python, Node, anything — and I deploy it to the cloud, then hand back a live URL.",
+    "zh": "把你的代码和语言交给我，任意语言都行——我部署上云，还你一个能访问的地址，按生产标准。"
+  },
+  "categoryId": "02-Engineering",
+  "defaultInitPrompt": {
+    "zh": "我有一段 Go 写的后端服务，帮我部署到云上跑起来，给我一个能访问的地址",
+    "en": "I have a Go backend service — deploy it to the cloud and give me a live URL."
+  },
+  "dependencies": {
+    "connectors": [
+      "cloudbase"
+    ]
+  },
+  "plugin": "cloud-fullstack-expert",
+  "tags": [
+    {
+      "en": "Any Language",
+      "zh": "任意语言"
+    },
+    {
+      "en": "Containers & Docker",
+      "zh": "容器部署"
+    },
+    {
+      "en": "Backend Services",
+      "zh": "后端服务"
+    }
+  ],
+  "quickPrompts": [
+    {
+      "zh": "我有一段 Go 写的后端服务，帮我部署到云上跑起来，给我一个能访问的地址",
+      "en": "I have a Go backend service — deploy it to the cloud and give me a live URL."
+    },
+    {
+      "zh": "用 Java 写一个订单查询 API 并部署上线：要接数据库、要鉴权",
+      "en": "Build and deploy an order-query API in Java: with a database and auth."
+    },
+    {
+      "zh": "帮我把一个 Python 数据同步脚本跑成每天定时任务，失败了要能看日志",
+      "en": "Turn my Python sync script into a daily scheduled job, with logs when it fails."
+    }
+  ]
+}

@@ -180,6 +180,37 @@ describe("manageCloudRun deploy imageUrl branch", () => {
     });
     // 镜像部署未传 targetPath 时应保持 undefined，交给 SDK 走 DeployType=image 分支。
     expect(deployCall.targetPath).toBeUndefined();
+
+    // MCP Apps：文本回执之外，同一份结果也交给产物卡片面板；deploy 是异步注册，
+    // 所以状态是「部署中」——即使结果里带着已有服务的地址也不说成已上线。
+    expect(res.structuredContent).toMatchObject({
+      state: 'deploying',
+      artifact_kind: 'cloudrun',
+      artifact_name: 'hermes-agent',
+    });
+    expect(res.structuredContent).not.toHaveProperty('access_url');
+  });
+
+  it("keeps the deploy failure as a throw (contract + telemetry stay with the runtime wrapper)", async () => {
+    const manager = makeManager({
+      deployImpl: () => Promise.reject(new Error('backend said no')),
+    });
+    mockGetCloudBaseManager.mockReturnValue(manager);
+    const { tools } = await createCloudRunTools();
+
+    // 必须是"抛"，不是"返回 isError 结果"：只有抛出去，wrapper 才会做错误增强 / RequestId /
+    // 版本页脚，并把这次调用记为失败。卡片那一侧的失败态由 isError 兜底承接（见
+    // resources/artifact-card.render.test.ts 的两条兜底用例）。
+    const promise = tools.manageCloudRun.handler({
+      action: 'deploy',
+      serverName: 'hermes-agent',
+      imageUrl: 'ccr.ccs.tencentyun.com/ns/hermes:v1',
+    });
+
+    // 收紧到"抛的是仓里的组合句"：裸 error.message 也满足 /backend said no/，
+    // 那样就钉不住 wrapper 真正收到的那句（含 [manageCloudRun/deploy] 前缀与建议段）。
+    await expect(promise).rejects.toThrow(/\[manageCloudRun\/deploy\]/);
+    await expect(promise).rejects.toThrow(/backend said no/);
   });
 
   it("documents imageUrl-first semantics in schema descriptions", async () => {

@@ -58,6 +58,18 @@
 - 需要将 `TENCENTCLOUD_SECRETID` 和 `TENCENTCLOUD_SECRETKEY`  / `TENCENTCLOUD_SESSIONTOKEN`配置为**您在云开发控制台获取的 SecretId 和 SecretKey**  （[获取腾讯云 API 密钥](https://console.cloud.tencent.com/cam/capi)）
 - 需要将 `CLOUDBASE_ENV_ID` 配置为**您在云开发控制台获取的环境 ID**, [获取云开发环境 ID](https://tcb.cloud.tencent.com/dev) 
 
+确认与开关（破坏性删除前的确认框）：
+
+- `CLOUDBASE_MCP_SKIP_ELICITATIONS`：逗号分隔，写工具名（`manageFunctions`）或单个动作（`manageFunctions.deleteFunction`）即跳过确认；区分大小写、无通配，无法识别的条目会被忽略并记日志。跳过只是不再询问，**不绕过**任何认证、权限与只读限制。
+- `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE`：默认 `allow` —— 客户端处于完全访问/不询问模式时（应答耗时 < 500ms）按"未询问"放行；设为 `block` 则同样按未确认处理，不执行。
+
+凭证形态入参的写入前核对（软确认）：
+
+- 当参数里出现凭证形态字符串（三段式 JWT，或 `cb_secret_…` / `cb_publishable_…` 密钥）时，写入前会要求一次核对：拿这串与原始来源逐字比对后确认。消息里不放明文，只给长度、分段长度与 sha256 指纹前 12 位。
+- **不校验凭证是否有效**：不验签、不查 JWKS、不发任何网络请求；服务端拿不到用户最初提供的那份，比对只能由客户端完成。
+- 只有扫到凭证形态字符串时才生效（否则零变化）；客户端不支持表单 elicitation 时照常执行；**几百毫秒内返回的核对按"没人看过"处理，不执行**。
+- `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD`：逗号分隔，写工具名（`manageCloudRun`）或单个动作（`manageCloudRun.updateConfig`）即跳过该核对；区分大小写、无通配，无法识别的条目会被忽略并记日志。
+
 
 ---
 

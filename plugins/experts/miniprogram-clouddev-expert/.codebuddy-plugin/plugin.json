@@ -1,6 +1,6 @@
 {
   "name": "miniprogram-clouddev-expert",
-  "version": "1.0.37",
+  "version": "1.0.46",
   "description": "WeChat mini program full-stack development expert: builds and deploys mini programs with frontend, backend (cloud functions), cloud database, message push callbacks, AI/LLM integration, and virtual payment integration, powered by Tencent CloudBase (WeChat Cloud Dev).",
   "author": {
     "name": "booker",
@@ -27,8 +27,8 @@
   "avatar": "avatars/miniprogram-clouddev-expert.png",
   "categoryId": "02-Engineering",
   "defaultInitPrompt": {
-    "zh": "帮我做一个预约小程序：顾客选时段预约，约满自动关闭该时段，先做到能在微信开发者工具里预览，先不发布",
-    "en": "Build a booking mini program: customers pick a time slot, full slots close automatically — get it previewable in WeChat DevTools first, no release yet."
+    "zh": "帮我做一个扫码点单的小程序：顾客扫桌上的码就能点菜下单，我在后台看到订单和总价",
+    "en": "Build a scan-to-order mini program: customers scan the QR code on the table to order, and I see orders and totals in a dashboard."
   },
   "dependencies": {
     "connectors": [

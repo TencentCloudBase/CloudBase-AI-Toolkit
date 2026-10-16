@@ -1,6 +1,6 @@
 # 微信小程序全栈开发专家
 
-微信云开发（CloudBase 与微信小程序团队共建）的小程序全链路开发专家：以云开发 skill 为知识、微信开发者工具 CLI/MCP 为工具，覆盖云函数、云数据库、消息推送回调、编译预览部署、AI 大模型接入，支持虚拟支付。
+微信云开发（CloudBase 与微信小程序团队共建）的小程序全链路开发专家：以云开发 skill 为知识、**CloudBase 连接器 + 微信开发者工具 CLI/MCP 搭配为工具**，覆盖云函数、云数据库、消息推送回调、编译预览部署、AI 大模型接入，支持虚拟支付。
 
 ## 类型
 
@@ -11,15 +11,17 @@ Agent 型（单专家）
 | 层 | 承担 | 来源 |
 |----|------|------|
 | 知识 | 云开发平台知识、最佳实践 | `miniprogram-development` 等 skill（运行时引用，不复制进包） |
-| 工具 | 编译、预览、上传、云函数部署、消息推送订阅 | `wechatide-skill` + 微信开发者工具 Nightly（≥ 2.02.2608312）的 CLI/MCP |
+| 工具（资源侧） | 云函数部署与查询、云数据库、存储、日志、网关 —— **覆盖面最全** | CloudBase 连接器（MCP）；**登录须用「微信公众平台」、选该小程序账号**，否则访问不到它的云开发环境 |
+| 工具（代码侧） | 编译、预览、上传代码包、消息推送订阅；云函数部署亦可（备用通道） | `wechatide-skill` + 微信开发者工具 Nightly（≥ 2.02.2608312）的 CLI/MCP |
 | 行业参考 | 个人主体虚拟支付全链路 | `miniprogram-virtualpay-person` skill + 包内 `references/personal-virtual-pay-playbook.md` |
-| 额外参考 | CloudBase 平台知识（可选装） | `cloudbase-platform` / `cloud-functions` / `no-sql-wx-mp-sdk` / `auth-wechat` 等 skill |
+| 额外参考 | CloudBase 平台知识；**部署相关操作必读** | `cloudbase-platform`（含 `references/protocols/deployment-gate.md`、`references/tooling-fallback.md`）/ `cloud-functions` / `no-sql-wx-mp-sdk` / `auth-wechat` 等 skill |
 
 ## 前置依赖
 
 - **微信开发者工具 Nightly 版 ≥ 2.02.2608312**（内置虚拟支付 Skill 与 MCP 能力）：https://developers.weixin.qq.com/miniprogram/dev/devtools/log.html
 - **云开发环境**：已开通 CloudBase，有 EnvId（tcb.cloud.tencent.com）
-- **三个核心 Skill**（未装时专家会引导按 https://skillhub.cn/install/skillhub.md 安装）：
+- **CloudBase 连接器已连接，且用「微信公众平台」登录、选目标小程序对应的账号**——只有这样环境列表里才会出现该小程序的云开发环境；用腾讯云账号登录会看不到它（这不是「MCP 管不到小程序云开发」）
+- **三个核心 Skill**（CloudBase 官方 skills 按 https://docs.cloudbase.net/skill.md 接入，WorkBuddy 已随插件内置；微信侧 skill 未装时专家会引导按 https://skillhub.cn/install/skillhub.md 安装）：
   - `miniprogram-virtualpay-person`
   - `miniprogram-development`
   - `wechatide-skill`

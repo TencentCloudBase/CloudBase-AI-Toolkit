@@ -9,6 +9,8 @@ import { isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from
 import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
 import { enhanceErrorMessage, resolveRequestId } from "./error-guidance.js";
 import { resolveSiteAndRegion } from "./site-map.js";
+import { guardDestructiveAction, type ConfirmationServer } from "./confirmation-guard.js";
+import { guardCredentialWrite, type CredentialGuardServer } from "./credential-guard.js";
 
 
 /**
@@ -101,7 +103,7 @@ function contributionHint(server: ExtendedMcpServer): string {
  * 创建包装后的处理函数，添加数据上报功能
  */
 function createWrappedHandler(name: string, handler: any, server: ExtendedMcpServer) {
-    return async (args: any) => {
+    return async (args: any, extra?: { requestId?: unknown; signal?: unknown }) => {
         const startTime = Date.now();
         let success = false;
         let errorMessage: string | undefined;
@@ -116,8 +118,33 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 server.logger?.({ type: 'beforeToolCall', toolName: name, args: sanitizeArgs(args) });
             }
 
-            // 执行原始处理函数
-            const result = await handler(args);
+            // 凭证形态入参的执行前**软确认**（先于破坏性确认）。参数里扫到凭证形态字符串时，
+            // 要求客户端拿这串与它自己那份原始来源比对确认；未通过则不执行，直接返回说明文本。
+            // 与破坏性确认同一取舍：这是"正常返回"而不是错误（详见 credential-guard.ts）。
+            const credentialDecision = await guardCredentialWrite(server as unknown as CredentialGuardServer, {
+                toolName: name,
+                args,
+                extra: extra as { requestId?: any },
+            });
+            if (credentialDecision.intercept) {
+                success = true;
+                return credentialDecision.result;
+            }
+
+            // 破坏性动作的执行前确认（护栏）。命中且未确认时不执行，直接返回说明文本：
+            // 这是"正常返回"而不是错误（详见 confirmation-guard.ts 的取舍说明）。
+            const guardDecision = await guardDestructiveAction(server as unknown as ConfirmationServer, {
+                toolName: name,
+                args,
+                extra: extra as { requestId?: any },
+            });
+            if (guardDecision.intercept) {
+                success = true;
+                return guardDecision.result;
+            }
+
+            // 执行原始处理函数（extra 一并透传，工具可据此拿到在途请求 id）
+            const result = await handler(args, extra);
 
             success = true;
             // 同一凭证的工具成功说明重复错误循环已被打破，只清零该凭证的计数

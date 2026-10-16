@@ -140,6 +140,55 @@ Typical backend work in your environment (confirm critical steps):
 
 Tool catalog: [MCP tools](../doc/mcp-tools.md) · [tools.json](../scripts/tools.json)
 
+## Confirmations before destructive calls
+
+Deleting a cloud function, a collection, the documents in one, a stored file, a CloudRun service or a MySQL instance now pauses
+the call until you answer a dialog that names the target — "about to delete the cloud function `hello` (env `env-abc`)" — instead
+of asking a bare "are you sure?". It is built on MCP form elicitation, so it can only appear where the client declares that
+capability *and* actually asks the user.
+
+| Situation | What happens |
+| --- | --- |
+| The client asks the user | You get the dialog; the call runs only after you pick "delete" |
+| The client is in a full-access / never-ask mode | It answers on its own within a few milliseconds. That is treated as "you were not asked", and the call proceeds |
+| The client cannot render forms | No dialog, and the call proceeds — the behaviour is the same as before this change |
+| You decline, dismiss it, or answer nothing for 45s | Nothing is executed, and the result says so **without** being marked as an error, so a model does not retry the same deletion |
+
+A declined call is not a failure: the tool returns "not executed" plus what to do instead. Two environment variables change the
+handling, and neither of them bypasses authentication, permissions or read-only limits — they only decide whether the question is
+asked:
+
+| Variable | Effect |
+| --- | --- |
+| `CLOUDBASE_MCP_SKIP_ELICITATIONS` | Comma-separated. Accepts a tool name (`manageFunctions`) or a single action (`manageFunctions.deleteFunction`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
+| `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE` | `allow` (default) proceeds when the client answers for itself; `block` treats that case as not confirmed |
+
+A client's own tool-approval prompt is not this confirmation: it asks "may this tool run?", not "is this the resource you want to
+delete?".
+
+### Credential-shaped arguments: one real check before writing
+
+When a call's arguments contain something shaped like a credential — a three-part JWT, or a `cb_secret_…` / `cb_publishable_…`
+key — the server asks the client for one check before writing: compare the value against your original source and confirm. The
+message deliberately carries **no plaintext**: only the total length, the segment lengths (for a JWT), and a fingerprint (the first
+12 hex characters of sha256). That is enough to notice a value that was changed while being copied or transcribed, and nothing that
+would put the secret into the conversation or into the logs.
+
+**What this is not.** We do not decide whether the credential is valid. There is no signature verification, no `certs`/JWKS lookup,
+no network request of any kind, and no server-side comparison — the server never sees the value you originally pasted, so the only
+side that can compare it is the client. This is a request for a real confirmation at write time, not a validity check.
+
+**Boundaries.** It only applies when the arguments actually contain a credential-shaped string (otherwise the call is unchanged: one
+shallow scan, no network). It only applies when the client supports interactive form elicitation; a client that cannot ask proceeds
+as before, so an unattended client is not blocked. And a check that returns within a few hundred milliseconds counts as "nobody
+looked at it": unlike the deletion confirmation — where a client answering for itself is treated as "you were not asked" and the call
+proceeds — a credential write is **not** executed, because a value nobody compared is exactly the case this guards against. When the
+guard declines, the result says "not executed" **without** being marked as an error, so a model does not retry it blindly.
+
+| Variable | Effect |
+| --- | --- |
+| `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD` | Comma-separated. Accepts a tool name (`manageCloudRun`) or a single action (`manageCloudRun.updateConfig`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
+
 ## Get-started panel (MCP Apps)
 
 Where the client declares the `io.modelcontextprotocol/ui` extension, `auth` also opens a small read-only panel

@@ -29,8 +29,9 @@ categoryId: "02-Engineering"
 | 前提 | 检查方式 | 缺失时动作 |
 |------|----------|------------|
 | CloudBase connector 已连接 | 尝试一个只读 MCP 工具（如查询环境列表）；失败即视为未连接 | 引导用户在连接器管理页连接「腾讯云 CloudBase」，未连接前只出方案，不执行建表 / 写库 / 部署类操作 |
-| 引用的官方 skills 可用 | 调用前确认对应 skill 存在 | 按 https://skillhub.cn/install/skillhub.md 的方式提示用户安装对应 skill，再继续；不凭记忆复述 skill 内容 |
+| 引用的官方 skills 可用 | 调用前确认对应 skill 存在 | 按 CloudBase 官方接入说明装（https://docs.cloudbase.net/skill.md ，命令 `npx skills add tencentcloudbase/cloudbase-skills -y`）后再继续；WorkBuddy 已随插件内置这套 skill，**先确认是否真的缺，别重复安装**。不凭记忆复述 skill 内容 |
 | 腾讯云账号已完成实名认证 | 环境创建失败 / 一直转圈时先确认实名状态 | 未实名会创建失败且报错不明显（只在控制台右上角小字提示），先引导完成实名（手机号 + 身份证）再继续 |
+| 用户还没开通环境 / 只想先看效果 | 用户说"先试试""能做成什么样" | 走**免费体验环境**起步：一句话讲清门槛（需实名验证、有免费额度、第一次约 15 分钟），但体验环境同样要**建真表、传真数据、交可访问的地址**，详见 playbook 第六节 |
 
 ## Skill 调用分层
 
@@ -48,7 +49,7 @@ categoryId: "02-Engineering"
    - 复杂业务建模 → `data-model-creation`
    - UI 视觉规范 → `ui-design`
 3. **企业落地模式**（统一采购凭证、对内对外域名隔离、非开发者需求描述模板、安全红线）→ 包内 `references/enterprise-web-toolkit-playbook.md`
-4. **逃生通道（本包未列的其他 CloudBase 能力）**：文档数据库 Web 端、CloudRun 容器部署、网关等能力不在上面分层里——先查 `cloudbase-platform` 总览路由到对应的 CloudBase 官方 skill，skill 未安装时按 https://skillhub.cn/install/skillhub.md 的方式提示用户安装再继续；没有对应 skill 时查官方文档（https://docs.cloudbase.net/ ）验证后动手，不凭记忆编造 API
+4. **逃生通道（本包未列的其他 CloudBase 能力）**：文档数据库 Web 端、CloudRun 容器部署、网关等能力不在上面分层里——先查 `cloudbase-platform` 总览路由到对应的 CloudBase 官方 skill，skill 未安装时按 CloudBase 官方接入说明装（https://docs.cloudbase.net/skill.md ，命令 `npx skills add tencentcloudbase/cloudbase-skills -y`）再继续；没有对应 skill 时查官方文档（https://docs.cloudbase.net/ ）验证后动手，不凭记忆编造 API
 
 ## 工作流程
 
@@ -68,6 +69,14 @@ categoryId: "02-Engineering"
 - 先设计 PostgreSQL 表结构给用户确认，再动手写前端
 - **RLS 是默认项不是可选项**：每张表按角色写好 row-level security 策略（默认拒绝，按需放行），权限在数据库层兜底，不依赖前端判断
 - 建表改表走 `relational-database-mcp-cloudbase` 的 MCP 工具，参考 `postgresql-development-cloudbase`
+
+### 固件环节 —— UI 必经 `ui-design`（需求之后、写界面之前）
+
+**任何界面代码动手前，先按 `ui-design` skill 出设计规范**（配色、字体、排版、间距、状态样式），跟用户确认后再写码。用户不懂设计术语，就说"我先给你看看长什么样，行不行"，拿一版能看的东西去确认。
+
+这一步不能省：不设计就动手，出来的就是"一眼 AI 生成"的页面 —— 用户拿去给同事、客户用会被嫌弃，返工还得从头再来。设计规范落下来，界面就不是拍脑袋，改起来也有依据。
+
+（`ui-design` 同时管视觉规范与交互状态：空态、加载、错误、成功都要有说法，别只画"数据齐全时的理想状态"。）
 
 ### Phase 3 — 开发部署
 
@@ -95,6 +104,10 @@ categoryId: "02-Engineering"
 4. **先确认 schema 再写码**，数据结构返工的代价远大于多问一句
 5. **部署 ≠ 完成**，真实环境验证过才算交付
 6. 不写代码的用户看不懂术语：解释方案时说"谁能看什么、点哪里"，不说 JOIN 和策略语法
+7. **交付的代码要能被下一个人接手**（这条用户不用知道，但必须做到）：改动进 Git 并写清提交信息；密钥、连接串走平台配置不入库；数据库变更用可回放的脚本，不手改线上表；关键路径留日志
+8. **不摆工程架子**：用户只想要个表单、一个官网，就不要给他上规格流程和一堆抽象层——内部按规范做，对外用大白话交付。需要严格工程流程（规格驱动、版本控制、测试与巡检）的场景，转 `cloud-fullstack-expert`（云上全栈工程师）更合适
+9. **界面先定规范再写码**：涉及界面时按 `ui-design` 定配色/字体/布局，避免"一眼生成"的默认样式
+10. **表结构按最佳实践**：主键、索引、约束在库里表达（不靠应用层兜底）；改表走可回放脚本；复杂业务建模参考 `data-model-creation`
 
 ## 失败兜底
 

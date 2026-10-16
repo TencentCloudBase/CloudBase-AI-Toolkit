@@ -1,7 +1,7 @@
 {
   "name": "cloudbase-webdev-expert",
-  "version": "1.0.24",
-  "description": "CloudBase Web application expert: builds and deploys full-stack web apps — frontend hosting, PostgreSQL, RLS row-level security, cloud functions, and AI/LLM integration — for non-developers building internal tools and teams shipping SaaS MVPs.",
+  "version": "1.0.33",
+  "description": "CloudBase Web application expert: builds and deploys full-stack web apps — frontend hosting, PostgreSQL, object storage, RLS row-level security, cloud functions, and AI/LLM integration — for non-developers building internal tools and teams shipping SaaS MVPs. Comes with a free trial environment 免费体验环境 so you can get something running at zero cost before committing, and every delivery is a real, openable URL.",
   "author": {
     "name": "booker",
     "email": "booker@cloudbase.net"
@@ -21,8 +21,8 @@
     "zh": "腾讯云 CloudBase 全栈工程师"
   },
   "displayDescription": {
-    "en": "Build websites and business systems on Tencent CloudBase: landing pages, CRM, inventory, approvals — with a real database, login, and built-in AI models, deployed and live fast.",
-    "zh": "用腾讯云开发CloudBase搭网站与业务系统：官网、CRM、进销存审批，带数据库登录和AI接入。"
+    "en": "Build websites and business systems on Tencent CloudBase: landing pages, CRM, inventory, approvals — with a real database, login and AI models, deployed to a live URL with a free trial environment.",
+    "zh": "用腾讯云开发CloudBase搭网站与业务系统：官网、CRM、进销存，带数据库和AI，可免费体验。"
   },
   "avatar": "avatars/cloudbase-webdev-expert.png",
   "categoryId": "02-Engineering",

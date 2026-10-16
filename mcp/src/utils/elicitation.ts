@@ -31,8 +31,13 @@ import {
 export const ELICITATION_DEFAULT_TIMEOUT_MS = 60_000;
 
 export type ChoiceOutcome =
-    | { status: 'accepted'; value: string }
-    | { status: 'declined' | 'timeout' | 'unsupported' | 'error'; reason: string };
+    | { status: 'accepted'; value: string; durationMs: number }
+    | { status: 'declined' | 'timeout' | 'unsupported' | 'error'; reason: string; durationMs: number };
+
+/**
+ * `durationMs` 是调用方区分「人答的」与「客户端自行答的」的唯一判据（实测：客户端自行应答 0~2ms，
+ * 人读完文案再点按钮约 1s 以上），所以它必须随结果一起返回，而不只进遥测。
+ */
 
 export type ElicitationContext = {
     /** 发起 elicitation 的工具名（如 auth） */
@@ -106,20 +111,24 @@ export async function requestChoiceElicitation(
 
     if (!isFormElicitationSupported(server)) {
         await report('unsupported');
-        return { status: 'unsupported', reason: 'client_declares_no_form_elicitation' };
+        return { status: 'unsupported', reason: 'client_declares_no_form_elicitation', durationMs: 0 };
     }
 
-    const elicitInput = server?.server?.elicitInput;
-    if (typeof elicitInput !== 'function') {
+    // ⚠️ 必须**保留接收者**调用（`target.elicitInput(...)`）：SDK 的 elicitInput 是原型方法，
+    // 内部读 `this._clientCapabilities`。摘成 `const fn = target.elicitInput; fn(...)` 会把 `this`
+    // 丢掉，抛 `TypeError: Cannot read properties of undefined (reading '_clientCapabilities')`,
+    // 表现为"弹不出确认框、被 fail-closed 拦下"。（2026-10-14 端到端实测）
+    const target = server?.server;
+    if (!target || typeof target.elicitInput !== 'function') {
         await report('error', { error: 'elicitInput_unavailable' });
-        return { status: 'error', reason: 'elicitInput_unavailable' };
+        return { status: 'error', reason: 'elicitInput_unavailable', durationMs: 0 };
     }
 
     await report('requested');
     const startedAt = Date.now();
 
     try {
-        const result = await elicitInput(
+        const result = await target.elicitInput(
             {
                 mode: 'form',
                 message,
@@ -154,30 +163,30 @@ export async function requestChoiceElicitation(
             if (!options.includes(value)) {
                 // 客户端回了个不在选项里的值：协议用法有误，按 error 上报而不是当成功
                 await report('error', { durationMs, error: `unexpected_value:${value.slice(0, 40)}` });
-                return { status: 'error', reason: 'unexpected_value' };
+                return { status: 'error', reason: 'unexpected_value', durationMs };
             }
             await report('accepted', { durationMs, value });
-            return { status: 'accepted', value };
+            return { status: 'accepted', value, durationMs };
         }
 
         if (action === 'decline' || action === 'cancel') {
             // cancel 也归到 declined（用户没作答），原始动作放 error 里保留可区分性
             await report('declined', { durationMs, error: action === 'cancel' ? 'cancel' : undefined });
-            return { status: 'declined', reason: action };
+            return { status: 'declined', reason: action, durationMs };
         }
 
         await report('error', { durationMs, error: `unexpected_action:${String(action).slice(0, 40)}` });
-        return { status: 'error', reason: `unexpected_action:${String(action)}` };
+        return { status: 'error', reason: `unexpected_action:${String(action)}`, durationMs };
     } catch (err) {
         const durationMs = Date.now() - startedAt;
         const isTimeout = err instanceof McpError && err.code === ErrorCode.RequestTimeout;
         if (isTimeout) {
             await report('timeout', { durationMs });
-            return { status: 'timeout', reason: `no_answer_within_${timeoutMs}ms` };
+            return { status: 'timeout', reason: `no_answer_within_${timeoutMs}ms`, durationMs };
         }
         const reason = err instanceof Error ? err.message : String(err);
         debug('elicitation 失败，调用方应回退到文本引导', { field, error: reason });
         await report('error', { durationMs, error: reason });
-        return { status: 'error', reason };
+        return { status: 'error', reason, durationMs };
     }
 }

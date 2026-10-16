@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { t } from "../i18n/index.js";
 import {
-  ENV_CREDITS_CONSOLE_LINKS,
+  ENV_CREDITS_CONSOLE_LINK_KEYS,
   ENV_CREDITS_MIME_TYPE,
   ENV_CREDITS_RESOURCE_URI,
+  buildEnvCreditsConsoleUrl,
   buildEnvCreditsHtml,
   resolveEnvCreditsFallback,
   type EnvCreditsFallback,
@@ -56,13 +57,49 @@ describe("env-credits 面板 HTML", () => {
   it("常量：URI 与 MIME 定稿，控制台链接三个键齐备", () => {
     expect(ENV_CREDITS_RESOURCE_URI).toBe("ui://cloudbase/env-credits");
     expect(ENV_CREDITS_MIME_TYPE).toBe("text/html;profile=mcp-app");
-    expect(Object.keys(ENV_CREDITS_CONSOLE_LINKS).sort()).toEqual([
-      "expense",
-      "package",
-      "renew",
-    ]);
-    for (const url of Object.values(ENV_CREDITS_CONSOLE_LINKS)) {
-      expect(url.startsWith("https://console.cloud.tencent.com/")).toBe(true);
+    expect([...ENV_CREDITS_CONSOLE_LINK_KEYS].sort()).toEqual(["expense", "package", "renew"]);
+  });
+
+  it("控制台链接：锁完整 URL（含 envId、hash、站点），不只锁主机名", () => {
+    // 2026-10-16 登录态逐条打开核对过：环境级两条落在云开发控制台的「套餐用量」页
+    // （套餐耗尽给升级/资源包/变配；环境被临时隔离时同一页给「续费」），
+    // 费用中心那条是账户级充值页。
+    expect(buildEnvCreditsConsoleUrl("package", "env-abc", "domestic")).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env-abc#/env/package-usage",
+    );
+    expect(buildEnvCreditsConsoleUrl("renew", "env-abc", "domestic")).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env-abc#/env/package-usage",
+    );
+    expect(buildEnvCreditsConsoleUrl("expense", "env-abc", "domestic")).toBe(
+      "https://console.cloud.tencent.com/expense/recharge",
+    );
+    // 国际站只换主机，路径与 hash 不变；费用中心连主机都不同域
+    expect(buildEnvCreditsConsoleUrl("package", "env-abc", "intl")).toBe(
+      "https://tcb.tencentcloud.com/dev?envId=env-abc#/env/package-usage",
+    );
+    expect(buildEnvCreditsConsoleUrl("renew", "env-abc", "intl")).toBe(
+      "https://tcb.tencentcloud.com/dev?envId=env-abc#/env/package-usage",
+    );
+    expect(buildEnvCreditsConsoleUrl("expense", "env-abc", "intl")).toBe(
+      "https://console.intl.cloud.tencent.com/expense/recharge",
+    );
+    // 环境 ID 必须带上且转义；费用中心是账户级，不带环境
+    expect(buildEnvCreditsConsoleUrl("package", "env a/b?c", "domestic")).toBe(
+      "https://tcb.cloud.tencent.com/dev?envId=env%20a%2Fb%3Fc#/env/package-usage",
+    );
+    expect(buildEnvCreditsConsoleUrl("expense", undefined, "domestic")).toBe(
+      "https://console.cloud.tencent.com/expense/recharge",
+    );
+  });
+
+  it("回归：旧的不存在路径 console.cloud.tencent.com/tcb/* 不会再被拼出来", () => {
+    // 该主机下任何未知 /tcb/* 都被 SPA 兜底到环境列表 /tcb/platform/env（既无 envId 也不分站点）。
+    for (const key of ENV_CREDITS_CONSOLE_LINK_KEYS) {
+      for (const site of ["domestic", "intl"] as const) {
+        expect(buildEnvCreditsConsoleUrl(key, "env-abc", site)).not.toContain(
+          "console.cloud.tencent.com/tcb",
+        );
+      }
     }
   });
 
@@ -74,12 +111,9 @@ describe("env-credits 面板 HTML", () => {
     expect(html).not.toMatch(/\bhref=/);
     expect(html).not.toContain("xmlns");
     expect(html).not.toContain("xlink");
-    // LINKS 是唯一允许出现的 URL：它只被复制，不被加载。
-    const urls = html.match(/https:\/\/[^"]+/g) ?? [];
-    expect(urls.length).toBe(3);
-    for (const url of urls) {
-      expect(url).toContain("console.cloud.tencent.com");
-    }
+    // 控制台链接在点击时才由脚本拼（主机表 + hash 都在脚本里），所以模板里不该再有**带主机**的
+    // 完整 URL；剩下的 `https://` 只是脚本里的协议前缀拼接。
+    expect(html.match(/https:\/\/[a-z0-9.-]+/gi) ?? []).toHaveLength(0);
   });
 
   it("bridge 消息名齐备，且面板不调用任何工具", () => {

@@ -10,6 +10,10 @@ import { debug } from '../utils/logger.js';
 import { requireProjectRoot } from '../utils/project-config.js';
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
+import {
+  buildArtifactCardPayload,
+  resolveArtifactEnvContext,
+} from './artifact-card-payload.js';
 import { buildCamAuthGuidance, isCamAuthError } from './capi.js';
 import {
   listLikelyRedeployFields,
@@ -1845,6 +1849,8 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
       title: "cloudrun.manage.title",
       description: "cloudrun.manage.description",
       inputSchema: ManageCloudRunInputSchema,
+      // MCP Apps：部署结果挂产物卡片面板（只读展示 + 把写意图交给会话）。
+      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -2408,6 +2414,11 @@ for await (let x of res.textStream) {
             try {
               result = await cloudrunService.deploy(deployParams);
             } catch (error) {
+              // 部署调用失败照旧**抛**：只有抛出去，运行时的 wrapper 才会做它那套增强
+              // （错误增强、RequestId、版本页脚），遥测也才记为失败。若改成"返回一个 isError 结果"，
+              // 这些都会静默丢失（复核用真实 wrapper 对照过：抛约 300 字符 vs 返回仅后端原文）。
+              // 卡片那一侧由 `isError` 兜底承接（显示「部署失败」+ 上一次的身份），
+              // 失败原因由会话与折叠区承载 —— 这条取舍见 PR 正文。
               throw new Error(buildManageCloudRunErrorMessage('deploy', input.serverName, error));
             }
 
@@ -2530,6 +2541,15 @@ for await (let x of res.textStream) {
               registered: registration.registered,
             });
 
+            // MCP Apps：把这次部署的结果同时交给产物卡片面板（只读展示 + 把写意图交给会话）。
+            // 文本回执逐字不变；环境上下文 best-effort（只多一次只读调用），失败不冒泡。
+            const deployCardEnv = await resolveArtifactEnvContext({
+              manager,
+              envId: currentEnvId,
+              site: cloudBaseOptions?.site,
+              region: cloudBaseOptions?.region,
+            });
+
             return {
               content: [
                 {
@@ -2601,7 +2621,22 @@ for await (let x of res.textStream) {
                       warningSuffix
                   }, null, 2)
                 }
-              ]
+              ],
+              structuredContent: buildArtifactCardPayload({
+                success: true,
+                // 这次 deploy 是异步注册：工具自己就把 status 标成 deploying，
+                // 即使同时带上了"已有服务"的地址，也不能说成已上线。
+                pending: true,
+                accessUrl: preferredAccessUrl,
+                accessUrlSource: preferredAccessSource,
+                kind: 'cloudrun',
+                artifactName: input.serverName,
+                envAlias: deployCardEnv.envAlias,
+                envId: currentEnvId,
+                planRaw: deployCardEnv.planRaw,
+                site: deployCardEnv.site,
+                region: deployCardEnv.region,
+              }),
             };
           }
 

@@ -2,7 +2,14 @@ import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { getInstanceLang, t, type Lang, type MessageKey } from "../i18n/index.js";
 import { getCachedEnvId } from "../cloudbase-manager.js";
-import { resolveSiteAndRegion } from "../utils/site-map.js";
+import {
+  SITE_IDS,
+  SITE_REGION_MAP,
+  getConsoleDevUrl,
+  normalizeSite,
+  resolveSiteAndRegion,
+  type SiteId,
+} from "../utils/site-map.js";
 import { debug } from "../utils/logger.js";
 import {
   readClientCapabilitiesFromServer,
@@ -116,12 +123,62 @@ export interface EnvMetricsPayload {
 /** 面板可能收到的两种载荷。 */
 export type EnvPanelPayload = EnvCreditsPayload | EnvMetricsPayload;
 
-/** 控制台路径（精确 hash 路径待核，见 handoff §6.4；核完替换这里即可，面板不硬编码）。 */
-export const ENV_CREDITS_CONSOLE_LINKS = {
-  package: "https://console.cloud.tencent.com/tcb/package",
-  renew: "https://console.cloud.tencent.com/tcb/renew",
-  expense: "https://console.cloud.tencent.com/expense",
+/**
+ * 控制台入口（2026-10-16 登录态真机核对，三条链接逐条打开过）。
+ *
+ * 环境级的两条都落在云开发控制台的「套餐用量」页 —— 这是**本环境**套餐的唯一入口：
+ *   - 套餐资源点耗尽 → 该页给「升级套餐 / 加购资源包 / 套餐变配」；
+ *   - 套餐到期、环境被临时隔离 → 同一页给出「当前访问资源已临时隔离 … 续费」。
+ * （已隔离环境实测：同一 URL 会自行切到隔离/续费口径，所以续费不需要另一条路径。）
+ *
+ * 费用中心是**账户级**的、没有环境维度，所以只带充值页：欠费要先把账户充上。
+ *
+ * ⚠️ 旧值 `console.cloud.tencent.com/tcb/{package,renew}` 是**不存在的路径**：该主机下任何
+ * 未知的 `/tcb/*` 都会被 SPA 兜底到环境列表 `/tcb/platform/env`，既不带 envId 也不分站点，
+ * 用户点开只会看到环境列表。改动前先读这一句，不要改回去，也不要只锁主机名。
+ */
+export const ENV_CREDITS_CONSOLE_LINK_KEYS = ["package", "renew", "expense"] as const;
+export type EnvCreditsConsoleLinkKey = (typeof ENV_CREDITS_CONSOLE_LINK_KEYS)[number];
+
+/**
+ * 环境级入口的 hash 段。带前导 `/` —— 控制台自己的导航就是 `#/env/package-usage` 这个形制，
+ * 与 `getConsoleDevUrl(envId, "static-hosting")` 那种「`#static-hosting`」写法刻意不同。
+ */
+export const ENV_CREDITS_ENV_LINK_HASH: Readonly<
+  Record<Exclude<EnvCreditsConsoleLinkKey, "expense">, string>
+> = {
+  package: "/env/package-usage",
+  renew: "/env/package-usage",
+};
+
+/** 账户级费用中心：国家站与国际站不同域。 */
+export const ENV_CREDITS_BILLING = {
+  path: "/expense/recharge",
+  host: { domestic: "console.cloud.tencent.com", intl: "console.intl.cloud.tencent.com" },
+
 } as const;
+
+/** 面板脚本要用的主机表：由 SITE_REGION_MAP 派生，杜绝与 getConsoleDevUrl 漂移。 */
+const CONSOLE_HOST_BY_SITE = Object.fromEntries(
+  SITE_IDS.map((id) => [id, SITE_REGION_MAP[id].consoleHost]),
+) as Record<SiteId, string>;
+
+/**
+ * 拼一条控制台链接。`envId` / `site` 都应来自**本次工具结果**，在点击时才求值 ——
+ * 不要在建 HTML 时定死，同一个面板可能被用来查另一个环境（多地域账号尤甚）。
+ * 这是纯函数，所以完整 URL 可以在测试里直接锁死。
+ */
+export function buildEnvCreditsConsoleUrl(
+  key: EnvCreditsConsoleLinkKey,
+  envId: string | null | undefined,
+  site?: string,
+): string {
+  if (key === "expense") {
+    const resolvedSite = normalizeSite(site) ?? resolveSiteAndRegion({ site }).site;
+    return `https://${ENV_CREDITS_BILLING.host[resolvedSite]}${ENV_CREDITS_BILLING.path}`;
+  }
+  return getConsoleDevUrl(envId ?? undefined, ENV_CREDITS_ENV_LINK_HASH[key], site);
+}
 
 /**
  * 从 server 实例派生静态兜底值。
@@ -530,13 +587,19 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     }
   };
 
-  // Console paths are injected by the server (exact hash paths pending); no URL literals live here.
-  var LINKS = ${JSON.stringify(ENV_CREDITS_CONSOLE_LINKS)};
+  // Console links are composed at click time from the live env id + site, so no URL literal
+  // lives in this template: only host tables and the hash fragment are injected.
+  var ENV_HASH = ${JSON.stringify(ENV_CREDITS_ENV_LINK_HASH)};
+  var DEV_HOST = ${JSON.stringify(CONSOLE_HOST_BY_SITE)};
+  var BILL_HOST = ${JSON.stringify(ENV_CREDITS_BILLING.host)};
+  var BILL_PATH = ${J(ENV_CREDITS_BILLING.path)};
   var LINK_LABEL = { package: T.copyConsoleLink, renew: T.copyConsoleLink, expense: T.copyExpenseLink };
 
   // Local fallback only fills fields the tool result does not carry; live values always win.
-  var FALLBACK = { envAlias: "", envId: ${J(fallback.envId ?? "")}, site: ${J(siteText)}, region: ${J(regionText)} };
-  var current = { branch: "unknown", envId: FALLBACK.envId, link: "", mainMsg: "", kind: "credits", metricName: "" };
+  // FALLBACK comes from main (it carries siteCode, needed to build the console link on click).
+  // current is the union: main's site for links, plus this branch's mainMsg / kind / metricName.
+  var FALLBACK = { envAlias: "", envId: ${J(fallback.envId ?? "")}, siteCode: ${J(fallback.site)}, site: ${J(siteText)}, region: ${J(regionText)} };
+  var current = { branch: "unknown", envId: FALLBACK.envId, site: "domestic", link: "", mainMsg: "", kind: "credits", metricName: "" };
 
   function fmtNumber(value) {
     var n = Math.round(Number(value));
@@ -614,6 +677,21 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
   function hasField(payload, key) {
     return !!payload && typeof payload === "object" && key in payload;
   }
+  function linkSite(payload) {
+    // The console host we hand out follows the live site code. A missing or unrecognized code
+    // falls back to the local one instead of guessing a host from something we cannot read.
+    var code = hasField(payload, "site") && typeof payload.site === "string" ? payload.site : "";
+    if (code !== "domestic" && code !== "intl") { code = FALLBACK.siteCode; }
+    if (code !== "domestic" && code !== "intl") { code = "domestic"; }
+    return code;
+  }
+  function consoleLink(key) {
+    if (key === "expense") { return "https://" + BILL_HOST[current.site] + BILL_PATH; }
+    // No link for a branch that has none: an empty fragment is never handed out.
+    if (!ENV_HASH[key]) { return ""; }
+    var query = current.envId ? "?envId=" + encodeURIComponent(current.envId) : "";
+    return "https://" + DEV_HOST[current.site] + "/dev" + query + "#" + ENV_HASH[key];
+  }
   function branchOf(payload) {
     if (!payload || typeof payload.branch !== "string") { return "unknown"; }
     return BRANCHES[payload.branch] ? payload.branch : "unknown";
@@ -640,6 +718,9 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     brandPlan.hidden = !plan;
     setText(brandPlan, plan);
     setText(el("k-place"), placeOf(payload));
+    // main builds the console link on click from this payload's site, so site must follow the
+    // payload here too - and both views go through applyBrand, so both keep it up to date.
+    current.site = linkSite(payload);
     var copyEnv = el("btn-copy-env");
     copyEnv.hidden = !envId;
     return { alias: alias, envId: envId, plan: plan };
@@ -841,7 +922,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (!node) { return; }
     if (node.id === "btn-copy-env") { copyText(current.envId); return; }
     if (node.id === "btn-link") {
-      copyText(LINKS[current.link] || "");
+      copyText(consoleLink(current.link));
       var copyNote = el("k-copynote");
       if (copyNote) {
         setText(copyNote, current.link === "expense" ? T.copiedExpense : T.copiedConsole);

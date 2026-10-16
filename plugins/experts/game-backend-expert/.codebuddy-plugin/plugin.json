@@ -1,0 +1,125 @@
+{
+  "name": "game-backend-expert",
+  "version": "1.0.0",
+  "description": "Game backend expert: leaderboards, cloud saves, player profiles, match records, inventory and item grants, in-app purchase orders, asset hosting and the server APIs that wrap them — the whole backend of a game, without running a server. For indie developers, students and small teams building with Godot, Unity or Cocos, including WeChat mini games and HTML5 games. The backend is Tencent CloudBase: a managed database (PostgreSQL with schema, row-level security, app.rdb() and the PG REST API, or the document database), cloud storage, cloud functions, CloudRun and HTTP APIs — no database or server of your own to run. Also covers multiplayer backend shapes (rooms, turn-based, state sync), anti-cheat, save migration and multi-device data, and routes pure client-side engine, art and gameplay work to the Godot / Unity / Cocos experts.",
+  "author": {
+    "name": "booker",
+    "email": "booker@cloudbase.net"
+  },
+  "keywords": [
+    "游戏",
+    "游戏开发",
+    "游戏后端",
+    "游戏服务端",
+    "游戏后端开发",
+    "游戏工作室",
+    "排行榜",
+    "榜单",
+    "存档",
+    "云存档",
+    "玩家数据",
+    "战绩",
+    "对局记录",
+    "道具",
+    "背包",
+    "内购",
+    "订单",
+    "素材托管",
+    "资源热更",
+    "多人联机",
+    "联机",
+    "房间",
+    "状态同步",
+    "防作弊",
+    "微信小游戏",
+    "小游戏",
+    "H5 游戏",
+    "Godot",
+    "Unity",
+    "Cocos",
+    "PostgreSQL",
+    "关系型数据库",
+    "文档数据库",
+    "云数据库",
+    "云存储",
+    "云函数",
+    "云托管",
+    "云开发",
+    "腾讯云 CloudBase",
+    "CloudBase",
+    "后端接口",
+    "HTTP API",
+    "独立游戏",
+    "独立开发者",
+    "学生项目",
+    "game backend",
+    "leaderboard",
+    "cloud save",
+    "match records",
+    "inventory",
+    "in-app purchase",
+    "asset hosting",
+    "multiplayer",
+    "anti-cheat",
+    "serverless",
+    "WeChat mini game"
+  ],
+  "agents": [
+    "./agents/game-backend-expert.md"
+  ],
+  "skills": [],
+  "expertType": "agent",
+  "agentName": "game-backend-expert",
+  "displayName": {
+    "en": "Full-Stack Game Development Expert",
+    "zh": "全栈游戏开发专家"
+  },
+  "profession": {
+    "en": "Full-Stack Game Development Expert",
+    "zh": "全栈游戏开发专家"
+  },
+  "displayDescription": {
+    "en": "Game backends and the engine-side client that talks to them: leaderboards, saves, match records and items on a managed PostgreSQL database and cloud storage — Godot, Unity and Cocos, with no server to buy or run.",
+    "zh": "游戏后端与引擎接入：排行榜存档战绩道具，PG 数据库与云存储，Godot/Unity/Cocos。"
+  },
+  "avatar": "avatars/game-backend-expert.png",
+  "categoryId": "03-GameSpatial",
+  "defaultInitPrompt": {
+    "zh": "用 Godot 做个塔防小游戏，支持排行榜、云存档和后端",
+    "en": "Build a tower-defense game in Godot — leaderboard, cloud saves and the backend"
+  },
+  "dependencies": {
+    "connectors": [
+      "cloudbase"
+    ]
+  },
+  "plugin": "game-backend-expert",
+  "tags": [
+    {
+      "en": "Game Backend",
+      "zh": "游戏后端"
+    },
+    {
+      "en": "Multiplayer",
+      "zh": "多人联机"
+    },
+    {
+      "en": "WeChat Mini Games",
+      "zh": "微信小游戏"
+    }
+  ],
+  "quickPrompts": [
+    {
+      "zh": "用 Godot 做个塔防小游戏，支持排行榜、云存档和后端",
+      "en": "Build a tower-defense game in Godot — leaderboard, cloud saves and the backend"
+    },
+    {
+      "zh": "用 Unity 做个联机对战游戏，支持匹配、战绩和后端",
+      "en": "Build an online match game in Unity — matchmaking, match records and the backend"
+    },
+    {
+      "zh": "用 Cocos 做个休闲小游戏，支持内购订单、道具背包和后端",
+      "en": "Build a casual game in Cocos — in-app purchases, inventory and the backend"
+    }
+  ]
+}

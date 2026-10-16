@@ -77,13 +77,12 @@ vi.mock("./utils/cloud-mode.js", () => ({
   enableCloudMode: vi.fn(),
   isCloudMode: vi.fn(() => false),
 }));
-vi.mock("./utils/site-map.js", () => ({
-  resolveSiteAndRegion: mockResolveSiteAndRegion,
-  SITE_REGION_MAP: {
-    domestic: { capabilities: { noSql: true } },
-    intl: { capabilities: { noSql: false } },
-  },
-}));
+// 只替掉需要打桩的解析链，其余导出（SITE_REGION_MAP / SITE_IDS / getConsoleDevUrl …）保留真实实现。
+// 整块替换会让被测模块新增任何一次对 site-map 的导出引用都直接崩在 mock 上，而不是崩在被测逻辑上。
+vi.mock("./utils/site-map.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./utils/site-map.js")>();
+  return { ...actual, resolveSiteAndRegion: mockResolveSiteAndRegion };
+});
 vi.mock("@modelcontextprotocol/sdk/types.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@modelcontextprotocol/sdk/types.js")>();
   return {

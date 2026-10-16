@@ -16,6 +16,10 @@ import {
 import { sendDeployNotification } from '../utils/notification.js';
 import { getConsoleDevUrl } from '../utils/site-map.js';
 import { buildJsonToolResult, toolPayloadErrorToResult } from '../utils/tool-result.js';
+import {
+  buildArtifactCardPayload,
+  resolveArtifactEnvContext,
+} from './artifact-card-payload.js';
 
 interface ExtendedEnvInfo {
   EnvInfo: {
@@ -602,13 +606,26 @@ function enrichRateLimitMessage(message: string): string {
   return message;
 }
 
-function buildFailureResult(action: string, error: unknown) {
+/**
+ * 失败回执里那句**富化后**的 message（限流 / 未就绪 / 未开通会追加引导句）。
+ * 单独提出来是为了让产物卡片的 `error_text` 与回执**同一句**——否则同一次失败，
+ * 会话里看到的是带引导的长句、卡片上是裸消息，两者不一致。
+ */
+function buildHostingFailureMessage(error: unknown): string {
+  return enrichHostingStatusMessage(
+    enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
+  );
+}
+
+function buildFailureResult(
+  action: string,
+  error: unknown,
+  message: string = buildHostingFailureMessage(error),
+) {
   return buildJsonToolResult({
     success: false,
     errorCode: `HOSTING_${action.toUpperCase()}_FAILED`,
-    message: enrichHostingStatusMessage(
-      enrichRateLimitMessage(error instanceof Error ? error.message : String(error)),
-    ),
+    message,
   });
 }
 
@@ -864,6 +881,9 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         ? 'hosting.manageDescriptionCloud'
         : 'hosting.manageDescription',
       inputSchema: manageHostingInputSchema,
+      // MCP Apps：部署结果挂产物卡片面板（只读展示 + 把写意图交给会话）。
+      // 不设 visibility——缺省即 model+app；只含 "model" 会让宿主 reject 面板发起的 ui/message。
+      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -1034,29 +1054,54 @@ export function registerHostingTools(server: ExtendedMcpServer) {
               message = t('hosting.uploadRouteDisabledNoAccess');
             }
 
-            return buildJsonToolResult({
-              success: true,
-              data: {
-                action: 'upload',
-                localPath: input.localPath,
-                cloudPath: input.cloudPath,
-                files: input.files ?? [],
-                ignore: input.ignore,
-                staticDomain,
-                staticDomainRouteEnabled,
-                accessUrl: accessUrl || undefined,
-                accessUrls,
+            // MCP Apps：把这次上传的结果同时交给产物卡片面板（只读展示 + 把写意图交给会话）。
+            // 文本回执逐字不变，只多一个 structuredContent；环境上下文 best-effort，失败不冒泡。
+            const uploadCardEnv = await resolveArtifactEnvContext({
+              manager: cloudbase,
+              envId,
+              site: cloudBaseOptions?.site,
+              region: cloudBaseOptions?.region,
+            });
+
+            return {
+              ...buildJsonToolResult({
+                success: true,
+                data: {
+                  action: 'upload',
+                  localPath: input.localPath,
+                  cloudPath: input.cloudPath,
+                  files: input.files ?? [],
+                  ignore: input.ignore,
+                  staticDomain,
+                  staticDomainRouteEnabled,
+                  accessUrl: accessUrl || undefined,
+                  accessUrls,
+                  accessUrlSource,
+                  accessUrlReachable,
+                  ...(disabledAccessUrls.length > 0 ? { disabledAccessUrls } : {}),
+                  ...(routeDisabled ? { routeDisabled: true } : {}),
+                  result,
+                  nextActions: uploadPrefix
+                    ? [buildFindFilesNextStep(uploadPrefix.replace(/^\/+/, ''))]
+                    : undefined,
+                },
+                message,
+              }),
+              structuredContent: buildArtifactCardPayload({
+                success: true,
+                accessUrl,
                 accessUrlSource,
                 accessUrlReachable,
-                ...(disabledAccessUrls.length > 0
-                  ? { disabledAccessUrls }
-                  : {}),
-                ...(routeDisabled ? { routeDisabled: true } : {}),
-                result,
-                nextActions: uploadPrefix ? [buildFindFilesNextStep(uploadPrefix.replace(/^\/+/, ''))] : undefined,
-              },
-              message,
-            });
+                kind: 'hosting',
+                // 产物名：静态托管 store 的候选名（与网关候选同一份，取首个非空）
+                artifactName: gatewayCandidates[0],
+                envAlias: uploadCardEnv.envAlias,
+                envId,
+                planRaw: uploadCardEnv.planRaw,
+                site: uploadCardEnv.site,
+                region: uploadCardEnv.region,
+              }),
+            };
           }
 
           case 'delete': {
@@ -1311,7 +1356,30 @@ export function registerHostingTools(server: ExtendedMcpServer) {
         if (toolPayloadResult) {
           return toolPayloadResult;
         }
-        return buildFailureResult(args.action, error);
+        // 富化后的那句话与回执同源：卡片不许比回执"少一段引导"
+        const failureMessage = buildHostingFailureMessage(error);
+        const failureResult = buildFailureResult(args.action, error, failureMessage);
+        if (args.action === 'upload') {
+          // MCP Apps：上传失败时把失败态（含**后端原文**）也交给产物卡片，文本回执逐字不变。
+          // 失败路径不再为了品牌条去初始化 manager：别名 / 套餐降级到配置那一级（逐字段降级）。
+          const failureCardEnv = await resolveArtifactEnvContext({
+            envId: cloudBaseOptions?.envId ?? null,
+            site: cloudBaseOptions?.site,
+            region: cloudBaseOptions?.region,
+          });
+          return {
+            ...failureResult,
+            structuredContent: buildArtifactCardPayload({
+              success: false,
+              errorText: failureMessage,
+              kind: 'hosting',
+              artifactName: typeof args.cloudPath === 'string' ? args.cloudPath : null,
+              envId: cloudBaseOptions?.envId ?? null,
+              ...failureCardEnv,
+            }),
+          };
+        }
+        return failureResult;
       }
     },
   );

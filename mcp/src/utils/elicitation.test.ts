@@ -67,9 +67,11 @@ describe("requestChoiceElicitation", () => {
       context: { toolName: "auth" },
     });
 
+    // durationMs 未发起调用，固定为 0；这里断言存在即可，数值本身不是被测行为
     expect(outcome).toEqual({
       status: "unsupported",
       reason: "client_declares_no_form_elicitation",
+      durationMs: 0,
     });
     expect(report.mock.calls.map((c) => c[0])).toEqual(["toolkit_elicitation"]);
     expect(callArg(report, 0, 1)).toMatchObject({
@@ -92,7 +94,7 @@ describe("requestChoiceElicitation", () => {
       },
     );
 
-    expect(outcome).toEqual({ status: "accepted", value: "查数据" });
+    expect(outcome).toEqual({ status: "accepted", value: "查数据", durationMs: expect.any(Number) });
     expect(report.mock.calls.map((c) => c[0])).toEqual([
       "toolkit_elicitation",
       "toolkit_elicitation",
@@ -134,7 +136,11 @@ describe("requestChoiceElicitation", () => {
       }),
       { message: "?", field: "goal", options: ["a"], timeoutMs: 1234 },
     );
-    expect(outcome).toEqual({ status: "timeout", reason: "no_answer_within_1234ms" });
+    expect(outcome).toEqual({
+      status: "timeout",
+      reason: "no_answer_within_1234ms",
+      durationMs: expect.any(Number),
+    });
     expect(callArg(report, report.mock.calls.length - 1, 1).phase).toBe("timeout");
   });
 
@@ -149,7 +155,7 @@ describe("requestChoiceElicitation", () => {
       }),
       { message: "?", field: "goal", options: ["a"] },
     );
-    expect(outcome).toEqual({ status: "error", reason: "transport closed" });
+    expect(outcome).toEqual({ status: "error", reason: "transport closed", durationMs: expect.any(Number) });
     expect(callArg(report, report.mock.calls.length - 1, 1).phase).toBe("error");
   });
 
@@ -162,7 +168,7 @@ describe("requestChoiceElicitation", () => {
       }),
       { message: "?", field: "goal", options: ["a", "b"] },
     );
-    expect(outcome).toEqual({ status: "error", reason: "unexpected_value" });
+    expect(outcome).toEqual({ status: "error", reason: "unexpected_value", durationMs: expect.any(Number) });
     expect(callArg(report, report.mock.calls.length - 1, 1).phase).toBe("error");
   });
 

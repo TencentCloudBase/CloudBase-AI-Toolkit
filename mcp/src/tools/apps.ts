@@ -5,6 +5,11 @@ import { jsonContent } from "../utils/json-content.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from "../utils/gateway-access-urls.js";
 import { t } from "../i18n/index.js";
+import {
+  buildArtifactCardPayload,
+  errorTextOf,
+  resolveArtifactEnvContext,
+} from "./artifact-card-payload.js";
 
 const QUERY_APP_ACTIONS = ["listApps", "getApp", "listAppVersions", "getAppVersion", "getBuildLog", "getUploadUrl"] as const;
 const MANAGE_APP_ACTIONS = ["deployApp", "getUploadUrl", "deleteApp", "deleteAppVersion"] as const;
@@ -424,6 +429,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .optional()
           .describe("apps.schema.manageVersionName"),
       },
+      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
@@ -620,6 +626,9 @@ export function registerAppTools(server: ExtendedMcpServer) {
           let accessUrls: string[] = [];
           let accessUrlSource: string | undefined;
           let accessUrlLookupWarning: string | undefined;
+          // 这次部署已经解析出的 envId（那个 try 自带优雅降级）。产品卡片的身份复用它的结果，
+          // **不能**在外面再 `await getEnvId()`：那是未兜底的调用，抛了就把"已经成功的部署"丢掉。
+          let deployEnvId: string | undefined;
           try {
             appInfo = await appService.describeAppInfo({
               deployType: "static-hosting",
@@ -628,6 +637,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
             logCloudBaseResult(server.logger, appInfo);
             ({ domain, accessUrl } = normalizeAccessUrlFromDomain(appInfo?.Domain));
             const envId = await getEnvId(cloudBaseOptions);
+            deployEnvId = envId;
             const gateway = await resolveGatewayAccessUrls({
               envId,
               upstreamResourceName: serviceName,
@@ -656,7 +666,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
             }
           }
 
-          return jsonContent(
+          const deployResult = jsonContent(
             buildEnvelope(
               {
                 action,
@@ -698,6 +708,33 @@ export function registerAppTools(server: ExtendedMcpServer) {
                 : t("apps.deploySuccessNoUrl"),
             ),
           );
+
+          // MCP Apps：把这次部署的结果同时交给产物卡片面板（只读展示 + 把写意图交给会话）。
+          // 文本回执逐字不变，只多一个 structuredContent；环境上下文 best-effort，失败不冒泡。
+          // 实例与 envId 都复用上面已经拿到的：这里**不能**再 `await getManager()` /
+          // `await getEnvId()`——那些是未兜底的调用，抛了就会把"已经成功的部署"丢成失败卡。
+          const deployCardEnv = await resolveArtifactEnvContext({
+            manager: cloudbase,
+            envId: deployEnvId ?? null,
+            site: cloudBaseOptions?.site,
+            region: cloudBaseOptions?.region,
+          });
+
+          return {
+            ...deployResult,
+            structuredContent: buildArtifactCardPayload({
+              success: true,
+              accessUrl,
+              accessUrlSource,
+              kind: "apps",
+              artifactName: serviceName,
+              envAlias: deployCardEnv.envAlias,
+              ...(deployEnvId ? { envId: deployEnvId } : {}),
+              planRaw: deployCardEnv.planRaw,
+              site: deployCardEnv.site,
+              region: deployCardEnv.region,
+            }),
+          };
         }
 
         if (action === "deleteApp") {
@@ -739,7 +776,28 @@ export function registerAppTools(server: ExtendedMcpServer) {
           ),
         );
       } catch (error) {
-        return jsonContent(buildErrorEnvelope(error));
+        const failureResult = jsonContent(buildErrorEnvelope(error));
+        if (action === "deployApp") {
+          // MCP Apps：部署失败时把失败态（含**后端原文**）也交给产物卡片，文本回执逐字不变。
+          // 失败路径不再为了品牌条去初始化 manager：别名 / 套餐降级到配置那一级（逐字段降级）。
+          const failureCardEnv = await resolveArtifactEnvContext({
+            envId: cloudBaseOptions?.envId ?? null,
+            site: cloudBaseOptions?.site,
+            region: cloudBaseOptions?.region,
+          });
+          return {
+            ...failureResult,
+            structuredContent: buildArtifactCardPayload({
+              success: false,
+              errorText: errorTextOf(error),
+              kind: "apps",
+              artifactName: serviceName,
+              envId: cloudBaseOptions?.envId ?? null,
+              ...failureCardEnv,
+            }),
+          };
+        }
+        return failureResult;
       }
     },
   );
