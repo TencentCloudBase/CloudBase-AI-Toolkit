@@ -837,9 +837,7 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(panel.el("k-m-avg").textContent).toBe("2.75" + L("mcpUiCredits.metric.unit.count"));
     expect(panel.el("f-m-window").hidden).toBe(false);
     // 表格把「多少个样本」（数值列）与「多久一个点」（说明列）拆开：两列各说一件事
-    expect(panel.el("k-m-window").textContent).toBe(
-      L("mcpUiCredits.metric.samples", { n: 4 }),
-    );
+    expect(panel.el("k-m-window").textContent).toBe("4");
     expect(panel.el("k-m-window-note").textContent).toBe(
       L("mcpUiCredits.metric.every", { period: L("mcpUiCredits.metric.period.minute") }),
     );

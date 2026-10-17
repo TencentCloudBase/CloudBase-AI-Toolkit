@@ -159,7 +159,7 @@ export const mcpUiCredits = defineModule(
     "metric.field.latest": "最新值",
     "metric.field.peak": "峰值",
     "metric.field.avg": "平均",
-    "metric.field.window": "采样",
+    "metric.field.window": "样本数",
 
     // 行动（一屏一个主行动）
     // 三态各自的动作（动作腔；noData 最接近流失，不许说"异常"）

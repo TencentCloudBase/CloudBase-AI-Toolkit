@@ -915,7 +915,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     var fWindow = el("f-m-window");
     fWindow.hidden = samples <= 0;
     if (!fWindow.hidden) {
-      setText(el("k-m-window"), T.metricSamples.replace("{n}", String(samples)));
+      // The row label already names the unit; repeating it inside the cell says it twice.
+      setText(el("k-m-window"), String(samples));
       setText(el("k-m-window-note"), period ? T.metricEvery.replace("{period}", period) : "");
     }
 
