@@ -1116,6 +1116,13 @@ describe("env tools - auth", () => {
       returned: 20,
       truncated: true,
     });
+
+    // 面板要显示全部，模型只该看到摘要：完整列表走 _meta（宿主给 view、不给模型）
+    const metaCandidates = result._meta?.["cloudbase/ui"]?.env_candidates;
+    expect(metaCandidates).toHaveLength(25);
+    expect(metaCandidates[0]).toMatchObject({ envId: "env-1" });
+    // 文本载荷里不能出现第 21 个，否则省 token 就白省了
+    expect(result.content[0].text).not.toContain("env-21");
   });
 
   it("auth(action=login_by_api_key) should validate required args", async () => {

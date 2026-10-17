@@ -510,6 +510,31 @@ pre {
     }
     return null;
   }
+  /**
+   * The uncapped candidate list travels in _meta: hosts hand it to the view and keep it away from
+   * the model, so a 60-environment account costs the conversation nothing. Absent when the host
+   * strips that field or the server sent no candidates - callers fall back to the capped list.
+   */
+  function readUiEnvs(result) {
+    var meta = result && typeof result === "object" ? result._meta : null;
+    var box = meta && typeof meta === "object" ? meta["cloudbase/ui"] : null;
+    var list = box && typeof box === "object" ? box.env_candidates : null;
+    return Array.isArray(list) ? list : null;
+  }
+
+  /** Swap the capped list for the full one and restate the summary so the footer tells the truth. */
+  function withUiEnvs(payload, list) {
+    var out = {};
+    for (var key in payload) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) { out[key] = payload[key]; }
+    }
+    out.env_candidates = list;
+    var summary = payload && payload.env_candidates_summary ? payload.env_candidates_summary : null;
+    var total = summary && typeof summary.total === "number" ? Math.max(summary.total, list.length) : list.length;
+    out.env_candidates_summary = { total: total, returned: list.length, truncated: false };
+    return out;
+  }
+
   // Raw payloads are shown as text only, inside the collapsed "view raw" area.
   function rawTextOf(value) {
     if (typeof value === "string") { return value; }
@@ -699,15 +724,13 @@ pre {
       // first five" without saying where the rest are is the dead end this replaced.
       var restored = envTotal - envReturned;
       if (!canExpand) {
-        envMore.textContent = T.envRestHidden
-          .replace("{total}", String(envTotal))
-          .replace("{returned}", String(envReturned));
+        envMore.textContent = T.envRestHidden.replace("{n}", String(restored));
       } else if (!envExpanded) {
         // How many exist, and the button says how many of them this result can actually list:
         // "first 5 of 37" next to "show all 12" made the reader compare three numbers.
         envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
       } else if (restored > 0) {
-        envMore.textContent = T.envRestHidden.replace("{total}", String(envTotal)).replace("{returned}", String(envReturned));
+        envMore.textContent = T.envRestHidden.replace("{n}", String(restored));
       } else {
         envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
       }
@@ -807,6 +830,8 @@ pre {
     // consuming the notification is what keeps that call's real result visible here.
     if (data.method === "ui/notifications/tool-result") {
       var payload = readPayload(data.params);
+      var fullList = readUiEnvs(data.params);
+      if (payload && fullList) { payload = withUiEnvs(payload, fullList); }
       // A result we cannot read as a status payload is never spread across the panel body: it goes
       // into the collapsed raw area and the card falls back to its local, unconfirmed values.
       // Unparsed text on screen is harder to read than no text at all.
@@ -901,6 +926,8 @@ pre {
         clearTimeout(timer);
         finish();
         var payload = readPayload(result);
+        var refreshList = readUiEnvs(result);
+        if (payload && refreshList) { payload = withUiEnvs(payload, refreshList); }
         if (payload) {
           render(payload);
         } else {

@@ -348,6 +348,37 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("env-toggle-label").textContent).toBe(t("mcpUi.env.showAll", { n: 8 }, "zh"));
   });
 
+  it("完整候选走 _meta：面板列出全部，摘要仍是模型看到的那份", async () => {
+    const panel = loadPanel(buildGetStartedHtml("zh", sampleStatus));
+    const all = Array.from({ length: 8 }, (_, i) => ({
+      envId: `env-${i}`,
+      alias: `env-${i}`,
+      region: "ap-shanghai",
+      status: "NORMAL",
+    }));
+    panel.dispatch(
+      TOOL_RESULT({
+        // 模型看到的那份只有 2 个 + 摘要
+        structuredContent: {
+          ...READY_STATUS,
+          current_env_id: null,
+          env_status: "MULTIPLE",
+          env_candidates: all.slice(0, 2),
+          env_candidates_summary: { total: 8, returned: 2, truncated: true },
+        },
+        // 面板要的那份是全部
+        _meta: { "cloudbase/ui": { env_candidates: all } },
+      }),
+    );
+    await flush();
+
+    // 列表按 8 个算：按钮说 8，摘要说 8，而不是 2 / 37
+    expect(panel.element("env-toggle-label").textContent).toBe(
+      t("mcpUi.env.showAll", { n: 8 }, "zh"),
+    );
+    expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
+  });
+
   it("接口只回了 5 个、但总共 37 个：没有可展开的，就直接说清其余的在哪", async () => {
     const panel = loadPanel(buildGetStartedHtml("zh", sampleStatus));
     panel.dispatch(
@@ -372,9 +403,10 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("env-toggle").hidden).toBe(true);
     expect(panel.element("env-foot").hidden).toBe(false);
     expect(panel.element("env-more").textContent).toBe(
-      t("mcpUi.env.restHidden", { total: 37, returned: 5 }, "zh"),
+      t("mcpUi.env.restHidden", { n: 32 }, "zh"),
     );
-    expect(panel.element("env-more").textContent).toContain("控制台");
+    // 出路给在会话里（说环境名就能切），不是把人赶去控制台
+    expect(panel.element("env-more").textContent).toContain("环境名");
   });
 
   it("只认宿主：别的窗口塞进来的结果不改状态卡，也不发任何消息", async () => {

@@ -556,6 +556,22 @@ function buildEnvCandidatePayload(
   };
 }
 
+/**
+ * The full candidate list for the UI only.
+ *
+ * `env_candidates` in the text payload is capped at 20 so a 60-environment account does not burn
+ * the model's context on ids it will never use. The panel still has to show all of them, so the
+ * uncapped list rides in `_meta`, which hosts forward to the view and withhold from the model.
+ */
+const UI_META_KEY = "cloudbase/ui";
+
+function buildEnvCandidateUiMeta(envCandidates?: EnvCandidate[]) {
+  if (!envCandidates || envCandidates.length === 0) {
+    return undefined;
+  }
+  return { [UI_META_KEY]: { env_candidates: envCandidates } };
+}
+
 function buildLocalDevDomainHint() {
   return {
     format: "host:port",
@@ -2475,7 +2491,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 : authStatus === "READY"
                   ? envPreparation?.nextStep
                   : buildAuthRequiredNextStep(server),
-          });
+          }, buildEnvCandidateUiMeta(envPreparation?.envCandidates));
         }
 
         if (action === "start_auth") {
@@ -2668,7 +2684,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               next_step: buildAuthNextStep("status", {
                 suggestedArgs: { action: "status" },
               }),
-            });
+            }, buildEnvCandidateUiMeta(envCandidates));
           }
 
           // 3. 非 Device Flow（显式 web 模式）仍然使用 getLoginState 阻塞等待

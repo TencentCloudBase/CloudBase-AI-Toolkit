@@ -7,7 +7,11 @@ export type ToolNextStep = {
   suggested_args?: Record<string, unknown>;
 };
 
-export function buildJsonToolResult(payload: ToolPayload) {
+/**
+ * `meta` rides along in `_meta`, which the model never sees: it is the channel for data the UI
+ * needs in full while the text payload keeps only the summary the model reasons about.
+ */
+export function buildJsonToolResult(payload: ToolPayload, meta?: Record<string, unknown>) {
   return {
     content: [
       {
@@ -15,6 +19,7 @@ export function buildJsonToolResult(payload: ToolPayload) {
         text: JSON.stringify(payload, null, 2),
       },
     ],
+    ...(meta && Object.keys(meta).length > 0 ? { _meta: meta } : {}),
   };
 }
 
