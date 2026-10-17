@@ -241,9 +241,11 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(deploying.el("c-hint").textContent).toBe(L("mcpUiArtifact.hint.deploying"));
     expect(deploying.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewBuildLog"));
     expect(deploying.el("btn-main").hidden).toBe(false);
-    // 部署中不展示地址（那是已有服务的地址），但给一个图标刷新
+    // 部署中不展示地址（那是已有服务的地址），但给一个刷新按钮
     expect(deploying.el("f-url").hidden).toBe(true);
     expect(deploying.el("btn-refresh").hidden).toBe(false);
+    // 还没上线就没有可分享的作品
+    expect(deploying.el("btn-share").hidden).toBe(true);
 
     const published = render(payloadPublished());
     expect(published.el("st-text").textContent).toBe(L("mcpUiArtifact.state.published"));
@@ -253,6 +255,9 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(published.el("f-url").hidden).toBe(false);
     expect(published.el("k-url").textContent).toBe(PUBLIC_URL);
     expect(published.el("k-url-tag").hidden).toBe(true);
+    // 有公网地址才有东西可分享；文案与按钮都在
+    expect(published.el("btn-share").hidden).toBe(false);
+    expect(published.el("btn-share").textContent).toBe(L("mcpUiArtifact.action.shareCase"));
 
     const internal = render(payloadInternal());
     expect(internal.el("st-text").textContent).toBe(L("mcpUiArtifact.state.published"));
@@ -263,6 +268,8 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(internal.el("k-url-tag").hidden).toBe(false);
     expect(internal.el("k-url-tag").textContent).toBe(L("mcpUiArtifact.tag.internalOnly"));
     expect(internal.el("btn-log").hidden).toBe(false);
+    // 仅内网的地址外人打不开，不给「分享案例」
+    expect(internal.el("btn-share").hidden).toBe(true);
 
     const failed = render(payloadFailed());
     expect(failed.el("st-text").textContent).toBe(L("mcpUiArtifact.state.failed"));
@@ -355,6 +362,23 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(published.el("k-note").hidden).toBe(false);
     expect(published.el("k-note").textContent).toBe(L("mcpUiArtifact.action.openFailed"));
     expect(published.el("btn-main").disabled).toBe(false);
+  });
+
+  it("「分享这个案例」交给会话去调 prepareFeedback，正文里只带对象与地址、不带环境 ID", () => {
+    const published = render(payloadPublished());
+    published.clickDocument("btn-share");
+
+    const message = published.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
+    // 先把模板里的占位符按同一规则填好，再逐字比——避免"包含关键字"这种自证断言
+    expect(message).toBe(
+      fill(L("mcpUiArtifact.message.shareCase"), targetOf("hosting", "my-blog"), PUBLIC_URL),
+    );
+    // 走的是部署后分享流程的前半段（先要作品卡片与文案），不是直接丢一个 issue 链接
+    expect(message).toContain("作品卡片");
+    expect(message).toContain("案例墙");
+    // 案例墙是公开的：环境 ID 与密钥一律不进正文
+    expect(message).not.toContain("my-env-3gk9ab");
+    expect(message).not.toContain("secret");
   });
 
   it("发给会话的话里带着本次部署的对象（否则技能不知道查哪个服务）", () => {

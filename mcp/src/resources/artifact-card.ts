@@ -236,6 +236,7 @@ body {
 <div class="acts-row" id="acts-row">
 <button class="btn secondary" type="button" id="btn-log" hidden></button>
 <button class="btn secondary" type="button" id="btn-redeploy" hidden></button>
+<button class="btn secondary" type="button" id="btn-share" hidden></button>
 <button class="btn secondary" type="button" id="btn-refresh" hidden>
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
 <span id="btn-refresh-label">${E(L("mcpUiArtifact.action.refresh"))}</span>
@@ -296,11 +297,13 @@ body {
     actionViewLog: ${S("mcpUiArtifact.action.viewLog")},
     actionViewBuildLog: ${S("mcpUiArtifact.action.viewBuildLog")},
     actionRedeploy: ${S("mcpUiArtifact.action.redeploy")},
+    actionShareCase: ${S("mcpUiArtifact.action.shareCase")},
     actionRefresh: ${S("mcpUiArtifact.action.refresh")},
     messageBindDomain: ${S("mcpUiArtifact.message.bindDomain")},
     messageViewLog: ${S("mcpUiArtifact.message.viewLog")},
     messageViewBuildLog: ${S("mcpUiArtifact.message.viewBuildLog")},
     messageRedeploy: ${S("mcpUiArtifact.message.redeploy")},
+    messageShareCase: ${S("mcpUiArtifact.message.shareCase")},
     messageRefresh: ${S("mcpUiArtifact.message.refresh")},
     messageTargetFallback: ${S("mcpUiArtifact.message.targetFallback")},
     plan: {
@@ -466,6 +469,7 @@ body {
     var openMain = false;
     var showRedeploy = false;
     var showRefresh = false;
+    var showShare = false;
 
     if (state === "deploying") {
       mainLabel = T.actionViewBuildLog;
@@ -484,6 +488,8 @@ body {
         mainLabel = T.actionOpenUrl;
         mainMessage = "";
         openMain = true;
+        // Sharing needs something a stranger can open, so this only exists for a public address.
+        showShare = true;
       }
       // Unknown scope: no promise is made about the address, so there is no main action at all.
       showRedeploy = true;
@@ -501,6 +507,9 @@ body {
     if (log) { log.hidden = !showLog; log.disabled = false; }
     setText(redeploy, T.actionRedeploy);
     if (redeploy) { redeploy.hidden = !showRedeploy; redeploy.disabled = false; }
+    var share = el("btn-share");
+    setText(share, T.actionShareCase);
+    if (share) { share.hidden = !showShare; share.disabled = false; }
     if (refresh) { refresh.hidden = !showRefresh; refresh.disabled = false; }
 
     if (main) {
@@ -509,6 +518,7 @@ body {
     }
     if (log) { log.setAttribute("data-message", logMessage); }
     if (redeploy) { redeploy.setAttribute("data-message", T.messageRedeploy); }
+    if (share) { share.setAttribute("data-message", T.messageShareCase); }
     if (refresh) { refresh.setAttribute("data-message", T.messageRefresh); }
   }
 
