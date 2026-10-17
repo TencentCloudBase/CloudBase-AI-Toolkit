@@ -314,8 +314,8 @@ body {
 .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.err { background: var(--err); }
 .t2 { margin: 8px 0 0; font-size: 13px; color: var(--text-2); }
 .t3 { margin-top: 12px; display: grid; gap: 12px 28px; align-items: start; }
-/* Wide hosts get two real columns instead of one narrow strip in the middle: the credit bar and
-   its curve on the left, what the credits are made of on the right. A narrow host stacks them. */
+/* Wide hosts get two real columns instead of one narrow strip in the middle: the credit total and
+   what it is made of on the left, the plan facts on the right. A narrow host stacks them. */
 @media (min-width: 760px) { .t3 { grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); } }
 .t3 > table, .t3 > .note, .t3 > .spark, .t3 > details { grid-column: 1 / -1; }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
