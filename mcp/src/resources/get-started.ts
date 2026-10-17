@@ -142,7 +142,6 @@ export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): strin
     : siteText;
 
   const title = E(L("mcpUi.title"));
-  const subtitle = E(L("mcpUi.subtitle"));
   const statusTitle = E(L("mcpUi.status.title"));
   const rawLabel = E(L("mcpUi.status.raw"));
   const nextTitle = E(L("mcpUi.next.title"));
@@ -308,7 +307,7 @@ pre {
 </svg></span>
 <div>
 <h1>${title}</h1>
-<p class="sub">${subtitle}</p>
+<p class="sub" id="c-sub">${E(L("mcpUi.subtitle.unknown"))}</p>
 </div>
 </div>
 <section class="card">
@@ -374,6 +373,12 @@ pre {
     placeClose: ${S("mcpUi.place.close")},
     placeUnknown: ${S("mcpUi.status.placeUnknown")},
     scopeAfterLogin: ${S("mcpUi.status.scopeAfterLogin")},
+    subtitleUnknown: ${S("mcpUi.subtitle.unknown")},
+    subtitleLoggedOut: ${S("mcpUi.subtitle.loggedOut")},
+    subtitlePending: ${S("mcpUi.subtitle.pending")},
+    subtitleFailed: ${S("mcpUi.subtitle.failed")},
+    subtitleUnbound: ${S("mcpUi.subtitle.unbound")},
+    subtitleReady: ${S("mcpUi.subtitle.ready")},
     statusUnknown: ${S("mcpUi.status.unknown")},
     statusUnknownHint: ${S("mcpUi.status.unknownHint")},
     statusLoggedOut: ${S("mcpUi.status.loggedOut")},
@@ -425,12 +430,12 @@ pre {
   // One action per screen. main === "" means: no main action for this state (the secondary
   // re-check link is the only thing to press).
   var STATES = {
-    unknown: { dot: "", text: T.statusUnknown, hint: T.statusUnknownHint, label: T.nextLabelUnknown, why: T.nextWhyUnknown, main: "", msg: "" },
-    loggedOut: { dot: "", text: T.statusLoggedOut, hint: T.statusLoggedOutHint, label: T.nextLabelLoggedOut, why: T.nextWhyLoggedOut, main: T.actionLogin, msg: T.messageLogin },
-    pending: { dot: "warn", text: T.statusPending, hint: T.statusPendingHint, label: T.nextLabelPending, why: T.nextWhyPending, main: "", msg: "" },
-    failed: { dot: "err", text: T.statusFailed, hint: T.statusFailedHint, label: T.nextLabelFailed, why: T.nextWhyFailed, main: T.actionLogin, msg: T.messageLogin },
-    unbound: { dot: "warn", text: T.statusLoggedIn, hint: T.statusUnboundHint, label: T.nextLabelUnbound, why: T.nextWhyUnbound, main: T.actionSelectEnv, msg: T.messageSelectEnv },
-    ready: { dot: "ok", text: T.statusConnected, hint: T.statusConnectedHint, label: T.nextLabelReady, why: T.nextWhyReady, main: T.actionDeploy, msg: T.messageDeploy }
+    unknown: { dot: "", text: T.statusUnknown, hint: T.statusUnknownHint, label: T.nextLabelUnknown, why: T.nextWhyUnknown, main: "", msg: "", sub: T.subtitleUnknown },
+    loggedOut: { dot: "", text: T.statusLoggedOut, hint: T.statusLoggedOutHint, label: T.nextLabelLoggedOut, why: T.nextWhyLoggedOut, main: T.actionLogin, msg: T.messageLogin, sub: T.subtitleLoggedOut },
+    pending: { dot: "warn", text: T.statusPending, hint: T.statusPendingHint, label: T.nextLabelPending, why: T.nextWhyPending, main: "", msg: "", sub: T.subtitlePending },
+    failed: { dot: "err", text: T.statusFailed, hint: T.statusFailedHint, label: T.nextLabelFailed, why: T.nextWhyFailed, main: T.actionLogin, msg: T.messageLogin, sub: T.subtitleFailed },
+    unbound: { dot: "warn", text: T.statusLoggedIn, hint: T.statusUnboundHint, label: T.nextLabelUnbound, why: T.nextWhyUnbound, main: T.actionSelectEnv, msg: T.messageSelectEnv, sub: T.subtitleUnbound },
+    ready: { dot: "ok", text: T.statusConnected, hint: T.statusConnectedHint, label: T.nextLabelReady, why: T.nextWhyReady, main: T.actionDeploy, msg: T.messageDeploy, sub: T.subtitleReady }
   };
   // Local config only fills the gaps until the live result arrives; it never overrides a live value.
   // Region and site are kept apart (not pre-joined) because a real auth(status) result always
@@ -782,6 +787,10 @@ pre {
     if (stDot) { stDot.className = "dot" + (state.dot ? " " + state.dot : ""); }
     setText(stText, state.text);
     setText(stQual, state.hint);
+    // The title never changes; the subtitle is one fixed sentence per state, and the state before
+    // any result is a plain welcome instead of a guess about what the panel is checking.
+    var subNode = el("c-sub");
+    if (subNode && state.sub) { setText(subNode, state.sub); }
     var place = placeOf(payload);
     if (kPlace) {
       kPlace.className = place ? "v" : "v idle";

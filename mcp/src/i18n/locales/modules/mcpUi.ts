@@ -22,7 +22,12 @@ export const mcpUi = defineModule(
     resourceDescription: "连接状态与下一步（只读）",
 
     title: "CloudBase 起步",
-    subtitle: "确认这个环境是否可用。",
+    "subtitle.unknown": "欢迎使用 CloudBase。",
+    "subtitle.loggedOut": "登录后就能读写这个账号下的环境。",
+    "subtitle.pending": "在浏览器里完成登录即可。",
+    "subtitle.failed": "登录没有完成，可以再试一次。",
+    "subtitle.unbound": "选一个环境开始。",
+    "subtitle.ready": "已经可以开始干活了。",
 
     "status.title": "连接状态",
     "status.unknown": "尚未确认",
@@ -113,7 +118,12 @@ export const mcpUi = defineModule(
     resourceDescription: "Connection status and the next step (read-only)",
 
     title: "CloudBase Get Started",
-    subtitle: "Confirm this environment is usable.",
+    "subtitle.unknown": "Welcome to CloudBase.",
+    "subtitle.loggedOut": "Sign in to work with the environments in this account.",
+    "subtitle.pending": "Finish signing in in your browser.",
+    "subtitle.failed": "Sign-in did not finish. You can try again.",
+    "subtitle.unbound": "Pick an environment to start.",
+    "subtitle.ready": "Ready to go.",
 
     "status.title": "Connection status",
     "status.unknown": "Not checked yet",
