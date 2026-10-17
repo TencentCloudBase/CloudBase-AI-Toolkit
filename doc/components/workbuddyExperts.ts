@@ -114,7 +114,9 @@ export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
 ];
 
 /** 最通用的那个，选择器里只放它一条 */
-export const WORKBUDDY_FEATURED_EXPERT = WORKBUDDY_EXPERTS[0];
+export const WORKBUDDY_FEATURED_EXPERT =
+  WORKBUDDY_EXPERTS.find((expert) => expert.slug === 'cloudbase-webdev-expert') ??
+  WORKBUDDY_EXPERTS[0];
 
 /** 配置指南页，选择器里「其余 3 个见…」指向它 */
 export const WORKBUDDY_GUIDE_URL = 'ide-setup/workbuddy';
