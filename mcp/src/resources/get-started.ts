@@ -226,6 +226,17 @@ body {
 }
 .env-item .t { margin-left: auto; flex: 0 0 auto; font-size: 12px; color: var(--text-2); }
 .env-item .t.off { opacity: .65; }
+/* Expanded, the list scrolls inside a capped box: the card must not push the conversation off the
+   screen just because one project owns forty environments. */
+/* Hosts hide scrollbars, so a clipped box would look like "that is all of them". The bottom edge
+   fades instead: no extra element, no colour assumption about the card behind it. */
+.env-list.scroll {
+  max-height: 320px; overflow-y: auto; padding-right: 4px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
+.env-foot { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.env-foot .hint { margin: 0; }
 .row-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 button {
   font: inherit; font-size: 14px; height: 32px; padding: 0 14px; border-radius: 8px; cursor: pointer;
@@ -306,6 +317,10 @@ pre {
 <h2>${envTitle}</h2>
 <p class="hint">${envHint}</p>
 <div class="env-list" id="env-list" role="group" aria-label="${envTitle}"></div>
+<div class="env-foot" id="env-foot" hidden>
+<p class="hint" id="env-more"></p>
+<button class="linklike" type="button" id="env-toggle" hidden></button>
+</div>
 <p class="kbd err" id="env-err" hidden></p>
 </section>
 <section class="card">
@@ -383,6 +398,10 @@ pre {
     envReady: ${S("mcpUi.env.ready")},
     envUnavailable: ${S("mcpUi.env.unavailable")},
     envMore: ${S("mcpUi.env.more")},
+    envShowAll: ${S("mcpUi.env.showAll")},
+    envCollapse: ${S("mcpUi.env.collapse")},
+    envRestHidden: ${S("mcpUi.env.restHidden")},
+    envAllShown: ${S("mcpUi.env.allShown")},
     envMoreTotal: ${S("mcpUi.env.moreTotal")},
     envFailed: ${S("mcpUi.env.failed")},
     nextLabelUnboundList: ${S("mcpUi.next.label.unboundList")},
@@ -420,7 +439,16 @@ pre {
   var envCard = document.getElementById("env-card");
   var envList = document.getElementById("env-list");
   var envErr = document.getElementById("env-err");
+  var envFoot = document.getElementById("env-foot");
+  var envMore = document.getElementById("env-more");
+  var envToggle = document.getElementById("env-toggle");
   var ENV_LIMIT = 5;
+  // Which rows the current result carried, and whether the user asked for all of them. Kept apart
+  // from the payload so expanding does not re-read or re-render anything the host sent.
+  var envAll = [];
+  var envTotal = 0;
+  var envReturned = 0;
+  var envExpanded = false;
   var current = STATES.unknown;
   // targetOrigin "*" and no origin check on incoming messages: matches the spec's own example, and a
   // sandboxed view has no host origin to verify against. Do not "fix" this into a pinned origin.
@@ -598,30 +626,87 @@ pre {
   }
   function renderEnvs(payload) {
     if (!envCard || !envList) { return false; }
-    var rows = envRows(payload);
-    clearNode(envList);
+    envAll = envRows(payload);
+    envTotal = payload && payload.env_candidates_summary && typeof payload.env_candidates_summary.total === "number"
+      ? payload.env_candidates_summary.total
+      : envAll.length;
+    envReturned = envAll.length;
+    // A new result starts collapsed: the user asked for the next step, not for forty rows.
+    envExpanded = false;
     if (envErr) { envErr.hidden = true; envErr.textContent = ""; }
-    if (rows.length === 0) {
+    if (envAll.length === 0) {
       envCard.hidden = true;
+      if (envFoot) { envFoot.hidden = true; }
       return false;
     }
-    var shown = rows.length > ENV_LIMIT ? rows.slice(0, ENV_LIMIT) : rows;
-    for (var i = 0; i < shown.length; i++) { envList.appendChild(envRow(shown[i])); }
-    if (rows.length > shown.length) {
-      // The result says how many exist in total; draw that instead of a vague "and more".
-      var total = payload && payload.env_candidates_summary && typeof payload.env_candidates_summary.total === "number"
-        ? payload.env_candidates_summary.total
-        : 0;
-      var more = document.createElement("p");
-      more.className = "hint";
-      more.textContent = total > shown.length
-        ? T.envMoreTotal.replace("{total}", String(total)).replace("{shown}", String(shown.length))
-        : T.envMore.replace("{shown}", String(shown.length));
-      envList.appendChild(more);
-    }
     envCard.hidden = false;
+    paintEnvs();
     return true;
   }
+
+  /** Draw the rows for the current expanded/collapsed state. Nothing here goes back to the host. */
+  function paintEnvs() {
+    if (!envList) { return; }
+    clearNode(envList);
+    var shown = envExpanded ? envAll : envAll.slice(0, ENV_LIMIT);
+    for (var i = 0; i < shown.length; i++) { envList.appendChild(envRow(shown[i])); }
+    envList.className = "env-list" + (envExpanded && envAll.length > ENV_LIMIT ? " scroll" : "");
+
+    var canExpand = envAll.length > ENV_LIMIT;
+    var truncated = envTotal > envAll.length;
+    // Nothing to expand and nothing missing: no footer at all.
+    if (!canExpand && !truncated) {
+      if (envFoot) { envFoot.hidden = true; }
+      return;
+    }
+    if (envFoot) { envFoot.hidden = false; }
+    if (envToggle) {
+      envToggle.hidden = !canExpand;
+      if (canExpand) {
+        envToggle.textContent = envExpanded
+          ? T.envCollapse
+          : T.envShowAll.replace("{n}", String(envAll.length));
+        envToggle.setAttribute("aria-expanded", envExpanded ? "true" : "false");
+      }
+    }
+    if (envMore) {
+      // Collapsed: how much of the account is on screen. Expanded: how much the result actually
+      // carried. Either way the remainder is named, not implied - a row of text that says "the
+      // first five" without saying where the rest are is the dead end this replaced.
+      var restored = envTotal - envReturned;
+      if (!canExpand) {
+        envMore.textContent = T.envRestHidden
+          .replace("{total}", String(envTotal))
+          .replace("{returned}", String(envReturned));
+      } else if (!envExpanded) {
+        // How many exist, and the button says how many of them this result can actually list:
+        // "first 5 of 37" next to "show all 12" made the reader compare three numbers.
+        envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
+      } else if (restored > 0) {
+        envMore.textContent = T.envRestHidden.replace("{total}", String(envTotal)).replace("{returned}", String(envReturned));
+      } else {
+        envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
+      }
+    }
+  }
+
+  if (envToggle) {
+      envToggle.hidden = false;
+      envToggle.textContent = envExpanded
+        ? T.envCollapse
+        : T.envShowAll.replace("{n}", String(envAll.length));
+      envToggle.setAttribute("aria-expanded", envExpanded ? "true" : "false");
+    }
+  if (envToggle) {
+    envToggle.addEventListener("click", function () {
+      envExpanded = !envExpanded;
+      paintEnvs();
+      // The card just changed height by hundreds of pixels; the host has to be told or it keeps
+      // the old frame and the last rows are cut off.
+      reportSize();
+    });
+  }
+
   // One click, one path: the panel asks the host to run auth(set_env) itself, then re-reads the
   // status so the card shows the bound environment instead of guessing. Hosts that do not forward
   // app-initiated calls leave the deadline to fail the promise, and the row says so in one line

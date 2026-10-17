@@ -63,8 +63,12 @@ interface ShimmedElement {
   className: string;
   textContent: string;
   getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
   addEventListener(type: string, fn: () => void): void;
   click(): void;
+  readonly firstChild: ShimmedElement | null;
+  appendChild(child: ShimmedElement): void;
+  removeChild(child: ShimmedElement): void;
 }
 
 interface PanelHarness {
@@ -99,6 +103,7 @@ function loadPanel(html: string): PanelHarness {
   for (const id of html.matchAll(/\bid="([^"]+)"/g)) {
     const elementId = id[1];
     const handlers: Record<string, Array<() => void>> = {};
+    const children: ShimmedElement[] = [];
     elements.set(elementId, {
       id: elementId,
       hidden: true,
@@ -108,11 +113,22 @@ function loadPanel(html: string): PanelHarness {
       getAttribute(name) {
         return attributes.get(elementId)?.[name.replace(/^data-/, "")] ?? null;
       },
+      setAttribute() {},
       addEventListener(type, fn) {
         (handlers[type] ||= []).push(fn);
       },
       click() {
         (handlers.click ?? []).forEach((fn) => fn());
+      },
+      get firstChild() {
+        return children[0] ?? null;
+      },
+      appendChild(child: ShimmedElement) {
+        children.push(child);
+      },
+      removeChild(child: ShimmedElement) {
+        const at = children.indexOf(child);
+        if (at >= 0) { children.splice(at, 1); }
       },
     });
   }
@@ -129,6 +145,22 @@ function loadPanel(html: string): PanelHarness {
       documentElement: { scrollWidth: 480, scrollHeight: 320 },
       body: {},
       addEventListener() {},
+      // 面板用 createElement 造环境行；垫片只需要这几种属性，别假装是个完整 DOM。
+      createElement(tag: string) {
+        const node: Record<string, unknown> = {
+          tagName: tag.toUpperCase(),
+          className: "",
+          textContent: "",
+          type: "",
+          children: [] as unknown[],
+          setAttribute() {},
+          addEventListener() {},
+          appendChild(child: { textContent?: string }) {
+            (node.children as unknown[]).push(child);
+          },
+        };
+        return node;
+      },
     },
     setTimeout: (fn: () => void) => {
       const id = ++timerSeq;
@@ -269,6 +301,80 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("btn-main").hidden).toBe(false);
     expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
     expect(panel.element("nx-label").textContent).toBe(t("mcpUi.next.label.ready", undefined, "en"));
+  });
+
+  it("环境多于一屏：默认给前 5 个，「显示全部」就地展开，不向宿主发任何请求", async () => {
+    const panel = loadPanel(buildGetStartedHtml("zh", sampleStatus));
+    const candidates = Array.from({ length: 8 }, (_, i) => ({
+      envId: `env-${i}`,
+      alias: `env-${i}`,
+      region: "ap-shanghai",
+      status: i < 8 ? "NORMAL" : "UNAVAILABLE",
+    }));
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: {
+          ...READY_STATUS,
+          current_env_id: null,
+          env_status: "MULTIPLE",
+          env_candidates: candidates,
+          env_candidates_summary: { total: 8, returned: 8, truncated: false },
+        },
+      }),
+    );
+    await flush();
+
+    // 收起态：说明还剩多少，并给出一个能按的入口（不是干写着"只显示了前 5 个"）
+    expect(panel.element("env-toggle").hidden).toBe(false);
+    expect(panel.element("env-toggle").textContent).toBe(
+      t("mcpUi.env.showAll", { n: 8 }, "zh"),
+    );
+    expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
+
+    const before = panel.sent.length;
+    panel.element("env-toggle").click();
+    await flush();
+
+    // 展开态：按钮翻成「收起」，句子改成总数；展开前后都不该多出 tool 调用
+    expect(panel.element("env-toggle").textContent).toBe(t("mcpUi.env.collapse", undefined, "zh"));
+    expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
+    const after = panel.methodsFrom(before);
+    expect(after).not.toContain("tools/call");
+    expect(after.every((m) => m === "ui/notifications/size-changed")).toBe(true);
+
+    // 再点一次收回，且换一份新结果时回到收起态（用户要的是"下一步"，不是四十行）
+    panel.element("env-toggle").click();
+    await flush();
+    expect(panel.element("env-toggle").textContent).toBe(t("mcpUi.env.showAll", { n: 8 }, "zh"));
+  });
+
+  it("接口只回了 5 个、但总共 37 个：没有可展开的，就直接说清其余的在哪", async () => {
+    const panel = loadPanel(buildGetStartedHtml("zh", sampleStatus));
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: {
+          ...READY_STATUS,
+          current_env_id: null,
+          env_status: "MULTIPLE",
+          env_candidates: Array.from({ length: 5 }, (_, i) => ({
+            envId: `env-${i}`,
+            alias: `env-${i}`,
+            region: "ap-shanghai",
+            status: "NORMAL",
+          })),
+          env_candidates_summary: { total: 37, returned: 5, truncated: true },
+        },
+      }),
+    );
+    await flush();
+
+    // 没有可展开的 → 不给按钮；但不能只说"只显示了前 5 个"就没了下文
+    expect(panel.element("env-toggle").hidden).toBe(true);
+    expect(panel.element("env-foot").hidden).toBe(false);
+    expect(panel.element("env-more").textContent).toBe(
+      t("mcpUi.env.restHidden", { total: 37, returned: 5 }, "zh"),
+    );
+    expect(panel.element("env-more").textContent).toContain("控制台");
   });
 
   it("只认宿主：别的窗口塞进来的结果不改状态卡，也不发任何消息", async () => {

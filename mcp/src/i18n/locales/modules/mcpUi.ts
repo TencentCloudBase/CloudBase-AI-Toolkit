@@ -90,6 +90,10 @@ export const mcpUi = defineModule(
     "env.ready": "可用",
     "env.unavailable": "不可用",
     "env.more": "只显示了前 {shown} 个。",
+    "env.showAll": "显示全部 {n} 个",
+    "env.collapse": "收起",
+    "env.restHidden": "共 {total} 个环境，这里能列出 {returned} 个；其余的在控制台看。",
+    "env.allShown": "共 {total} 个环境。",
     "env.moreTotal": "共 {total} 个环境，只显示了前 {shown} 个。",
     "env.failed": "面板没能直接切换。在会话里说「切换到 {alias}」也可以。",
 
@@ -177,6 +181,10 @@ export const mcpUi = defineModule(
     "env.ready": "ready",
     "env.unavailable": "unavailable",
     "env.more": "Only the first {shown} are shown.",
+    "env.showAll": "Show all {n}",
+    "env.collapse": "Show fewer",
+    "env.restHidden": "{total} environments in total; {returned} can be listed here, the rest are in the console.",
+    "env.allShown": "{total} environments.",
     "env.moreTotal": "{total} environments in total; only the first {shown} are shown.",
     "env.failed": "The panel could not switch. Saying \"switch to {alias}\" in the conversation works too.",
 
