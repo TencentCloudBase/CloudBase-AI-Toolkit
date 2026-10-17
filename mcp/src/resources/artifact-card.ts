@@ -565,11 +565,13 @@ body {
   }
 
   window.addEventListener("message", function (event) {
-    // Only the embedding host may drive this view. Origin cannot be checked here (a sandboxed view
-    // has no comparable host origin, and the spec's own example posts with "*"), but the source
-    // window can: another frame on the page, or a layer someone wrapped around us, is not the host
-    // and must not be able to feed this card a fake result.
-    if (event.source !== window.parent) { return; }
+    // Only the host may drive this view. Origin cannot be checked here (a sandboxed view has no
+    // comparable host origin, and the spec's own example posts with "*"), so the source window is
+    // checked instead. It has to accept how hosts actually deliver: from the parent frame, from
+    // this frame itself (a sandbox proxy that relays by posting here), and a null source (a
+    // MessagePort relay). Measured on Codex's mcp-app-sandbox: allowing the parent frame only
+    // dropped every result silently, which is why those two cases are allowed on purpose.
+    if (event.source && event.source !== window.parent && event.source !== window) { return; }
     var data = event.data;
     if (!data || typeof data !== "object") { return; }
     if (data.method === "ui/notifications/tool-result") {

@@ -497,5 +497,10 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     const text = panel.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
     expect(text).toContain(PUBLIC_URL);
     expect(text).not.toContain("evil.example.com");
+
+    // null 来源必须放行：沙箱代理 / MessagePort 中转就是这样投递的（Codex 的 mcp-app-sandbox
+    // 实测如此），挡掉它面板会静默收不到任何结果。
+    panel.dispatch({ structuredContent: { ...fake, access_url: fakeUrl } }, null);
+    expect(panel.el("k-url").textContent).toContain("evil.example.com");
   });
 });

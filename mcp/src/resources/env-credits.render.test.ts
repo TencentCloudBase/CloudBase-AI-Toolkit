@@ -1170,6 +1170,12 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
       expect(panel.el("btn-main").textContent).toBe(before.main);
       expect(panel.posted.length).toBe(posted);
 
+      // null 来源必须放行：沙箱代理 / MessagePort 中转就是这样投递的（Codex 的 mcp-app-sandbox
+      // 实测如此），挡掉它面板会静默收不到任何结果。
+      panel.dispatch({ structuredContent: expired }, null);
+      expect(panel.el("btn-main").textContent).not.toBe(before.main);
+      expect(panel.el("btn-main").hidden).toBe(false);
+
       // 对照：同一份载荷由宿主发，卡片确实会变（否则上面五条是虚假通过）
       panel.dispatch({ structuredContent: expired });
       expect(panel.el("btn-main").textContent).not.toBe(before.main);

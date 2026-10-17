@@ -284,6 +284,12 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("st-text").textContent).toBe(unknown);
     expect(panel.sent.length).toBe(sentBefore);
 
+    // null 来源必须放行：沙箱代理 / MessagePort 中转就是这样投递的（Codex 的 mcp-app-sandbox
+    // 实测如此），挡掉它面板会静默收不到任何结果。
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }), null);
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
+
     // 对照：宿主发同样内容，状态卡确实变（否则上面两条是虚假通过）
     panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
     await flush();
