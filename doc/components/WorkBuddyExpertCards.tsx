@@ -28,7 +28,7 @@ export default function WorkBuddyExpertCards({
           target="_blank"
           rel="noreferrer"
         >
-          <img className={styles.avatar} src={expert.avatarUrl} alt="" width={40} height={40} loading="lazy" />
+          <img className={styles.avatar} src={expert.avatarUrl} alt={lang === 'en' ? expert.nameEn : expert.name} width={40} height={40} loading="lazy" />
           <span className={styles.body}>
             <span className={styles.name}>{lang === 'en' ? expert.nameEn : expert.name}</span>
             <span className={styles.summary}>{lang === 'en' ? expert.summaryEn : expert.summary}</span>

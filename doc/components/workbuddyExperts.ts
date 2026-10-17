@@ -117,4 +117,4 @@ export const WORKBUDDY_EXPERTS: WorkBuddyExpert[] = [
 export const WORKBUDDY_FEATURED_EXPERT = WORKBUDDY_EXPERTS[0];
 
 /** 配置指南页，选择器里「其余 3 个见…」指向它 */
-export const WORKBUDDY_GUIDE_URL = '/ai/cloudbase-ai-toolkit/ide-setup/workbuddy';
+export const WORKBUDDY_GUIDE_URL = 'ide-setup/workbuddy';

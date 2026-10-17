@@ -1,4 +1,5 @@
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import { useBaseUrlUtils } from '@docusaurus/useBaseUrl';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './IDESelector.module.css';
 import { reportEvent } from './analytics';
@@ -889,7 +890,7 @@ const translations: Record<string, Record<string, string>> = {
     connectionModesLink: '连接方式',
     connectionModesSuffix: '。',
     installation: '步骤 1：安装 / 配置 CloudBase',
-    useTemplate: '使用项目模板（推荐）',
+    useTemplate: '使用项目模板',
     templateDescription: '模板已内置 MCP 配置和 AI 规则',
     viewTemplates: '查看模板',
     oneClickInstall: '一键安装',
@@ -930,7 +931,7 @@ const translations: Record<string, Record<string, string>> = {
     connectionModesLink: 'connection modes',
     connectionModesSuffix: '.',
     installation: 'Step 1: Install / Configure CloudBase',
-    useTemplate: 'Use project template (recommended)',
+    useTemplate: 'Use project template',
     templateDescription: 'Template includes MCP configuration and AI rules',
     viewTemplates: 'View templates',
     oneClickInstall: 'Install in one click',
@@ -976,6 +977,9 @@ export default function IDESelector({
   expertChannel = 'docs',
 }: IDESelectorProps) {
   const { i18n } = useDocusaurusContext();
+  // docUrl 里混着站内路径与外部文档站链接。站内路径要过 withBaseUrl，
+  // 否则英文站会跳到中文版；外链原样返回。
+  const { withBaseUrl } = useBaseUrlUtils();
   // Normalize locale: zh-Hans -> zh-CN, en -> en
   const rawLocale = i18n?.currentLocale || i18n?.defaultLocale || 'zh-CN';
   const locale = rawLocale === 'zh-Hans' ? 'zh-CN' : (rawLocale === 'en' ? 'en' : 'zh-CN');
@@ -1536,7 +1540,7 @@ export default function IDESelector({
                 )}
                 {ide.docUrl && (
                   <a
-                    href={ide.docUrl}
+                    href={withBaseUrl(ide.docUrl)}
                     className={styles.templateLink}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -1891,7 +1895,7 @@ export default function IDESelector({
               <div className={styles.helpSection}>
                 <span className={styles.helpText}>{t.needHelp}</span>
                 <a
-                  href={ide.docUrl}
+                  href={withBaseUrl(ide.docUrl)}
                   className={styles.helpLink}
                   target="_blank"
                   rel="noopener noreferrer"
