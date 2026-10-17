@@ -102,19 +102,21 @@ Use CloudBase Run when the task needs a deployed backend service rather than a s
 
 - 无状态 HTTP 服务，监听 `PORT`/`9000`，只做「请求进来 → 处理 → 响应」的响应式逻辑
 - 短生命周期请求，无长连接需求（SSE/WebSocket 之外的普通 API、CRUD、转发）
-- 不需要自定义系统依赖 / 多语言运行时，标准 runtime 足够
+- 标准 runtime 够用（不需要自定义系统依赖、不需要非标准语言）——需要时也能用镜像函数（Custom Image HTTP Function）跑，仍然在函数这条线上
 - 部署更快、费用更低（按请求计费，可缩容到 0）、**无需初始化云托管环境**
 - 有 `Dockerfile` 但服务本质是无状态 HTTP → 优先 HTTP 云函数（HTTP Function / Custom Image HTTP Function），不必上云托管
 
 **云托管才需要（只有以下之一才选云托管）：**
 
 - 长连接：WebSocket、SSE 长连接、服务端推送
-- 自定义系统依赖 / 任意语言运行时 / 需要稳定独立进程
+- 需要常驻的独立进程：后台任务循环、常驻缓存 / 连接池、自管端口的服务
 - VPC 内数据库 / Redis 访问（`VpcConf` 私有网络连通）
 - Agent 服务（Function mode CloudRun）
-- 迁移已有 / GitHub / 第三方应用，或需要常驻进程
+- 迁移已有 / GitHub / 第三方应用
 
-**决策示例：** 一个带 `Dockerfile` 的 Go/Python HTTP API，无长连接、无自定义运行时、不碰 VPC 数据库 → 选 HTTP 云函数而不是云托管；同一份代码若有 WebSocket 长连接 → 才选云托管。
+**语言不是上云托管的条件**：非标准语言（Java / Rust / C++ / PHP / .NET 等）或需要自定义系统依赖时，只要服务仍是「请求进来 → 响应」且无长连接，打成镜像用 Custom Image HTTP Function，就还是函数；只有再叠加常驻 / 长连接 / VPC 才上云托管。
+
+**决策示例：** 一个带 `Dockerfile` 的 Go/Python HTTP API，无长连接、无自定义系统依赖、不碰 VPC 数据库 → 选 HTTP 云函数而不是云托管；同一份代码若有 WebSocket 长连接 → 才选云托管。
 
 ### 数据库访问方式决策门（部署前必答：SDK 优先，TCP 直连兜底）
 
