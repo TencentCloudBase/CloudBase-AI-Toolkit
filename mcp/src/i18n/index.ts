@@ -89,7 +89,11 @@ function interpolate(template: string, params?: Record<string, string | number>)
 
 /**
  * 按词典 key 取文案。语言选择：langOverride（调用级）> 实例 lang > 解析链默认。
- * key 缺失时回退原 key 字符串（编译期 MessageKey 类型已保证 key 存在，运行时兜底防动态拼接）。
+ *
+ * 两种"没有文案"要分开：
+ * - **key 缺失** → 回退原 key 字符串（编译期 MessageKey 类型已保证 key 存在，运行时兜底防动态拼接）；
+ * - **值为空串** → 返回空串。空串是词典里有意留的"这一条此刻不该出现"（例如面板某状态不需要
+ *   说明句，由 CSS `:empty` 收起）；把它当缺失去回退 key 名，会让 key 直接印到用户界面上。
  */
 export function t(
   key: MessageKey,
@@ -106,5 +110,8 @@ export function t(
       ? (en as Record<string, Record<string, string>>)[namespace]
       : (zh as Record<string, Record<string, string>>)[namespace];
   const template = dict && typeof dict[rest] === "string" ? dict[rest] : lookupDictionary(key);
-  return template ? interpolate(template, params) : key;
+  if (template === undefined) {
+    return key;
+  }
+  return interpolate(template, params);
 }

@@ -95,6 +95,17 @@ describe("get-started 面板 HTML", () => {
     expect(visibleMarkup(html)).toContain("China");
   });
 
+  it("产物里不出现任何词典 key —— 有意留空的键不许印成 key 名", () => {
+    for (const lang of ["zh", "en"] as const) {
+      const html = buildGetStartedHtml(lang, sampleStatus);
+      // 整个产物都查（含 <script>）：初始 HTML 与运行时 setText 走的是同一个 t()，
+      // 任一处把"空值"当"取不到"，用户都会在界面上看到 mcpUi.next.why.xxx 这种 key 名。
+      for (const prefix of ["mcpUi.", "mcpUiCredits."]) {
+        expect(html, `${lang} 面板不应出现词典 key 前缀 ${prefix}`).not.toContain(prefix);
+      }
+    }
+  });
+
   it("zh / en 两个实例产出不同 HTML，且各自语言文案正确", () => {
     const zhHtml = buildGetStartedHtml("zh", sampleStatus);
     const enHtml = buildGetStartedHtml("en", sampleStatus);
