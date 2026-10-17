@@ -55,11 +55,11 @@ export const mcpUiArtifact = defineModule(
     "action.redeploy": "重新部署",
     "action.refresh": "刷新进度",
     "action.copyUrl": "复制地址",
+    "action.openFailed": "没能直接打开，地址已复制。",
 
     // 交给会话的请求（按钮 → ui/message 的原文）。
     // 两个占位符由面板脚本在点击时替换：{target} = 本次部署的对象（类型 + 名称，缺失时用 targetFallback），
     // {url} = 实时访问地址。**必须带上对象**，否则技能只能拿到一句"看下日志"，不知道查哪个服务。
-    "message.openUrl": "打开 {target} 的访问地址 {url}",
     "message.bindDomain": "给 {target} 绑定一个公网域名（它当前只有内网地址 {url}）",
     "message.viewLog": "帮我看一下 {target} 的日志",
     "message.viewBuildLog": "帮我看一下 {target} 的构建日志",
@@ -99,8 +99,8 @@ export const mcpUiArtifact = defineModule(
     "action.redeploy": "Deploy again",
     "action.refresh": "Refresh progress",
     "action.copyUrl": "Copy address",
+    "action.openFailed": "Could not open it directly; the address is copied.",
 
-    "message.openUrl": "Open the access address of {target}: {url}",
     "message.bindDomain": "Bind a public domain for {target} (it currently only has the internal address {url})",
     "message.viewLog": "Show me the logs of {target}",
     "message.viewBuildLog": "Show me the build log of {target}",

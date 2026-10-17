@@ -127,7 +127,8 @@ body {
   background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
-.screen { width: 100%; max-width: 460px; margin: 0 auto; background: var(--bg); }
+/* The host decides the width; the card fills it instead of leaving wide margins. */
+.screen { width: 100%; max-width: 720px; margin: 0 auto; background: var(--bg); }
 .brand { height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 0 16px; border-bottom: 1px solid var(--line); }
 .brand-l { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -153,17 +154,18 @@ body {
 .field + .field { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .field .k { font-size: 13px; color: var(--text-2); margin: 0 0 2px; }
 .field .v { font-size: 14px; margin: 0; overflow-wrap: anywhere; }
+.note { margin: 8px 0 0; font-size: 12px; color: var(--text-2); }
 .field .val { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 8px; }
 .field .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
   overflow-wrap: anywhere; user-select: all; min-width: 0; }
 .tag { font-size: 13px; line-height: 22px; height: 22px; padding: 0 8px; border-radius: 6px; white-space: nowrap;
   background: var(--bg); color: var(--text-2); }
 .tag.warn { color: var(--warn); background: rgba(247,144,9,.12); }
-.acts { margin: 16px 0 0; }
+.acts { margin: 16px 0 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .btn { font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; border-radius: 8px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
   transition: background .15s, border-color .15s, color .15s; }
-.btn.primary { width: 100%; height: 36px; background: var(--primary); border: 1px solid var(--primary); color: #fff; }
+.btn.primary { height: 36px; padding: 0 18px; background: var(--primary); border: 1px solid var(--primary); color: #fff; }
 .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn.secondary { height: 32px; padding: 0 12px; background: var(--surface); border: 1px solid var(--line); color: var(--text); }
 .btn.secondary:hover { background: var(--tint); border-color: transparent; }
@@ -173,7 +175,7 @@ body {
   transition: background .15s, border-color .15s, color .15s; }
 .icon-btn:hover { background: var(--tint); border-color: transparent; color: var(--primary); }
 .icon { width: 16px; height: 16px; flex: 0 0 auto; }
-.acts-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.acts-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .fold { margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
 .fold summary { font-size: 13px; color: var(--text-2); cursor: pointer; list-style: none;
   display: inline-flex; align-items: center; gap: 4px; }
@@ -226,6 +228,7 @@ body {
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
 </button>
 </div>
+<p class="note" id="k-note" hidden></p>
 </div>
 </div>
 <div class="acts">
@@ -233,8 +236,9 @@ body {
 <div class="acts-row" id="acts-row">
 <button class="btn secondary" type="button" id="btn-log" hidden></button>
 <button class="btn secondary" type="button" id="btn-redeploy" hidden></button>
-<button class="icon-btn" type="button" id="btn-refresh" hidden>
+<button class="btn secondary" type="button" id="btn-refresh" hidden>
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+<span id="btn-refresh-label">${E(L("mcpUiArtifact.action.refresh"))}</span>
 </button>
 </div>
 </div>
@@ -287,12 +291,12 @@ body {
     envIdLabel: ${S("mcpUiArtifact.brand.envIdLabel")},
     copyEnvId: ${S("mcpUiCredits.brand.copyEnvId")},
     actionOpenUrl: ${S("mcpUiArtifact.action.openUrl")},
+    actionOpenFailed: ${S("mcpUiArtifact.action.openFailed")},
     actionBindDomain: ${S("mcpUiArtifact.action.bindDomain")},
     actionViewLog: ${S("mcpUiArtifact.action.viewLog")},
     actionViewBuildLog: ${S("mcpUiArtifact.action.viewBuildLog")},
     actionRedeploy: ${S("mcpUiArtifact.action.redeploy")},
     actionRefresh: ${S("mcpUiArtifact.action.refresh")},
-    messageOpenUrl: ${S("mcpUiArtifact.message.openUrl")},
     messageBindDomain: ${S("mcpUiArtifact.message.bindDomain")},
     messageViewLog: ${S("mcpUiArtifact.message.viewLog")},
     messageViewBuildLog: ${S("mcpUiArtifact.message.viewBuildLog")},
@@ -459,6 +463,7 @@ body {
     var showLog = false;
     var logLabel = "";
     var logMessage = "";
+    var openMain = false;
     var showRedeploy = false;
     var showRefresh = false;
 
@@ -474,8 +479,11 @@ body {
         logLabel = T.actionViewLog;
         logMessage = T.messageViewLog;
       } else if (scope === "public") {
+        // The address is live: the button opens it. Asking the conversation to "open {url}" only
+        // moves the same click one turn away from the user.
         mainLabel = T.actionOpenUrl;
-        mainMessage = T.messageOpenUrl;
+        mainMessage = "";
+        openMain = true;
       }
       // Unknown scope: no promise is made about the address, so there is no main action at all.
       showRedeploy = true;
@@ -495,7 +503,10 @@ body {
     if (redeploy) { redeploy.hidden = !showRedeploy; redeploy.disabled = false; }
     if (refresh) { refresh.hidden = !showRefresh; refresh.disabled = false; }
 
-    if (main) { main.setAttribute("data-message", mainMessage); }
+    if (main) {
+      main.setAttribute("data-message", mainMessage);
+      main.setAttribute("data-action", openMain ? "open" : "message");
+    }
     if (log) { log.setAttribute("data-message", logMessage); }
     if (redeploy) { redeploy.setAttribute("data-message", T.messageRedeploy); }
     if (refresh) { refresh.setAttribute("data-message", T.messageRefresh); }
@@ -528,6 +539,30 @@ body {
       .catch(function () { busy = false; node.disabled = false; });
   }
 
+  /**
+   * ui/open-link is the sanctioned way out of the sandbox: the host opens the URL in the user's
+   * browser and may refuse. When it refuses (or does not implement the method), the click still
+   * has to end somewhere, so the address is copied and the note under it says so.
+   */
+  function openUrl(node) {
+    if (!current.url || busy) { return; }
+    busy = true;
+    node.disabled = true;
+    request("ui/open-link", { url: current.url })
+      .then(function (result) {
+        if (result && result.isError) { throw new Error("denied"); }
+        busy = false;
+        node.disabled = false;
+      })
+      .catch(function () {
+        busy = false;
+        node.disabled = false;
+        copyText(current.url);
+        var note = el("k-note");
+        if (note) { setText(note, T.actionOpenFailed); note.hidden = false; }
+      });
+  }
+
   function copyText(text) {
     if (!text) { return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -552,6 +587,7 @@ body {
     if (!node) { return; }
     if (node.id === "btn-copy-env") { copyText(current.envId); return; }
     if (node.id === "btn-copy-url") { copyText(current.url); return; }
+    if (node.getAttribute("data-action") === "open") { openUrl(node); return; }
     sendMessage(node);
   });
 

@@ -53,15 +53,27 @@ function visibleMarkup(html: string): string {
 }
 
 describe("get-started 面板 HTML", () => {
-  it("零外链：不含 http(s)、<link、以及任何外部 src=/href=", () => {
+  it("零外链：不加载任何外部资源；地址只作为 ui/open-link 的目标出现在表里", () => {
     const html = buildGetStartedHtml("zh", sampleStatus);
 
-    expect(html).not.toContain("http://");
-    expect(html).not.toContain("https://");
+    // 面板不加载任何外部资源：没有 src= / href= / <link / @import / url()
     expect(html).not.toContain('src="//');
     expect(html).not.toContain("<link");
     expect(html).not.toMatch(/\bsrc=/);
     expect(html).not.toMatch(/\bhref=/);
+    expect(html).not.toContain("@import");
+    expect(html).not.toMatch(/url\(/);
+    expect(html).not.toContain("http://");
+
+    // 出现 https:// 的地方只能是「请宿主打开」的地址表，且只有这两个明确的目标
+    const urls = html.match(/https:\/\/[^"\s]+/g) ?? [];
+    expect(urls.sort()).toEqual([
+      "https://docs.cloudbase.net/",
+      "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
+    ]);
+    // 地址表只被 ui/open-link 消费：不喂给 <a>、不写进 location
+    expect(html).toContain('request("ui/open-link"');
+    expect(html).not.toContain("location.");
   });
 
   it("含 bridge 需要的全部消息名，且面板发起的调用只有 auth 的 status / set_env", () => {

@@ -41,6 +41,8 @@ interface PanelHarness {
   clickDocument(id: string): void;
   sent: SentMessage[];
   methods(): string[];
+  /** 模拟宿主对面板某次请求的应答（result 或 error） */
+  respond(method: string, outcome: { result?: unknown; error?: unknown }): void;
 }
 
 const FALLBACK = { envId: "my-env-3gk9ab", site: "domestic", region: "ap-shanghai" };
@@ -140,6 +142,17 @@ function loadPanel(html: string): PanelHarness {
         throw new Error(`panel HTML has no element #${id}`);
       }
       return element;
+    },
+    respond(method, outcome) {
+      for (let i = sent.length - 1; i >= 0; i--) {
+        const message = sent[i] as { id?: number; method?: string };
+        if (message.method === method) {
+          messageListeners.forEach((fn) =>
+            fn({ data: { jsonrpc: "2.0", id: message.id, ...outcome }, source: sandbox.parent }),
+          );
+          return;
+        }
+      }
     },
     clickDocument(id) {
       clickListeners.forEach((fn) =>
@@ -324,11 +337,24 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
       },
     });
 
+    // 公网已上线：主行动直接请宿主打开地址，不再把「帮我打开 xxx」丢回会话多绕一轮
     const published = render(payloadPublished());
     published.clickDocument("btn-main");
-    expect(published.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text).toBe(
-      fill(L("mcpUiArtifact.message.openUrl"), targetOf("hosting", "my-blog"), PUBLIC_URL),
-    );
+    expect(published.sent.filter((entry) => entry.method === "ui/message")).toHaveLength(0);
+    expect(published.sent.filter((entry) => entry.method === "ui/open-link")[0]?.params).toEqual({
+      url: PUBLIC_URL,
+    });
+  });
+
+  it("宿主拒绝打开时回落：地址进剪贴板，并在地址下方写明一句", async () => {
+    const published = render(payloadPublished());
+    published.clickDocument("btn-main");
+    published.respond("ui/open-link", { error: { code: -32000, message: "denied" } });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(published.el("k-note").hidden).toBe(false);
+    expect(published.el("k-note").textContent).toBe(L("mcpUiArtifact.action.openFailed"));
+    expect(published.el("btn-main").disabled).toBe(false);
   });
 
   it("发给会话的话里带着本次部署的对象（否则技能不知道查哪个服务）", () => {
@@ -364,17 +390,20 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
       panel.clickDocument("btn-copy-env");
 
       expect(panel.methods().filter((method) => method === "tools/call")).toEqual([]);
-      // 面板只会发这四条消息名；没有任何其它调用（尤其没有 tools/call）
+      // 面板只会发这几个消息名；没有任何其它调用（尤其没有 tools/call）
       const allowed = new Set([
         "ui/initialize",
         "ui/notifications/initialized",
         "ui/notifications/size-changed",
         "ui/message",
+        "ui/open-link",
       ]);
       for (const method of panel.methods()) {
         expect(allowed, `面板不应发出 ${method}`).toContain(method);
       }
-      expect(panel.methods()).toContain("ui/message");
+      // 点击一定产生了对宿主的请求：要么交给会话（ui/message），要么请宿主打开地址
+      const talk = panel.methods().filter((m) => m === "ui/message" || m === "ui/open-link");
+      expect(talk.length).toBeGreaterThan(0);
     }
   });
 
@@ -492,11 +521,13 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(panel.el("k-url").textContent).toContain(PUBLIC_URL);
     expect(panel.el("k-url").textContent).not.toContain("evil.example.com");
 
-    // ④ 最要紧的一条：点主行动发回会话的那句话里，只能是真地址
+    // ④ 最要紧的一条：点主行动要打开的是真地址，假地址一步都不能走
     panel.clickDocument("btn-main");
-    const text = panel.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
-    expect(text).toContain(PUBLIC_URL);
-    expect(text).not.toContain("evil.example.com");
+    const opened = String(
+      panel.sent.filter((entry) => entry.method === "ui/open-link")[0]?.params.url ?? "",
+    );
+    expect(opened).toContain(PUBLIC_URL);
+    expect(opened).not.toContain("evil.example.com");
 
     // null 来源必须放行：沙箱代理 / MessagePort 中转就是这样投递的（Codex 的 mcp-app-sandbox
     // 实测如此），挡掉它面板会静默收不到任何结果。

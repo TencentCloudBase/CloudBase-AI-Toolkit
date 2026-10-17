@@ -51,6 +51,7 @@ export const mcpUiCredits = defineModule(
 
     // 说明句（四分支 + 未确认）
     "hint.unknown": "这份数据不足以判断资源点是否充足；完整配额可在控制台查看。",
+    "hint.unknownWithUsage": "已读到用量，但套餐状态没拿到，判断不了是否够用；完整配额可在控制台查看。",
     "hint.normal": "本月资源点仍充足。",
     "hint.nearLimit": "本月资源点已用 {pct}%，接近上限；升级套餐或购买资源包可避免中断。",
 
@@ -66,10 +67,10 @@ export const mcpUiCredits = defineModule(
     "action.recommendRestore": "推荐恢复方案",
     "action.renew": "立即续费",
     "action.guidedTopup": "去充值",
-    "action.copyConsoleLink": "复制控制台链接",
-    "action.copyExpenseLink": "复制费用中心链接",
-    "action.copiedConsole": "控制台链接已复制；无计费权限时可转给主账号管理员",
-    "action.copiedExpense": "费用中心链接已复制；无计费权限时可转给主账号管理员",
+    "action.openConsole": "打开控制台",
+    "action.openExpense": "打开费用中心",
+    "action.copiedConsole": "没能直接打开，链接已复制；无计费权限时可转给主账号管理员",
+    "action.copiedExpense": "没能直接打开，链接已复制；无计费权限时可转给主账号管理员",
 
     // 交给会话的请求（按钮 → ui/message 的原文，技能按这些入口组织引导）
     "message.upgrade": "帮我了解付费套餐，把这个环境从体验版升级",
@@ -152,10 +153,13 @@ export const mcpUiCredits = defineModule(
     "metric.hint.failed": "这次查询没有拿到数据；可以先重试，或去日志看这段时间有没有报错。",
 
     // 字段标签
+    "metric.field.name": "指标",
+    "metric.field.value": "数值",
+    "metric.field.note": "说明",
     "metric.field.latest": "最新值",
     "metric.field.peak": "峰值",
     "metric.field.avg": "平均",
-    "metric.field.window": "样本与粒度",
+    "metric.field.window": "采样",
 
     // 行动（一屏一个主行动）
     // 三态各自的动作（动作腔；noData 最接近流失，不许说"异常"）
@@ -167,7 +171,7 @@ export const mcpUiCredits = defineModule(
     "metric.message.failed": "刚才查「{metric}」失败了，帮我重试并看看原因",
 
     // 值拼接（模板串保持纯 ASCII，连接一律走词典）
-    "metric.window": "{samples} 个样本 · 每 {period} 采样",
+    "metric.every": "每 {period} 采样",
     "metric.samples": "{n} 个样本",
     "metric.period.minute": "5 分钟",
     "metric.period.hour": "1 小时",
@@ -203,6 +207,8 @@ export const mcpUiCredits = defineModule(
 
     "hint.unknown":
       "This data is not enough to tell whether credits are sufficient. The full quota is available in the console.",
+    "hint.unknownWithUsage":
+      "Usage is known, but the plan state is not, so sufficiency cannot be judged. The full quota is in the console.",
     "hint.normal": "This month's credits are still within the plan.",
     "hint.nearLimit": "Credits are {pct}% used and nearing the limit; upgrade the plan or add a credit pack to avoid interruption.",
 
@@ -220,10 +226,10 @@ export const mcpUiCredits = defineModule(
     "action.recommendRestore": "Recommend a recovery option",
     "action.renew": "Renew now",
     "action.guidedTopup": "Top up",
-    "action.copyConsoleLink": "Copy console link",
-    "action.copyExpenseLink": "Copy billing center link",
-    "action.copiedConsole": "Console link copied. Without billing permission, forward it to the account owner.",
-    "action.copiedExpense": "Billing center link copied. Without billing permission, forward it to the account owner.",
+    "action.openConsole": "Open console",
+    "action.openExpense": "Open billing center",
+    "action.copiedConsole": "Could not open it directly; the link is copied. Without billing permission, forward it to the account owner.",
+    "action.copiedExpense": "Could not open it directly; the link is copied. Without billing permission, forward it to the account owner.",
 
     "message.upgrade": "Help me review the paid plans and upgrade this environment from the trial plan",
     "message.restore":
@@ -293,10 +299,13 @@ export const mcpUiCredits = defineModule(
     "metric.hint.noData": "This metric has no data in the selected window.",
     "metric.hint.failed": "This query returned no data; retry it, or check the logs for errors in this period.",
 
+    "metric.field.name": "Metric",
+    "metric.field.value": "Value",
+    "metric.field.note": "Note",
     "metric.field.latest": "Latest",
     "metric.field.peak": "Peak",
     "metric.field.avg": "Average",
-    "metric.field.window": "Samples and interval",
+    "metric.field.window": "Samples",
 
     "metric.action.data": "Explain this curve",
     "metric.action.noData": "Check the logs for requests in this period",
@@ -305,7 +314,7 @@ export const mcpUiCredits = defineModule(
     "metric.message.noData": "There is no data for {metric} in this window - check whether requests ever arrived",
     "metric.message.failed": "The last {metric} query failed - retry it and tell me why",
 
-    "metric.window": "{samples} samples, every {period}",
+    "metric.every": "every {period}",
     "metric.samples": "{n} samples",
     "metric.period.minute": "5 minutes",
     "metric.period.hour": "1 hour",

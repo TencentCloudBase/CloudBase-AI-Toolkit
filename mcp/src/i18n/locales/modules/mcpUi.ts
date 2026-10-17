@@ -26,7 +26,7 @@ export const mcpUi = defineModule(
 
     "status.title": "连接状态",
     "status.unknown": "尚未确认",
-    "status.unknownHint": "点「重新检查」确认一次",
+    "status.unknownHint": "点「重新检查」即可确认",
     "status.loggedOut": "尚未登录",
     "status.loggedOutHint": "先在下面登录一次",
     "status.loggedIn": "已登录",
@@ -98,6 +98,10 @@ export const mcpUi = defineModule(
     "action.error": "重新检查没有完成。可以直接在会话里说「查一下 CloudBase 登录状态」。",
     "action.timeout": "没有拿到返回。可以直接在会话里说「查一下 CloudBase 登录状态」。",
 
+    "link.docs": "文档",
+    "link.github": "GitHub",
+    "link.failed": "没能直接打开，地址是 {url}",
+
     footnote: "面板不会改动云端资源：切换环境只改本地绑定。",
   },
   {
@@ -109,7 +113,7 @@ export const mcpUi = defineModule(
 
     "status.title": "Connection status",
     "status.unknown": "Not checked yet",
-    "status.unknownHint": "Re-check once to confirm",
+    "status.unknownHint": "Re-check to confirm",
     "status.loggedOut": "Not signed in",
     "status.loggedOutHint": "sign in below first",
     "status.loggedIn": "Signed in",
@@ -180,6 +184,10 @@ export const mcpUi = defineModule(
     "action.sent": "Handed to the conversation...",
     "action.error": "Re-check did not complete. You can just say check CloudBase sign-in status in the conversation.",
     "action.timeout": "No response came back. You can just say check CloudBase sign-in status in the conversation.",
+
+    "link.docs": "Docs",
+    "link.github": "GitHub",
+    "link.failed": "Could not open it; the address is {url}",
 
     footnote: "This panel never modifies cloud resources; switching an environment only changes the local binding.",
   },

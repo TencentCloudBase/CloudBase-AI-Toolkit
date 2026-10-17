@@ -181,7 +181,8 @@ body {
   background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
   font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
-.panel { width: 719px; max-width: 100%; margin: 0 auto; padding: 16px; }
+/* Fill whatever the host gives us; 860px is where one column of rows still reads well. */
+.panel { width: 100%; max-width: 860px; margin: 0 auto; padding: 16px; }
 .head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
 .logo { display: inline-flex; flex: 0 0 auto; }
 .logo svg { width: 22px; height: 22px; display: block; }
@@ -257,6 +258,15 @@ pre {
   white-space: pre-wrap; overflow-wrap: anywhere; max-height: 200px; overflow: auto;
 }
 .foot { font-size: 12px; color: var(--text-2); margin: 0; padding-top: 10px; border-top: 1px solid var(--border-2); }
+.foot-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.foot-row .sep { color: var(--text-2); }
+/* The note only exists when the host refused to open a link, so its separator is drawn by CSS
+   rather than sitting in the markup as a dangling dot. */
+#lnk-note::before { content: "\\00B7"; margin: 0 8px; color: var(--text-2); }
+/* Text links, not buttons: they read as part of the sentence they sit in. */
+.linklike { height: auto; padding: 0; border: 0; background: none; color: var(--primary); font-size: 12px; cursor: pointer; }
+.linklike:hover { background: none; color: var(--primary-hover); text-decoration: underline; }
+.linklike[disabled] { color: var(--text-2); text-decoration: none; }
 /* The logo's dark blue is low-contrast on a dark page; dark mode swaps in the logo's own light blue. */
 @media (prefers-color-scheme: dark) { .logo .logo-strong { fill: #4896FF; } }
 </style>
@@ -310,7 +320,15 @@ pre {
 <p class="kbd err" id="k-err" hidden></p>
 </div>
 </section>
-<p class="foot">${footnote}</p>
+<div class="foot">
+<p class="foot-row"><span>${footnote}</span></p>
+<p class="foot-row">
+<button class="linklike" type="button" id="lnk-docs">${E(L("mcpUi.link.docs"))}</button>
+<span class="sep">&middot;</span>
+<button class="linklike" type="button" id="lnk-github">${E(L("mcpUi.link.github"))}</button>
+<span id="lnk-note" hidden></span>
+</p>
+</div>
 </main>
 <script>
 (function () {
@@ -367,7 +385,8 @@ pre {
     envMore: ${S("mcpUi.env.more")},
     envMoreTotal: ${S("mcpUi.env.moreTotal")},
     envFailed: ${S("mcpUi.env.failed")},
-    nextLabelUnboundList: ${S("mcpUi.next.label.unboundList")}
+    nextLabelUnboundList: ${S("mcpUi.next.label.unboundList")},
+    linkFailed: ${S("mcpUi.link.failed")}
   };
   // One action per screen. main === "" means: no main action for this state (the secondary
   // re-check link is the only thing to press).
@@ -698,6 +717,37 @@ pre {
       if (data.error) { entry.reject(data.error); } else { entry.resolve(data.result); }
     }
   });
+  var LINKS = {
+    "lnk-docs": "https://docs.cloudbase.net/",
+    "lnk-github": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit"
+  };
+  var linkNote = document.getElementById("lnk-note");
+  function showLinkNote(text) {
+    if (!linkNote) { return; }
+    linkNote.textContent = text;
+    linkNote.hidden = !text;
+  }
+  // ui/open-link keeps the navigation decision with the host; the panel never sets a location
+  // itself. A host that refuses gets the URL printed next to the link instead of a dead click.
+  function openExternal(id) {
+    var url = LINKS[id];
+    if (!url) { return; }
+    showLinkNote("");
+    request("ui/open-link", { url: url }).then(function (result) {
+      if (result && result.isError) { showLinkNote(T.linkFailed.replace("{url}", url)); }
+    }, function () {
+      showLinkNote(T.linkFailed.replace("{url}", url));
+    });
+  }
+  for (var linkId in LINKS) {
+    var linkEl = document.getElementById(linkId);
+    if (linkEl) {
+      linkEl.addEventListener("click", function (event) {
+        var target = event && event.currentTarget ? event.currentTarget : null;
+        openExternal(target ? target.id : "");
+      });
+    }
+  }
   render(null);
   // appInfo is the field a real host validates: Codex answers -32603
   // params.appInfo Invalid input when it is absent. clientInfo is what the
