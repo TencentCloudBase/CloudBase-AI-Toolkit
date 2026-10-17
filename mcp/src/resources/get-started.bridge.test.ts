@@ -299,7 +299,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
     expect(panel.element("k-scope").textContent).toBe("Current environment only");
     expect(panel.element("btn-main").hidden).toBe(false);
-    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
+    expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
     expect(panel.element("nx-label").textContent).toBe(t("mcpUi.next.label.ready", undefined, "en"));
   });
 
@@ -326,7 +326,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
 
     // 收起态：说明还剩多少，并给出一个能按的入口（不是干写着"只显示了前 5 个"）
     expect(panel.element("env-toggle").hidden).toBe(false);
-    expect(panel.element("env-toggle").textContent).toBe(
+    expect(panel.element("env-toggle-label").textContent).toBe(
       t("mcpUi.env.showAll", { n: 8 }, "zh"),
     );
     expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
@@ -336,7 +336,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     await flush();
 
     // 展开态：按钮翻成「收起」，句子改成总数；展开前后都不该多出 tool 调用
-    expect(panel.element("env-toggle").textContent).toBe(t("mcpUi.env.collapse", undefined, "zh"));
+    expect(panel.element("env-toggle-label").textContent).toBe(t("mcpUi.env.collapse", undefined, "zh"));
     expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
     const after = panel.methodsFrom(before);
     expect(after).not.toContain("tools/call");
@@ -345,7 +345,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     // 再点一次收回，且换一份新结果时回到收起态（用户要的是"下一步"，不是四十行）
     panel.element("env-toggle").click();
     await flush();
-    expect(panel.element("env-toggle").textContent).toBe(t("mcpUi.env.showAll", { n: 8 }, "zh"));
+    expect(panel.element("env-toggle-label").textContent).toBe(t("mcpUi.env.showAll", { n: 8 }, "zh"));
   });
 
   it("接口只回了 5 个、但总共 37 个：没有可展开的，就直接说清其余的在哪", async () => {
@@ -408,7 +408,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     panel.dispatch(TOOL_RESULT({ structuredContent: { auth_status: "REQUIRED" } }));
     await flush();
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedOut", undefined, "en"));
-    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
+    expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
     // 这次结果没带位置/环境字段 → 本地兜底（实时值优先，但缺失的字段仍要有个值）
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
     expect(panel.element("k-env").textContent).toBe("env-abc123");
@@ -419,7 +419,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     panel.dispatch(TOOL_RESULT({ structuredContent: UNBOUND_STATUS }));
     await flush();
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedIn", undefined, "en"));
-    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
+    expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
     // 实时结果里 current_env_id 显式为 null → 「未绑定」，不能被本地缓存的环境 ID 顶掉
     expect(panel.element("k-env").textContent).toBe(t("mcpUi.status.unset", undefined, "en"));
     expect(panel.element("k-scope").textContent).toBe(t("mcpUi.scope.account", undefined, "en"));
@@ -459,7 +459,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     panel.dispatch(TOOL_RESULT({ structuredContent: { ok: true, code: "AUTH_REQUIRED" } }));
     await flush();
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedOut", undefined, "en"));
-    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
+    expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
   });
 
   it("structuredContent 优先于 content 文本（两者冲突时以结构化结果为准）", async () => {
@@ -513,7 +513,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(calls[0].message.params).toEqual({ name: "auth", arguments: { action: "status" } });
     // pending 就落在按钮上（禁用 + 文案变「正在检查…」），不另起一行
     expect(panel.element("btn-refresh").disabled).toBe(true);
-    expect(panel.element("btn-refresh").textContent).toBe(t("mcpUi.action.pending", undefined, "en"));
+    expect(panel.element("btn-refresh-label").textContent).toBe(t("mcpUi.action.pending", undefined, "en"));
 
     // 服务端把结果放在 content[0].text 的 JSON 里，面板要能回落到解析它
     panel.dispatch({
@@ -524,11 +524,11 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     await flush();
 
     expect(panel.element("btn-refresh").disabled).toBe(false);
-    expect(panel.element("btn-refresh").textContent).toBe(
+    expect(panel.element("btn-refresh-label").textContent).toBe(
       t("mcpUi.next.action.refresh", undefined, "en"),
     );
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedIn", undefined, "en"));
-    expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
+    expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
   });
 
   it("点主行动：只发 ui/message，且不发 tools/call", async () => {
@@ -584,7 +584,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     const calls = panel.sent.slice(before).filter((entry) => entry.message.method === "tools/call");
     expect(calls).toHaveLength(1);
     expect(calls[0].message.params).toEqual({ name: "auth", arguments: { action: "status" } });
-    expect(panel.element("btn-refresh").textContent).toBe(t("mcpUi.action.pending", undefined, "en"));
+    expect(panel.element("btn-refresh-label").textContent).toBe(t("mcpUi.action.pending", undefined, "en"));
   });
 
   it("「重新检查」拿回一段读不懂的文本：给失败态与出路，同样不摊原文", async () => {
@@ -629,7 +629,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(err.textContent).not.toBe(t("mcpUi.action.pending", undefined, "en"));
     // 按钮从 loading 态恢复，可以再点
     expect(panel.element("btn-refresh").disabled).toBe(false);
-    expect(panel.element("btn-refresh").textContent).toBe(
+    expect(panel.element("btn-refresh-label").textContent).toBe(
       t("mcpUi.next.action.refresh", undefined, "en"),
     );
   });

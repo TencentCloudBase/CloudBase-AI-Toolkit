@@ -126,7 +126,7 @@ describe("env-credits 面板 HTML", () => {
     expect(html).not.toContain("<link");
     expect(html).not.toContain("@import");
     expect(html).not.toMatch(/\bsrc=/);
-    expect(html).not.toMatch(/\bhref=/);
+    expect(html).not.toMatch(/\bhref="(?!#)/);
     expect(html).not.toContain("xmlns");
     expect(html).not.toContain("xlink");
     // 控制台链接在点击时才由脚本拼（主机表 + hash 都在脚本里），所以模板里不该再有**带主机**的

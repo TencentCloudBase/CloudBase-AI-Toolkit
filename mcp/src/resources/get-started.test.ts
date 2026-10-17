@@ -60,7 +60,7 @@ describe("get-started 面板 HTML", () => {
     expect(html).not.toContain('src="//');
     expect(html).not.toContain("<link");
     expect(html).not.toMatch(/\bsrc=/);
-    expect(html).not.toMatch(/\bhref=/);
+    expect(html).not.toMatch(/\bhref="(?!#)/);
     expect(html).not.toContain("@import");
     expect(html).not.toMatch(/url\(/);
     expect(html).not.toContain("http://");

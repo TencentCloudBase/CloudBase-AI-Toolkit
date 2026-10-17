@@ -166,6 +166,9 @@ body {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
   transition: background .15s, border-color .15s, color .15s; }
 .btn.primary { height: 36px; padding: 0 18px; background: var(--primary); border: 1px solid var(--primary); color: #fff; }
+/* Card-width rule: full-bleed while the card is phone-shaped, natural width once it is a wide card
+   (a 700px-wide button reads as a banner, not as the one next step). */
+@media (max-width: 560px) { .btn.primary { width: 100%; } }
 .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn.secondary { height: 32px; padding: 0 12px; background: var(--surface); border: 1px solid var(--line); color: var(--text); }
 .btn.secondary:hover { background: var(--tint); border-color: transparent; }
@@ -188,6 +191,15 @@ body {
 </style>
 </head>
 <body>
+<!-- Lucide glyphs, inline and referenced by id: no network, no icon font, no data URI. One <use>
+     per button keeps the swap to a single attribute write. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ico-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+<symbol id="ico-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+<symbol id="ico-log" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="ico-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="ico-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/></symbol>
+</defs></svg>
 <div class="screen">
 <div class="brand">
 <span class="brand-l">
@@ -232,11 +244,11 @@ body {
 </div>
 </div>
 <div class="acts">
-<button class="btn primary" type="button" id="btn-main" hidden></button>
+<button class="btn primary" type="button" id="btn-main" hidden><svg class="icon" aria-hidden="true"><use id="ico-main" href="#ico-open"/></svg><span id="btn-main-label"></span></button>
 <div class="acts-row" id="acts-row">
-<button class="btn secondary" type="button" id="btn-log" hidden></button>
-<button class="btn secondary" type="button" id="btn-redeploy" hidden></button>
-<button class="btn secondary" type="button" id="btn-share" hidden></button>
+<button class="btn secondary" type="button" id="btn-log" hidden><svg class="icon" aria-hidden="true"><use href="#ico-log"/></svg><span id="btn-log-label"></span></button>
+<button class="btn secondary" type="button" id="btn-redeploy" hidden><svg class="icon" aria-hidden="true"><use href="#ico-refresh"/></svg><span id="btn-redeploy-label"></span></button>
+<button class="btn secondary" type="button" id="btn-share" hidden><svg class="icon" aria-hidden="true"><use href="#ico-share"/></svg><span id="btn-share-label"></span></button>
 <button class="btn secondary" type="button" id="btn-refresh" hidden>
 <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
 <span id="btn-refresh-label">${E(L("mcpUiArtifact.action.refresh"))}</span>
@@ -501,14 +513,17 @@ body {
       showRedeploy = true;
     }
 
-    setText(main, mainLabel);
+    // Labels live in their own span so the glyph beside them survives a re-render: writing
+    // textContent on the button itself would delete the icon.
+    setText(el("btn-main-label"), mainLabel);
     if (main) { main.hidden = !mainLabel; main.disabled = false; }
-    setText(log, logLabel);
+    setIcon(el("ico-main"), openMain ? "open" : (mainLabel === T.actionBindDomain ? "link" : "log"));
+    setText(el("btn-log-label"), logLabel);
     if (log) { log.hidden = !showLog; log.disabled = false; }
-    setText(redeploy, T.actionRedeploy);
+    setText(el("btn-redeploy-label"), T.actionRedeploy);
     if (redeploy) { redeploy.hidden = !showRedeploy; redeploy.disabled = false; }
     var share = el("btn-share");
-    setText(share, T.actionShareCase);
+    setText(el("btn-share-label"), T.actionShareCase);
     if (share) { share.hidden = !showShare; share.disabled = false; }
     if (refresh) { refresh.hidden = !showRefresh; refresh.disabled = false; }
 
@@ -536,6 +551,11 @@ body {
     if (text.indexOf("{target}") !== -1) { text = text.replace("{target}", targetText()); }
     if (text.indexOf("{url}") !== -1) { text = text.replace("{url}", current.url); }
     return text;
+  }
+
+  /** Swap a button glyph: one <use> plus one <symbol> per icon, so this is a single attribute write. */
+  function setIcon(use, name) {
+    if (use) { use.setAttribute("href", "#ico-" + name); }
   }
 
   function sendMessage(node) {

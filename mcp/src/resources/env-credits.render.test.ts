@@ -317,7 +317,7 @@ describe("env-credits 面板脚本运行时", () => {
       const main = panel.el("btn-main");
       if (item.main) {
         expect(main.hidden, `${item.name} 主行动应显示`).toBe(false);
-        expect(main.textContent, `${item.name} 主行动文案`).toBe(L(`mcpUiCredits.${item.main}`));
+        expect(panel.el("btn-main-label").textContent, `${item.name} 主行动文案`).toBe(L(`mcpUiCredits.${item.main}`));
       } else {
         expect(main.hidden, `${item.name} 无主行动`).toBe(true);
       }
@@ -851,7 +851,7 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
 
     // 一屏一个主行动：交给会话深挖（标签来自词典）
     expect(panel.el("btn-main").hidden).toBe(false);
-    expect(panel.el("btn-main").textContent).toBe(L("mcpUiCredits.metric.action.data"));
+    expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiCredits.metric.action.data"));
     // ① 绿在这张卡上不携带健康含义：有数据也只是中性圆点 + 默认曲线样式
     expect(panel.el("st-dot").className).toBe("dot");
     expect(panel.el("spark-line").getAttribute("stroke")).toBe("var(--text-2)");
@@ -1135,7 +1135,7 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
   it("主按钮三态各自的动作：文案互不相同、noData 不含「异常」、消息也按态给", () => {
     const seen: Array<{ name: string; label: string; message: string }> = [];
     const collect = (name: string, panel: PanelHarness) => {
-      const label = panel.el("btn-main").textContent;
+      const label = panel.el("btn-main-label").textContent;
       panel.clickDocument("btn-main");
       const text = String(
         (panel.lastRequest("ui/message")?.content as { text?: unknown } | undefined)?.text ?? "",
@@ -1206,7 +1206,7 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
         title: panel.el("c-title").textContent,
         credits: panel.el("k-credits").textContent,
         hint: panel.el("c-hint").textContent,
-        main: panel.el("btn-main").textContent,
+        main: panel.el("btn-main-label").textContent,
       };
       const posted = panel.posted.length;
 
@@ -1221,18 +1221,18 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
       expect(panel.el("c-title").textContent).toBe(before.title);
       expect(panel.el("k-credits").textContent).toBe(before.credits);
       expect(panel.el("c-hint").textContent).toBe(before.hint);
-      expect(panel.el("btn-main").textContent).toBe(before.main);
+      expect(panel.el("btn-main-label").textContent).toBe(before.main);
       expect(panel.posted.length).toBe(posted);
 
       // null 来源必须放行：沙箱代理 / MessagePort 中转就是这样投递的（Codex 的 mcp-app-sandbox
       // 实测如此），挡掉它面板会静默收不到任何结果。
       panel.dispatch({ structuredContent: expired }, null);
-      expect(panel.el("btn-main").textContent).not.toBe(before.main);
+      expect(panel.el("btn-main-label").textContent).not.toBe(before.main);
       expect(panel.el("btn-main").hidden).toBe(false);
 
       // 对照：同一份载荷由宿主发，卡片确实会变（否则上面五条是虚假通过）
       panel.dispatch({ structuredContent: expired });
-      expect(panel.el("btn-main").textContent).not.toBe(before.main);
-      expect(panel.el("btn-main").textContent).not.toBe("");
+      expect(panel.el("btn-main-label").textContent).not.toBe(before.main);
+      expect(panel.el("btn-main-label").textContent).not.toBe("");
     });
   });

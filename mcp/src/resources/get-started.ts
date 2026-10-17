@@ -241,11 +241,16 @@ body {
 button {
   font: inherit; font-size: 14px; height: 32px; padding: 0 14px; border-radius: 8px; cursor: pointer;
   white-space: nowrap; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   transition: border-color .15s, color .15s, background .15s;
 }
+/* Glyphs are inline SVG at 16px, stroke follows the button's text colour. */
+.icon { width: 16px; height: 16px; flex: 0 0 auto; display: block; }
+.linklike .icon { width: 13px; height: 13px; }
 button:hover { background: var(--tint); border-color: transparent; color: var(--primary); }
 button.primary { height: 36px; background: var(--primary); border-color: var(--primary); color: #fff; }
 button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+@media (max-width: 560px) { button.primary { width: 100%; } }
 button.link { height: 32px; padding: 0 14px; border-radius: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 button.link:hover { background: var(--tint); border-color: transparent; color: var(--primary); }
 button[disabled] { cursor: default; opacity: .6; }
@@ -283,6 +288,16 @@ pre {
 </style>
 </head>
 <body>
+<!-- Lucide glyphs, inline: no network, no icon font, no data URI. Buttons point a <use> at one of
+     these; swapping an icon is a single attribute write. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ico-login" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></symbol>
+<symbol id="ico-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></symbol>
+<symbol id="ico-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+<symbol id="ico-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="ico-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="ico-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></symbol>
+</defs></svg>
 <main class="panel">
 <div class="head">
 <span class="logo" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" focusable="false">
@@ -319,7 +334,7 @@ pre {
 <div class="env-list" id="env-list" role="group" aria-label="${envTitle}"></div>
 <div class="env-foot" id="env-foot" hidden>
 <p class="hint" id="env-more"></p>
-<button class="linklike" type="button" id="env-toggle" hidden></button>
+<button class="linklike" type="button" id="env-toggle" hidden><svg class="icon" aria-hidden="true"><use id="ico-toggle" href="#ico-chevron-down"/></svg><span id="env-toggle-label"></span></button>
 </div>
 <p class="kbd err" id="env-err" hidden></p>
 </section>
@@ -328,8 +343,8 @@ pre {
 <div class="next">
 <p class="label" id="nx-label">${E(L("mcpUi.next.label.unknown"))}</p>
 <div class="row-actions">
-<button class="primary" id="btn-main" type="button" hidden></button>
-<button class="link" id="btn-refresh" type="button">${E(L("mcpUi.next.action.refresh"))}</button>
+<button class="primary" id="btn-main" type="button" hidden><svg class="icon" aria-hidden="true"><use id="ico-main" href="#ico-login"/></svg><span id="btn-main-label"></span></button>
+<button class="link" id="btn-refresh" type="button"><svg class="icon" aria-hidden="true"><use href="#ico-refresh"/></svg><span id="btn-refresh-label">${E(L("mcpUi.next.action.refresh"))}</span></button>
 </div>
 <p class="why" id="nx-why">${E(L("mcpUi.next.why.unknown"))}</p>
 <p class="kbd err" id="k-err" hidden></p>
@@ -572,6 +587,14 @@ pre {
       });
     });
   }
+  /** Shorthand for one of the static nodes grabbed at boot; null when the id is missing. */
+  function el(id) { return document.getElementById(id); }
+
+  /** Swap a button glyph: one <use> plus one <symbol> per icon, so this is one attribute write. */
+  function setIcon(use, name) {
+    if (use) { use.setAttribute("href", "#ico-" + name); }
+  }
+
   function clearNode(el) {
     while (el.firstChild) { el.removeChild(el.firstChild); }
   }
@@ -663,9 +686,10 @@ pre {
     if (envToggle) {
       envToggle.hidden = !canExpand;
       if (canExpand) {
-        envToggle.textContent = envExpanded
+        setText(el("env-toggle-label"), envExpanded
           ? T.envCollapse
-          : T.envShowAll.replace("{n}", String(envAll.length));
+          : T.envShowAll.replace("{n}", String(envAll.length)));
+        setIcon(el("ico-toggle"), envExpanded ? "chevron-up" : "chevron-down");
         envToggle.setAttribute("aria-expanded", envExpanded ? "true" : "false");
       }
     }
@@ -690,13 +714,6 @@ pre {
     }
   }
 
-  if (envToggle) {
-      envToggle.hidden = false;
-      envToggle.textContent = envExpanded
-        ? T.envCollapse
-        : T.envShowAll.replace("{n}", String(envAll.length));
-      envToggle.setAttribute("aria-expanded", envExpanded ? "true" : "false");
-    }
   if (envToggle) {
     envToggle.addEventListener("click", function () {
       envExpanded = !envExpanded;
@@ -770,7 +787,8 @@ pre {
       var replacedByList = envShown && state.main === T.actionSelectEnv;
       mainBtn.hidden = !state.main || replacedByList;
       mainBtn.disabled = false;
-      setText(mainBtn, state.main);
+      setText(el("btn-main-label"), state.main);
+      setIcon(el("ico-main"), state.main === T.actionLogin ? "login" : (state.main === T.actionSelectEnv ? "server" : "rocket"));
     }
     if (payload) { showRaw(JSON.stringify(payload, null, 2)); }
   }
@@ -858,14 +876,14 @@ pre {
       if (busy) { return; }
       busy = true;
       refreshBtn.disabled = true;
-      var restore = refreshBtn.textContent || T.actionRefresh;
-      setText(refreshBtn, T.actionPending);
+      var restore = (el("btn-refresh-label") && el("btn-refresh-label").textContent) || T.actionRefresh;
+      setText(el("btn-refresh-label"), T.actionPending);
       hideError();
       var settled = false;
       function finish() {
         busy = false;
         refreshBtn.disabled = false;
-        setText(refreshBtn, restore);
+        setText(el("btn-refresh-label"), restore);
       }
       // Timeout fallback: if the host never forwards this call, do not leave the panel sitting on
       // "checking" forever, which reads as broken.
@@ -907,13 +925,13 @@ pre {
       var state = current;
       if (!state || !state.msg) { return; }
       mainBtn.disabled = true;
-      var restore = mainBtn.textContent || state.main;
-      setText(mainBtn, T.actionSent);
+      var restore = (el("btn-main-label") && el("btn-main-label").textContent) || state.main;
+      setText(el("btn-main-label"), T.actionSent);
       hideError();
       request("ui/message", { role: "user", content: { type: "text", text: state.msg } })
         .then(function () {
           mainBtn.disabled = false;
-          setText(mainBtn, restore);
+          setText(el("btn-main-label"), restore);
         })
         .catch(function () {
           mainBtn.disabled = false;

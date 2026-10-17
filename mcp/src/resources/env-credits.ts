@@ -354,6 +354,7 @@ button:hover { background: var(--tint); border-color: transparent; color: var(--
    normal button and let it keep its natural width. */
 button.primary { height: 36px; flex: 0 0 auto; min-width: 200px; background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
 button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+@media (max-width: 560px) { button.primary { flex: 1 1 100%; } }
 button[disabled] { cursor: default; opacity: .6; }
 .icon { width: 16px; height: 16px; display: block; }
 details { margin-top: 12px; }
@@ -377,6 +378,17 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 </style>
 </head>
 <body>
+<!-- Lucide glyphs, inline: no network, no icon font, no data URI. Buttons point a <use> at one of
+     these; swapping an icon is one attribute write. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="ico-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+<symbol id="ico-lifebuoy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/></symbol>
+<symbol id="ico-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/></symbol>
+<symbol id="ico-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></symbol>
+<symbol id="ico-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></symbol>
+<symbol id="ico-log" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="ico-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+</defs></svg>
 <div class="panel">
   <div class="brand">
     <span class="brand-l">
@@ -472,7 +484,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     </div>
     <p class="note" id="k-copynote" hidden></p>
     <div class="acts">
-      <button class="primary" type="button" id="btn-main" hidden></button>
+      <button class="primary" type="button" id="btn-main" hidden><svg class="icon" aria-hidden="true"><use id="ico-main" href="#ico-rocket"/></svg><span id="btn-main-label"></span></button>
       <button type="button" id="btn-link" hidden>
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         <span id="btn-link-label"></span>
@@ -621,23 +633,23 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 
   // One main action per screen: an empty main means this branch has nothing to press.
   var BRANCHES = {
-    unknown: { dot: "", text: T.stateUnknown, hint: T.hintUnknown, main: "", msg: "", link: "" },
-    normal: { dot: "ok", text: T.stateNormal, hint: T.hintNormal, main: "", msg: "", link: "" },
+    unknown: { dot: "", text: T.stateUnknown, hint: T.hintUnknown, main: "", msg: "", link: "", icon: "" },
+    normal: { dot: "ok", text: T.stateNormal, hint: T.hintNormal, main: "", msg: "", link: "", icon: "" },
     trialExhausted: {
       dot: "warn", text: ${S("mcpUiCredits.state.trialExhausted")}, hint: ${S("mcpUiCredits.hint.trialExhausted")},
-      main: ${S("mcpUiCredits.action.upgrade")}, msg: ${S("mcpUiCredits.message.upgrade")}, link: "package"
+      main: ${S("mcpUiCredits.action.upgrade")}, msg: ${S("mcpUiCredits.message.upgrade")}, link: "package", icon: "rocket"
     },
     stopped: {
       dot: "err", text: ${S("mcpUiCredits.state.stopped")}, hint: ${S("mcpUiCredits.hint.stopped")},
-      main: ${S("mcpUiCredits.action.recommendRestore")}, msg: ${S("mcpUiCredits.message.restore")}, link: "package"
+      main: ${S("mcpUiCredits.action.recommendRestore")}, msg: ${S("mcpUiCredits.message.restore")}, link: "package", icon: "lifebuoy"
     },
     expired: {
       dot: "err", text: ${S("mcpUiCredits.state.expired")}, hint: ${S("mcpUiCredits.hint.expired")},
-      main: ${S("mcpUiCredits.action.renew")}, msg: ${S("mcpUiCredits.message.renew")}, link: "renew"
+      main: ${S("mcpUiCredits.action.renew")}, msg: ${S("mcpUiCredits.message.renew")}, link: "renew", icon: "calendar"
     },
     arrears: {
       dot: "err", text: ${S("mcpUiCredits.state.arrears")}, hint: ${S("mcpUiCredits.hint.arrears")},
-      main: ${S("mcpUiCredits.action.guidedTopup")}, msg: ${S("mcpUiCredits.message.topup")}, link: "expense"
+      main: ${S("mcpUiCredits.action.guidedTopup")}, msg: ${S("mcpUiCredits.message.topup")}, link: "expense", icon: "card"
     }
   };
 
@@ -933,7 +945,9 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     // The single primary action hands the follow-up to the session; the panel calls no tools itself.
     var mainBtn = el("btn-main");
     mainBtn.hidden = false;
-    setText(mainBtn, mainLabel);
+    setText(el("btn-main-label"), mainLabel);
+    // One glyph per metric state: explain the curve / go read the logs / retry the query.
+    setIcon(el("ico-main"), state === "data" ? "chart" : (state === "failed" ? "refresh" : "log"));
     mainBtn.disabled = false;
     var linkBtn = el("btn-link");
     linkBtn.hidden = true;
@@ -1036,7 +1050,13 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 
     var mainBtn = el("btn-main");
     mainBtn.hidden = !branch.main;
-    if (branch.main) { setText(mainBtn, branch.main); mainBtn.disabled = false; }
+    if (branch.main) {
+      // Label and glyph sit in their own nodes: writing textContent on the button would delete
+      // the icon on the next render.
+      setText(el("btn-main-label"), branch.main);
+      setIcon(el("ico-main"), branch.icon || "rocket");
+      mainBtn.disabled = false;
+    }
     var linkBtn = el("btn-link");
     linkBtn.hidden = !current.link;
     if (current.link) { setText(el("btn-link-label"), LINK_LABEL[current.link]); }
@@ -1055,6 +1075,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       if (result && result.isError) { throw new Error("denied"); }
       return true;
     });
+  }
+
+  /** Swap a button glyph: one <use> plus one <symbol> per icon, so this is one attribute write. */
+  function setIcon(use, name) {
+    if (use) { use.setAttribute("href", "#ico-" + name); }
   }
 
   function copyText(text) {

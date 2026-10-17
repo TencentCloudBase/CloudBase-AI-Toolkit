@@ -239,7 +239,7 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(deploying.el("st-text").textContent).toBe(L("mcpUiArtifact.state.deploying"));
     expect(deploying.el("st-dot").className).toContain("warn");
     expect(deploying.el("c-hint").textContent).toBe(L("mcpUiArtifact.hint.deploying"));
-    expect(deploying.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewBuildLog"));
+    expect(deploying.el("btn-main-label").textContent).toBe(L("mcpUiArtifact.action.viewBuildLog"));
     expect(deploying.el("btn-main").hidden).toBe(false);
     // 部署中不展示地址（那是已有服务的地址），但给一个刷新按钮
     expect(deploying.el("f-url").hidden).toBe(true);
@@ -251,19 +251,19 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(published.el("st-text").textContent).toBe(L("mcpUiArtifact.state.published"));
     expect(published.el("st-dot").className).toContain("ok");
     expect(published.el("c-hint").textContent).toBe(L("mcpUiArtifact.hint.published"));
-    expect(published.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.openUrl"));
+    expect(published.el("btn-main-label").textContent).toBe(L("mcpUiArtifact.action.openUrl"));
     expect(published.el("f-url").hidden).toBe(false);
     expect(published.el("k-url").textContent).toBe(PUBLIC_URL);
     expect(published.el("k-url-tag").hidden).toBe(true);
     // 有公网地址才有东西可分享；文案与按钮都在
     expect(published.el("btn-share").hidden).toBe(false);
-    expect(published.el("btn-share").textContent).toBe(L("mcpUiArtifact.action.shareCase"));
+    expect(published.el("btn-share-label").textContent).toBe(L("mcpUiArtifact.action.shareCase"));
 
     const internal = render(payloadInternal());
     expect(internal.el("st-text").textContent).toBe(L("mcpUiArtifact.state.published"));
     expect(internal.el("c-hint").textContent).toBe(L("mcpUiArtifact.hint.publishedInternal"));
     // 仅内网：撤掉「打开」，主行动改成绑定公网域名，地址带「仅内网」Tag
-    expect(internal.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.bindDomain"));
+    expect(internal.el("btn-main-label").textContent).toBe(L("mcpUiArtifact.action.bindDomain"));
     expect(internal.el("k-url").textContent).toBe(INTERNAL_URL);
     expect(internal.el("k-url-tag").hidden).toBe(false);
     expect(internal.el("k-url-tag").textContent).toBe(L("mcpUiArtifact.tag.internalOnly"));
@@ -276,7 +276,7 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(failed.el("st-dot").className).toContain("err");
     // 说明句是**后端原文**，逐字（不是词典里的话）
     expect(failed.el("c-hint").textContent).toBe(FAILURE_TEXT);
-    expect(failed.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
+    expect(failed.el("btn-main-label").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
     expect(failed.el("f-url").hidden).toBe(true);
 
     const unknown = render(buildArtifactCardPayload({ ...BASE }));
@@ -472,7 +472,7 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(panel.el("btn-copy-env").hidden).toBe(false);
     // 但不留旧地址（那属于上一次结果），也不给「打开」
     expect(panel.el("f-url").hidden).toBe(true);
-    expect(panel.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
+    expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
     // 原文只进折叠区，不进正文
     expect(panel.el("raw-out").textContent).toContain("boom");
     expect(panel.el("c-hint").textContent).toBe("");
@@ -486,7 +486,7 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(panel.el("st-text").textContent).toBe(L("mcpUiArtifact.state.failed"));
     expect(panel.el("c-title").hidden).toBe(true);
     expect(panel.el("f-url").hidden).toBe(true);
-    expect(panel.el("btn-main").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
+    expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiArtifact.action.viewLog"));
   });
 
   it("读不懂的返回只进折叠区，卡片回到未确认（正文不摊原文）", () => {

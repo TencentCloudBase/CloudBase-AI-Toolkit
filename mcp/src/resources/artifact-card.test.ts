@@ -54,7 +54,7 @@ describe("artifact-card 面板 HTML（静态面）", () => {
     expect(html).not.toContain("<link");
     expect(html).not.toContain("xmlns");
     expect(html).not.toMatch(/\bsrc=/);
-    expect(html).not.toMatch(/\bhref=/);
+    expect(html).not.toMatch(/\bhref="(?!#)/);
   });
 
   it("不做 HTML 注入：不用 innerHTML / outerHTML / insertAdjacentHTML / document.write", () => {
