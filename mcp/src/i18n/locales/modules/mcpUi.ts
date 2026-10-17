@@ -31,7 +31,7 @@ export const mcpUi = defineModule(
 
     "status.title": "连接状态",
     "status.unknown": "尚未确认",
-    "status.unknownHint": "点「重新检查」即可确认",
+    "status.unknownHint": "还没拿到连接结果。",
     "status.loggedOut": "尚未登录",
     "status.loggedOutHint": "先在下面登录一次",
     "status.loggedIn": "已登录",
@@ -68,7 +68,7 @@ export const mcpUi = defineModule(
     "scope.singleEnv": "仅当前环境",
 
     "next.title": "下一步",
-    "next.label.unknown": "先确认一下当前连接：",
+    "next.label.unknown": "先连接 CloudBase：",
     "next.label.loggedOut": "要连接这个环境，先登录：",
     "next.label.pending": "登录正在进行：",
     "next.label.failed": "登录没有成功：",
@@ -82,11 +82,13 @@ export const mcpUi = defineModule(
     "next.why.unbound": "账号下可能有多地域的环境，绑定后才能读写其中的资源。",
     "next.why.ready": "",
     "next.action.login": "登录 CloudBase",
+    "next.action.connect": "连接 CloudBase",
     "next.action.selectEnv": "选择一个环境",
     "next.action.deploy": "接一个示例项目",
     "next.action.refresh": "重新检查",
 
     "message.login": "请帮我登录 CloudBase 并绑定一个环境。",
+    "message.connect": "帮我连接 CloudBase：还没登录就发起授权，已经登录就选一个环境完成绑定。",
     "message.selectEnv": "请帮我选择并绑定一个 CloudBase 环境。",
     "message.deploy": "请用一个示例项目接上 CloudBase，跑通从代码到云端的完整链路。",
 
@@ -127,7 +129,7 @@ export const mcpUi = defineModule(
 
     "status.title": "Connection status",
     "status.unknown": "Not checked yet",
-    "status.unknownHint": "Re-check to confirm",
+    "status.unknownHint": "No result yet.",
     "status.loggedOut": "Not signed in",
     "status.loggedOutHint": "sign in below first",
     "status.loggedIn": "Signed in",
@@ -164,7 +166,7 @@ export const mcpUi = defineModule(
     "scope.singleEnv": "Current environment only",
 
     "next.title": "Next step",
-    "next.label.unknown": "Confirm the connection first:",
+    "next.label.unknown": "Connect CloudBase first:",
     "next.label.loggedOut": "To connect this environment, sign in first:",
     "next.label.pending": "Sign-in is in progress:",
     "next.label.failed": "Sign-in did not succeed:",
@@ -178,11 +180,13 @@ export const mcpUi = defineModule(
     "next.why.unbound": "An account can hold environments in several regions; bind one before reading or writing its resources.",
     "next.why.ready": "",
     "next.action.login": "Sign in to CloudBase",
+    "next.action.connect": "Connect CloudBase",
     "next.action.selectEnv": "Pick an environment",
     "next.action.deploy": "Wire up a sample project",
     "next.action.refresh": "Re-check",
 
     "message.login": "Please help me sign in to CloudBase and bind an environment.",
+    "message.connect": "Connect CloudBase for me: start the sign-in if I am not signed in, otherwise pick an environment and bind it.",
     "message.selectEnv": "Please help me pick and bind a CloudBase environment.",
     "message.deploy": "Please wire up a sample project on CloudBase and run the full code-to-cloud path.",
 

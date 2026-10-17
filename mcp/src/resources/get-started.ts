@@ -405,10 +405,12 @@ pre {
     nextWhyUnbound: ${S("mcpUi.next.why.unbound")},
     nextWhyReady: ${S("mcpUi.next.why.ready")},
     actionLogin: ${S("mcpUi.next.action.login")},
+    actionConnect: ${S("mcpUi.next.action.connect")},
     actionSelectEnv: ${S("mcpUi.next.action.selectEnv")},
     actionDeploy: ${S("mcpUi.next.action.deploy")},
     actionRefresh: ${S("mcpUi.next.action.refresh")},
     messageLogin: ${S("mcpUi.message.login")},
+    messageConnect: ${S("mcpUi.message.connect")},
     messageSelectEnv: ${S("mcpUi.message.selectEnv")},
     messageDeploy: ${S("mcpUi.message.deploy")},
     actionPending: ${S("mcpUi.action.pending")},
@@ -430,7 +432,9 @@ pre {
   // One action per screen. main === "" means: no main action for this state (the secondary
   // re-check link is the only thing to press).
   var STATES = {
-    unknown: { dot: "", text: T.statusUnknown, hint: T.statusUnknownHint, label: T.nextLabelUnknown, why: T.nextWhyUnknown, main: "", msg: "", sub: T.subtitleUnknown },
+    // Nothing read yet: the one useful click is "connect", which authorises when nobody is signed
+    // in and binds when they already are. A read-only re-check as the only button was a dead end.
+    unknown: { dot: "", text: T.statusUnknown, hint: T.statusUnknownHint, label: T.nextLabelUnknown, why: T.nextWhyUnknown, main: T.actionConnect, msg: T.messageConnect, sub: T.subtitleUnknown },
     loggedOut: { dot: "", text: T.statusLoggedOut, hint: T.statusLoggedOutHint, label: T.nextLabelLoggedOut, why: T.nextWhyLoggedOut, main: T.actionLogin, msg: T.messageLogin, sub: T.subtitleLoggedOut },
     pending: { dot: "warn", text: T.statusPending, hint: T.statusPendingHint, label: T.nextLabelPending, why: T.nextWhyPending, main: "", msg: "", sub: T.subtitlePending },
     failed: { dot: "err", text: T.statusFailed, hint: T.statusFailedHint, label: T.nextLabelFailed, why: T.nextWhyFailed, main: T.actionLogin, msg: T.messageLogin, sub: T.subtitleFailed },
@@ -820,7 +824,7 @@ pre {
       mainBtn.hidden = !state.main || replacedByList;
       mainBtn.disabled = false;
       setText(el("btn-main-label"), state.main);
-      setIcon(el("ico-main"), state.main === T.actionLogin ? "login" : (state.main === T.actionSelectEnv ? "server" : "rocket"));
+      setIcon(el("ico-main"), state.main === T.actionSelectEnv ? "server" : (state.main === T.actionDeploy ? "rocket" : "login"));
     }
     if (payload) { showRaw(JSON.stringify(payload, null, 2)); }
   }

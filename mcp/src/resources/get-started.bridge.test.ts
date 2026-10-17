@@ -280,8 +280,11 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     await flush();
 
     expect(panel.sent.some((entry) => entry.message.method === "tools/call")).toBe(false);
-    // 加载时没有实时结果：只给一个次级「重新检查」入口，主行动不瞎猜
-    expect(panel.element("btn-main").hidden).toBe(true);
+    // 加载时没有实时结果：主行动是「连接 CloudBase」（会走授权/绑定），不是一个只能读的检查
+    expect(panel.element("btn-main").hidden).toBe(false);
+    expect(panel.element("btn-main-label").textContent).toBe(
+      t("mcpUi.next.action.connect", undefined, "en"),
+    );
   });
 
   it("吃 ui/notifications/tool-result 的 structuredContent：状态卡与主行动跟着变", async () => {
@@ -601,8 +604,11 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("k-scope").textContent).toBe(
       t("mcpUi.status.scopeAfterLogin", undefined, "en"),
     );
-    // 唯一还能按下去的是「重新检查」（vm 垫片不反映 HTML 的静态文案与"默认不隐藏"，所以直接点它来验）
-    expect(panel.element("btn-main").hidden).toBe(true);
+    // 读不懂的结果 ⇒ 回到尚未确认，但主行动仍是「连接 CloudBase」：用户不该被卡在只能"再查一次"
+    expect(panel.element("btn-main").hidden).toBe(false);
+    expect(panel.element("btn-main-label").textContent).toBe(
+      t("mcpUi.next.action.connect", undefined, "en"),
+    );
     // 原文只落在折叠区里（且原样保留、没有被解析成元素）
     expect(panel.element("raw-box").hidden).toBe(false);
     expect(panel.element("raw-out").textContent).toBe(junk);
