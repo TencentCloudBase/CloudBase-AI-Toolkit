@@ -890,9 +890,6 @@ const translations: Record<string, Record<string, string>> = {
     connectionModesLink: '连接方式',
     connectionModesSuffix: '。',
     installation: '步骤 1：安装 / 配置 CloudBase',
-    useTemplate: '使用项目模板',
-    templateDescription: '模板已内置 MCP 配置和 AI 规则',
-    viewTemplates: '查看模板',
     oneClickInstall: '一键安装',
     openConnector: '打开连接器',
     orManualConfig: '或手动配置',
@@ -931,9 +928,6 @@ const translations: Record<string, Record<string, string>> = {
     connectionModesLink: 'connection modes',
     connectionModesSuffix: '.',
     installation: 'Step 1: Install / Configure CloudBase',
-    useTemplate: 'Use project template',
-    templateDescription: 'Template includes MCP configuration and AI rules',
-    viewTemplates: 'View templates',
     oneClickInstall: 'Install in one click',
     openConnector: 'Open connector',
     orManualConfig: 'Or manual configuration',
@@ -1479,19 +1473,6 @@ export default function IDESelector({
         </div>
         {isStep1Expanded && (
           <div className={styles.cardContent}>
-
-            {/* Template hint for project-level MCP support */}
-            {ide.supportsProjectMCP && (
-              <div className={styles.templateHint}>
-                <strong>{t.useTemplate}</strong> - {t.templateDescription}
-                <a
-                  href="/ai/cloudbase-ai-toolkit/templates"
-                  className={styles.templateLink}
-                >
-                  {t.viewTemplates}
-                </a>
-              </div>
-            )}
 
             {ide.id === 'openclaw' && (
               <div className={styles.templateHint}>
