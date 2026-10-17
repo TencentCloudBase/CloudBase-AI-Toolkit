@@ -107,6 +107,7 @@ export const mcpUi = defineModule(
     "action.pending": "正在检查…",
     "action.sent": "已交给会话…",
     "action.error": "重新检查没有完成。可以直接在会话里说「查一下 CloudBase 登录状态」。",
+    "message.failed": "这个面板不能直接发消息给会话；文字已复制，粘贴到输入框发送即可。",
     "action.timeout": "没有拿到返回。可以直接在会话里说「查一下 CloudBase 登录状态」。",
 
     "link.docs": "文档",
@@ -205,6 +206,7 @@ export const mcpUi = defineModule(
     "action.pending": "Checking...",
     "action.sent": "Handed to the conversation...",
     "action.error": "Re-check did not complete. You can just say check CloudBase sign-in status in the conversation.",
+    "message.failed": "This panel cannot post to the conversation; the text is copied, paste it to send.",
     "action.timeout": "No response came back. You can just say check CloudBase sign-in status in the conversation.",
 
     "link.docs": "Docs",

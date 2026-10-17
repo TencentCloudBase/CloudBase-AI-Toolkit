@@ -416,6 +416,7 @@ pre {
     actionPending: ${S("mcpUi.action.pending")},
     actionSent: ${S("mcpUi.action.sent")},
     actionError: ${S("mcpUi.action.error")},
+    messageFailed: ${S("mcpUi.message.failed")},
     actionTimeout: ${S("mcpUi.action.timeout")},
     envReady: ${S("mcpUi.env.ready")},
     envUnavailable: ${S("mcpUi.env.unavailable")},
@@ -975,8 +976,11 @@ pre {
         })
         .catch(function () {
           mainBtn.disabled = false;
-          setText(mainBtn, restore);
-          showError(T.actionError);
+          // Label lives in its own span: writing the button's textContent would delete the icon.
+          setText(el("btn-main-label"), restore);
+          // The text never reached the conversation; hand it over so the click still ends somewhere.
+          copyText(state.msg);
+          showError(T.messageFailed);
         });
     });
   }
