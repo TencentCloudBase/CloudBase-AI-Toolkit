@@ -15,8 +15,9 @@
  *      注入分两路：HTML 文本走 `escapeHtml`，脚本里的字符串走 `jsLiteral`（JSON 转义 +
  *      转义 `<`，避免 `</script>` 截断）。
  *   3. **只读无密钥**：状态值只来自 `server.cloudBaseOptions` / 环境变量 / 缓存 / 站点解析，
- *      读资源时不发网络请求；唯一会发出的调用是面板「重新检查」触发的只读
- *      `auth(action:"status")`。
+ *      读资源时不发网络请求；面板自己只会发两类调用——只读的
+ *      `auth(action:"status")`（「重新检查」）和只改本地绑定的
+ *      `auth(action:"set_env")`（点「可选环境」里的一行）。两者都不动云端资源，也不碰密钥。
  *   4. **状态吃实时结果，不吃本地猜测**：宿主会以 `ui/notifications/tool-result` 通知把
  *      「令本次面板被渲染的那次工具调用」的结果送来。面板挂在多用途的 `auth` 上，
  *      每一次 `auth` 调用都会渲染它，所以状态区**优先消费这条通知的 `structuredContent`**
@@ -145,6 +146,8 @@ export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): strin
   const statusTitle = E(L("mcpUi.status.title"));
   const rawLabel = E(L("mcpUi.status.raw"));
   const nextTitle = E(L("mcpUi.next.title"));
+  const envTitle = E(L("mcpUi.env.title"));
+  const envHint = E(L("mcpUi.env.hint"));
   const footnote = E(L("mcpUi.footnote"));
 
   const envIdText = status.envId ? E(status.envId) : E(L("mcpUi.status.unset"));
@@ -209,6 +212,19 @@ body {
 .next .label { font-size: 13px; color: var(--text-2); margin: 0 0 8px; }
 .next .why { font-size: 13px; color: var(--text-2); margin: 8px 0 0; }
 .next .why:empty { display: none; }
+.hint { font-size: 12px; color: var(--text-2); margin: 6px 0 0; }
+.env-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 0; }
+.env-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: auto; padding: 8px 10px;
+  text-align: left; background: var(--bg); border: 1px solid var(--border-2); border-radius: 8px;
+}
+.env-item .n { font-weight: 600; overflow-wrap: anywhere; }
+.env-item .i {
+  font-size: 12px; color: var(--text-2); overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.env-item .t { margin-left: auto; flex: 0 0 auto; font-size: 12px; color: var(--text-2); }
+.env-item .t.off { opacity: .65; }
 .row-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 button {
   font: inherit; font-size: 14px; height: 32px; padding: 0 14px; border-radius: 8px; cursor: pointer;
@@ -276,6 +292,12 @@ pre {
 <pre id="raw-out"></pre>
 </details>
 </section>
+<section class="card" id="env-card" hidden>
+<h2>${envTitle}</h2>
+<p class="hint">${envHint}</p>
+<div class="env-list" id="env-list" role="group" aria-label="${envTitle}"></div>
+<p class="kbd err" id="env-err" hidden></p>
+</section>
 <section class="card">
 <h2>${nextTitle}</h2>
 <div class="next">
@@ -339,7 +361,13 @@ pre {
     actionPending: ${S("mcpUi.action.pending")},
     actionSent: ${S("mcpUi.action.sent")},
     actionError: ${S("mcpUi.action.error")},
-    actionTimeout: ${S("mcpUi.action.timeout")}
+    actionTimeout: ${S("mcpUi.action.timeout")},
+    envReady: ${S("mcpUi.env.ready")},
+    envUnavailable: ${S("mcpUi.env.unavailable")},
+    envMore: ${S("mcpUi.env.more")},
+    envMoreTotal: ${S("mcpUi.env.moreTotal")},
+    envFailed: ${S("mcpUi.env.failed")},
+    nextLabelUnboundList: ${S("mcpUi.next.label.unboundList")}
   };
   // One action per screen. main === "" means: no main action for this state (the secondary
   // re-check link is the only thing to press).
@@ -370,6 +398,10 @@ pre {
   var mainBtn = document.getElementById("btn-main");
   var refreshBtn = document.getElementById("btn-refresh");
   var errLine = document.getElementById("k-err");
+  var envCard = document.getElementById("env-card");
+  var envList = document.getElementById("env-list");
+  var envErr = document.getElementById("env-err");
+  var ENV_LIMIT = 5;
   var current = STATES.unknown;
   // targetOrigin "*" and no origin check on incoming messages: matches the spec's own example, and a
   // sandboxed view has no host origin to verify against. Do not "fix" this into a pinned origin.
@@ -479,6 +511,126 @@ pre {
   function showError(text) {
     if (errLine) { errLine.hidden = false; errLine.textContent = text; }
   }
+  // A host that never answers must not leave a control stuck on "working"; every panel-initiated
+  // call goes through this so the same deadline applies.
+  function withTimeout(promise, ms) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error("timeout")); }, ms);
+      promise.then(function (value) {
+        clearTimeout(timer);
+        resolve(value);
+      }, function (err) {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
+  function clearNode(el) {
+    while (el.firstChild) { el.removeChild(el.firstChild); }
+  }
+  function envName(env) {
+    if (typeof env.alias === "string" && env.alias) { return env.alias; }
+    return typeof env.envId === "string" ? env.envId : "";
+  }
+  // Only what the result actually carries is drawn: no candidates in, no card out. Rows the
+  // account can open come first; a row it cannot open stays visible, dimmed, because "why is my
+  // environment missing" is a worse question than "this one is unavailable".
+  function envRows(payload) {
+    var list = payload && payload.env_candidates;
+    if (!Array.isArray(list)) { return []; }
+    var out = [];
+    for (var i = 0; i < list.length; i++) {
+      var env = list[i];
+      if (env && typeof env === "object" && typeof env.envId === "string" && env.envId) { out.push(env); }
+    }
+    out.sort(function (a, b) {
+      var ra = a.status === "NORMAL" ? 0 : 1;
+      var rb = b.status === "NORMAL" ? 0 : 1;
+      if (ra !== rb) { return ra - rb; }
+      var na = envName(a);
+      var nb = envName(b);
+      return na < nb ? -1 : na > nb ? 1 : 0;
+    });
+    return out;
+  }
+  function setEnvBusy(disabled) {
+    if (!envList) { return; }
+    var items = envList.querySelectorAll(".env-item");
+    for (var i = 0; i < items.length; i++) { items[i].disabled = disabled; }
+  }
+  function envRow(env) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "env-item";
+    var name = document.createElement("span");
+    name.className = "n";
+    name.textContent = envName(env);
+    var id = document.createElement("span");
+    id.className = "i";
+    id.textContent = env.envId;
+    var tag = document.createElement("span");
+    tag.className = "t" + (env.status === "NORMAL" ? "" : " off");
+    tag.textContent = env.status === "NORMAL" ? T.envReady : (env.status ? T.envUnavailable : "");
+    btn.appendChild(name);
+    btn.appendChild(id);
+    btn.appendChild(tag);
+    btn.addEventListener("click", function () { bindEnv(env.envId, envName(env)); });
+    return btn;
+  }
+  function renderEnvs(payload) {
+    if (!envCard || !envList) { return false; }
+    var rows = envRows(payload);
+    clearNode(envList);
+    if (envErr) { envErr.hidden = true; envErr.textContent = ""; }
+    if (rows.length === 0) {
+      envCard.hidden = true;
+      return false;
+    }
+    var shown = rows.length > ENV_LIMIT ? rows.slice(0, ENV_LIMIT) : rows;
+    for (var i = 0; i < shown.length; i++) { envList.appendChild(envRow(shown[i])); }
+    if (rows.length > shown.length) {
+      // The result says how many exist in total; draw that instead of a vague "and more".
+      var total = payload && payload.env_candidates_summary && typeof payload.env_candidates_summary.total === "number"
+        ? payload.env_candidates_summary.total
+        : 0;
+      var more = document.createElement("p");
+      more.className = "hint";
+      more.textContent = total > shown.length
+        ? T.envMoreTotal.replace("{total}", String(total)).replace("{shown}", String(shown.length))
+        : T.envMore.replace("{shown}", String(shown.length));
+      envList.appendChild(more);
+    }
+    envCard.hidden = false;
+    return true;
+  }
+  // One click, one path: the panel asks the host to run auth(set_env) itself, then re-reads the
+  // status so the card shows the bound environment instead of guessing. Hosts that do not forward
+  // app-initiated calls leave the deadline to fail the promise, and the row says so in one line
+  // instead of pretending the click worked.
+  function bindEnv(envId, name) {
+    if (busy || !envId) { return; }
+    busy = true;
+    setEnvBusy(true);
+    if (envErr) { envErr.hidden = true; envErr.textContent = ""; }
+    withTimeout(request("tools/call", { name: "auth", arguments: { action: "set_env", envId: envId } }), CHECK_TIMEOUT_MS)
+      .then(function (result) {
+        var payload = readPayload(result);
+        if (payload && payload.ok === false) { throw new Error(typeof payload.code === "string" ? payload.code : "SET_ENV_FAILED"); }
+        return withTimeout(request("tools/call", { name: "auth", arguments: { action: "status" } }), CHECK_TIMEOUT_MS);
+      })
+      .then(function (result) {
+        var payload = readPayload(result);
+        if (payload) { render(payload); } else { render(null); showRaw(result); }
+      })
+      .catch(function () {
+        if (envErr) { envErr.hidden = false; envErr.textContent = T.envFailed.replace("{alias}", name || envId); }
+      })
+      .then(function () {
+        busy = false;
+        setEnvBusy(false);
+        reportSize();
+      });
+  }
   function render(payload) {
     var state = STATES[stateKey(payload)];
     current = state;
@@ -505,10 +657,14 @@ pre {
       kEnv.className = env ? "v mono" : "v mono idle";
       setText(kEnv, env || T.statusUnset);
     }
-    setText(nxLabel, state.label);
+    var envShown = renderEnvs(payload);
+    setText(nxLabel, state === STATES.unbound && envShown ? T.nextLabelUnboundList : state.label);
     setText(nxWhy, state.why);
     if (mainBtn) {
-      mainBtn.hidden = !state.main;
+      // When the environment rows are on screen, the "pick an environment" button would only send
+      // the question back to the conversation: the list itself is the action, so it steps aside.
+      var replacedByList = envShown && state.main === T.actionSelectEnv;
+      mainBtn.hidden = !state.main || replacedByList;
       mainBtn.disabled = false;
       setText(mainBtn, state.main);
     }

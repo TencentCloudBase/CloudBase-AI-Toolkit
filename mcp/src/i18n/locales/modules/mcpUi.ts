@@ -6,7 +6,8 @@ import { defineModule } from "../types.js";
  * 三条硬约束决定了这里的形状：
  *   1. 面板 HTML 是**近静态模板 + 词典注入**：HTML 模板串只含 ASCII 结构与占位符，
  *      所有句子来自这里，按实例语言在 resources/read 时求值；
- *   2. 面板是**只读入口**：只展示状态、只发一次 `auth(action:"status")`，
+ *   2. 面板是**无密钥入口**：只展示状态与可选环境，只发 `auth(action:"status")` 与
+ *      `auth(action:"set_env")`（后者只改本地绑定），
  *      任何密钥类字段（secretId / apiKey / token）都不属于这个面板的内容；
  *   3. **面向用户，不面向实现**：面板正文里不出现内部枚举（`domestic` / `single_env` /
  *      `ap-shanghai` / `READY` / `auth(status)` 等），站点、地域、凭据范围一律翻成人话；
@@ -67,6 +68,7 @@ export const mcpUi = defineModule(
     "next.label.pending": "登录正在进行：",
     "next.label.failed": "登录没有成功：",
     "next.label.unbound": "接下来选一个环境：",
+    "next.label.unboundList": "在上面点一个环境，再确认一次：",
     "next.label.ready": "连接没问题，可以先接一个示例项目：",
     "next.why.unknown": "",
     "next.why.loggedOut": "",
@@ -83,12 +85,20 @@ export const mcpUi = defineModule(
     "message.selectEnv": "请帮我选择并绑定一个 CloudBase 环境。",
     "message.deploy": "请用一个示例项目接上 CloudBase，跑通从代码到云端的完整链路。",
 
+    "env.title": "可选环境",
+    "env.hint": "点一个就切过去。",
+    "env.ready": "可用",
+    "env.unavailable": "不可用",
+    "env.more": "只显示了前 {shown} 个。",
+    "env.moreTotal": "共 {total} 个环境，只显示了前 {shown} 个。",
+    "env.failed": "面板没能直接切换。在会话里说「切换到 {alias}」也可以。",
+
     "action.pending": "正在检查…",
     "action.sent": "已交给会话…",
     "action.error": "重新检查没有完成。可以直接在会话里说「查一下 CloudBase 登录状态」。",
     "action.timeout": "没有拿到返回。可以直接在会话里说「查一下 CloudBase 登录状态」。",
 
-    footnote: "这个面板只读：只展示连接状态，不会改动云端资源。",
+    footnote: "面板不会改动云端资源：切换环境只改本地绑定。",
   },
   {
     resourceTitle: "CloudBase Get Started",
@@ -141,6 +151,7 @@ export const mcpUi = defineModule(
     "next.label.pending": "Sign-in is in progress:",
     "next.label.failed": "Sign-in did not succeed:",
     "next.label.unbound": "Next, pick an environment:",
+    "next.label.unboundList": "Pick one above, then confirm once:",
     "next.label.ready": "Connection is fine. You can wire up a sample project first:",
     "next.why.unknown": "",
     "next.why.loggedOut": "",
@@ -157,11 +168,19 @@ export const mcpUi = defineModule(
     "message.selectEnv": "Please help me pick and bind a CloudBase environment.",
     "message.deploy": "Please wire up a sample project on CloudBase and run the full code-to-cloud path.",
 
+    "env.title": "Environments",
+    "env.hint": "Pick one to switch to it.",
+    "env.ready": "ready",
+    "env.unavailable": "unavailable",
+    "env.more": "Only the first {shown} are shown.",
+    "env.moreTotal": "{total} environments in total; only the first {shown} are shown.",
+    "env.failed": "The panel could not switch. Saying \"switch to {alias}\" in the conversation works too.",
+
     "action.pending": "Checking...",
     "action.sent": "Handed to the conversation...",
     "action.error": "Re-check did not complete. You can just say check CloudBase sign-in status in the conversation.",
     "action.timeout": "No response came back. You can just say check CloudBase sign-in status in the conversation.",
 
-    footnote: "This panel is read-only: it only shows connection status and never modifies cloud resources.",
+    footnote: "This panel never modifies cloud resources; switching an environment only changes the local binding.",
   },
 );
