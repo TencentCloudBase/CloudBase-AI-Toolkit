@@ -71,7 +71,8 @@ interface PanelHarness {
   /** 记录 View → Host 发出的每一条消息及其 targetOrigin */
   sent: Array<{ message: { jsonrpc?: string; id?: number; method?: string; params?: any; result?: any }; origin: string }>;
   /** 模拟 Host → View 的一条消息 */
-  dispatch(message: unknown): void;
+  /** `source` 缺省是宿主（父窗口）；传别的对象即模拟"另一个窗口"塞消息 */
+  dispatch(message: unknown, source?: unknown): void;
   /** 触发所有尚未执行的 setTimeout 回调（面板的超时兜底靠它） */
   fireTimers(): void;
   element(id: string): ShimmedElement;
@@ -117,7 +118,7 @@ function loadPanel(html: string): PanelHarness {
   }
 
   const sent: PanelHarness["sent"] = [];
-  const messageListeners: Array<(event: { data: unknown }) => void> = [];
+  const messageListeners: Array<(event: { data: unknown; source?: unknown }) => void> = [];
   // 可控的假定时器：面板的超时兜底需要能"手动到点"，而不是真等 10s
   let timerSeq = 0;
   let timers = new Map<number, () => void>();
@@ -164,8 +165,8 @@ function loadPanel(html: string): PanelHarness {
 
   return {
     sent,
-    dispatch(message) {
-      messageListeners.forEach((fn) => fn({ data: message }));
+    dispatch(message, source: unknown = sandbox.parent) {
+      messageListeners.forEach((fn) => fn({ data: message, source }));
     },
     fireTimers() {
       const pendingTimers = [...timers.values()];
@@ -268,6 +269,25 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("btn-main").hidden).toBe(false);
     expect(panel.element("btn-main").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
     expect(panel.element("nx-label").textContent).toBe(t("mcpUi.next.label.ready", undefined, "en"));
+  });
+
+  it("只认宿主：别的窗口塞进来的结果不改状态卡，也不发任何消息", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    await flush();
+    const unknown = panel.element("st-text").textContent;
+    const sentBefore = panel.sent.length;
+
+    // 别的窗口（同页其它 frame、或被别人套进来的一层）塞一份"已连接"的假结果：
+    // 面板既不改状态，也不能因此向宿主发任何消息。
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }), { postMessage() {} });
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(unknown);
+    expect(panel.sent.length).toBe(sentBefore);
+
+    // 对照：宿主发同样内容，状态卡确实变（否则上面两条是虚假通过）
+    panel.dispatch(TOOL_RESULT({ structuredContent: READY_STATUS }));
+    await flush();
+    expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
   });
 
   it("一屏一个主行动：未登录给登录、已登录未绑定给选环境，其余不并列", async () => {

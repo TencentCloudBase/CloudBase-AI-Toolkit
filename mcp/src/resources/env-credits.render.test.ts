@@ -40,8 +40,9 @@ type ShimmedElement = {
   click(): void;
 };
 
-interface PanelHarness {
-  dispatch(params: unknown): void;
+  interface PanelHarness {
+    /** `source` 缺省是宿主（父窗口）；传别的对象即模拟"另一个窗口"塞消息 */
+    dispatch(params: unknown, source?: unknown): void;
   el(id: string): ShimmedElement;
   /** 模拟一次 document 级点击（面板用 `event.target.closest("button")` 取按钮） */
   clickDocument(id: string): void;
@@ -91,7 +92,7 @@ function loadPanel(html: string): PanelHarness {
     });
   }
 
-  const messageListeners: Array<(event: { data: unknown }) => void> = [];
+  const messageListeners: Array<(event: { data: unknown; source?: unknown }) => void> = [];
   const clickListeners: Array<(event: unknown) => void> = [];
   let copied: string | null = null;
   const sandbox: Record<string, unknown> = {
@@ -152,8 +153,8 @@ function loadPanel(html: string): PanelHarness {
   vm.runInNewContext(script, sandbox, { filename: "env-credits.html#script" });
 
   return {
-    dispatch(params) {
-      messageListeners.forEach((fn) => fn({ data: { method: "ui/notifications/tool-result", params } }));
+    dispatch(params, source: unknown = sandbox.parent) {
+      messageListeners.forEach((fn) => fn({ data: { method: "ui/notifications/tool-result", params }, source }));
     },
     el(id) {
       const element = elements.get(id);
@@ -1139,8 +1140,39 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
   it("守卫：两个分支的渲染入口都在面板脚本里（缺一即红）", () => {
     expect(HTML).toContain('id="f-credits"');
     expect(HTML).toContain('id="f-m-latest"');
-    // 判别式与两条 render 路径都必须在脚本里出现
-    expect(HTML).toContain('payload.kind === "metrics"');
-    expect(HTML).toContain("renderMetrics(");
+      // 判别式与两条 render 路径都必须在脚本里出现
+      expect(HTML).toContain('payload.kind === "metrics"');
+      expect(HTML).toContain("renderMetrics(");
+    });
+
+    it("只认宿主：别的窗口塞进来的用量结果不改卡片、也不发任何消息", () => {
+      const stranger = { postMessage() {} };
+      const panel = loadPanel(HTML);
+      const before = {
+        title: panel.el("c-title").textContent,
+        credits: panel.el("k-credits").textContent,
+        hint: panel.el("c-hint").textContent,
+        main: panel.el("btn-main").textContent,
+      };
+      const posted = panel.posted.length;
+
+      const expired = buildEnvCreditsPayload({
+        ...BASE,
+        planRaw: "baas_free",
+        usages: [usage("SCF", 40000)],
+        expired: true,
+      });
+
+      panel.dispatch({ structuredContent: expired }, stranger);
+      expect(panel.el("c-title").textContent).toBe(before.title);
+      expect(panel.el("k-credits").textContent).toBe(before.credits);
+      expect(panel.el("c-hint").textContent).toBe(before.hint);
+      expect(panel.el("btn-main").textContent).toBe(before.main);
+      expect(panel.posted.length).toBe(posted);
+
+      // 对照：同一份载荷由宿主发，卡片确实会变（否则上面五条是虚假通过）
+      panel.dispatch({ structuredContent: expired });
+      expect(panel.el("btn-main").textContent).not.toBe(before.main);
+      expect(panel.el("btn-main").textContent).not.toBe("");
+    });
   });
-});

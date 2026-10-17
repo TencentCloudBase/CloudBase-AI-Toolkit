@@ -34,7 +34,8 @@ type ShimmedElement = {
 type SentMessage = { method?: string; params?: any };
 
 interface PanelHarness {
-  dispatch(params: unknown): void;
+  /** `source` 缺省是宿主（父窗口）；传别的对象即模拟"另一个窗口"塞消息 */
+  dispatch(params: unknown, source?: unknown): void;
   el(id: string): ShimmedElement;
   /** 模拟一次 document 级点击（面板用 `event.target.closest("button")` 取按钮） */
   clickDocument(id: string): void;
@@ -81,7 +82,7 @@ function loadPanel(html: string): PanelHarness {
   }
 
   const sent: SentMessage[] = [];
-  const messageListeners: Array<(event: { data: unknown }) => void> = [];
+  const messageListeners: Array<(event: { data: unknown; source?: unknown }) => void> = [];
   const clickListeners: Array<(event: unknown) => void> = [];
   const sandbox: Record<string, unknown> = {
     document: {
@@ -128,9 +129,11 @@ function loadPanel(html: string): PanelHarness {
   vm.runInNewContext(script, sandbox, { filename: "artifact-card.html#script" });
 
   return {
-    dispatch(params) {
-      messageListeners.forEach((fn) => fn({ data: { method: "ui/notifications/tool-result", params } }));
-    },
+      dispatch(params, source: unknown = sandbox.parent) {
+        messageListeners.forEach((fn) =>
+          fn({ data: { method: "ui/notifications/tool-result", params }, source }),
+        );
+      },
     el(id) {
       const element = elements.get(id);
       if (!element) {
@@ -458,5 +461,41 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     // 反向：真正驱动面板的是这些键——把地址抹掉，面板就不再显示地址行
     const withoutUrl = render({ ...publicPayload, access_url: undefined });
     expect(withoutUrl.el("f-url").hidden).toBe(true);
+  });
+
+  it("只认宿主：别的窗口塞进来的结果不渲染，假地址也不会进发回会话的话", () => {
+    const stranger = { postMessage() {} };
+    const fakeUrl = "https://evil.example.com";
+    const fake = buildArtifactCardPayload({
+      ...BASE,
+      success: true,
+      accessUrl: fakeUrl,
+      accessUrlSource: "hosting.staticDomain",
+      accessUrlReachable: true,
+      kind: "hosting",
+      artifactName: "my-blog",
+    });
+
+    // ① 面板初始是「未确认」：别的窗口塞一份看着像成功的假结果，卡片必须一动不动
+    const panel = loadPanel(HTML);
+    panel.dispatch({ structuredContent: fake }, stranger);
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiArtifact.state.unknown"));
+    expect(panel.el("k-url").textContent).not.toContain("evil.example.com");
+    expect(panel.el("raw-out").textContent).toBe("");
+
+    // ② 宿主发的照常生效（守卫没有把合法路径一起堵掉）
+    panel.dispatch({ structuredContent: payloadPublished() });
+    expect(panel.el("k-url").textContent).toContain(PUBLIC_URL);
+
+    // ③ 再来一份假的：既不改状态，也不覆盖真实地址
+    panel.dispatch({ structuredContent: fake }, stranger);
+    expect(panel.el("k-url").textContent).toContain(PUBLIC_URL);
+    expect(panel.el("k-url").textContent).not.toContain("evil.example.com");
+
+    // ④ 最要紧的一条：点主行动发回会话的那句话里，只能是真地址
+    panel.clickDocument("btn-main");
+    const text = panel.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
+    expect(text).toContain(PUBLIC_URL);
+    expect(text).not.toContain("evil.example.com");
   });
 });

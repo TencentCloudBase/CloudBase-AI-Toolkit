@@ -565,6 +565,11 @@ body {
   }
 
   window.addEventListener("message", function (event) {
+    // Only the embedding host may drive this view. Origin cannot be checked here (a sandboxed view
+    // has no comparable host origin, and the spec's own example posts with "*"), but the source
+    // window can: another frame on the page, or a layer someone wrapped around us, is not the host
+    // and must not be able to feed this card a fake result.
+    if (event.source !== window.parent) { return; }
     var data = event.data;
     if (!data || typeof data !== "object") { return; }
     if (data.method === "ui/notifications/tool-result") {
