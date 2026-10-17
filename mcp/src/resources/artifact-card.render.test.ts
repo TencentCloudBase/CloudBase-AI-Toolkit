@@ -39,6 +39,8 @@ interface PanelHarness {
   el(id: string): ShimmedElement;
   /** 模拟一次 document 级点击（面板用 `event.target.closest("button")` 取按钮） */
   clickDocument(id: string): void;
+  /** 推给面板所有挂起的定时器（动作行的自我解锁就靠它） */
+  fireTimers(): void;
   sent: SentMessage[];
   methods(): string[];
   /** 模拟宿主对面板某次请求的应答（result 或 error） */
@@ -84,6 +86,7 @@ function loadPanel(html: string): PanelHarness {
   }
 
   const sent: SentMessage[] = [];
+  const timers: Array<() => void> = [];
   const messageListeners: Array<(event: { data: unknown; source?: unknown }) => void> = [];
   const clickListeners: Array<(event: unknown) => void> = [];
   const sandbox: Record<string, unknown> = {
@@ -101,8 +104,11 @@ function loadPanel(html: string): PanelHarness {
     },
     // 剪贴板不可用：copyText 走 textarea 兜底分支（垫片里都是 no-op）
     navigator: {},
-    // 面板脚本不使用定时器；给一个不触发的最小实现
-    setTimeout: () => 1,
+    // 面板给动作行留了"宿主不回应就自己解锁"的兜底，测试要能把那个定时器推到点
+    setTimeout: (fn: () => void) => {
+      timers.push(fn);
+      return timers.length;
+    },
     clearTimeout() {},
     JSON,
     String,
@@ -153,6 +159,10 @@ function loadPanel(html: string): PanelHarness {
           return;
         }
       }
+    },
+    fireTimers() {
+      const pending = timers.splice(0, timers.length);
+      pending.forEach((fn) => fn());
     },
     clickDocument(id) {
       clickListeners.forEach((fn) =>
@@ -379,6 +389,21 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     // 案例墙是公开的：环境 ID 与密钥一律不进正文
     expect(message).not.toContain("my-env-3gk9ab");
     expect(message).not.toContain("secret");
+  });
+
+  it("宿主收了 open-link 却不回应：动作行两秒半后自己解锁，后面的按钮照常可用", () => {
+    const published = render(payloadPublished());
+    published.clickDocument("btn-main");
+    // 点下去先锁住，防连点
+    expect(published.el("btn-main").disabled).toBe(true);
+    // 宿主没回 -> 定时器到点解锁（真机上就是这一步缺失，导致"打开地址"之后再点任何按钮都没反应）
+    published.fireTimers();
+    expect(published.el("btn-main").disabled).toBe(false);
+
+    // 解锁之后「分享这个案例」还能正常发出去
+    published.clickDocument("btn-share");
+    const message = published.sent.filter((entry) => entry.method === "ui/message")[0]?.params.content.text ?? "";
+    expect(message).toContain("作品卡片");
   });
 
   it("发给会话的话里带着本次部署的对象（否则技能不知道查哪个服务）", () => {

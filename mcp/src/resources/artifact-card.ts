@@ -310,6 +310,7 @@ body {
     actionViewBuildLog: ${S("mcpUiArtifact.action.viewBuildLog")},
     actionRedeploy: ${S("mcpUiArtifact.action.redeploy")},
     actionShareCase: ${S("mcpUiArtifact.action.shareCase")},
+    messageFailed: ${S("mcpUiArtifact.message.failed")},
     actionRefresh: ${S("mcpUiArtifact.action.refresh")},
     messageBindDomain: ${S("mcpUiArtifact.message.bindDomain")},
     messageViewLog: ${S("mcpUiArtifact.message.viewLog")},
@@ -558,15 +559,40 @@ body {
     if (use) { use.setAttribute("href", "#ico-" + name); }
   }
 
+  /**
+   * A host may accept ui/message or ui/open-link and answer late - or never. Holding the row's lock
+   * until it answers turns one click into a dead action row (seen on a real host: the link opened,
+   * no reply came back, and every later button was ignored), so the lock has its own deadline.
+   */
+  var ACTION_TIMEOUT_MS = 2500;
+
+  function lockRow(node) {
+    busy = true;
+    if (node) { node.disabled = true; }
+    var released = false;
+    return function release() {
+      if (released) { return; }
+      released = true;
+      busy = false;
+      if (node) { node.disabled = false; }
+    };
+  }
+
   function sendMessage(node) {
     if (!node || busy) { return; }
     var message = payloadText(node.getAttribute("data-message") || "");
     if (!message) { return; }
-    busy = true;
-    node.disabled = true;
+    var release = lockRow(node);
+    setTimeout(release, ACTION_TIMEOUT_MS);
     request("ui/message", { role: "user", content: { type: "text", text: message } })
-      .then(function () { busy = false; node.disabled = false; })
-      .catch(function () { busy = false; node.disabled = false; });
+      .then(release)
+      .catch(function () {
+        // The text never reached the conversation: hand it over instead of failing mute.
+        copyText(message);
+        var note = el("k-note");
+        if (note) { setText(note, T.messageFailed); note.hidden = false; }
+        release();
+      });
   }
 
   /**
@@ -576,20 +602,18 @@ body {
    */
   function openUrl(node) {
     if (!current.url || busy) { return; }
-    busy = true;
-    node.disabled = true;
+    var release = lockRow(node);
+    setTimeout(release, ACTION_TIMEOUT_MS);
     request("ui/open-link", { url: current.url })
       .then(function (result) {
         if (result && result.isError) { throw new Error("denied"); }
-        busy = false;
-        node.disabled = false;
+        release();
       })
       .catch(function () {
-        busy = false;
-        node.disabled = false;
         copyText(current.url);
         var note = el("k-note");
         if (note) { setText(note, T.actionOpenFailed); note.hidden = false; }
+        release();
       });
   }
 
