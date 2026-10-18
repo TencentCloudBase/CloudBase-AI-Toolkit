@@ -39,6 +39,7 @@ import {
   readMcpClientInfoFromServer,
   reportToolkitSessionInitialized,
 } from "./utils/telemetry.js";
+import { isMcpUiEnabled } from "./utils/mcp-ui.js";
 import { registerGetStartedResource } from "./resources/get-started.js";
 import { registerEnvCreditsResource } from "./resources/env-credits.js";
 import { registerArtifactCardResource } from "./resources/artifact-card.js";
@@ -511,17 +512,18 @@ export async function createCloudBaseMcpServer(options?: {
     }
   }
 
-  // MCP Apps 入口面板（ui://cloudbase/get-started）。与工具同生命周期、一次性注册；
+  // MCP Apps 三张卡（get-started / env-credits / artifact-card）。与工具同生命周期、一次性注册；
   // 必须在 connect 前完成，否则 registerCapabilities 会抛错。resources/list 仍为空。
-  registerGetStartedResource(server);
+  // CLOUDBASE_MCP_UI=off 时整块跳过：工具也不再带 `_meta.ui`，宿主不会为卡片留位置。
+  if (isMcpUiEnabled()) {
+    registerGetStartedResource(server);
 
-  // MCP Apps 环境资源用量面板（ui://cloudbase/env-credits）。同样一次性注册；
-  // 只读用量与套餐，不执行计费（引导交给会话里的技能）。
-  registerEnvCreditsResource(server);
+    // 环境资源用量面板：只读用量与套餐，不执行计费（引导交给会话里的技能）。
+    registerEnvCreditsResource(server);
 
-  // MCP Apps 产物卡片面板（ui://cloudbase/artifact-card）。挂在三个部署类工具上；
-  // 只读展示部署状态与访问地址，写意图一律交给会话。
-  registerArtifactCardResource(server);
+    // 产物卡片：挂在三个部署类工具上，只读展示部署状态与访问地址，写意图一律交给会话。
+    registerArtifactCardResource(server);
+  }
 
   return server;
 }

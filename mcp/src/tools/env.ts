@@ -63,6 +63,7 @@ import {
 } from "./env-credits-payload.js";
 import type { EnvCreditsPayload, EnvMetricsPayload } from "../resources/env-credits.js";
 import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/tcb.interface.js";
+import { isMcpUiEnabled, mcpUiMeta } from "../utils/mcp-ui.js";
 
 /**
  * Resources accepted by CreateEnv. Matches Cloud API / Manager SDK contract.
@@ -566,7 +567,8 @@ function buildEnvCandidatePayload(
 const UI_META_KEY = "cloudbase/ui";
 
 function buildEnvCandidateUiMeta(envCandidates?: EnvCandidate[]) {
-  if (!envCandidates || envCandidates.length === 0) {
+  // 面板关掉时这份列表没人看，别往 `_meta` 里塞。
+  if (!isMcpUiEnabled() || !envCandidates || envCandidates.length === 0) {
     return undefined;
   }
   return { [UI_META_KEY]: { env_candidates: envCandidates } };
@@ -2244,7 +2246,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       description: "env.authDescription",
       // MCP Apps：把这个工具关到入口面板上（点号嵌套，旧的扁平写法已 deprecated）。
       // 不设 visibility——缺省即 model+app；设成只含 "model" 会让宿主 reject 面板发起的 tools/call。
-      _meta: { ui: { resourceUri: "ui://cloudbase/get-started" } },
+      ...mcpUiMeta("ui://cloudbase/get-started"),
       inputSchema: {
         action: z
           .enum(authActionEnum)
@@ -3483,7 +3485,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     description: "env.queryDescription",
     // MCP Apps：把环境资源用量面板挂到查询工具上（action="usage" 时最有用；其它 action 只是同屏可见）。
     // 不设 visibility——缺省即 model+app；设成只含 "model" 会让宿主 reject 面板发起的 tools/call。
-    _meta: { ui: { resourceUri: "ui://cloudbase/env-credits" } },
+    ...mcpUiMeta("ui://cloudbase/env-credits"),
     inputSchema: {
       action: z
         .enum(["list", "info", "domains", "usage", "metrics"])

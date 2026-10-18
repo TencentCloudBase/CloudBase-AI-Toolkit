@@ -10,6 +10,7 @@ import {
   errorTextOf,
   resolveArtifactEnvContext,
 } from "./artifact-card-payload.js";
+import { mcpUiMeta } from "../utils/mcp-ui.js";
 
 const QUERY_APP_ACTIONS = ["listApps", "getApp", "listAppVersions", "getAppVersion", "getBuildLog", "getUploadUrl"] as const;
 const MANAGE_APP_ACTIONS = ["deployApp", "getUploadUrl", "deleteApp", "deleteAppVersion"] as const;
@@ -429,7 +430,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .optional()
           .describe("apps.schema.manageVersionName"),
       },
-      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
+      ...mcpUiMeta("ui://cloudbase/artifact-card"),
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,

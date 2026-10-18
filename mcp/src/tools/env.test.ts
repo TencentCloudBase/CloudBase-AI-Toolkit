@@ -1125,6 +1125,28 @@ describe("env tools - auth", () => {
     expect(result.content[0].text).not.toContain("env-21");
   });
 
+  it("CLOUDBASE_MCP_UI=off：status 不再带 _meta（面板全关时不往结果里塞 UI 数据）", async () => {
+    mockPeekLoginState.mockResolvedValue({ secretId: "sid", secretKey: "skey" });
+    mockListAvailableEnvCandidates.mockResolvedValue(
+      Array.from({ length: 3 }, (_, index) => ({ envId: `env-${index + 1}`, alias: `alias-${index + 1}` })),
+    );
+
+    const previous = process.env.CLOUDBASE_MCP_UI;
+    process.env.CLOUDBASE_MCP_UI = "off";
+    try {
+      const result = await tools.auth.handler({ action: "status" });
+      expect(result._meta).toBeUndefined();
+      // 工具照常工作，只是不挂面板
+      expect(JSON.parse(result.content[0].text).code).toBe("STATUS");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CLOUDBASE_MCP_UI;
+      } else {
+        process.env.CLOUDBASE_MCP_UI = previous;
+      }
+    }
+  });
+
   it("auth(action=login_by_api_key) should validate required args", async () => {
     const result = await tools.auth.handler({ action: "login_by_api_key" });
     const payload = JSON.parse(result.content[0].text);

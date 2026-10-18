@@ -22,6 +22,7 @@ import {
   summarizeConfigSnapshot,
   type CloudRunServerConfigLike,
 } from './cloudrun-config.js';
+import { mcpUiMeta } from "../utils/mcp-ui.js";
 
 // CloudRun service types
 export const CLOUDRUN_SERVICE_TYPES = ['function', 'container'] as const;
@@ -1850,7 +1851,7 @@ export function registerCloudRunTools(server: ExtendedMcpServer) {
       description: "cloudrun.manage.description",
       inputSchema: ManageCloudRunInputSchema,
       // MCP Apps：部署结果挂产物卡片面板（只读展示 + 把写意图交给会话）。
-      _meta: { ui: { resourceUri: "ui://cloudbase/artifact-card" } },
+      ...mcpUiMeta("ui://cloudbase/artifact-card"),
       annotations: {
         readOnlyHint: false,
         destructiveHint: true,
