@@ -531,7 +531,7 @@ describe("env-credits 面板脚本运行时", () => {
     expect(panel.el("btn-tip").hidden).toBe(false);
 
     panel.clickDocument("btn-tip");
-    const message = panel.lastRequest("ui/message");
+    const message = panel.lastRequest("ui/message") as { content?: { text?: string } } | undefined;
     expect(message?.content?.text).toContain("90%");
   });
 
