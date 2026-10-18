@@ -143,6 +143,8 @@ function loadPanel(html: string): PanelHarness {
       // 与浏览器一致：不存在的 id 返回 null，避免掩盖"按钮丢了"这类问题
       getElementById: (id: string) => elements.get(id) ?? null,
       documentElement: { scrollWidth: 480, scrollHeight: 320 },
+      // 面板高度要按内容算，不是按宿主给的视口：这个假的 panel 只有 120 高
+      querySelector: () => ({ getBoundingClientRect: () => ({ height: 120, width: 480 }) }),
       body: {},
       addEventListener() {},
       // 面板用 createElement 造环境行；垫片只需要这几种属性，别假装是个完整 DOM。
@@ -304,6 +306,17 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("btn-main").hidden).toBe(false);
     expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
     expect(panel.element("nx-label").textContent).toBe(t("mcpUi.next.label.ready", undefined, "en"));
+  });
+
+  it("上报的高度是卡片自身高度，不是宿主给的视口高度", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    panel.dispatch(HOST_INITIALIZE_RESULT);
+    await flush();
+
+    const sizeChanged = panel.sent.filter((entry) => entry.message.method === "ui/notifications/size-changed");
+    expect(sizeChanged.length).toBeGreaterThan(0);
+    // 视口是 320，卡片只有 120：报 320 会让宿主留一大片空白
+    expect(sizeChanged[sizeChanged.length - 1].message.params?.height).toBe(120);
   });
 
   it("环境多于一屏：默认给前 5 个，「显示全部」就地展开，不向宿主发任何请求", async () => {

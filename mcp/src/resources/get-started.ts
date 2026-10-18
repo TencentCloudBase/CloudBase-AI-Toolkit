@@ -493,11 +493,23 @@ pre {
   function setText(el, value) {
     if (el) { el.textContent = value; }
   }
+  /**
+   * Report the height of the card, not of the viewport.
+   *
+   * documentElement.scrollHeight is at least as tall as the frame the host gave us, so reporting it
+   * tells the host "keep this height" - and a short card then sits in a tall empty box. Measuring
+   * the panel itself lets the host shrink to the content.
+   */
   function reportSize() {
-    notify("ui/notifications/size-changed", {
-      width: document.documentElement.scrollWidth,
-      height: document.documentElement.scrollHeight
-    });
+    var width = document.documentElement.scrollWidth;
+    var height = document.documentElement.scrollHeight;
+    var root = null;
+    try { root = document.querySelector("main.panel, .panel, .screen"); } catch (error) { root = null; }
+    if (root && root.getBoundingClientRect) {
+      var rect = root.getBoundingClientRect();
+      if (rect.height > 0) { height = Math.ceil(rect.height); }
+    }
+    notify("ui/notifications/size-changed", { width: width, height: height });
   }
   function tryParse(text) {
     try {

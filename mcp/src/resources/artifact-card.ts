@@ -275,11 +275,23 @@ body {
   function notify(method, params) { post({ jsonrpc: "2.0", method: method, params: params }); }
   function el(id) { return document.getElementById(id); }
   function setText(node, value) { if (node) { node.textContent = value; } }
+  /**
+   * Report the height of the card, not of the viewport.
+   *
+   * documentElement.scrollHeight is at least as tall as the frame the host gave us, so reporting it
+   * tells the host "keep this height" - and a short card then sits in a tall empty box. Measuring
+   * the panel itself lets the host shrink to the content.
+   */
   function reportSize() {
-    notify("ui/notifications/size-changed", {
-      width: document.documentElement.scrollWidth,
-      height: document.documentElement.scrollHeight
-    });
+    var width = document.documentElement.scrollWidth;
+    var height = document.documentElement.scrollHeight;
+    var root = null;
+    try { root = document.querySelector("main.panel, .panel, .screen"); } catch (error) { root = null; }
+    if (root && root.getBoundingClientRect) {
+      var rect = root.getBoundingClientRect();
+      if (rect.height > 0) { height = Math.ceil(rect.height); }
+    }
+    notify("ui/notifications/size-changed", { width: width, height: height });
   }
 
   var T = {
@@ -565,6 +577,16 @@ body {
    * no reply came back, and every later button was ignored), so the lock has its own deadline.
    */
   var ACTION_TIMEOUT_MS = 2500;
+  // The spec declares no capability for ui/message, and hostCapabilities.openLinks is not a reliable
+  // gate either (one host omits it and still opens links). So the panel learns from the first
+  // refusal: after that the button goes straight to the copied-text fallback instead of retrying a
+  // call the host keeps rejecting.
+  var messageBlocked = false;
+  var linkBlocked = false;
+  function noteUnderActions(text) {
+    var note = el("k-note");
+    if (note) { setText(note, text); note.hidden = false; }
+  }
 
   function lockRow(node) {
     busy = true;
@@ -582,15 +604,17 @@ body {
     if (!node || busy) { return; }
     var message = payloadText(node.getAttribute("data-message") || "");
     if (!message) { return; }
+    if (messageBlocked) { copyText(message); noteUnderActions(T.messageFailed); return; }
     var release = lockRow(node);
     setTimeout(release, ACTION_TIMEOUT_MS);
     request("ui/message", { role: "user", content: { type: "text", text: message } })
       .then(release)
       .catch(function () {
-        // The text never reached the conversation: hand it over instead of failing mute.
+        // The text never reached the conversation: hand it over instead of failing mute, and stop
+        // asking a host that already said no.
+        messageBlocked = true;
         copyText(message);
-        var note = el("k-note");
-        if (note) { setText(note, T.messageFailed); note.hidden = false; }
+        noteUnderActions(T.messageFailed);
         release();
       });
   }
@@ -602,6 +626,7 @@ body {
    */
   function openUrl(node) {
     if (!current.url || busy) { return; }
+    if (linkBlocked) { copyText(current.url); noteUnderActions(T.actionOpenFailed); return; }
     var release = lockRow(node);
     setTimeout(release, ACTION_TIMEOUT_MS);
     request("ui/open-link", { url: current.url })
@@ -610,9 +635,9 @@ body {
         release();
       })
       .catch(function () {
+        linkBlocked = true;
         copyText(current.url);
-        var note = el("k-note");
-        if (note) { setText(note, T.actionOpenFailed); note.hidden = false; }
+        noteUnderActions(T.actionOpenFailed);
         release();
       });
   }
