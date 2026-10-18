@@ -516,6 +516,25 @@ describe("env-credits 面板脚本运行时", () => {
     expect(panel.el("ubar-box").hidden).toBe(true);
   });
 
+  it("用到 80% 以上：状态变成「接近上限」，并给一个可点的下一步", () => {
+    const near = buildEnvCreditsPayload({
+      ...BASE,
+      planRaw: "baas_personal",
+      usages: [usage("SCF", 36000)],
+      expired: false,
+    });
+    const panel = render(near);
+
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.nearLimit"));
+    expect(panel.el("c-hint").textContent).toContain("90%");
+    // 警告不能只有文字：这里得有一步能点
+    expect(panel.el("btn-tip").hidden).toBe(false);
+
+    panel.clickDocument("btn-tip");
+    const message = panel.lastRequest("ui/message");
+    expect(message?.content?.text).toContain("90%");
+  });
+
   it("链接按钮先请宿主打开；宿主拒绝时才把地址落到剪贴板并说明", async () => {
     const stopped = buildEnvCreditsPayload({
       ...BASE,

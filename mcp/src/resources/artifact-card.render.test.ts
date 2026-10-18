@@ -415,6 +415,19 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(open?.params?.url).toBe("https://example.test/issues/new?template=case");
   });
 
+  it("复制地址给 1.5 秒的已复制态：图标换对勾、标题换文案，然后自己回去", () => {
+    const published = render(payloadPublished());
+    published.clickDocument("btn-copy-url");
+
+    expect(published.el("ico-copy-url").hidden).toBe(true);
+    expect(published.el("ico-check-url").hidden).toBe(false);
+    expect(published.el("btn-copy-url").title).toBe(L("mcpUiArtifact.copy.copied"));
+
+    published.fireTimers();
+    expect(published.el("ico-copy-url").hidden).toBe(false);
+    expect(published.el("ico-check-url").hidden).toBe(true);
+  });
+
   it("宿主收了 open-link 却不回应：动作行两秒半后自己解锁，后面的按钮照常可用", () => {
     const published = render(payloadPublished());
     published.clickDocument("btn-main");

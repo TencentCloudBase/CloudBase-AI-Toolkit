@@ -215,7 +215,8 @@ body {
 <span class="brand-alias" id="brand-alias"></span>
 <span class="plan-tag" id="brand-plan" hidden></span>
 <button class="icon-btn" type="button" id="btn-copy-env" title="${E(L("mcpUiCredits.brand.copyEnvId"))}" aria-label="${E(L("mcpUiCredits.brand.copyEnvId"))}">
-<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+<svg class="icon" id="ico-copy-env" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+<svg class="icon" id="ico-check-env" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
 </button>
 </span>
 </div>
@@ -237,7 +238,8 @@ body {
 <span class="url" id="k-url"></span>
 <span class="tag warn" id="k-url-tag" hidden>${E(L("mcpUiArtifact.tag.internalOnly"))}</span>
 <button class="icon-btn" type="button" id="btn-copy-url" title="${E(L("mcpUiArtifact.action.copyUrl"))}" aria-label="${E(L("mcpUiArtifact.action.copyUrl"))}">
-<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+<svg class="icon" id="ico-copy-url" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+<svg class="icon" id="ico-check-url" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
 </button>
 </div>
 <p class="note" id="k-note" hidden></p>
@@ -254,6 +256,7 @@ body {
 <span id="btn-refresh-label">${E(L("mcpUiArtifact.action.refresh"))}</span>
 </button>
 </div>
+<p class="hint" id="k-host-note" hidden>${E(L("mcpUiArtifact.host.noMessage"))}</p>
 </div>
 <div class="fold"><details><summary>${E(L("mcpUiCredits.fold.raw"))}</summary><pre id="raw-out"></pre></details></div>
 </div>
@@ -323,6 +326,8 @@ body {
     actionRedeploy: ${S("mcpUiArtifact.action.redeploy")},
     actionShareCase: ${S("mcpUiArtifact.action.shareCase")},
     messageFailed: ${S("mcpUiArtifact.message.failed")},
+    copyCopied: ${S("mcpUiArtifact.copy.copied")},
+    copyFailed: ${S("mcpUiArtifact.copy.failed")},
     shareOpening: ${S("mcpUiArtifact.share.opening")},
     shareFailed: ${S("mcpUiArtifact.share.failed")},
     actionRefresh: ${S("mcpUiArtifact.action.refresh")},
@@ -615,6 +620,8 @@ body {
         // The text never reached the conversation: hand it over instead of failing mute, and stop
         // asking a host that already said no.
         messageBlocked = true;
+        var hostNote = el("k-host-note");
+        if (hostNote) { hostNote.hidden = false; }
         copyText(message);
         noteUnderActions(T.messageFailed);
         release();
@@ -692,10 +699,15 @@ body {
     }
   }
 
-  function copyText(text) {
-    if (!text) { return; }
+  /**
+   * Copy, then say whether it worked. A silent copy is indistinguishable from a broken one - the
+   * sandbox can deny clipboard access - so every copy button reports back through onResult.
+   */
+  function copyText(text, onResult) {
+    var done = onResult || function () {};
+    if (!text) { done(false); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(function () {});
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
       return;
     }
     try {
@@ -706,16 +718,50 @@ body {
       area.style.opacity = "0";
       document.body.appendChild(area);
       area.select();
-      document.execCommand("copy");
+      var ok = document.execCommand("copy");
       document.body.removeChild(area);
-    } catch (error) { /* clipboard unavailable: the value is still selectable on screen */ }
+      done(ok !== false);
+    } catch (error) {
+      done(false);
+    }
+  }
+
+  var COPY_FLASH_MS = 1500;
+
+  /** 1.5s "copied" state: the glyph becomes a check, the title says so, then it reverts. */
+  function copyWithFeedback(text, ids) {
+    copyText(text, function (ok) {
+      var copyNode = el(ids.copy);
+      var checkNode = el(ids.check);
+      var btn = el(ids.button);
+      var idleTitle = btn ? btn.title : "";
+      if (copyNode) { copyNode.hidden = ok; }
+      if (checkNode) { checkNode.hidden = !ok; }
+      if (btn) {
+        var text = ok ? T.copyCopied : T.copyFailed;
+        btn.title = text;
+        btn.setAttribute("aria-label", text);
+      }
+      if (!ok) { noteUnderActions(T.copyFailed); }
+      setTimeout(function () {
+        if (copyNode) { copyNode.hidden = false; }
+        if (checkNode) { checkNode.hidden = true; }
+        if (btn) { btn.title = idleTitle; btn.setAttribute("aria-label", idleTitle); }
+      }, COPY_FLASH_MS);
+    });
   }
 
   document.addEventListener("click", function (event) {
     var node = event.target && event.target.closest ? event.target.closest("button") : null;
     if (!node) { return; }
-    if (node.id === "btn-copy-env") { copyText(current.envId); return; }
-    if (node.id === "btn-copy-url") { copyText(current.url); return; }
+    if (node.id === "btn-copy-env") {
+      copyWithFeedback(current.envId, { copy: "ico-copy-env", check: "ico-check-env", button: "btn-copy-env" });
+      return;
+    }
+    if (node.id === "btn-copy-url") {
+      copyWithFeedback(current.url, { copy: "ico-copy-url", check: "ico-check-url", button: "btn-copy-url" });
+      return;
+    }
     if (node.getAttribute("data-action") === "open") { openUrl(node); return; }
     if (node.id === "btn-share") { shareCase(node); return; }
     sendMessage(node);

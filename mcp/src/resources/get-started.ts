@@ -733,9 +733,7 @@ pre {
     if (envToggle) {
       envToggle.hidden = !canExpand;
       if (canExpand) {
-        setText(el("env-toggle-label"), envExpanded
-          ? T.envCollapse
-          : T.envShowAll.replace("{n}", String(envAll.length)));
+        setText(el("env-toggle-label"), envExpanded ? T.envCollapse : T.envShowAll);
         setIcon(el("ico-toggle"), envExpanded ? "chevron-up" : "chevron-down");
         envToggle.setAttribute("aria-expanded", envExpanded ? "true" : "false");
       }
@@ -835,6 +833,11 @@ pre {
       // the question back to the conversation: the list itself is the action, so it steps aside.
       var replacedByList = envShown && state.main === T.actionSelectEnv;
       mainBtn.hidden = !state.main || replacedByList;
+      // With rows on screen the list is the path; a second bordered button next to it competes for
+      // the same glance. The fallback drops to a text link instead of disappearing (hosts that
+      // never push results still need it).
+      var refreshBtn = el("btn-refresh");
+      if (refreshBtn) { refreshBtn.className = replacedByList ? "linklike" : "link"; }
       mainBtn.disabled = false;
       setText(el("btn-main-label"), state.main);
       setIcon(el("ico-main"), state.main === T.actionSelectEnv ? "server" : (state.main === T.actionDeploy ? "rocket" : "login"));

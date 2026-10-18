@@ -406,7 +406,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       <span class="brand-alias" id="brand-alias"></span>
       <span class="plan-tag" id="brand-plan" hidden></span>
       <button class="icon-btn" type="button" id="btn-copy-env" title="${E(L("mcpUiCredits.brand.copyEnvId"))}" aria-label="${E(L("mcpUiCredits.brand.copyEnvId"))}">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        <svg class="icon" id="ico-copy-env" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        <svg class="icon" id="ico-check-env" hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
       </button>
     </span>
   </div>
@@ -485,6 +486,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     <p class="note" id="k-copynote" hidden></p>
     <div class="acts">
       <button class="primary" type="button" id="btn-main" hidden><svg class="icon" aria-hidden="true"><use id="ico-main" href="#ico-rocket"/></svg><span id="btn-main-label"></span></button>
+      <button type="button" id="btn-tip" hidden>${E(L("mcpUiCredits.action.nearLimit"))}</button>
       <button type="button" id="btn-link" hidden>
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
         <span id="btn-link-label"></span>
@@ -544,6 +546,10 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     copiedConsole: ${S("mcpUiCredits.action.copiedConsole")},
     copiedExpense: ${S("mcpUiCredits.action.copiedExpense")},
     copyEnvId: ${S("mcpUiCredits.brand.copyEnvId")},
+    copyCopied: ${S("mcpUiCredits.copy.copied")},
+    copyFailed: ${S("mcpUiCredits.copy.failed")},
+    messageFailed: ${S("mcpUiCredits.message.failed")},
+    messageNearLimit: ${S("mcpUiCredits.message.nearLimit")},
     openConsole: ${S("mcpUiCredits.action.openConsole")},
     openExpense: ${S("mcpUiCredits.action.openExpense")},
     expiredNote: ${S("mcpUiCredits.expired.note")},
@@ -980,6 +986,9 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     var brand = applyBrand(payload);
     var alias = brand.alias;
 
+    // Every render starts with the "cut usage" tip hidden; only the near-limit branch turns it on.
+    var tipReset = el("btn-tip");
+    if (tipReset) { tipReset.hidden = true; }
     setText(el("c-title"), T.title + (alias ? T.titleSep + alias : ""));
     setText(el("st-text"), branch.text);
     el("st-dot").className = "dot" + (branch.dot ? " " + branch.dot : "");
@@ -1016,6 +1025,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       // The bar already turns red from 80% (an early warning we keep), so the wording has to
       // follow: a red bar next to "usage is within plan" is a contradiction on one screen.
       // Only for the two states that make no claim about the level (normal / unknown).
+      current.pct = pct;
       if (pct >= 80 && (key === "normal" || key === "unknown")) {
         setText(el("st-text"), T.stateNearLimit.replace("{pct}", String(pct)));
         setText(el("c-hint"), T.hintNearLimit.replace("{pct}", String(pct)));
@@ -1024,6 +1034,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
         el("st-dot").className = "dot warn";
         // The sentence offers an upgrade path; the card has to hand one over instead of naming it.
         if (!current.link) { current.link = "package"; }
+        var tipBtn = el("btn-tip");
+        if (tipBtn) { tipBtn.hidden = false; }
       }
     }
 
@@ -1094,31 +1106,78 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
     if (use) { use.setAttribute("href", "#ico-" + name); }
   }
 
-  function copyText(text) {
-    if (!text) { return; }
-    var done = false;
+  /**
+   * Copy, then report whether it worked: a silent copy is indistinguishable from a broken one
+   * (the sandbox can deny clipboard access), so callers get a boolean back through onResult.
+   */
+  function copyText(text, onResult) {
+    var done = onResult || function () {};
+    if (!text) { done(false); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { done = true; }).catch(function () {});
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+      return;
     }
-    if (!done) {
-      try {
-        var area = document.createElement("textarea");
-        area.value = text;
-        area.setAttribute("readonly", "readonly");
-        area.style.position = "fixed";
-        area.style.opacity = "0";
-        document.body.appendChild(area);
-        area.select();
-        document.execCommand("copy");
-        document.body.removeChild(area);
-      } catch (error) { /* clipboard unavailable: the hint tells the user to copy manually */ }
+    try {
+      var area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "readonly");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(area);
+      done(ok !== false);
+    } catch (error) {
+      done(false);
     }
+  }
+
+  var COPY_FLASH_MS = 1500;
+
+  /** 1.5s "copied" state; on failure the button title says to copy by hand. */
+  function copyWithFeedback(text) {
+    copyText(text, function (ok) {
+      var copyNode = el("ico-copy-env");
+      var checkNode = el("ico-check-env");
+      var btn = el("btn-copy-env");
+      var idleTitle = btn ? btn.title : "";
+      if (copyNode) { copyNode.hidden = ok; }
+      if (checkNode) { checkNode.hidden = !ok; }
+      if (btn) {
+        var label = ok ? T.copyCopied : T.copyFailed;
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+      }
+      if (!ok) {
+        var note = el("k-copynote");
+        if (note) { setText(note, T.copyFailed); note.hidden = false; }
+      }
+      setTimeout(function () {
+        if (copyNode) { copyNode.hidden = false; }
+        if (checkNode) { checkNode.hidden = true; }
+        if (btn) { btn.title = idleTitle; btn.setAttribute("aria-label", idleTitle); }
+      }, COPY_FLASH_MS);
+    });
   }
 
   document.addEventListener("click", function (event) {
     var node = event.target && event.target.closest ? event.target.closest("button") : null;
     if (!node) { return; }
-    if (node.id === "btn-copy-env") { copyText(current.envId); return; }
+    if (node.id === "btn-copy-env") { copyWithFeedback(current.envId); return; }
+    if (node.id === "btn-tip") {
+      var tipMsg = T.messageNearLimit.replace("{pct}", String(current.pct === null ? "" : current.pct)).replace("  ", " ");
+      node.disabled = true;
+      request("ui/message", { role: "user", content: { type: "text", text: tipMsg } })
+        .then(function () { node.disabled = false; }, function () {
+          // Host refuses to relay: hand the sentence over instead of leaving the click dead.
+          copyText(tipMsg);
+          node.disabled = false;
+          var note = el("k-copynote");
+          if (note) { setText(note, T.messageFailed); note.hidden = false; }
+        });
+      return;
+    }
     if (node.id === "btn-link") {
       var url = consoleLink(current.link);
       if (!url) { return; }
