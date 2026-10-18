@@ -391,6 +391,30 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(message).not.toContain("secret");
   });
 
+  it("宿主不收 ui/message 时，「提交到案例墙」改走只读工具再打开页面", async () => {
+    const published = render(payloadPublished());
+    published.clickDocument("btn-share");
+    // 第一次仍然是先问会话（能发的宿主会走技能那一整套）
+    expect(published.sent.some((entry) => entry.method === "ui/message")).toBe(true);
+
+    // 宿主拒绝 → 面板改调 prepareFeedback，再打开返回的入口
+    published.respond("ui/message", { error: { code: -32000, message: "denied" } });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const call = published.sent.find((entry) => entry.method === "tools/call");
+    expect(call?.params).toMatchObject({ name: "prepareFeedback", arguments: { channel: "case" } });
+
+    published.respond("tools/call", {
+      result: { content: [{ type: "text", text: JSON.stringify({ url: "https://example.test/issues/new?template=case" }) }] },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const open = published.sent.find((entry) => entry.method === "ui/open-link");
+    expect(open?.params?.url).toBe("https://example.test/issues/new?template=case");
+  });
+
   it("宿主收了 open-link 却不回应：动作行两秒半后自己解锁，后面的按钮照常可用", () => {
     const published = render(payloadPublished());
     published.clickDocument("btn-main");

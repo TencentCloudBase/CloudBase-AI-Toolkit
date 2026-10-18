@@ -91,7 +91,7 @@ describe("artifact-card 面板 HTML（静态面）", () => {
     }
   });
 
-  it("bridge 消息名齐，且面板自身一个 tools/call 都没有（写意图一律走 ui/message）", () => {
+  it("bridge 消息名齐；工具调用只许调只读的 prepareFeedback（写意图一律走 ui/message）", () => {
     const html = buildArtifactCardHtml("en", sampleFallback);
 
     for (const method of [
@@ -103,8 +103,12 @@ describe("artifact-card 面板 HTML（静态面）", () => {
     ]) {
       expect(html).toContain(method);
     }
-    expect(html).not.toContain("tools/call");
-    expect(html.split('"tools/call"').length - 1).toBe(0);
+    // 面板唯一被允许直接调的工具是只读的 prepareFeedback（案例墙入口）。任何"写"动作
+    // 仍然只能交给会话——宿主不支持 ui/message 时宁可退化成复制，也不许面板自己动手。
+    const calls = html.match(/"tools\/call"\s*,\s*\{\s*name:\s*"([^"]+)"/g) ?? [];
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toContain('"prepareFeedback"');
+    expect(html).not.toMatch(/name:\s*"(deploy|manageHosting|manageCloudRun|deleteFunction)"/);
   });
 
   it("握手自报的面板名固定（宿主按它识别面板）", () => {

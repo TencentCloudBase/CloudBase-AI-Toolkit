@@ -323,6 +323,8 @@ body {
     actionRedeploy: ${S("mcpUiArtifact.action.redeploy")},
     actionShareCase: ${S("mcpUiArtifact.action.shareCase")},
     messageFailed: ${S("mcpUiArtifact.message.failed")},
+    shareOpening: ${S("mcpUiArtifact.share.opening")},
+    shareFailed: ${S("mcpUiArtifact.share.failed")},
     actionRefresh: ${S("mcpUiArtifact.action.refresh")},
     messageBindDomain: ${S("mcpUiArtifact.message.bindDomain")},
     messageViewLog: ${S("mcpUiArtifact.message.viewLog")},
@@ -642,6 +644,54 @@ body {
       });
   }
 
+  /**
+   * Sharing has two roads. A host that forwards ui/message gets the skill's full treatment (card,
+   * copy, entry). A host that refuses it - which is the one we tested - still has to end somewhere,
+   * so the button asks the server for the case-wall entry and opens that instead: deterministic,
+   * no model involved, and the user lands on the form rather than on nothing.
+   */
+  function shareCase(node) {
+    if (!node || busy) { return; }
+    var release = lockRow(node);
+    setTimeout(release, ACTION_TIMEOUT_MS);
+    request("ui/message", { role: "user", content: { type: "text", text: payloadText(T.messageShareCase) } })
+      .then(release)
+      .catch(function () {
+        messageBlocked = true;
+        release();
+        openCaseWall();
+      });
+  }
+
+  function openCaseWall() {
+    var node = el("btn-share");
+    var release = lockRow(node);
+    setTimeout(release, ACTION_TIMEOUT_MS);
+    request("tools/call", { name: "prepareFeedback", arguments: { channel: "case" } })
+      .then(function (result) {
+        var payload = parseToolJson(result);
+        if (!payload || !payload.url) { throw new Error("no case-wall url"); }
+        noteUnderActions(T.shareOpening);
+        return request("ui/open-link", { url: payload.url });
+      })
+      .then(release)
+      .catch(function () {
+        var node2 = el("k-note");
+        noteUnderActions(T.shareFailed);
+        release();
+      });
+  }
+
+  /** tools/call answers with a JSON string in content[0]; the panel only needs one field out of it. */
+  function parseToolJson(result) {
+    try {
+      var text = result && result.content && result.content[0] && result.content[0].text;
+      return text ? JSON.parse(text) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   function copyText(text) {
     if (!text) { return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -667,6 +717,7 @@ body {
     if (node.id === "btn-copy-env") { copyText(current.envId); return; }
     if (node.id === "btn-copy-url") { copyText(current.url); return; }
     if (node.getAttribute("data-action") === "open") { openUrl(node); return; }
+    if (node.id === "btn-share") { shareCase(node); return; }
     sendMessage(node);
   });
 
