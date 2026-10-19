@@ -24,6 +24,13 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 ## Recent updates
 
+**v2.36.x** (2026-10)
+
+- MCP Apps: three panels arrive — get-started, environment usage and deployment result — shipped experimental and off by default; set `CLOUDBASE_MCP_UI=on` to try them
+- Safety: deletes, destructive SQL and the matching `callCloudApi` delete actions pause for a confirmation that names the target; a credential-shaped argument gets one delta check (length plus a sha256 fingerprint, never the value itself)
+- Environment: the usage panel gains a metrics view (QPS, invocations, errors, timeouts, MySQL and CloudRun load) with human names, and MySQL provisioning is retired from the tool surface
+- Onboarding: every `initialize` response carries `instructions` with the first read-only call to make; the remote setup docs now lead with OAuth
+
 **v2.35.x** (2026-10)
 
 - Hosted / Auth: each hosted MCP request runs on its own transport with client metadata cached per credential, and a project-level credential now takes precedence over the account login state
