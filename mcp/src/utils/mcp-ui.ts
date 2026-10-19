@@ -1,16 +1,17 @@
 /**
  * MCP Apps（`ui://` 面板）总开关。
  *
- * 面板是给支持 MCP Apps 的宿主看的；有的宿主不渲染、有的环境只想拿纯工具，
- * 那就把 `ui://` 资源与工具上的 `_meta.ui` 一起摘掉，回到最普通的 MCP server：
- * 工具返回照旧是 JSON 文本，宿主不会为任何卡片留位置。
+ * **实验性，默认关闭**：不给环境变量就不注册 `ui://` 资源、工具也不带 `_meta.ui`，
+ * 宿主看到的就是一个普通 MCP server（返回 JSON 文本）。要用面板得显式打开：
  *
- * 关闭方式：`CLOUDBASE_MCP_UI=off`（也接受 0 / false / no / disabled）。
- * 默认开启；无法识别的值按开启处理，避免拼错一个词就把面板全关掉。
+ *   CLOUDBASE_MCP_UI=on      （也接受 1 / true / yes / enabled）
+ *
+ * 反向值（off / 0 / false / no / disabled）和拼错的值一样，都按关闭处理——
+ * 实验期宁可少开，也不要因为一个错字让宿主去拉一堆资源。
  */
 export function isMcpUiEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = (env.CLOUDBASE_MCP_UI ?? "").trim().toLowerCase();
-  return !["off", "0", "false", "no", "disabled"].includes(raw);
+  return ["on", "1", "true", "yes", "enabled"].includes(raw);
 }
 
 /**

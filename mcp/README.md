@@ -129,9 +129,11 @@ Set `TCB_SITE` (`domestic` / `intl`) to select the login/credential site, and `T
 
 In **remote mode** the site is determined by the endpoint host itself—`tcb-api.cloud.tencent.com` is the China site, `tcb-api.tencentcloud.com` is the international site—and there is no `site` query parameter to set. This holds for a China-site environment in `ap-singapore` too: keep using the China-site endpoint. Self-hosted Cloud Mode deployments can still use the `TCB_SITE` environment variable.
 
-### Turn the UI panels off
+### Experimental: MCP Apps panels (off by default)
 
-`auth`, `queryEnv` and the deploy tools can render MCP Apps panels (`ui://cloudbase/*`) in hosts that support them. Set `CLOUDBASE_MCP_UI=off` (also accepts `0` / `false` / `no` / `disabled`) to remove them entirely: the `ui://` resources are not registered and no tool carries `_meta.ui`, so a host has nothing to render. Tools behave exactly the same; results stay plain JSON text.
+`auth`, `queryEnv` and the deploy tools can render MCP Apps panels (`ui://cloudbase/*`) in hosts that support them. This is experimental and **switched off by default**: with no environment variable set, no `ui://` resource is registered and no tool carries `_meta.ui`, so a host sees an ordinary MCP server and results stay plain JSON text.
+
+Turn it on with `CLOUDBASE_MCP_UI=on` (also accepts `1` / `true` / `yes` / `enabled`). Anything else — `off`, `0`, `false`, `no`, `disabled`, or a typo — leaves it off. Tools behave identically either way; the flag only decides whether panels are offered.
 
 ## Capabilities
 

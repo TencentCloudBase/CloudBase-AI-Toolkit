@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createCloudBaseMcpServer } from "../server.js";
@@ -209,6 +209,20 @@ async function handshake() {
 }
 
 describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
+  // 面板现在是 opt-in（默认关）：这组用例验的正是打开之后的协议面，所以整组显式开。
+  let previousUiFlag: string | undefined;
+  beforeAll(() => {
+    previousUiFlag = process.env.CLOUDBASE_MCP_UI;
+    process.env.CLOUDBASE_MCP_UI = "on";
+  });
+  afterAll(() => {
+    if (previousUiFlag === undefined) {
+      delete process.env.CLOUDBASE_MCP_UI;
+    } else {
+      process.env.CLOUDBASE_MCP_UI = previousUiFlag;
+    }
+  });
+
   it("initialize 的 capabilities 同时带 extensions ui 与 resources 能力位", async () => {
     const { server, client } = await handshake();
     try {

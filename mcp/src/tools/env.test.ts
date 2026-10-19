@@ -1107,32 +1107,43 @@ describe("env tools - auth", () => {
       })),
     );
 
-    const result = await tools.auth.handler({ action: "status" });
-    const payload = JSON.parse(result.content[0].text);
+    // 面板现在是 opt-in：要验 _meta 必须先打开
+    const previous = process.env.CLOUDBASE_MCP_UI;
+    process.env.CLOUDBASE_MCP_UI = "on";
+    try {
+      const result = await tools.auth.handler({ action: "status" });
+      const payload = JSON.parse(result.content[0].text);
 
-    expect(payload.env_candidates).toHaveLength(20);
-    expect(payload.env_candidates_summary).toMatchObject({
-      total: 25,
-      returned: 20,
-      truncated: true,
-    });
+      expect(payload.env_candidates).toHaveLength(20);
+      expect(payload.env_candidates_summary).toMatchObject({
+        total: 25,
+        returned: 20,
+        truncated: true,
+      });
 
-    // 面板要显示全部，模型只该看到摘要：完整列表走 _meta（宿主给 view、不给模型）
-    const metaCandidates = result._meta?.["cloudbase/ui"]?.env_candidates;
-    expect(metaCandidates).toHaveLength(25);
-    expect(metaCandidates[0]).toMatchObject({ envId: "env-1" });
-    // 文本载荷里不能出现第 21 个，否则省 token 就白省了
-    expect(result.content[0].text).not.toContain("env-21");
+      // 面板要显示全部，模型只该看到摘要：完整列表走 _meta（宿主给 view、不给模型）
+      const metaCandidates = result._meta?.["cloudbase/ui"]?.env_candidates;
+      expect(metaCandidates).toHaveLength(25);
+      expect(metaCandidates[0]).toMatchObject({ envId: "env-1" });
+      // 文本载荷里不能出现第 21 个，否则省 token 就白省了
+      expect(result.content[0].text).not.toContain("env-21");
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CLOUDBASE_MCP_UI;
+      } else {
+        process.env.CLOUDBASE_MCP_UI = previous;
+      }
+    }
   });
 
-  it("CLOUDBASE_MCP_UI=off：status 不再带 _meta（面板全关时不往结果里塞 UI 数据）", async () => {
+  it("面板默认关闭：不设环境变量时 status 不带 _meta，工具照常工作", async () => {
     mockPeekLoginState.mockResolvedValue({ secretId: "sid", secretKey: "skey" });
     mockListAvailableEnvCandidates.mockResolvedValue(
       Array.from({ length: 3 }, (_, index) => ({ envId: `env-${index + 1}`, alias: `alias-${index + 1}` })),
     );
 
     const previous = process.env.CLOUDBASE_MCP_UI;
-    process.env.CLOUDBASE_MCP_UI = "off";
+    delete process.env.CLOUDBASE_MCP_UI;
     try {
       const result = await tools.auth.handler({ action: "status" });
       expect(result._meta).toBeUndefined();
