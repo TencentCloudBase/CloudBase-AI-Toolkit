@@ -22,6 +22,14 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 </div>
 
+<div align="center">
+
+<video src="https://cdn.jsdelivr.net/gh/TencentCloudBase/CloudBase-AI-Toolkit@main/.github/assets/promo-2026-10.mp4" controls muted width="820"></video>
+
+<sub>26s · one sentence in, an app out · <a href="https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/blob/main/.github/assets/promo-2026-10.mp4">watch with sound</a></sub>
+
+</div>
+
 ## Recent updates
 
 **v2.36.x** (2026-10)

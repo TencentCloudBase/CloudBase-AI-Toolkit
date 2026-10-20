@@ -22,6 +22,14 @@
 
 </div>
 
+<div align="center">
+
+<video src="https://cdn.jsdelivr.net/gh/TencentCloudBase/CloudBase-AI-Toolkit@main/.github/assets/promo-2026-10.mp4" controls muted width="820"></video>
+
+<sub>26 秒 · 一句话进去，应用出来 · <a href="https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/blob/main/.github/assets/promo-2026-10.mp4">带声音看</a></sub>
+
+</div>
+
 ## 最近更新
 
 **v2.36.x**（2026-10）
