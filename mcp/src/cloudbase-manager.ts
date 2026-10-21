@@ -1,4 +1,6 @@
 import CloudBase from "@cloudbase/manager-node";
+import { Agent as HttpAgent } from "http";
+import { Agent as HttpsAgent } from "https";
 import {
     buildDeviceAuthChallengePayload,
     getAuthProgressState,
@@ -11,6 +13,26 @@ import { buildAuthNextStep, throwToolPayloadError } from './utils/tool-result.js
 import { resolveSiteAndRegion, TCB_QUERY_REGIONS } from './utils/site-map.js';
 import { readProjectEnvId } from './utils/project-config.js';
 import { createLocalCloudApiRequestFn, resolveLocalEndpoint } from './local-endpoint.js';
+
+// Cloud API calls are issued from a long-lived stdio MCP process. The SDK's
+// default keep-alive socket pool can hold a connection idle for the entire panel
+// idle window (≈10 min). When the gateway/proxy silently drops such an idle
+// socket, the next call reuses the dead socket and fails once with a
+// "gateway timeout" / socket hang up, recovering only after a retry or two.
+// Cap the pooled idle lifetime well below any gateway idle cutoff so stale
+// sockets are never reused; short bursts of tool calls still benefit from
+// keep-alive. (See issue #1225.)
+const CLOUD_API_FREE_SOCKET_TIMEOUT_MS = 30_000;
+const cloudApiHttpAgent = new HttpAgent({
+    keepAlive: true,
+    freeSocketTimeout: CLOUD_API_FREE_SOCKET_TIMEOUT_MS,
+});
+const cloudApiHttpsAgent = new HttpsAgent({
+    keepAlive: true,
+    freeSocketTimeout: CLOUD_API_FREE_SOCKET_TIMEOUT_MS,
+});
+
+type CloudBaseConstructorConfig = ConstructorParameters<typeof CloudBase>[0];
 
 export type EnvCandidate = {
     envId: string;
@@ -44,7 +66,9 @@ function createManagerFromLoginState(loginState: any, region?: string): CloudBas
         token: loginState.token,
         proxy: process.env.http_proxy,
         region: region ?? resolveSiteAndRegion().region,
-    });
+        httpAgent: cloudApiHttpAgent,
+        httpsAgent: cloudApiHttpsAgent,
+    } as CloudBaseConstructorConfig);
 }
 
 /**
@@ -801,8 +825,10 @@ export async function getCloudBaseManager(options: GetManagerOptions = {}): Prom
             token,
             proxy: process.env.http_proxy,
             region,
+            httpAgent: cloudApiHttpAgent,
+            httpsAgent: cloudApiHttpsAgent,
             // REGION 国际站需要指定 region
-        });
+        } as CloudBaseConstructorConfig);
         return manager;
     } catch (err) {
         error('Failed to initialize CloudBase Manager:', err instanceof Error ? err : new Error(String(err)));
@@ -829,8 +855,10 @@ export function createCloudBaseManagerWithOptions(cloudBaseOptions: CloudBaseOpt
     const manager = new CloudBase({
         ...cloudBaseOptions,
         proxy: cloudBaseOptions.proxy || process.env.http_proxy,
-        region
-    });
+        region,
+        httpAgent: cloudApiHttpAgent,
+        httpsAgent: cloudApiHttpsAgent,
+    } as CloudBaseConstructorConfig);
 
     return manager;
 }
