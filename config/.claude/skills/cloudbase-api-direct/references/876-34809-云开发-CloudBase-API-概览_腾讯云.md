@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-09-30 03:26:40
+最近更新时间：2026-10-21 02:09:10
 
 -   微信扫一扫 
 -   QQ
@@ -165,6 +165,7 @@ _我的收藏_
 | [DescribeAIModels](/document/api/876/131318) | 查询AI模型列表 | 20 |
 | [DescribeManagedAIModelList](/document/api/876/131317) | 查询托管类型AI模型列表 | 20 |
 | [UpdateAIModel](/document/api/876/131316) | 更新AI模型 | 20 |
+| [ModifyAIModelStatus](/document/api/876/139677) | 启停AI模型 | 20 |
 
 ## 日志监控相关接口
 

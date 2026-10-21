@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 146
+ * Action 数量: 147
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -113,6 +113,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ListFunctions',
   'ListPGUserMigrations',
   'ListTables',
+  'ModifyAIModelStatus',
   'ModifyClient',
   'ModifyClsTopic',
   'ModifyDatabaseACL',
