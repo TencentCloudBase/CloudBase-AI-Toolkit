@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-10-21 02:09:10
+最近更新时间：2026-10-23 02:59:59
 
 -   微信扫一扫 
 -   QQ
@@ -27,6 +27,7 @@ _我的收藏_
 -   [日志监控相关接口](#.E6.97.A5.E5.BF.97.E7.9B.91.E6.8E.A7.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "日志监控相关接口")
 -   [SQL型云数据库相关接口](#SQL.E5.9E.8B.E4.BA.91.E6.95.B0.E6.8D.AE.E5.BA.93.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "SQL型云数据库相关接口")
 -   [云函数相关接口](#.E4.BA.91.E5.87.BD.E6.95.B0.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "云函数相关接口")
+-   [APIs连接器相关接口](#APIs.E8.BF.9E.E6.8E.A5.E5.99.A8.E7.9B.B8.E5.85.B3.E6.8E.A5.E5.8F.A3 "APIs连接器相关接口")
 
 ## 环境相关接口
 
@@ -208,6 +209,16 @@ _我的收藏_
 | [GetFunction](/document/api/876/137948) | 获取云函数详情 | 20 |
 | [DownloadFunction](/document/api/876/137949) | 获取云函数地址并下载 | 20 |
 | [UpdateFunctionCode](/document/api/876/137952) | 更新云函数代码 | 20 |
+
+## APIs连接器相关接口
+
+| 接口名称 | 接口功能 | 频率限制（次/秒） |
+| --- | --- | --- |
+| [CreateUserKey](/document/api/876/139855) | 用户创建集成 | 20 |
+| [DeleteUserKey](/document/api/876/139854) | 用户删除集成 | 20 |
+| [GetOneUserKey](/document/api/876/139853) | 用户获取指定集成的详情信息 | 20 |
+| [GetUserKeyList](/document/api/876/139852) | 用户获取集成列表 | 20 |
+| [UpdateUserKey](/document/api/876/139851) | 用户更新集成信息 | 20 |
 
 > 注意：
 > 
