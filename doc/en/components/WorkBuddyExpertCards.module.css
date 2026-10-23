@@ -25,6 +25,18 @@
   text-decoration: none;
 }
 
+/*
+ * 博客正文的 `.blog-post-prose a`（0,1,1）和 `a:hover`（0,2,1）会给所有链接加下划线，
+ * 比 `.card`（0,1,0）高，于是整张卡的标题和描述都带横线。
+ * 这里用 `.grid a.card`（0,2,1）和 `.grid a.card:hover`（0,2,2）压过它。
+ * 卡片本身就是链接，正文再加下划线只是噪音。
+ */
+.grid a.card,
+.grid a.card:hover,
+.grid a.card:hover .name {
+  text-decoration: none;
+}
+
 .avatar {
   width: 40px;
   height: 40px;
