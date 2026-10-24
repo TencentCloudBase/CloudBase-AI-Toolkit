@@ -763,3 +763,64 @@ describe("project-pinned envId (.cloudbase/project.json)", () => {
     });
   });
 });
+
+describe("databaseInstanceIdCache TTL", () => {
+  const makeCloudbase = () => ({
+    env: {
+      getEnvInfo: vi.fn(async () => ({
+        EnvInfo: { Databases: [{ InstanceId: "ins-ttl" }] },
+      })),
+    },
+  });
+
+  beforeEach(async () => {
+    const { resetDatabaseInstanceIdCache } = await import("./cloudbase-manager.js");
+    resetDatabaseInstanceIdCache();
+    vi.restoreAllMocks();
+  });
+
+  it("命中缓存后超过 TTL 会重新解析，而不是一直用旧实例", async () => {
+    const { getDatabaseInstanceId } = await import("./cloudbase-manager.js");
+    const cloudbase = makeCloudbase();
+    const options = {
+      cloudBaseOptions: { envId: "env-ttl" },
+      cloudbase,
+    } as any;
+
+    const first = await getDatabaseInstanceId(options);
+    expect(first.source).toBe("envInfo");
+    expect(first.instanceId).toBe("ins-ttl");
+
+    const second = await getDatabaseInstanceId(options);
+    expect(second.source).toBe("cache");
+    expect(cloudbase.env.getEnvInfo).toHaveBeenCalledTimes(1);
+
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 31 * 60 * 1000);
+    try {
+      const third = await getDatabaseInstanceId(options);
+      expect(third.source).toBe("envInfo");
+      expect(cloudbase.env.getEnvInfo).toHaveBeenCalledTimes(2);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("TTL 内重复调用不会重复查询环境信息", async () => {
+    const { getDatabaseInstanceId } = await import("./cloudbase-manager.js");
+    const cloudbase = makeCloudbase();
+    const options = {
+      cloudBaseOptions: { envId: "env-ttl-2" },
+      cloudbase,
+    } as any;
+
+    await getDatabaseInstanceId(options);
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 29 * 60 * 1000);
+    try {
+      const again = await getDatabaseInstanceId(options);
+      expect(again.source).toBe("cache");
+      expect(cloudbase.env.getEnvInfo).toHaveBeenCalledTimes(1);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+});

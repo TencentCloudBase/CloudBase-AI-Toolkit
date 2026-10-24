@@ -576,7 +576,17 @@ type DatabaseInstanceIdResolution = {
 type DatabaseInstanceIdCacheEntry = {
     instanceId?: string;
     inflightPromise?: Promise<string>;
+    /** 解析结果的过期时间；到点后重新向环境信息查询 */
+    expiresAt?: number;
 };
+
+/**
+ * 实例 ID 是环境关联的 PaaS 资源标识，正常情况下与 envId 同生命周期。
+ * 但失效通知跨系统没有出口（invalidate 在生产路径上没有任何调用点），
+ * 所以用一个长 TTL 兜底：宁可每半小时多查一次环境信息，
+ * 也不要拿着一份没人能证明还正确的实例 ID 一直用下去。
+ */
+const DATABASE_INSTANCE_ID_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const databaseInstanceIdCache = new Map<string, DatabaseInstanceIdCacheEntry>();
 
@@ -627,11 +637,15 @@ export async function getDatabaseInstanceId(options?: {
 
     const cachedEntry = databaseInstanceIdCache.get(cacheKey);
     if (cachedEntry?.instanceId) {
-        return {
-            instanceId: cachedEntry.instanceId,
-            source: 'cache',
-            cacheKey,
-        };
+        if (cachedEntry.expiresAt && cachedEntry.expiresAt <= Date.now()) {
+            databaseInstanceIdCache.delete(cacheKey);
+        } else {
+            return {
+                instanceId: cachedEntry.instanceId,
+                source: 'cache',
+                cacheKey,
+            };
+        }
     }
 
     if (cachedEntry?.inflightPromise) {
@@ -661,6 +675,7 @@ export async function getDatabaseInstanceId(options?: {
         const instanceId = await inflightPromise;
         databaseInstanceIdCache.set(cacheKey, {
             instanceId,
+            expiresAt: Date.now() + DATABASE_INSTANCE_ID_CACHE_TTL_MS,
         });
         return {
             instanceId,
