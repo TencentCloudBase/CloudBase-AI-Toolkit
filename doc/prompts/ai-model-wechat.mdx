@@ -69,12 +69,13 @@ Use this skill for **calling AI models in WeChat Mini Program** using `wx.cloud.
 
 ## ⛔ STOP — `wx.cloud.extend.AI.createModel(provider)` argument is **not** a vendor / model name
 
-Read this before writing any `createModel(...)` line. Agents frequently hallucinate this argument. There are **exactly three** legal shapes. Anything else is a bug.
+Read this before writing any `createModel(...)` line. Agents frequently hallucinate this argument. There are **exactly four** legal shapes. Anything else is a bug.
 
 | ✅ Legal `createModel(provider)` argument | When to use it |
 |-----------------------------------------|----------------|
-| `"hunyuan-exp"` | The Mini Program **成长计划** (`ai_miniprogram_inspire_plan`) is enrolled for the current env. Default model: `hunyuan-2.0-instruct-20251111`. |
-| `"cloudbase"` | Default fallback. Main managed group (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field**, e.g. `{ model: "deepseek-v4-flash" }`. |
+| `"cloudbase"` | **Default, including 小程序成长计划.** Main managed group (TokenHub-backed, multi-vendor pool). Growth Plan quota draws on `cloudbase` + `hy3` — enable `hy3` first. Vendor + concrete model go into the **`model` field**, e.g. `{ model: "deepseek-v4-flash" }`. |
+| `"hunyuan-v3"` | **Legacy plan group, being retired.** Only `hy3` is available and no new models are added. Existing plan-enrolled code keeps working; new code uses `cloudbase` + `hy3`. |
+| `"hunyuan-exp"` | Older legacy builtin group — only if `DescribeAIModels` still returns it. Its default `hunyuan-2.0-instruct-20251111` went **offline on 2026-05-31**; never target that id. |
 | `"custom-<your-name>"` | A user-defined GroupName you onboarded via `CreateAIModel`. **Must** start with `custom-` (e.g. `custom-kimi`, `custom-openai-compat`). |
 
 ### ❌ Do NOT write any of these — they are all wrong
@@ -92,10 +93,10 @@ wx.cloud.extend.AI.createModel(modelName)                    // wrong — do not
 ### ✅ Correct pattern — provider vs model are two different fields
 
 ```js
-// Growth Plan branch
-const model = wx.cloud.extend.AI.createModel("hunyuan-exp"); // ← provider / GroupName
+// Growth Plan branch (enable hy3 in the console first)
+const model = wx.cloud.extend.AI.createModel("cloudbase"); // ← provider / GroupName
 await model.streamText({
-  data: { model: "hunyuan-2.0-instruct-20251111", messages: [...] }  // ← concrete model id
+  data: { model: "hy3", messages: [...] }  // ← concrete model id
 });
 
 // Token Credits branch
@@ -108,8 +109,8 @@ await model.streamText({
 ### Decision procedure (when the user names a specific model)
 
 1. The user says "use DeepSeek v3.2" / "use hunyuan thinking" / "use Kimi k2.6" / …
-2. First run the eligibility decision tree below — the correct `provider` may be `"hunyuan-exp"` (if the env is on Growth Plan and the user asked for a `hunyuan-*` model) or `"cloudbase"` (anything else in the managed catalog).
-3. Put the model id into the **`model` field** inside `data`: `{ model: "deepseek-v3.2" }`, `{ model: "hunyuan-2.0-instruct-20251111" }`, `{ model: "kimi-k2.6" }`, …
+2. First run the eligibility decision tree below — the provider is `"cloudbase"` in almost every case, including Growth Plan environments (`cloudbase` + `hy3`). `"hunyuan-v3"` only appears in existing code that already used it; `"hunyuan-exp"` only if `DescribeAIModels` still returns that older group.
+3. Put the model id into the **`model` field** inside `data`: `{ model: "deepseek-v3.2" }`, `{ model: "hy3" }`, `{ model: "kimi-k2.6" }`, …
 4. Before using the model id, make sure it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If not, enable it via `UpdateAIModel`.
 
 > If you are about to type `wx.cloud.extend.AI.createModel(` and the thing inside the parentheses is a vendor name or a model id — **stop**. It is almost certainly one of the three legal values above.
@@ -122,7 +123,7 @@ You MUST NOT jump straight into `wx.cloud.extend.AI.createModel(...)`. Before wr
 
 ### Preflight ① · Billing Eligibility (two parallel billing paths)
 
-The Mini Program side has two billing paths: **小程序成长计划** (checked first; if enrolled, use `hunyuan-exp`) and **Token Credits 资源包** (generic fallback; if available, use the `cloudbase` main managed group).
+The Mini Program side has two billing paths: **小程序成长计划** (checked first) and **Token Credits 资源包** (generic fallback). Both settle through the `cloudbase` main managed group — on the plan, the model is `hy3` and the plan quota is drawn first; `hunyuan-v3` is the legacy plan group that only draws plan quota and is being retired.
 
 1. Fetch `envId` via the MCP tool `queryEnv action=info`.
 
@@ -130,8 +131,8 @@ The Mini Program side has two billing paths: **小程序成长计划** (checked 
 
 | User intent | Eligibility to check first | `createModel` provider on hit | Model selection | Guidance on miss |
 |-------------|----------------------------|-------------------------------|-----------------|------------------|
-| No model specified / default call | Check **小程序成长计划** enrollment first; if not enrolled, fall back to Token Credits resource pack | Enrolled: `"hunyuan-exp"`; otherwise: `"cloudbase"` | Enrolled: `hunyuan-2.0-instruct-20251111` (the 成长计划 default). Otherwise: pick a text model with the user, then verify/enable it in the `"cloudbase"` group via `DescribeAIModels` → `DescribeManagedAIModelList` → `UpdateAIModel` | Plan not enrolled → point to `https://docs.cloudbase.net/ai/ai-inspire-plan`; resource pack missing → purchase link |
-| User requests a `hunyuan-*` model | **小程序成长计划** enrollment | `"hunyuan-exp"` (plan-exclusive Token pack billing) | `hunyuan-2.0-instruct-20251111` if present; otherwise verify via `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]` and `UpdateAIModel` to enable | Not enrolled → enroll first, or switch to `"cloudbase"` + a non-hunyuan model |
+| No model specified / default call | Check **小程序成长计划** enrollment first; if not enrolled, fall back to Token Credits resource pack | `"cloudbase"` in both cases | Enrolled: `hy3` (the 成长计划 text model — enable it in the `"cloudbase"` group first). Otherwise: pick a text model with the user, then verify/enable it in the `"cloudbase"` group via `DescribeAIModels` → `DescribeManagedAIModelList` → `UpdateAIModel` | Plan not enrolled → point to `https://docs.cloudbase.net/ai/ai-inspire-plan`; resource pack missing → purchase link |
+| User requests a `hunyuan-*` model | **小程序成长计划** enrollment | `"cloudbase"` (+ `hy3` for the plan quota) | Verify the exact `Model` in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]` and enable it via `UpdateAIModel` if missing | Enrolled but the model is missing → enable it; not enrolled → point to the plan page, or use `"cloudbase"` + the resource pack |
 | User requests `deepseek-*` / `glm-*` / `kimi-*` / `minimax-*` / other non-hunyuan managed models | **Token Credits 资源包** activation | `"cloudbase"` | Do NOT assume the model is already enabled. `DescribeAIModels` → if missing, `DescribeManagedAIModelList` for the canonical `Model` string → `UpdateAIModel` with `Status: 1` (full-replacement `Models[]`) | Resource pack not activated → purchase link |
 | User requests a third-party / self-hosted (non-managed) model | Skip billing eligibility and go to "Custom onboarding" | Custom GroupName (must start with `custom-`) | Registered via `CreateAIModel.Models[]` | Offer both console + `CreateAIModel` paths |
 
@@ -147,7 +148,7 @@ callCloudApi({
 })
 ```
 
-**Hit criterion:** the response's `attendRecords` contains at least one entry where `activityName === "ai_miniprogram_inspire_plan"` and `envId` matches the current environment. On hit, default to `createModel("hunyuan-exp")` + `hunyuan-2.0-instruct-20251111`; billing uses the plan-exclusive Token pack `pkg_hunyuan_token_la_inspire_100m`.
+**Hit criterion:** the response's `attendRecords` contains at least one entry where `activityName === "ai_miniprogram_inspire_plan"` and `envId` matches the current environment. On hit, use `createModel("cloudbase")` + `model: "hy3"` (enable `hy3` in the group first); the call draws the plan's free quota. Legacy code on `createModel("hunyuan-v3")` + `hy3` still works but that group is being retired — migrate it to `cloudbase`.
 
 ⚠️ **The gifted Token is source-scoped.** It applies to **Mini Program client calls** and **administrator-identity calls** (console playground, calls made inside a cloud function) only. A call from any other origin does not draw on it and settles against the environment's resource-point pool instead — which is what a user sees as "the Token pack did not apply, resource points were charged". When a report sounds like that, check the call origin before touching the code or the model config. Same rule for the Token Credits pack path below.
 
@@ -175,7 +176,7 @@ https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType
 
 ### Preflight ② · Group Readiness (mandatory for every Mini Program AI call)
 
-Passing eligibility does not mean the target model is callable. **No model is enabled by default** in the `"cloudbase"` main managed group — you must first call `DescribeAIModels` to see what is enabled, then (if missing) `DescribeManagedAIModelList` for the authoritative supported-model catalog and `UpdateAIModel` with `Status: 1` to enable it. The `"hunyuan-exp"` group's readiness is driven by 成长计划 enrollment — enrollment alone makes `hunyuan-2.0-instruct-20251111` available, but any other hunyuan SKU still has to be checked against `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]` and enabled via `UpdateAIModel` if missing.
+Passing eligibility does not mean the target model is callable. **No model is enabled by default** in the `"cloudbase"` main managed group — you must first call `DescribeAIModels` to see what is enabled, then (if missing) `DescribeManagedAIModelList` for the authoritative supported-model catalog and `UpdateAIModel` with `Status: 1` to enable it. Growth Plan enrollment does not skip this check: `hy3` must still be present and enabled in the `cloudbase` group. Legacy `"hunyuan-v3"` exposes only `hy3` and is being retired — treat it as read-only compatibility, not the default.
 
 1. Query the groups and switches currently configured in the environment (`tcb` Action `DescribeAIModels`, Version `2018-06-08`):
 
@@ -220,11 +221,13 @@ callCloudApi({
 
 The `provider` argument of `wx.cloud.extend.AI.createModel(provider)` equals the `GroupName` returned by `DescribeAIModels`. Only three kinds of values are legal. Run the decision tree before choosing.
 
-### A. 小程序成长计划 exclusive (default when enrolled)
+### A. 小程序成长计划 (default when enrolled) — provider is `cloudbase`, model is `hy3`
 
 | createModel provider | Default model | Other available models | Notes |
 |----------------------|---------------|------------------------|-------|
-| `"hunyuan-exp"` | `hunyuan-2.0-instruct-20251111` | Additional hunyuan SKUs (e.g. instruct / thinking / turbos / role variants) — **query at runtime** via `DescribeAIModels({ GroupName: "hunyuan-exp" }).Models[]`, do NOT hard-code | Legacy `Type=builtin` GroupName; billed via `pkg_hunyuan_token_la_inspire_100m`; do NOT use without 成长计划 enrollment |
+| `"cloudbase"` | `hy3` | Whatever else the env has enabled in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]` — query at runtime, do NOT hard-code | Plan quota draws first when the call origin allows it; enable `hy3` via `UpdateAIModel` before the first call |
+| `"hunyuan-v3"` | `hy3` | None — this group only exposes `hy3` | Legacy plan group, being retired. Existing code works; migrate to `cloudbase` + `hy3` |
+| `"hunyuan-exp"` | — | Whatever the env still returns | Older legacy builtin. Its original default `hunyuan-2.0-instruct-20251111` is offline (2026-05-31) — do not target it |
 
 ### B. Main managed group (Token Credits pack scenario, recommended default)
 
@@ -244,7 +247,7 @@ Models involving third-party / self-hosted / OpenAI-compatible endpoints (anythi
 
 ## Custom Onboarding (when not in the managed catalog)
 
-When the user specifies a model that is neither in 成长计划 (`hunyuan-exp`) nor in the main managed group (`cloudbase`) catalog (e.g. enterprise-hosted OpenAI-compatible endpoints, third-party model services), pick one of the two paths below. Use neutral phrasing such as "third-party / self-hosted / OpenAI-compatible endpoint" — **do not name specific competitor brands**.
+When the user specifies a model that is not in the main managed group (`cloudbase`) catalog (e.g. enterprise-hosted OpenAI-compatible endpoints, third-party model services), pick one of the two paths below. Use neutral phrasing such as "third-party / self-hosted / OpenAI-compatible endpoint" — **do not name specific competitor brands**.
 
 **Path 1 · Register in the console**
 
@@ -314,13 +317,13 @@ App({
 
 ⚠️ **Different from JS/Node SDK:** the return value is the raw model response.
 
-> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed **and** the target model has been confirmed enabled via `DescribeAIModels` (or enabled via `UpdateAIModel` if missing). The example below assumes the current environment is enrolled in 小程序成长计划 and uses `createModel("hunyuan-exp")` + `hunyuan-2.0-instruct-20251111`. If the eligibility branch landed on the resource pack, swap the provider to `"cloudbase"` and set the `model` to whatever the user chose and you have just enabled via `UpdateAIModel` — never assume `deepseek-v4-flash` is already on.
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed **and** the target model has been confirmed enabled via `DescribeAIModels` (or enabled via `UpdateAIModel` if missing). The example below assumes the current environment is enrolled in 小程序成长计划 and uses `createModel("cloudbase")` + `hy3`. If the target is a different managed model, keep the provider and set the `model` to whatever the user chose and you have just enabled via `UpdateAIModel` — never assume `deepseek-v4-flash` is already on.
 
 ```js
-const model = wx.cloud.extend.AI.createModel("hunyuan-exp");
+const model = wx.cloud.extend.AI.createModel("cloudbase");
 
 const res = await model.generateText({
-  model: "hunyuan-2.0-instruct-20251111",  // plan-enrolled default
+  model: "hy3",  // plan-enrolled default
   messages: [{ role: "user", content: "hi" }],
 });
 
@@ -335,15 +338,15 @@ console.log(res.usage);                        // token usage
 
 ⚠️ **Different from JS/Node SDK:** parameters MUST be wrapped in a `data` object; callbacks are supported.
 
-> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed and the target model has been enabled. The example below uses the 成长计划 branch; for the resource pack branch, swap `createModel("hunyuan-exp")` to `createModel("cloudbase")` and the `model` to whatever the user chose and you have just enabled via `UpdateAIModel` (no model is enabled by default).
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed and the target model has been enabled. The example below uses the 成长计划 branch (`cloudbase` + `hy3`); for another managed model, keep the provider and set the `model` to whatever the user chose and you have just enabled via `UpdateAIModel` (no model is enabled by default).
 
 ```js
-const model = wx.cloud.extend.AI.createModel("hunyuan-exp");
+const model = wx.cloud.extend.AI.createModel("cloudbase");
 
 // ⚠️ Parameters MUST be wrapped in a `data` object
 const res = await model.streamText({
   data: {                              // ⚠️ Required wrapper
-    model: "hunyuan-2.0-instruct-20251111",  // plan-enrolled default
+    model: "hy3",  // plan-enrolled default
     messages: [{ role: "user", content: "hi" }]
   },
   onText: (text) => {                  // Optional: incremental text callback
@@ -470,9 +473,9 @@ interface WxGenerateTextResponse {
 ## Best Practices
 
 1. **Run the two-step preflight before writing business code.** Fixed order: ① `DescribeActivityInfo` / `DescribeEnvPostpayPackage` for billing eligibility → ② `DescribeAIModels` for group readiness (if needed, `DescribeManagedAIModelList` for catalog + pricing, then `UpdateAIModel` to enable the target model). Only after both pass should you write `wx.cloud.extend.AI.createModel(...)`.
-2. **`createModel(provider)` accepts only three kinds of values** — `"hunyuan-exp"` (成长计划 exclusive legacy group), `"cloudbase"` (main managed group, default for new projects), or the custom-onboarding `GroupName` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`, to avoid colliding with built-in / vendor names). **Never** write `createModel("deepseek")` (unless `DescribeAIModels` truly returns a legacy builtin group named `deepseek`), `createModel("hunyuan")`, `createModel("kimi")`, or `createModel("custom")` — these are model/vendor names or placeholders, not GroupNames.
+2. **`createModel(provider)` accepts only four kinds of values** — `"cloudbase"` (main managed group, default for new projects and for 成长计划), `"hunyuan-v3"` (legacy plan group, only `hy3`, being retired), `"hunyuan-exp"` (older legacy builtin), or the custom-onboarding `GroupName` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`, to avoid colliding with built-in / vendor names). **Never** write `createModel("deepseek")` (unless `DescribeAIModels` truly returns a legacy builtin group named `deepseek`), `createModel("hunyuan")`, `createModel("kimi")`, or `createModel("custom")` — these are model/vendor names or placeholders, not GroupNames.
 3. **The `model` field must come from `DescribeAIModels`.** Pass a value that actually exists in the `Models[].Model` list of the chosen group. The main managed group only has `deepseek-v4-flash` enabled by default; to use others, call `UpdateAIModel` first.
-4. **Hunyuan models are strictly bound to 成长计划.** To use a `hunyuan-*` model, the 成长计划 must be enrolled. When not enrolled, guide the user to `https://docs.cloudbase.net/ai/ai-inspire-plan`, or switch to `"cloudbase"` + `deepseek-v4-flash`. Do not bypass the check and call anyway.
+4. **The plan quota is bound to 成长计划, not to a group name.** Enrolled environments draw the free quota through `cloudbase` + `hy3`; `hunyuan-v3` (only `hy3`) still draws it too but is being retired. When not enrolled, guide the user to `https://docs.cloudbase.net/ai/ai-inspire-plan`, or use `"cloudbase"` + a managed model under the resource pack.
 5. **Check pricing before enabling more models.** `DescribeManagedAIModelList` returns `ModelChargingInfo` (`Uniform` flat price / `Tiered` tiered pricing) + `ModelSpec.ContextLength`. Confirm before calling `UpdateAIModel`. `Models` is a **full replacement** — merge the old list + the new entry before passing.
 6. **Check base library version.** 3.7.1+ is required; on older versions `wx.cloud.extend.AI` is `undefined` — do not debug it as a model issue.
 7. **Use callbacks for UI updates.** `onText` is well-suited for progressively refreshing chat bubbles; manually concatenating from `eventStream` tends to drop separators.
