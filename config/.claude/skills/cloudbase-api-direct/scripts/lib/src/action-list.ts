@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 152
+ * Action 数量: 147
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -33,7 +33,6 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'CreateStaticStore',
   'CreateTable',
   'CreateUser',
-  'CreateUserKey',
   'DeleteAIModel',
   'DeleteApiKey',
   'DeleteAuthDomain',
@@ -46,7 +45,6 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DeletePlatformHTTPServiceRoute',
   'DeleteProvider',
   'DeleteTable',
-  'DeleteUserKey',
   'DeleteUsers',
   'DescribeAIModels',
   'DescribeApiKeyList',
@@ -111,9 +109,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DownloadFunction',
   'ExecutePGSql',
   'GetFunction',
-  'GetOneUserKey',
   'GetProviders',
-  'GetUserKeyList',
   'ListFunctions',
   'ListPGUserMigrations',
   'ListTables',
@@ -156,7 +152,6 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'UpdateFunctionCode',
   'UpdateFunctionConfiguration',
   'UpdateTable',
-  'UpdateUserKey',
   'UpgradePGInstanceToDedicated',
   'VerifyHTTPServiceRoute',
   'VerifyPlatformHTTPServiceRoute',

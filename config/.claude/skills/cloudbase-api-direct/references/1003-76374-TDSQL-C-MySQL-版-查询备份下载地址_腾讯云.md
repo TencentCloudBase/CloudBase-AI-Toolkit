@@ -1,6 +1,6 @@
 ## 查询备份下载地址
 
-最近更新时间：2025-09-12 01:53:44
+最近更新时间：2026-10-26 01:55:09
 
 -   微信扫一扫 
 -   QQ
@@ -35,17 +35,31 @@ API Explorer 提供了在线调用、签名验证、SDK 代码生成和快速检
 | Action | 是 | String | [公共参数](/document/api/1003/48100) ，本接口取值：DescribeBackupDownloadUrl。 |
 | Version | 是 | String | [公共参数](/document/api/1003/48100) ，本接口取值：2019-01-07。 |
 | Region | 是 | String | [公共参数](/document/api/1003/48100) ，详见产品支持的 [地域列表](/document/api/1003/48100#.E5.9C.B0.E5.9F.9F.E5.88.97.E8.A1.A8) ，本接口仅支持其中的: ap-bangkok, ap-beijing, ap-chengdu, ap-chongqing, ap-guangzhou, ap-hongkong, ap-jakarta, ap-nanjing, ap-seoul, ap-shanghai, ap-shenzhen-fsi, ap-singapore, ap-tokyo, eu-frankfurt, na-ashburn, na-siliconvalley, sa-saopaulo 。 |
-| ClusterId | 是 | String | 集群ID  
+| ClusterId | 是 | String | 
+集群ID
+
+  
 示例值：cynosdbmysql-mwg7121e |
-| BackupId | 是 | Integer | 备份ID  
+| BackupId | 是 | Integer | 
+
+备份ID
+
+  
 示例值：1883726 |
-| DownloadRestriction | 否 | [BackupLimitRestriction](/document/api/1003/48097#BackupLimitRestriction) | 备份下载来源限制条件 |
+| DownloadRestriction | 否 | [BackupLimitRestriction](/document/api/1003/48097#BackupLimitRestriction) | 
+
+备份下载来源限制条件
+
+ |
 
 ## 3\. 输出参数
 
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
-| DownloadUrl | String | 备份下载地址  
+| DownloadUrl | String | 
+备份下载地址
+
+  
 示例值：https://ncdb-bj-pitr-1258\*\*\*699.cos.ap-beijing.myqcloud.com/cynosdb/data/mysqldump/\*\*\*\*9fd2-691a-11ef-b99a-b02628437590/2024-10-28/1879681/data\_backup\_1879681\_20241028022147.xb?q-sign-algorithm=sha1&q-ak=\*\*\*\*\*\*\*\*\*\*\*\*&q-sign-time=1730079993%3B1730123193 |
 | RequestId | String | 唯一请求 ID，由服务端生成，每次请求都会返回（若请求因其他原因未能抵达服务端，则该次请求不会获得 RequestId）。定位问题时需要提供该次请求的 RequestId。 |
 
