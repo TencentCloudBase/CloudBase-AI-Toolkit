@@ -77,7 +77,7 @@ await model.streamText({
 3. Put the model id into the **`model` field** inside `data`: `{ model: "deepseek-v3.2" }`, `{ model: "hy3" }`, `{ model: "kimi-k2.6" }`, …
 4. Before using the model id, make sure it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If not, enable it via `UpdateAIModel`.
 
-> If you are about to type `wx.cloud.extend.AI.createModel(` and the thing inside the parentheses is a vendor name or a model id — **stop**. It is almost certainly one of the three legal values above.
+> If you are about to type `wx.cloud.extend.AI.createModel(` and the thing inside the parentheses is a vendor name or a model id — **stop**. It is almost certainly one of the four legal values above.
 
 ---
 
@@ -183,7 +183,7 @@ callCloudApi({
 
 ## Available Providers and Models
 
-The `provider` argument of `wx.cloud.extend.AI.createModel(provider)` equals the `GroupName` returned by `DescribeAIModels`. Only three kinds of values are legal. Run the decision tree before choosing.
+The `provider` argument of `wx.cloud.extend.AI.createModel(provider)` equals the `GroupName` returned by `DescribeAIModels`. Only the four kinds of values below are legal. Run the decision tree before choosing.
 
 ### A. 小程序成长计划 (default when enrolled) — provider is `cloudbase`, model is `hy3`
 
