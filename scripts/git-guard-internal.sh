@@ -35,12 +35,12 @@
 set -uo pipefail
 
 # 白名单：按路径前缀放行
-#   - npm-supply-chain-security-hardening: AGENTS.md 供应链安全章节强制引用
 #   - .codebuddy/skills: 指向 .agents/skills 的软链投影，与 .claude/skills 对称
 # 注：plugin-marketplace-listing 已于 2026-10-21 整体退出公开仓（渠道 BD 台账，不对外），
 #     不再放行；分析器无数据时干净跳过。
+#     npm-supply-chain-security-hardening 的指南已于 2026-10-27 并入 AGENTS.md，
+#     specs/ 从此零例外。
 WHITELIST=(
-  "specs/npm-supply-chain-security-hardening/"
   ".codebuddy/skills/"
 )
 
@@ -120,7 +120,7 @@ echo "" >&2
 echo "   2. 确认这些文件已不再是 tracked（旧 worktree 常见）：" >&2
 echo "" >&2
 echo "        git rm -r --cached specs/ .workbuddy/ .cursor/plans/ .codebuddy/" >&2
-echo "        git add specs/npm-supply-chain-security-hardening .codebuddy/skills" >&2
+echo "        git add .codebuddy/skills" >&2
 echo "" >&2
 echo "   3. 需要归档或查阅历史内容 —— 完整同步/获取命令见仓库根目录" >&2
 echo "      AGENTS.md 的 <internal_dirs> 段。若本地 AGENTS.md 是旧版本（worktree" >&2
@@ -128,8 +128,7 @@ echo "      基于旧 main），直接读 origin/main 上的那份：" >&2
 echo "" >&2
 echo "        git show origin/main:AGENTS.md | grep -A 30 '<internal_dirs>'" >&2
 echo "" >&2
-echo "   4. 白名单目录（specs/npm-supply-chain-security-hardening /" >&2
-echo "      .codebuddy/skills）不受此限制，可正常提交。" >&2
+echo "   4. 白名单目录仅 .codebuddy/skills 一条，不受此限制。" >&2
 echo "      docs/ 下的对外文档不受此限制；内部工作件请放 specs/ 或本地归档。" >&2
 echo "" >&2
 echo "   确需强行放行（不推荐）：LEFTHOOK=0 git commit ..." >&2

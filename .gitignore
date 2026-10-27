@@ -112,8 +112,8 @@ config/codebuddy-plugin/skills/
 dist/
 
 # Specs: internal requirement / design / task docs (git 历史之外不再入库，私有归档另存)
+# 无白名单例外：供应链安全指南已并入 AGENTS.md <supply_chain_security> 段
 specs/*
-!specs/npm-supply-chain-security-hardening/
 
 # plugin-marketplace-listing 整体退出公开仓（2026-10-21）：
 # 它是渠道 BD 的工作台账 —— 谁拒了我们、申请卡在哪、等谁回、自己哪里没做到。

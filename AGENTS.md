@@ -52,7 +52,7 @@ alwaysApply: true
    - config 用来给 AI IDE 提供的规则和 mcp 预设配置
    - tests 自动化测试
    - skills 项目级 skills 源目录
-   - specs 需求/设计/任务文档（**本地目录，不提交到公开仓库**。含内部信息，仅保留 `plugin-marketplace-listing/` 与 `npm-supply-chain-security-hardening/` 两个被代码或规范依赖的子目录；完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`）
+   - specs 需求/设计/任务文档（**本地目录，不提交到公开仓库**，无例外子目录。含内部信息，完整历史归档在私有仓库 `cloudbase-mcp-specs-archive`）
 
 2. AGENTS 文件约定
    - `AGENTS.md` 为项目及子目录的唯一可信源
@@ -95,7 +95,7 @@ alwaysApply: true
 | `.cursor/plans/` | Cursor 的计划文件 | IDE 本地状态；正文里带本机绝对路径与未公开的计划内容 |
 | `.codebuddy/` | IDE 本地状态：`automations/`、`artifacts/`、`settings.local.json` | 同上；`artifacts/` 里是内部审视与改稿提案 |
 
-`specs/` 里仅 `specs/npm-supply-chain-security-hardening/` 一个被规范依赖的子目录留在仓库里，其余全部忽略（`specs/plugin-marketplace-listing/` 是渠道 BD 台账，2026-10-21 起整体退出公开仓）。`.workbuddy/` 全量忽略。`.codebuddy/` 里只有 `skills/`（指向 `.agents/skills` 的软链投影，与 `.claude/skills` 对称）入库。`.cursor/rules/` 是项目规范，同样有意保留。
+`specs/` 全量忽略、无例外：`plugin-marketplace-listing/` 是渠道 BD 台账，2026-10-21 整体退出；`npm-supply-chain-security-hardening/` 的指南已于 2026-10-27 并入本文件 `<supply_chain_security>` 段，spec 目录随之删除。`.workbuddy/` 全量忽略。`.codebuddy/` 里只有 `skills/`（指向 `.agents/skills` 的软链投影，与 `.claude/skills` 对称）入库。`.cursor/rules/` 是项目规范，同样有意保留。
 
 `docs/` 走的是相反的白名单：只放对外文档（`enterprise-auth-with-feishu.md`、`research-codex-plugin-enterprise-auth.md`），其余一律当内部工作件——门禁报告、platform-kit spec 与能力对齐表都在此列。`dsh-plugin/community/SUBMISSION.md`、`dsh-plugin/scripts/t9-results.md`、`mcp/scripts/wxide-mcp-e2e-test.md` 三个开发过程记录同理：本地保留、不入库。这几类的门禁由 `scripts/git-guard-internal.sh` 与 CI 的 Internal Docs Guard 同时把关。
 
@@ -316,16 +316,21 @@ CI（`nightly-build.yaml` / `npm-publish.yaml` 等）统一使用 `pnpm install 
 <supply_chain_security>
 # npm 供应链安全（必须遵守）
 
-本项目因 MCP Server + 大规模 AI IDE 技能分发特性，是 npm 供应链攻击的高价值目标。
+本项目因 MCP Server + 大规模 AI IDE 技能分发特性，是 npm 供应链攻击的高价值目标。手段参考 Supabase 的
+npm 供应链攻击分析：https://supabase.com/blog/protecting-your-supabase-projects-from-npm-supply-chain-attacks
 
 **强制规则：**
 - 安全敏感依赖（`@cloudbase/*`、`@modelcontextprotocol/sdk`、express、ws、zod 等 runtime 核心）**必须使用精确版本**（禁止 `^` / `~`）。
 - 所有 GitHub Actions 引用**必须 pin 到完整 40 字符 commit SHA**（禁止浮动 tag 如 `@v4`、`@beta`）。
-- 修改 `package.json`、`pnpm-workspace.yaml`、`.npmrc` 或 workflow 时，必须参考内部详细指南。
 - 优先使用 `corepack + pnpm` 进行依赖管理（已配置 `packageManager` 字段）。
+- 根 `.npmrc` 的 `ignore-scripts=true` 与 `pnpm-workspace.yaml` 的 `minimumReleaseAge` 是基线防护，**不得为了装包方便移除**。确有安装脚本需求时只对单个包显式放开，并在 PR 里写明是哪个包、为什么。
 
-**详细内部文档（含当前状态、AI Agent 审计 Prompt、防护措施）：**
-`specs/npm-supply-chain-security-hardening/npm-security.md`
+**动依赖或 CI 之前，先自查这五条：**
+1. Actions 是否 pin 到 40 字符 SHA（无 `@v4`、`@beta`、`@latest`）
+2. `.npmrc` 的 `ignore-scripts` / `min-release-age` 是否还在
+3. 敏感依赖是否被改成了 `^` / `~`
+4. 是否引入 `pull_request_target` + checkout PR 代码、未固定版本的全局安装等模式
+5. 改了 `packageManager` / `.npmrc` / `pnpm-workspace.yaml` 后，是否重新生成了 `pnpm-lock.yaml`
 
-任何涉及依赖或 CI 的变更，在开始前都应先阅读该文档。
+命中任何一条都要在 PR 里说明理由，供人工 review。
 </supply_chain_security>

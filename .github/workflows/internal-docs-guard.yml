@@ -81,12 +81,12 @@ jobs:
           )
 
           # 白名单：按前缀放行
-          #   - npm-supply-chain-security-hardening: AGENTS.md 强制引用的供应链安全规范
           #   - .codebuddy/skills: 指向 .agents/skills 的软链投影，与 .claude/skills 对称，有意入库
           # 注：plugin-marketplace-listing 已于 2026-10-21 整体退出公开仓（BD 台账，不对外），
           #     不再列入白名单；分析器在数据缺失时按「无矩阵」干净跳过。
+          #     npm-supply-chain-security-hardening 的指南已于 2026-10-27 并入 AGENTS.md，
+          #     specs/ 从此零例外。
           WHITELIST=(
-            "specs/npm-supply-chain-security-hardening/"
             ".codebuddy/skills/"
           )
 
@@ -151,7 +151,7 @@ jobs:
           echo "  1. Unstage and untrack them (local files are kept):"
           echo "       git restore --staged specs/ .workbuddy/ .cursor/plans/ .codebuddy/"
           echo "       git rm -r --cached specs/ .workbuddy/ .cursor/plans/ .codebuddy/"
-          echo "       git add specs/npm-supply-chain-security-hardening .codebuddy/skills"
+          echo "       git add .codebuddy/skills"
           echo ""
           echo "  2. If you are working in a worktree branched off an older main, merge or"
           echo "     rebase onto current main first so .gitignore and lefthook.yml pick up"
