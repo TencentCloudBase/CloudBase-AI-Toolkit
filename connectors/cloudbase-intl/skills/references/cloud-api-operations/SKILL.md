@@ -1,6 +1,6 @@
 ---
 name: cloud-api-operations
-description: Operate Tencent Cloud control-plane resources (monitoring/alarms, CLB, CAM roles, COS, MySQL, SCF) via cloud APIs when no dedicated MCP tool covers the task. Use when a task needs control-plane operations beyond CloudBase's own tooling, or when a callCloudApi call failed and needs classifying Also covers enterprise platform integration: wrapping CloudBase MCP into an organization-specific MCP (tool trimming, dangerous-action interception, per-user API Key distribution, audit) — use when the user mentions 企业接入 / 封装 MCP / 企业专属 MCP / 多租户凭证下发 / platform MCP wrapping. See recipes/enterprise-mcp-wrapper.md.
+description: "Operate Tencent Cloud control-plane resources (monitoring/alarms, CLB, CAM roles, COS, MySQL, SCF) via cloud APIs when no dedicated MCP tool covers the task. Use when a task needs control-plane operations beyond CloudBase's own tooling, or when a callCloudApi call failed and needs classifying. Also covers enterprise platform integration: wrapping CloudBase MCP into an organization-specific MCP (tool trimming, dangerous-action interception, per-user API Key distribution, audit) — use when the user mentions 企业接入 / 封装 MCP / 企业专属 MCP / 多租户凭证下发 / platform MCP wrapping. See recipes/enterprise-mcp-wrapper.md."
 version: 2.36.1
 license: MIT
 ---
