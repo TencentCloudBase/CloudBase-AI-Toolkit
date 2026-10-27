@@ -1,6 +1,6 @@
 ---
 name: relational-database-mcp-cloudbase
-description: "[Deprecated] This is the required documentation for agents operating on the CloudBase Relational Database through MCP. It defines the canonical SQL management flow with `queryMysqlDatabase`, `manageMysqlDatabase`, `queryPermissions`, and `managePermissions`, including destroy flow, async status checks, safe query execution, schema initialization, and permission updates. MySQL provisioning is no longer available through MCP; new environments should use PostgreSQL — see postgresql-development skill instead."
+description: "[Deprecated] Existing CloudBase MySQL only. Do not recommend MySQL for new relational work — use postgresql-development. Read this when the environment already has a MySQL instance and the task is queryMysqlDatabase, manageMysqlDatabase, queryPermissions, or managePermissions (inspect, write SQL, schema, permissions, destroy). Do not provision MySQL."
 version: 2.36.1
 license: MIT
 alwaysApply: false
@@ -19,7 +19,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- The agent must inspect SQL data, execute SQL statements, destroy an existing MySQL instance, initialize table structure, or manage table security rules through MCP tools.
+- The environment **already has** a CloudBase MySQL instance, and the agent must inspect that instance, run SQL, change schema, manage table security rules, or destroy it through MCP.
+- Do **not** choose this skill for a new relational database. New relational work uses `postgresql-development-cloudbase`.
 
 ### Read before writing code if
 

@@ -1,6 +1,8 @@
 # MySQL Database Operations (`tcb db`)
 
-Execute SQL, manage instances, backups, and slow queries for CloudBase MySQL via `tcb db` commands.
+Existing CloudBase MySQL instances only. Do not recommend MySQL for a new relational database — use `../postgresql-development-cloudbase/SKILL.md`.
+
+Execute SQL, manage instances, backups, and slow queries for an environment that already has CloudBase MySQL, via `tcb db` commands.
 
 ⚠️ MySQL commands live under **`tcb db ...`** (NOT `tcb db mysql ...`). Don't confuse with `tcb db nosql ...` (NoSQL).
 

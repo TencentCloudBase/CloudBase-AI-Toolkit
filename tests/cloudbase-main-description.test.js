@@ -75,7 +75,7 @@ describe('cloudbase main skill activation description', async () => {
     },
     {
       name: 'Database',
-      terms: ['NoSQL', 'MySQL', '文档数据库', '关系型数据库', 'CRUD', '查询', 'security rules'],
+      terms: ['NoSQL', '文档数据库', 'PostgreSQL', 'MySQL', 'CRUD', '查询', 'security rules'],
       minHits: 4,
     },
     {

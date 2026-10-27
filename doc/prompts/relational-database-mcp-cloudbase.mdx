@@ -51,7 +51,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- The agent must inspect SQL data, execute SQL statements, destroy an existing MySQL instance, initialize table structure, or manage table security rules through MCP tools.
+- The environment **already has** a CloudBase MySQL instance, and the agent must inspect that instance, run SQL, change schema, manage table security rules, or destroy it through MCP.
+- Do **not** choose this skill for a new relational database. New relational work uses `postgresql-development-cloudbase`.
 
 ### Read before writing code if
 

@@ -16,6 +16,6 @@ Use this index after `postgresql-development/SKILL.md` identifies the task as Cl
 
 - PG business data uses `app.rdb().from(...)`, `queryPgDatabase`, and `managePgDatabase`.
 - Realtime (`app.realtime()`, broadcast / presence / postgres_changes) is a **different module** from document-database `collection.watch()`. Probe the environment first — see `realtime.md` Step 0.
-- Do not route PG work to NoSQL `app.database()` / `db.collection(...)` or MySQL `queryMysqlDatabase` / `manageMysqlDatabase`.
+- Do not route PG work to NoSQL `app.database()` / `db.collection(...)` or to MySQL `queryMysqlDatabase` / `manageMysqlDatabase`. MySQL skills are for an environment that already has MySQL.
 - Browser code must never contain API Key / `service_role` credentials.
 - For owner fields, prefer `varchar(64)` / `text` with database defaults such as `DEFAULT auth.uid()` and omit the owner field from frontend insert payloads. Remember `auth.uid()` is `text`; cast with `::uuid` only when comparing to an existing `uuid` column.

@@ -1,6 +1,6 @@
 ---
 name: data-model-creation
-description: "[Deprecated] Optional advanced tool for complex data modeling. For simple MySQL table creation, use relational-database-tool directly; for PostgreSQL / CloudBase PG schema work, use postgresql-development. New environments should use PostgreSQL DDL via queryPgDatabase/managePgDatabase — see postgresql-development skill instead."
+description: "[Deprecated] Optional Mermaid classDiagram modeling path. Schema and SQL for PostgreSQL / CloudBase PG go through postgresql-development (queryPgDatabase / managePgDatabase)."
 version: 2.36.1
 license: MIT
 alwaysApply: false
@@ -32,7 +32,6 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Then also read
 
-- Direct MySQL SQL creation or schema change -> `../relational-database-mcp-cloudbase/SKILL.md`
 - PostgreSQL / CloudBase PG schema work -> `../postgresql-development-cloudbase/SKILL.md`
 - Broader feature planning before schema work -> `../spec-workflow/SKILL.md`
 
@@ -60,17 +59,16 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 This skill is an **advanced modeling path**, not the default path for database work.
 
-- For most MySQL database tasks, use `relational-database-mcp-cloudbase` and write SQL directly. If the task says PostgreSQL, CloudBase PG, PG mode, `app.rdb()`, `queryPgDatabase`, `managePgDatabase`, or RLS, use `postgresql-development-cloudbase` instead.
+- For table creation and SQL, use `postgresql-development-cloudbase`.
 - Use this skill only when diagram-driven modeling adds value.
 
 ## Quick routing
 
-### Use `relational-database-mcp-cloudbase` instead when
+### Use `postgresql-development-cloudbase` instead when
 
-- You need MySQL `CREATE TABLE`, `ALTER TABLE`, `INSERT`, `UPDATE`, `DELETE`, or `SELECT`
+- You need `CREATE TABLE`, `ALTER TABLE`, `INSERT`, `UPDATE`, `DELETE`, or `SELECT`
 - The schema is small and already clear
 - The user never asked for a visual model
-- The task does **not** mention PostgreSQL / CloudBase PG / PG mode / `app.rdb()` / `queryPgDatabase` / `managePgDatabase` / RLS
 
 ### Use this skill when
 
@@ -186,4 +184,4 @@ Use `modifyDataModel` with:
 2. Keep the first model iteration small and reviewable.
 3. Separate business entities from implementation-only helper fields.
 4. Validate relationship direction and ownership before publishing.
-5. After modeling, hand off actual MySQL SQL/table work to `relational-database-mcp-cloudbase` when needed. For PostgreSQL / CloudBase PG tables, hand off to `postgresql-development-cloudbase` instead.
+5. After modeling, hand off PostgreSQL / CloudBase PG tables to `postgresql-development-cloudbase`.

@@ -53,8 +53,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- A browser or Web app must access CloudBase Relational Database through `@cloudbase/js-sdk`.
-- The task is specifically about frontend initialization and browser-side query usage.
+- A browser or Web app must keep using `@cloudbase/js-sdk` against an environment that **already has** CloudBase MySQL.
+- Do **not** choose this skill for a new relational app. New relational Web work uses `postgresql-development-cloudbase` and `app.rdb()`.
 
 ### Read before writing code if
 

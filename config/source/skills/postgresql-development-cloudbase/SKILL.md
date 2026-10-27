@@ -19,7 +19,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Use this first when
 
 - The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, or `managePgDatabase`.
-- A Web app or CMS must persist business data in CloudBase PostgreSQL instead of NoSQL or MySQL.
+- A Web app or CMS must persist business data in CloudBase PostgreSQL.
 
 ### Then also read
 
@@ -39,7 +39,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Do NOT use first
 
-- `relational-database-mcp-cloudbase` / `queryMysqlDatabase` / `manageMysqlDatabase`: those are MySQL-oriented.
+- `relational-database-mcp-cloudbase` / `queryMysqlDatabase` / `manageMysqlDatabase` for new relational work. Those skills are only for an environment that already has MySQL.
 - `cloudbase-document-database-web-sdk` / collection APIs for business data that must live in CloudBase PG.
 
 ## Required Flow
@@ -65,7 +65,6 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
    - PG mode is a **new-environment mode** selected when creating a CloudBase environment with PostgreSQL. Do not try to "upgrade" a legacy environment in place; create/select a PG-mode environment instead.
    - If `RuntimeBackends.postgresql === false`, STOP — this is a legacy NoSQL-only env: switch to `cloudbase-document-database-web-sdk` for browser data and `cloud-storage-web` (with `app.uploadFile()`) for uploads. Do not write `app.rdb()` code, do not enable RLS, do not create a pgstore bucket here.
    - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
-   - `RuntimeBackends.mysql === false` is the only hard "do not use" signal: when MySQL is absent, do not use `manageMysqlDatabase` / `queryMysqlDatabase` and do not consult the `relational-database-mcp-cloudbase` skill; those are MySQL-specific and have nothing to do with CloudBase PG.
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
 
 > **Creating a PG-mode environment**
@@ -77,7 +76,7 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 > - **Via Console**: [Create environment](https://console.cloud.tencent.com/tcb/env/create)
 
 1. Inspect the existing app surfaces first: `src/lib/backend.*`, `src/lib/auth.*`, `src/lib/*service.*`, route guards, and the handlers bound to existing forms.
-2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. Do not switch to MySQL tools. For the complete route map, read `references/index.md`.
+2. Check PG state through MCP: use `queryPgDatabase` for schema/read-only inspection and `managePgDatabase` for DDL/DML. For the complete route map, read `references/index.md`.
 3. **Understand PG roles before writing code:** Publishable Key maps to `anon`; a logged-in user's access token maps to `authenticated`; API Key maps to `service_role` and bypasses RLS. Never expose API Key / `service_role` credentials in frontend code. See `references/auth-and-rls.md`.
 4. **Use schema management (`managePgDatabase`) before writing CRUD code.** Schema DDL (CREATE / ALTER / DROP / TRUNCATE) **must** go through the versioned migration workflow — never default to `execute` for table creation. Then apply GRANT + RLS (via `execute` or the same migration SQL bundle) before browser access. The minimum SQL bundle is: `CREATE TABLE`, `GRANT SELECT/INSERT/UPDATE/DELETE TO authenticated`, `GRANT USAGE, SELECT ON SEQUENCE ... TO authenticated` when using `serial`/`bigserial`, `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`, and `CREATE POLICY ... USING / WITH CHECK`. See `references/auth-and-rls.md` for the full template.
 
@@ -300,7 +299,7 @@ Hard rule: never let an upload error be silently swallowed. If `uploadCoverImage
 
 ## HTTP API Fallback
 
-- PG HTTP API is in the CloudBase relational database HTTP API family, together with MySQL. In MCP docs/search this appears under `mysqldb`.
+- PG HTTP API is the CloudBase relational database HTTP API. In MCP docs/search this appears under `mysqldb`.
 - Before writing raw `fetch()` code, query OpenAPI docs: `searchKnowledgeBase(mode="openapi", apiName="mysqldb", query="PostgreSQL fetch insert update rpc")`.
 - Do not construct the REST paths from memory. A guessed path that returns 404 is a hard blocker; read the OpenAPI contract for table endpoints (`fetch` / `insert` / `update` / `delete`).
 - **Database functions (RPC)** are how you perform an atomic server-side operation — a guarded counter, a conditional update, a multi-step write — that a plain REST update cannot express safely. The endpoint is `POST /v1/rdb/rest/rpc/<function>` on the same gateway base as the table endpoints; it is **not** part of the `mysqldb` OpenAPI document, so confirm it with one live call before writing it into code.

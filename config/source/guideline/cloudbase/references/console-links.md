@@ -8,7 +8,8 @@ The CloudBase console changes frequently. If a logged-in console shows a differe
 
 - **Overview (概览)**: `#/overview`
 - **Document Database (文档型数据库)**: `#/db/doc` - Collections: `#/db/doc/collection/${collectionName}`, Models: `#/db/doc/model/${modelName}`
-- **MySQL Database (MySQL 数据库)**: `#/db/mysql` - Tables: `#/db/mysql/table/default/`
+- **PostgreSQL Database (recommended for new relational work)**: `#/db/postgres`
+- **MySQL Database (existing instances only)**: `#/db/mysql` - Tables: `#/db/mysql/table/default/`
 - **Cloud Functions (云函数)**: `#/scf` - Detail: `#/scf/detail?id=${functionName}&NameSpace=${envId}`
 - **CloudRun (云托管)**: `#/platform-run`
 - **Cloud Storage (云存储)**: `#/storage`

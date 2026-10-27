@@ -59,7 +59,7 @@ scenarios:
   firstRead: http-api-cloudbase
   thenRead:
   - auth-tool-cloudbase
-  - relational-database-mcp-cloudbase
+  - postgresql-development-cloudbase
   beforeAction:
   - 先确认当前平台不支持 CloudBase SDK。
   - 确认 HTTP API 鉴权方式、Base URL 和数据库能力边界；应用侧登录配置仍走 `queryAppAuth` / `manageAppAuth`。
@@ -139,6 +139,8 @@ scenarios:
   - auth schema
   - storage schema
   - pgvector
+  - 关系型数据库
+  - 建表
   firstRead: postgresql-development-cloudbase
   thenRead:
   - auth-tool-cloudbase
@@ -151,12 +153,12 @@ scenarios:
   - 先用 `queryPgDatabase` / `managePgDatabase` 检查 PG 环境、schema 与权限策略。
   - 用户名密码登录先用 `queryAppAuth` / `manageAppAuth` 确认或开启。
   - Web 业务数据优先用 JS SDK v3 `app.rdb()`，HTTP API 只在查过 `mysqldb` OpenAPI 后使用。
-  - 业务数据必须落到 CloudBase PG，不要退回 NoSQL 或 MySQL 管理工具链。
+  - 业务数据必须落到 CloudBase PG。新的关系型数据库用 PostgreSQL，不要建议开通 MySQL。
   doNotUse:
   - relational-database-mcp-cloudbase
   - cloudbase-document-database-web-sdk
   commonMistakes:
-  - 把 CloudBase PG 当 MySQL，调用 `queryMysqlDatabase` / `manageMysqlDatabase`。
+  - 把新的关系型需求做成 MySQL，或把 CloudBase PG 写成 NoSQL 集合接口。
   - 只做前端按钮隐藏，没有后端或数据库层权限。
   - 猜 `/api/v1/rdb/rest` 这类 HTTP 路径，导致浏览器 404 后继续调试业务逻辑。
   - 写非法 Vite/TypeScript 动态 import，导致页面 500 后仍继续调试业务逻辑。
@@ -164,28 +166,27 @@ scenarios:
   mustCheckBeforeAction:
   - PG schema, usernamePassword login, backend/RLS permission model
 - id: mysql-mcp
-  priority: 88
+  priority: 40
   signals:
-  - MySQL 建表
-  - executeWriteSQL
-  - security rule
-  - CloudBase 关系型数据库管理
+  - 已有 MySQL
+  - 现有 MySQL 实例
+  - queryMysqlDatabase
+  - manageMysqlDatabase
   firstRead: relational-database-mcp-cloudbase
   thenRead:
   - relational-database-web-cloudbase
-  - http-api-cloudbase
   beforeAction:
-  - 先区分当前是 MCP 运维管理还是应用代码接入。
-  - 写操作前先跑 SELECT 或先读安全规则。
+  - 仅当环境里已经有 MySQL 实例，且用户要维护这个实例时，才读 MySQL skill。
+  - 新的关系型数据库用 PostgreSQL，不要建议开通或新建 MySQL。
   doNotUse:
   - cloudbase-document-database-web-sdk
   - web-development
   commonMistakes:
-  - 在 MCP 管理场景里初始化 SDK。
-  - 未验证条件就直接执行写 SQL。
-  label: MySQL Database (relational)
+  - 把新的关系型需求做成 MySQL。
+  - 在没有 MySQL 实例的环境里调用 queryMysqlDatabase / manageMysqlDatabase。
+  label: Existing MySQL (do not recommend)
   mustCheckBeforeAction:
-  - Distinguish MCP management vs app code access
+  - Environment already has MySQL; new relational work uses PostgreSQL
 - id: cloud-functions
   priority: 92
   signals:
@@ -221,7 +222,7 @@ scenarios:
   firstRead: cloudrun-development
   thenRead:
   - auth-tool-cloudbase
-  - relational-database-mcp-cloudbase
+  - postgresql-development-cloudbase
   beforeAction:
   - 先确认这是容器服务而不是云函数。
   - 检查 CORS、镜像入口和环境变量策略。
@@ -287,7 +288,7 @@ scenarios:
   beforeAction:
   - 按 BaaS-first 排序：Web SDK CRUD > MCP schema > 模板预热 > 云函数（默认 0）。
   - 连接器尽量预启用；凭据/Trust 等待窗口并行 downloadTemplate + 安装依赖。
-  - 能力嗅探顺序：connector ready → queryEnv → 锁定一种 DB（NoSQL 或 PG 或 MySQL）→ MCP schema → @cloudbase/js-sdk CRUD → 本地预览；禁止中途横跳。
+  - 能力嗅探顺序：connector ready → queryEnv → 锁定一种 DB（NoSQL 或 PG）→ MCP schema → @cloudbase/js-sdk CRUD → 本地预览；禁止中途横跳。
   - 先本地预览再部署；自定义域名 / DNS / 回滚非默认范围。
   doNotUse:
   - cloud-functions

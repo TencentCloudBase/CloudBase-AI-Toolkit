@@ -76,7 +76,7 @@ Overrides convenience. Full rationale lives in `{web-development}`.
 - **Self-verify before claiming done:** static (`tsc` / lint / build / tests) and runtime (user-visible flows). Name gaps explicitly if a layer cannot run.
 - **Do not paper over failures:** no empty `try/catch`, no deleting failing tests to go green.
 - **`ai.createModel(...)` / `wx.cloud.extend.AI.createModel(provider)` takes a GroupName**, not a vendor/model id. Legal: `"cloudbase"`, `"hunyuan-exp"`, or `"custom-<name>"`. Model ids go in `generateText` / `streamText` `model`. See `{ai-model-web}` / `{ai-model-nodejs}` / `{ai-model-wechat}`.
-- **PostgreSQL / CloudBase PG / `app.rdb()`** → `{postgresql-development}`; do not use NoSQL or MySQL MCP for that path.
+- **PostgreSQL / CloudBase PG / `app.rdb()`** → `{postgresql-development}` for new relational work. `{relational-database-tool}` is only for an environment that already has MySQL. Do not recommend MySQL.
 - **Web auth proof:** `auth.getSession()` with `data.session`. Do not use deprecated `getLoginState()` / `auth.getUser()` as login proof.
 - **First frontend deploy** of a new app: `manageApps(action="deployApp", ...)` — the only deploy action (there is no `createApp` / `updateApp`; a re-deploy reuses the same `serviceName`). `manageHosting` is only for incremental updates of hosting-origin projects.
 
@@ -87,10 +87,10 @@ Overrides convenience. Full rationale lives in `{web-development}`.
 | Minimal Web BaaS demo (Todo/Notes/Chat) | `{minimal-web-baas-demo}` | `{web-development}`, `{no-sql-web-sdk}` or `{postgresql-development}` | `{cloud-functions}`, `{cloudrun-development}`, `{spec-workflow}`, `{ui-design}` | BaaS-first Web SDK CRUD; MCP schema only; **zero cloud functions** unless secrets / cron / rules-cannot-express |
 | Web login / registration | `{auth-tool}` | `{auth-web}`, `{web-development}` | `{cloud-functions}`, `{http-api}` | Provider status and publishable key |
 | WeChat mini program + CloudBase | `{miniprogram-development}` | `{auth-wechat}`, `{no-sql-wx-mp-sdk}` | `{auth-web}`, `{web-development}` | Whether the project uses `wx.cloud` |
-| Native App / raw HTTP (Flutter / RN) | `{http-api}` | `{auth-tool}`, `{relational-database-tool}` | `{auth-web}`, `{no-sql-web-sdk}` | SDK boundary, OpenAPI, auth method |
+| Native App / raw HTTP (Flutter / RN) | `{http-api}` | `{auth-tool}`, `{postgresql-development}` | `{auth-web}`, `{no-sql-web-sdk}` | SDK boundary, OpenAPI, auth method |
 | Web + NoSQL | `{web-development}` | `{no-sql-web-sdk}`, `{auth-web}` | `{relational-database-tool}`, `{http-api}` | Login state and DB permission model |
-| CloudBase PostgreSQL / PG | `{postgresql-development}` | `{auth-tool}`, `{auth-web}`, `{web-development}` | `{relational-database-tool}`, `{no-sql-web-sdk}` | PG schema, usernamePassword, RLS |
-| MySQL (legacy relational) | `{relational-database-tool}` | `{relational-database-web}`, `{http-api}` | `{no-sql-web-sdk}` | MCP manage vs app access; prefer PG for new envs |
+| CloudBase PostgreSQL / PG | `{postgresql-development}` | `{auth-tool}`, `{auth-web}`, `{web-development}` | `{relational-database-tool}`, `{no-sql-web-sdk}` | New relational work. PG schema, usernamePassword, RLS |
+| Existing MySQL (do not recommend) | `{relational-database-tool}` | `{relational-database-web}` | `{postgresql-development}`, `{no-sql-web-sdk}` | Only when the environment already has MySQL |
 | Cloud Functions | `{cloud-functions}` | domain skill | `{cloudrun-development}` | Event vs HTTP, runtime, `scf_bootstrap` |
 | CloudRun backend | `{cloudrun-development}` | domain skill | `{cloud-functions}` | Container boundary, Dockerfile, CORS |
 | AI Agent | `{cloudbase-agent}` | `{cloud-functions}` / `{cloudrun-development}` | — | AG-UI, SSE streaming |
@@ -104,7 +104,8 @@ Overrides convenience. Full rationale lives in `{web-development}`.
 - Web auth failures: usually skipped provider config, not missing UI snippets.
 - Native failures: usually Web SDK misuse, not missing HTTP knowledge.
 - Mini program failures: treating `wx.cloud` like Web auth/SDK.
-- PG failures: falling back to MySQL/NoSQL or guessing raw HTTP instead of `app.rdb()`.
+- New relational databases use PostgreSQL. MySQL skills apply only when the environment already has MySQL.
+- PG failures: falling back to NoSQL or MySQL, or guessing raw HTTP instead of `app.rdb()`.
 - AI model failures: missing Token Credits / Growth Plan — check packages before rewriting code.
 - “最小前后端 / Todo / 留言板”: use `{minimal-web-baas-demo}` — **browser SDK CRUD**, not cloud-function middleware.
 
@@ -128,7 +129,7 @@ Full steps live in `{web-development}` / guideline `deployment-workflow` referen
 
 ## Console links
 
-Pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — overview, `#/db/doc`, `#/db/mysql`, `#/scf`, `#/platform-run`, `#/storage`, `#/static-hosting`, `#/identity`, `#/ai`, `#/env`.
+Pattern: `https://tcb.cloud.tencent.com/dev?envId=${envId}#/{path}` — overview, `#/db/doc`, `#/db/postgres`, `#/db/mysql` (existing MySQL only), `#/scf`, `#/platform-run`, `#/storage`, `#/static-hosting`, `#/identity`, `#/ai`, `#/env`.
 
 ## Quality gate (before “done”)
 

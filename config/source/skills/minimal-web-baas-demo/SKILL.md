@@ -83,8 +83,8 @@ Use this order for every minimal Web + DB demo. **Do not reorder.** Cloud functi
 0. Connector pre-enabled (or shortest Trust path)     ← host / partner packaging
 1. Template warmup // parallel with credential wait   ← downloadTemplate + install
 2. queryEnv(action="info")                            ← sniff env + RuntimeBackends
-3. Lock ONE DB plane (NoSQL | PG | MySQL)             ← no mid-flight thrash
-4. MCP schema + minimal permissions                   ← writeNoSql* / PG migrate / MySQL manage
+3. Lock ONE DB plane (NoSQL | PG)                    ← new relational work is PG; MySQL only if the env already has it
+4. MCP schema + minimal permissions                   ← writeNoSql* / PG migrate
 5. Browser @cloudbase/js-sdk CRUD                     ← app.database() / app.rdb()
 6. Local preview (list + add)                         ← then ask before deploy
 7. Cloud functions                                    ← skip (count = 0) unless secrets/cron/rules-cannot-express
@@ -95,7 +95,7 @@ Stack priority for this path: **Web SDK CRUD > MCP schema > template warmup > cl
 ## Standard playbook
 
 1. **Warm template in parallel with credentials** (see partner notes below): `downloadTemplate` (`react` default, `vue` if requested) → `npm install` / `pnpm install`.
-2. `queryEnv(action="info")` → lock **one** DB plane (NoSQL **or** PG **or** MySQL). Do not thrash between them.
+2. `queryEnv(action="info")` → lock **one** DB plane (NoSQL **or** PG). New relational work uses PostgreSQL. Use MySQL only when the environment already has an instance. Do not thrash between them.
 3. MCP: create the collection/table + minimal permissions.
 4. Frontend: ensure session (`auth.signInAnonymously()` or equivalent), then wire list + create with `@cloudbase/js-sdk` (see Hard rule 6).
 5. Start / report preview URL; ask before deploy.

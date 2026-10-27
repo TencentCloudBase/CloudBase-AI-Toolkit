@@ -5,7 +5,7 @@ CloudBase PG mode is a Postgres-Native environment mode. It is not simply "addin
 ## Environment facts
 
 - PG mode is selected when creating a new CloudBase environment with PostgreSQL.
-- Legacy environments cannot be upgraded in place to PG mode. If `RuntimeBackends.postgresql !== true`, use the matching legacy NoSQL/MySQL skill or create/select a PG-mode environment.
+- Legacy environments cannot be upgraded in place to PG mode. If `RuntimeBackends.postgresql !== true`, use the NoSQL document-database skill, or the existing MySQL skill only when that environment already has MySQL. New relational work needs a PG-mode environment.
 - In PG mode, PostgreSQL is the unified runtime for:
   - `public` schema: business tables.
   - `auth` schema: user data and JWT identity.

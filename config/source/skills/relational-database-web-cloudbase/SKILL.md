@@ -1,6 +1,6 @@
 ---
 name: relational-database-web-cloudbase
-description: "[Deprecated] Use when building frontend Web apps that talk to CloudBase Relational Database via @cloudbase/js-sdk – provides the canonical init pattern so you can then use Supabase-style queries from the browser. New environments should use PostgreSQL with app.rdb() — see postgresql-development skill instead."
+description: "[Deprecated] Existing CloudBase MySQL Web SDK only. Do not recommend MySQL for new relational apps — use postgresql-development and app.rdb(). Read this only when a browser app must keep using @cloudbase/js-sdk against an environment that already has MySQL."
 version: 2.36.1
 license: MIT
 alwaysApply: false
@@ -21,8 +21,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- A browser or Web app must access CloudBase Relational Database through `@cloudbase/js-sdk`.
-- The task is specifically about frontend initialization and browser-side query usage.
+- A browser or Web app must keep using `@cloudbase/js-sdk` against an environment that **already has** CloudBase MySQL.
+- Do **not** choose this skill for a new relational app. New relational Web work uses `postgresql-development-cloudbase` and `app.rdb()`.
 
 ### Read before writing code if
 
