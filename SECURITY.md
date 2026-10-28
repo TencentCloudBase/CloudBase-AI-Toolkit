@@ -32,10 +32,12 @@ publication if the issue warrants one. There is no monetary reward on this chann
 
 ### 3. Neither works for you
 
-Email the maintainer at **bookerzhao@tencent.com**, or the shared Tencent security
-mailbox at **security@tencent.com**. Put `CloudBase AI Toolkit` in the subject line, and
-include enough detail to route it without a round trip: affected version, reproduction
-steps, and impact.
+Email the maintainer at **bookerzhao@tencent.com** with `CloudBase AI Toolkit` in the
+subject line, and include enough detail for us to act without a round trip: affected
+version, reproduction steps, and impact.
+
+If you do not hear back within 5 business days, resubmit through GitHub's private
+vulnerability reporting — that channel does not depend on one person's inbox.
 
 ## What We Will Do
 
@@ -97,9 +99,9 @@ latest version before reporting.
 2. **只想让问题被修掉，且有 GitHub 账号** —— 使用 GitHub 私密漏洞报告：
    https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/security/advisories/new
    你会有追踪编号，能在补丁发布前审阅修复，必要时可申请 CVE。此渠道没有奖金。
-3. **以上都不方便** —— 发邮件到 **bookerzhao@tencent.com**（项目维护者），或
-   **security@tencent.com**（腾讯安全团队共享邮箱），标题注明 `CloudBase AI Toolkit`。
-   请一次写清受影响版本、复现步骤和影响，减少来回确认。
+3. **以上都不方便** —— 发邮件到 **bookerzhao@tencent.com**（项目维护者），标题注明
+   `CloudBase AI Toolkit`。请一次写清受影响版本、复现步骤和影响，减少来回确认。
+   5 个工作日内没收到回复的话，请改用 GitHub 私密漏洞报告 —— 那个渠道不依赖某一个人的邮箱。
 
 ## 我们的处理方式
 
