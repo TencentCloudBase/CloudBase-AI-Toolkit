@@ -39,13 +39,19 @@ vulnerability reporting — that channel does not depend on one person's inbox.
 
 ## How We Judge a Report
 
-We accept a report as a vulnerability when all three hold:
+The server runs on the credentials the user hands it, and those are administrative: they
+reach what the user reaches in the console. Connecting an agent is a decision to lend it
+that reach. A tool acting inside it is the product working, not a vulnerability. The line
+is everything outside it.
+
+That gives three questions:
 
 1. **Reachability** — the attacker gets there on a path a normal user walks: installed as
    documented, through a tool the server registers and documents.
 2. **Attacker capability** — the value or state the attacker must control is one an
    attacker can realistically control.
-3. **Impact** — which resource, which action, acting as whom.
+3. **Impact** — which resource, which action, acting as whom, and whether it stays inside
+   what the credential was granted.
 
 Missing any one of the three makes it a defect. See *Defects That Are Not Vulnerabilities*.
 
@@ -85,8 +91,6 @@ still shows concrete impact is worth sending; impact decides.
   retention belong to the host that holds the model.
 - **Prompt injection that leads a model to call a tool.** The server has no reliable way
   to tell the user's instruction from an attacker's.
-- **Credentials used to their limit.** If a SecretId can delete an environment, the console
-  granted that.
 - **Dependency advisories with no reachable call path, or no upstream patch.** These
   usually go through Dependabot.
 - Vulnerabilities in third-party services we integrate with.
@@ -132,12 +136,16 @@ latest version before reporting.
 
 ## 我们怎么判断
 
-三件事都成立，我们才按漏洞受理：
+server 用的是用户交给它的凭据，而这类凭据是管理级的：用户在控制台能碰到的，它也能碰到。
+把 Agent 接上来，就是决定把这份权限借给它。工具在这份权限之内做事，是产品在正常工作，
+不是漏洞。界线在它外面。
+
+所以问三件事：
 
 1. **能到达** —— 攻击者的路径是普通用户真会走的那条：按文档安装，通过 server 注册并
    有文档的工具进来。
 2. **攻击者能力** —— 攻击者必须控制的值或状态，是他现实中能控制的。
-3. **影响** —— 哪个资源、哪个动作、以谁的身份。
+3. **影响** —— 哪个资源、哪个动作、以谁的身份，以及有没有越出这份凭据被授予的范围。
 
 缺任何一条，就是缺陷。见下面的「是缺陷，不是漏洞」。
 
@@ -170,7 +178,6 @@ latest version before reporting.
 - **模型拿到工具返回之后做的事。** 上下文边界、脱敏、留存，属于持有模型的那一端。
 - **诱导模型调用某个工具的 prompt injection。** server 没有可靠办法分辨这是用户的指令
   还是攻击者的。
-- **用户给的凭据被用满。** 一个 SecretId 能删环境，是控制台给它的权限。
 - **没有可达调用路径、或上游还没有补丁的依赖告警。** 这类通常走 Dependabot。
 - 我们所集成的第三方服务自身的漏洞。
 - 只有在攻击者已经控制用户机器、shell 或云账号时才成立的场景。
