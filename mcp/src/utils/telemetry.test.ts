@@ -12,6 +12,7 @@ import {
   reportToolkitSessionInitialized,
   telemetryReporter,
 } from "./telemetry.js";
+import { computeDeviceId } from "./device-id.js";
 
 // 遥测会读取本地登录态来取主账号 uin：单测里必须挡住真实凭证存储与网络，
 // 否则用例会依赖本机 ~/.config/.cloudbase/auth.json（甚至触发临时密钥续期）。
@@ -157,6 +158,32 @@ describe("telemetry payload serialization", () => {
       "toolkit_tool_call",
       expect.objectContaining({ login_uin: "unknown" }),
     );
+  });
+});
+
+describe("deviceIdSource（判「一台机器被算成多台」的唯一直接判据）", () => {
+  const SOURCES = [
+    "platform-uuid",
+    "machine-guid",
+    "machine-id",
+    "host-fallback",
+    "host-only",
+  ];
+
+  it("computeDeviceId 同时给出 deviceId 与来源，来源落在已知集合内", () => {
+    // 测函数而不是 telemetryReporter 单例：单例在模块加载时就构造完了，
+    // 而 enabled=false 的环境下它连 deviceId 都不算（构造里提前 return），
+    // 拿它断言会把「环境因素」测成「逻辑坏了」。
+    const { deviceId, source } = computeDeviceId();
+    expect(deviceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(SOURCES).toContain(source);
+  });
+
+  it("deviceId 只由锚点决定：同一进程内多次调用结果一致", () => {
+    const a = computeDeviceId();
+    const b = computeDeviceId();
+    expect(a.deviceId).toBe(b.deviceId);
+    expect(a.source).toBe(b.source);
   });
 });
 

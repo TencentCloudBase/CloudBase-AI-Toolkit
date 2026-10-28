@@ -12,7 +12,7 @@ import {
     type EnvSlot,
     type EnvSource,
 } from './env-binding.js';
-import { computeDeviceId } from './device-id.js';
+import { computeDeviceId, type DeviceAnchorSource } from './device-id.js';
 import { debug } from './logger.js';
 import { normalizeSite, resolveSiteAndRegion } from './site-map.js';
 
@@ -32,6 +32,8 @@ declare const __MCP_VERSION__: string;
  */
 class TelemetryReporter {
     private deviceId: string = '';
+    /** deviceId 用的哪一级锚点 —— 判「同一台机器被算成多台」的唯一直接判据 */
+    private deviceIdSource: DeviceAnchorSource | 'no-signal' = 'no-signal';
     private userAgent: string = '';
     private additionalParams: { [key: string]: any } = {};
     private enabled: boolean;
@@ -46,6 +48,9 @@ class TelemetryReporter {
         }
 
         this.deviceId = this.getDeviceId();
+        // 锚点来源跟 deviceId 一起上报：只有它能区分「真是多台机器」和
+        // 「同一台机器反复降级成 hostname+MAC 所以看起来是多台」。
+        this.addAdditionalParams({ deviceIdSource: this.deviceIdSource });
         this.userAgent = this.getUserAgent().userAgent;
         
         // 检查 INTEGRATION_IDE 环境变量，如果存在则添加到额外参数中
@@ -115,12 +120,14 @@ class TelemetryReporter {
     private getDeviceId(): string {
         try {
             const { deviceId, source } = computeDeviceId();
+            this.deviceIdSource = source;
             debug('device_id_resolved', { source, deviceId: deviceId.substring(0, 8) + '...' });
             return deviceId;
         } catch (err) {
             // 走到这里说明连 hostname / CPU 都读不到：用固定串兜底，**绝不能**用随机数
             // （随机数等于每次启动都是一台新设备，正是这次要消灭的行为）。
             debug('获取设备标识失败，回落到固定串', err instanceof Error ? err : new Error(String(err)));
+            this.deviceIdSource = 'no-signal';
             return crypto.createHash('sha256').update('cloudbase-mcp|no-device-signal').digest('hex').substring(0, 32);
         }
     }
