@@ -61,9 +61,6 @@ it. See *Defects That Are Not Vulnerabilities* below.
 - **Credential egress** — a live credential value that our code sends to an endpoint it
   does not serve, or into a published artifact. Test fixtures, example values, and the
   cloud API the credential exists for do not count.
-- **Unconfirmed destructive or billable action** — a tool acting on objects, or within a
-  scope, its own documentation does not describe, or creating resources the user did not
-  ask for. What the step the user asked for costs does not count.
 - **Permission bypass** — a tool doing what the credentials it was handed cannot do in
   the console. Using those credentials to their limit does not count, and neither does a
   tool holding broader credentials than its function needs; that is security debt.
@@ -81,13 +78,19 @@ it. See *Defects That Are Not Vulnerabilities* below.
 
 Some reports describe a real defect with no attacker behind it: a plaintext secret
 written to a local log file, a credential field returned by default when it could be
-opt-in, a template that fails on Windows. Send those through the normal issue tracker.
+opt-in, a delete that reaches further than the tool's own documentation describes, a
+template that fails on Windows. Send those through the normal issue tracker.
 
 We fix them. They simply do not get an advisory number or a disclosure window, and we
 would rather spend that process on something an attacker can reach.
 
 ## What Is Out of Scope
 
+- **Whether a destructive action asks before it runs.** That depends on the client:
+  elicitation is optional in the protocol, and the host decides when to put a question in
+  front of a person. We ask where a client can render the question, and treat a client
+  that answers for itself in milliseconds as nobody having looked. A policy cannot turn an
+  optional capability into a guarantee.
 - **Code a normal user cannot reach.** Not registered in `tools/list`, not described in
   the docs, no caller in the repo, or reachable only by importing an undocumented export.
   Tell us the path a documented, normally installed setup walks and we will reopen the
@@ -161,8 +164,6 @@ latest version before reporting.
 
 - **凭据外发** —— 真实有效的凭据值，被我们的代码送到它本来不服务的端点，或进入公开
   发布的产物。测试用的假凭据、示例值、以及本来就该发给云 API 的凭据，不算。
-- **未确认的破坏性/计费操作** —— 工具的动作落到它自己文档没写的对象或范围上，或者在
-  用户没要求的情况下建了新资源。用户要求的那一步本身花多少钱，不算。
 - **权限绕过** —— 工具做到了它拿到的凭据在控制台里做不到的事。把凭据用到上限不算；
   工具持有比功能更大的权限也不算，那算安全债。
 - **本地执行缺陷** —— server 自己执行、且路径或参数由攻击者指定的命令注入和路径穿越。
@@ -175,13 +176,17 @@ latest version before reporting.
 ## 是缺陷，不是漏洞
 
 有些报告描述的是真缺陷，但背后没有攻击者：明文密钥被写进本机日志、本可以改成按需返回
-的凭据字段默认就返回了、某个模板在 Windows 上失败。这类请走普通 issue。
+的凭据字段默认就返回了、删除动作落到了工具文档没写的对象上、某个模板在 Windows 上失败。
+这类请走普通 issue。
 
 我们会修。只是它不占安全公告编号、不走披露窗口，那套流程我们更愿意留给攻击者真能到达
 的问题。
 
 ## 不属于范围
 
+- **破坏性操作执不执行前先问人。** 这取决于客户端：elicitation 在协议里是可选的，什么
+  时候把问题摆到人面前由宿主决定。客户端能渲染确认框的时候我们会问，客户端自己代答的
+  时候我们按「没人看过」处理。一项可选能力没法被策略变成保证。
 - **普通用户到不了的代码。** 不在 `tools/list` 里、文档没写、仓内没有调用方，或者只有
   导入未文档化的导出才能触发。请指出按文档正常安装后怎么走到这条路径，我们会重新评估。
 - **模型拿到工具返回之后做的事。** 上下文边界、脱敏、留存，属于持有模型的那一端，不
