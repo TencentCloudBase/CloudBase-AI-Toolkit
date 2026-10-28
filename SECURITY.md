@@ -8,19 +8,7 @@ of this project at risk.
 
 Pick the channel that matches your situation:
 
-### 1. You want a TSRC reward
-
-CloudBase is in scope for the Tencent Security Response Center (TSRC) bounty program.
-Submit through TSRC first:
-
-**https://security.tencent.com/index.php/report/add**
-
-Reward eligibility requires that the issue has not been publicly disclosed and has not
-been reported to another organization first. If you report through TSRC, please **do not
-also open a GitHub advisory** for the same finding — we treat the TSRC ticket as the
-single source of truth and will coordinate the fix there.
-
-### 2. You want this fixed, and you have a GitHub account
+### 1. You have a GitHub account
 
 Use GitHub's private vulnerability reporting:
 
@@ -28,9 +16,9 @@ Use GitHub's private vulnerability reporting:
 
 This creates a private advisory visible only to you and the maintainers. It gives you a
 tracking number, lets you review the patch before it ships, and supports a CVE request on
-publication if the issue warrants one. There is no monetary reward on this channel.
+publication if the issue warrants one.
 
-### 3. Neither works for you
+### 2. You do not have a GitHub account
 
 Email the maintainer at **bookerzhao@tencent.com** with `CloudBase AI Toolkit` in the
 subject line, and include enough detail for us to act without a round trip: affected
@@ -92,16 +80,13 @@ latest version before reporting.
 
 ## 报告渠道
 
-1. **想获得 TSRC 奖励** —— CloudBase 在腾讯安全应急响应中心（TSRC）的收录范围内，
-   请优先通过 https://security.tencent.com/index.php/report/add 提交。奖励要求该问题
-   未公开披露、且未先报告给其他组织；走了 TSRC 就不要再为同一个问题开 GitHub 安全公告，
-   我们以 TSRC 工单为准。此渠道有奖金。
-2. **只想让问题被修掉，且有 GitHub 账号** —— 使用 GitHub 私密漏洞报告：
+1. **有 GitHub 账号** —— 使用 GitHub 私密漏洞报告：
    https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/security/advisories/new
-   你会有追踪编号，能在补丁发布前审阅修复，必要时可申请 CVE。此渠道没有奖金。
-3. **以上都不方便** —— 发邮件到 **bookerzhao@tencent.com**（项目维护者），标题注明
-   `CloudBase AI Toolkit`。请一次写清受影响版本、复现步骤和影响，减少来回确认。
-   5 个工作日内没收到回复的话，请改用 GitHub 私密漏洞报告 —— 那个渠道不依赖某一个人的邮箱。
+   你会有追踪编号，能在补丁发布前审阅修复，必要时可申请 CVE。
+2. **没有 GitHub 账号，或 GitHub 不方便** —— 发邮件到 **bookerzhao@tencent.com**
+   （项目维护者），标题注明 `CloudBase AI Toolkit`。请一次写清受影响版本、复现步骤和影响，
+   减少来回确认。5 个工作日内没收到回复的话，请改用 GitHub 私密漏洞报告 ——
+   那个渠道不依赖某一个人的邮箱。
 
 ## 我们的处理方式
 
