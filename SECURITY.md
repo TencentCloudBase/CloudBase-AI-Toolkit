@@ -30,32 +30,77 @@ vulnerability reporting — that channel does not depend on one person's inbox.
 ## What We Will Do
 
 - Acknowledge your report within **5 business days**.
-- Confirm severity and affected versions, and tell you whether we accept it.
+- Confirm severity and affected versions, and tell you whether we accept it. If it is a
+  defect rather than a vulnerability, we say so and explain the reasoning, and point you
+  at the issue tracker.
 - Ship a fix, then coordinate public disclosure with you. We ask for up to **90 days**
   from acknowledgement before public disclosure; we will agree on a shorter window when
   the fix lands sooner, and we will tell you if we need longer.
 - Credit you in the release notes and the published advisory, unless you ask us not to.
 
-## What to Report
+## How We Judge a Report
 
 This project ships an MCP server, a set of skills, and IDE configuration that run on the
-user's own machine and act with the user's cloud credentials. Findings we care about:
+user's own machine and act with the user's cloud credentials. That shape decides what a
+real vulnerability looks like here.
 
-- **Credential exposure** — tokens, API keys, or secrets leaked into the repository,
-  published packages, logs, or telemetry.
-- **Unconfirmed destructive or billable actions** — an MCP tool that deletes resources,
-  changes billing, or performs an irreversible operation without the user confirming it.
-- **Permission bypass** — a tool that reads or writes resources outside the caller's
-  identity, or that escalates beyond the credentials it was given.
+We accept a report when all three hold:
+
+1. **Reachability** — the attacker gets there on a path a normal user walks: installed as
+   documented, through a tool the server registers and documents.
+2. **Attacker capability** — what has to be controlled is something an attacker can
+   realistically control. A value the user typed, or one the model produced on the user's
+   instruction, is not attacker input.
+3. **Impact** — what they gain, concretely: which resource, which action, acting as whom.
+
+A report missing any of the three describes a defect, not a vulnerability. We still want
+it. See *Defects That Are Not Vulnerabilities* below.
+
+## What to Report
+
+- **Credential egress** — a credential value that our code sends somewhere it should not
+  reach: the repository, a published package, a release artifact, our telemetry, or a
+  third-party endpoint.
+- **Unconfirmed destructive or billable action** — a tool that performs an action the
+  user did not ask for in that session. The user's own request, carried out through the
+  model, is not unconfirmed; neither is a delete that proceeds because the client cannot
+  render a confirmation prompt.
+- **Permission bypass** — a tool that reaches resources or actions beyond what the
+  credentials it was handed allow in the console. Using the credentials the user supplied,
+  to their full extent, is the intended behaviour.
 - **Local execution flaws** — command injection, path traversal, or privilege escalation
-  in the local MCP server or in a generated command.
-- **Supply chain** — a compromised dependency, a malicious package reachable through our
-  lockfile, or tampering with release artifacts.
-- **CI/CD injection** — a way to execute code or alter published output through our
-  workflows.
+  where the attacker controls the input. Input from the user, or from the model acting on
+  the user's instruction, is not attacker-controlled.
+- **Supply chain** — a malicious or compromised dependency on a code path we execute, or
+  tampering with a release artifact. A dependency advisory with no reachable call path is
+  tracked by Dependabot, not here.
+- **CI/CD injection** — a workflow that an outside contributor can make execute code or
+  alter published output, demonstrated end to end.
+
+## Defects That Are Not Vulnerabilities
+
+Some reports describe a real defect with no attacker behind it: a plaintext secret
+written to a local log file, a credential field returned by default when it could be
+opt-in, a template that fails on Windows. Send those through the normal issue tracker.
+
+We fix them. They simply do not get an advisory number or a disclosure window, and we
+would rather spend that process on something an attacker can reach.
 
 ## What Is Out of Scope
 
+- **Code a normal user cannot reach.** Not registered in `tools/list`, not described in
+  the docs, no caller in the repo, or reachable only by importing an undocumented export.
+  Tell us the path a documented, normally installed setup walks and we will reopen the
+  question.
+- **What the model does with data a tool returns.** Context boundaries, redaction, and
+  retention belong to the host that holds the model, not to the server that returned the
+  value. The same applies to prompt injection that leads a model to call a tool: the
+  server cannot tell the user's instruction from an attacker's.
+- **Credentials the user supplied, used to their full extent.** If a SecretId can delete
+  an environment, that is what the console granted it, not something the tool escalated.
+- **Dependency advisories with no reachable call path, or with no upstream patch.** These
+  are tracked through Dependabot. Reachability and a fix both have to exist before there
+  is anything for us to ship.
 - Vulnerabilities in third-party services we integrate with. Report those upstream.
 - Anything that requires the attacker to already control the user's machine, shell, or
   cloud account.
@@ -91,26 +136,59 @@ latest version before reporting.
 ## 我们的处理方式
 
 - 5 个工作日内确认收到。
-- 确认严重程度和受影响版本，并告知是否受理。
+- 确认严重程度和受影响版本，并告知是否受理。如果判定是缺陷而不是漏洞，我们会说明理由，
+  并告诉你该走普通 issue。
 - 修复后与你协调公开时间。从确认收到起，我们请求最多 90 天的披露窗口；
   修复更早完成就提前公开，需要更久会提前告知。
 - 在 release notes 和安全公告中致谢，除非你要求匿名。
 
-## 属于范围的漏洞
+## 我们怎么判断
 
 本项目交付的是运行在用户本机、以用户云凭据执行操作的 MCP server、skills 与 IDE 配置。
-我们关注：
+这个形态决定了什么算真正的漏洞。
 
-- **凭据泄漏** —— 令牌、API Key、密钥出现在仓库、发布包、日志或遥测数据中。
-- **未确认的破坏性/计费操作** —— MCP 工具在未经用户确认的情况下删除资源、变更计费
-  或执行不可逆操作。
-- **权限绕过** —— 工具读写调用者身份之外的资源，或超出所获凭据的权限。
-- **本地执行缺陷** —— 本地 MCP server 或生成的命令中的命令注入、路径穿越、提权。
-- **供应链** —— 依赖被投毒、lockfile 可解析到恶意包、发布产物被篡改。
-- **CI/CD 注入** —— 通过我们的 workflow 执行代码或篡改发布内容。
+三件事都成立，我们才按漏洞受理：
+
+1. **能到达** —— 攻击者的路径是普通用户真会走的那条：按文档安装，通过 server 注册并
+   有文档的工具进来。
+2. **攻击者能力** —— 需要被控制的东西，是攻击者现实中能控制的。用户自己输入的、或模型
+   按用户要求产出的值，不算攻击者输入。
+3. **影响** —— 具体拿到什么：哪个资源、哪个动作、以谁的身份。
+
+缺任何一条，我们视为缺陷，不是漏洞。这类报告我们照样要，见下面的「是缺陷，不是漏洞」。
+
+## 属于范围的漏洞
+
+- **凭据外发** —— 我们的代码把凭据值送到了它不该到的地方：仓库、发布包、发布产物、
+  我们的遥测，或第三方端点。
+- **未确认的破坏性/计费操作** —— 工具做了用户在这一轮里没有要求的事。用户自己提出、
+  经模型执行的请求不算未确认；客户端渲染不出确认框而放行的删除也不算。
+- **权限绕过** —— 工具触碰到了它拿到的凭据在控制台里不允许的资源和动作。把用户给的
+  凭据用到它本来的上限，是设计如此。
+- **本地执行缺陷** —— 攻击者能控制输入时的命令注入、路径穿越、提权。来自用户、或来自
+  按用户要求行事的模型的输入，不算攻击者控制。
+- **供应链** —— 我们执行的代码路径上有被投毒或已失陷的依赖，或发布产物被篡改。
+  没有可达调用路径的依赖告警由 Dependabot 跟踪，不走这里。
+- **CI/CD 注入** —— 外部贡献者能让某个 workflow 执行代码或改动发布内容，且能端到端跑通。
+
+## 是缺陷，不是漏洞
+
+有些报告描述的是真缺陷，但背后没有攻击者：明文密钥被写进本机日志、本可以改成按需返回
+的凭据字段默认就返回了、某个模板在 Windows 上失败。这类请走普通 issue。
+
+我们会修。只是它不占安全公告编号、不走披露窗口，那套流程我们更愿意留给攻击者真能到达
+的问题。
 
 ## 不属于范围
 
+- **普通用户到不了的代码。** 不在 `tools/list` 里、文档没写、仓内没有调用方，或者只有
+  导入未文档化的导出才能触发。请指出按文档正常安装后怎么走到这条路径，我们会重新评估。
+- **模型拿到工具返回之后做的事。** 上下文边界、脱敏、留存，属于持有模型的那一端，不
+  属于返回值的那一端。诱导模型调用某个工具的 prompt injection 同理：server 分辨不出这
+  是用户的指令还是攻击者的。
+- **用户给的凭据被用满。** 一个 SecretId 能删环境，是控制台给它的权限，不是工具提权。
+- **没有可达调用路径、或上游还没有补丁的依赖告警。** 这类由 Dependabot 跟踪。可达性和
+  可用的修复都成立，才有我们能发的东西。
 - 我们所集成的第三方服务自身的漏洞，请上报给对应上游。
 - 需要攻击者已经控制用户机器、shell 或云账号才能成立的场景。
 - 公开端点的限流、爆破、缺少安全响应头，且未证明实际影响。
