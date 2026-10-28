@@ -26,7 +26,7 @@
       }
     },
     {
-      "slug": "postgresql-development-cloudbase",
+      "slug": "cloudbase-postgresql",
       "name": "CloudBase PostgreSQL 开发",
       "version": "2.36.2",
       "summary": "用 CloudBase PostgreSQL 建表、写查询、配权限。覆盖 schema 设计、queryPgDatabase/managePgDatabase、JS SDK v3 的 app.rdb() 增删改查与 RPC、RLS 风格权限、用户名密码登录，以及配套后台的增删改。",

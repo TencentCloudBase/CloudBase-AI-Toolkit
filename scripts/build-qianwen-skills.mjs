@@ -101,6 +101,22 @@ function listFiles(dir, base = dir) {
   return out;
 }
 
+/**
+ * Set the frontmatter `name` to the manifest slug.
+ *
+ * The market treats `name` as the skill id and caps it at 30 characters — several of our upstream
+ * skills are longer (`postgresql-development-cloudbase`, 31), and the upload pre-check reports the
+ * whole frontmatter as invalid rather than naming the length. The manifest slug is the source of
+ * truth here; upstream keeps its own name.
+ */
+function applySlug(dir, slug) {
+  const file = path.join(dir, "SKILL.md");
+  const text = fs.readFileSync(file, "utf8");
+  const next = text.replace(/^name:\s*.+$/m, `name: ${slug}`);
+  if (next !== text) fs.writeFileSync(file, next);
+  return next !== text;
+}
+
 /** Rewrite sibling references so a single-skill ZIP has no dangling paths. */
 function rewriteSiblingReferences(dir) {
   const touched = [];
@@ -160,6 +176,11 @@ function validate({ entry, dir, license, siblings }) {
     if (fm.name && fm.name !== entry.slug) {
       problems.push(`frontmatter name "${fm.name}" != slug "${entry.slug}"`);
     }
+    if (entry.slug.length > MAX_NAME_CHARS) {
+      problems.push(
+        `slug "${entry.slug}" is ${entry.slug.length} chars, over the ${MAX_NAME_CHARS}-char cap the market enforces on \`name\``,
+      );
+    }
   }
 
   if (!entry.name || entry.name.length > MAX_NAME_CHARS) {
@@ -194,8 +215,15 @@ function validate({ entry, dir, license, siblings }) {
 
 function zip(dir, outFile) {
   if (fs.existsSync(outFile)) fs.rmSync(outFile);
+  // SKILL.md goes in first: the market's pre-check reads the leading entry, and a package whose
+  // first file is LICENSE.md is rejected as "SKILL.md has no valid frontmatter".
+  const files = listFiles(dir).sort((a, b) => {
+    if (a === "SKILL.md") return -1;
+    if (b === "SKILL.md") return 1;
+    return a.localeCompare(b);
+  });
   // -X: no extra file attributes; -D: no directory entries (SKILL.md must sit at the root).
-  execFileSync("zip", ["-r", "-X", "-D", "-q", outFile, "."], { cwd: dir });
+  execFileSync("zip", ["-X", "-D", "-q", outFile, ...files], { cwd: dir });
 }
 
 function main() {
@@ -236,6 +264,7 @@ function main() {
     const stage = fs.mkdtempSync(path.join(ROOT, `.qianwen-${entry.slug}-`));
     try {
       copyTree(sourcePath, stage);
+      const renamed = applySlug(stage, entry.slug);
       const rewritten =
         entry.source.type === "skill" ? rewriteSiblingReferences(stage) : [];
 
@@ -267,6 +296,7 @@ function main() {
         license,
         source: entry.source.type,
         files,
+        renamed,
         rewritten,
         zip: zipName,
         bytes,
