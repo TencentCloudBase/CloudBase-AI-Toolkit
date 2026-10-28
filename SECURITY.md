@@ -31,8 +31,7 @@ vulnerability reporting — that channel does not depend on one person's inbox.
 
 - Acknowledge your report within **5 business days**.
 - Confirm severity and affected versions, and tell you whether we accept it. If it is a
-  defect rather than a vulnerability, we say so and explain the reasoning, and point you
-  at the issue tracker.
+  defect rather than a vulnerability, we say so and point you at the issue tracker.
 - Ship a fix, then coordinate public disclosure with you. We ask for up to **90 days**
   from acknowledgement before public disclosure; we will agree on a shorter window when
   the fix lands sooner, and we will tell you if we need longer.
@@ -40,75 +39,55 @@ vulnerability reporting — that channel does not depend on one person's inbox.
 
 ## How We Judge a Report
 
-This project ships an MCP server, a set of skills, and IDE configuration that run on the
-user's own machine and act with the user's cloud credentials. That shape decides what a
-real vulnerability looks like here.
-
-We accept a report when all three hold:
+We accept a report as a vulnerability when all three hold:
 
 1. **Reachability** — the attacker gets there on a path a normal user walks: installed as
    documented, through a tool the server registers and documents.
-2. **Attacker capability** — what has to be controlled is something an attacker can
-   realistically control. A value the user typed, or one the model produced on the user's
-   instruction, is not attacker input.
-3. **Impact** — what they gain, concretely: which resource, which action, acting as whom.
+2. **Attacker capability** — the value or state the attacker must control is one an
+   attacker can realistically control.
+3. **Impact** — which resource, which action, acting as whom.
 
-A report missing any of the three describes a defect, not a vulnerability. We still want
-it. See *Defects That Are Not Vulnerabilities* below.
+Missing any one of the three makes it a defect. See *Defects That Are Not Vulnerabilities*.
 
 ## What to Report
 
-- **Credential egress** — a live credential value that our code sends to an endpoint it
-  does not serve, or into a published artifact. Test fixtures, example values, and the
-  cloud API the credential exists for do not count.
+- **Credential egress** — a live credential value sent to an endpoint that credential does
+  not serve, or into a published artifact.
 - **Permission bypass** — a tool doing what the credentials it was handed cannot do in
-  the console. Using those credentials to their limit does not count, and neither does a
-  tool holding broader credentials than its function needs; that is security debt.
-- **Local execution flaws** — command injection or path traversal in a command the
-  server runs itself, where the attacker chooses the input. A command generated for the
-  user to paste does not count, nor does a write outside a documented directory whose
-  path the attacker cannot choose.
-- **Supply chain** — a known vulnerability in a dependency that is reachable under how we
-  use it, with a fix available. A CVE number without a call path does not count, and
-  neither does one with no upstream patch.
-- **CI/CD injection** — an outside contributor reaching a credential CI should not hand
-  a fork, or altering a release artifact. Running test code in PR CI is by design.
+  the console.
+- **Local execution flaws** — command injection or path traversal in a command the server
+  runs itself, where the attacker chooses the input.
+- **Supply chain** — a known vulnerability in a dependency, reachable under how we use it,
+  with a fix available.
+- **CI/CD injection** — an outside contributor reaching a credential CI should not hand a
+  fork, or altering a release artifact.
 
 ## Defects That Are Not Vulnerabilities
 
-Some reports describe a real defect with no attacker behind it: a plaintext secret
+A real defect with no attacker behind it goes to the issue tracker and still gets fixed.
+It does not take an advisory number or a disclosure window. Examples: a plaintext secret
 written to a local log file, a credential field returned by default when it could be
-opt-in, a delete that reaches further than the tool's own documentation describes, a
-template that fails on Windows. Send those through the normal issue tracker.
-
-We fix them. They simply do not get an advisory number or a disclosure window, and we
-would rather spend that process on something an attacker can reach.
+opt-in, a delete that reaches further than the tool's own documentation describes.
 
 ## What Is Out of Scope
 
-- **Whether a destructive action asks before it runs.** That depends on the client:
-  elicitation is optional in the protocol, and the host decides when to put a question in
-  front of a person. We ask where a client can render the question, and treat a client
-  that answers for itself in milliseconds as nobody having looked. A policy cannot turn an
-  optional capability into a guarantee.
-- **Code a normal user cannot reach.** Not registered in `tools/list`, not described in
-  the docs, no caller in the repo, or reachable only by importing an undocumented export.
-  Tell us the path a documented, normally installed setup walks and we will reopen the
-  question.
-- **What the model does with data a tool returns.** Context boundaries, redaction, and
-  retention belong to the host that holds the model, not to the server that returned the
-  value. The same applies to prompt injection that leads a model to call a tool: the
-  server cannot tell the user's instruction from an attacker's.
-- **Credentials the user supplied, used to their full extent.** If a SecretId can delete
-  an environment, that is what the console granted it, not something the tool escalated.
-- **Dependency advisories with no reachable call path, or with no upstream patch.** These
-  are tracked through Dependabot. Reachability and a fix both have to exist before there
-  is anything for us to ship.
-- Vulnerabilities in third-party services we integrate with. Report those upstream.
+- **Whether a destructive action asks before it runs.** Elicitation is optional in the
+  protocol; the client and its host decide when to put a question in front of a person.
+- **Code a normal user cannot reach.** Not in `tools/list`, not in the docs, no caller in
+  the repo, or reachable only through an undocumented export.
+- **What the model does with data a tool returns.** Context boundaries, redaction and
+  retention belong to the host that holds the model.
+- **Prompt injection that leads a model to call a tool.** The server cannot tell the
+  user's instruction from an attacker's.
+- **Credentials used to their limit.** If a SecretId can delete an environment, the console
+  granted that.
+- **Dependency advisories with no reachable call path, or no upstream patch.** These go
+  through Dependabot.
+- Vulnerabilities in third-party services we integrate with.
 - Anything that requires the attacker to already control the user's machine, shell, or
   cloud account.
-- Rate limiting, brute force, or missing headers on public endpoints, when there is no
-  demonstrated impact.
+- Rate limiting, brute force, or missing headers on public endpoints, with no demonstrated
+  impact.
 - Best-practice suggestions with no concrete attack path ("this header should be set",
   "consider using a stronger cipher").
 - Reports produced by a scanner with no proof of concept and no verified impact.
@@ -139,63 +118,50 @@ latest version before reporting.
 ## 我们的处理方式
 
 - 5 个工作日内确认收到。
-- 确认严重程度和受影响版本，并告知是否受理。如果判定是缺陷而不是漏洞，我们会说明理由，
-  并告诉你该走普通 issue。
+- 确认严重程度和受影响版本，并告知是否受理。如果判定是缺陷而不是漏洞，我们会说明并指出
+  该走普通 issue。
 - 修复后与你协调公开时间。从确认收到起，我们请求最多 90 天的披露窗口；
   修复更早完成就提前公开，需要更久会提前告知。
 - 在 release notes 和安全公告中致谢，除非你要求匿名。
 
 ## 我们怎么判断
 
-本项目交付的是运行在用户本机、以用户云凭据执行操作的 MCP server、skills 与 IDE 配置。
-这个形态决定了什么算真正的漏洞。
-
 三件事都成立，我们才按漏洞受理：
 
 1. **能到达** —— 攻击者的路径是普通用户真会走的那条：按文档安装，通过 server 注册并
    有文档的工具进来。
-2. **攻击者能力** —— 需要被控制的东西，是攻击者现实中能控制的。用户自己输入的、或模型
-   按用户要求产出的值，不算攻击者输入。
-3. **影响** —— 具体拿到什么：哪个资源、哪个动作、以谁的身份。
+2. **攻击者能力** —— 攻击者必须控制的值或状态，是他现实中能控制的。
+3. **影响** —— 哪个资源、哪个动作、以谁的身份。
 
-缺任何一条，我们视为缺陷，不是漏洞。这类报告我们照样要，见下面的「是缺陷，不是漏洞」。
+缺任何一条，就是缺陷。见下面的「是缺陷，不是漏洞」。
 
 ## 属于范围的漏洞
 
-- **凭据外发** —— 真实有效的凭据值，被我们的代码送到它本来不服务的端点，或进入公开
-  发布的产物。测试用的假凭据、示例值、以及本来就该发给云 API 的凭据，不算。
-- **权限绕过** —— 工具做到了它拿到的凭据在控制台里做不到的事。把凭据用到上限不算；
-  工具持有比功能更大的权限也不算，那算安全债。
-- **本地执行缺陷** —— server 自己执行、且路径或参数由攻击者指定的命令注入和路径穿越。
-  生成给用户自己粘贴执行的命令不算；写到文档声明目录之外但路径不可控，也不算。
-- **供应链** —— 依赖上的已知漏洞在我们这种用法下能被打通，且有可用修复。只给 CVE
-  编号、不给可达路径的不算；上游还没补丁的也不算。
+- **凭据外发** —— 真实有效的凭据值，被送到这个凭据本来不服务的端点，或进入公开发布的
+  产物。
+- **权限绕过** —— 工具做到了它拿到的凭据在控制台里做不到的事。
+- **本地执行缺陷** —— server 自己执行、且输入由攻击者指定的命令注入和路径穿越。
+- **供应链** —— 依赖上的已知漏洞在我们这种用法下能被打通，且有可用修复。
 - **CI/CD 注入** —— 外部贡献者能拿到 CI 本不该给 fork 的凭据，或能改动发布产物。
-  在 PR CI 里跑测试代码是设计如此。
 
 ## 是缺陷，不是漏洞
 
-有些报告描述的是真缺陷，但背后没有攻击者：明文密钥被写进本机日志、本可以改成按需返回
-的凭据字段默认就返回了、删除动作落到了工具文档没写的对象上、某个模板在 Windows 上失败。
-这类请走普通 issue。
-
-我们会修。只是它不占安全公告编号、不走披露窗口，那套流程我们更愿意留给攻击者真能到达
-的问题。
+背后没有攻击者的真缺陷，走普通 issue，我们也会修，只是不占安全公告编号、不走披露窗口。
+例如：明文密钥被写进本机日志、本可以改成按需返回的凭据字段默认就返回了、删除动作落到了
+工具文档没写的对象上。
 
 ## 不属于范围
 
-- **破坏性操作执不执行前先问人。** 这取决于客户端：elicitation 在协议里是可选的，什么
-  时候把问题摆到人面前由宿主决定。客户端能渲染确认框的时候我们会问，客户端自己代答的
-  时候我们按「没人看过」处理。一项可选能力没法被策略变成保证。
+- **破坏性操作执行前问不问人。** elicitation 在协议里是可选的，什么时候把问题摆到人面前
+  由客户端和它的宿主决定。
 - **普通用户到不了的代码。** 不在 `tools/list` 里、文档没写、仓内没有调用方，或者只有
-  导入未文档化的导出才能触发。请指出按文档正常安装后怎么走到这条路径，我们会重新评估。
-- **模型拿到工具返回之后做的事。** 上下文边界、脱敏、留存，属于持有模型的那一端，不
-  属于返回值的那一端。诱导模型调用某个工具的 prompt injection 同理：server 分辨不出这
-  是用户的指令还是攻击者的。
-- **用户给的凭据被用满。** 一个 SecretId 能删环境，是控制台给它的权限，不是工具提权。
-- **没有可达调用路径、或上游还没有补丁的依赖告警。** 这类由 Dependabot 跟踪。可达性和
-  可用的修复都成立，才有我们能发的东西。
-- 我们所集成的第三方服务自身的漏洞，请上报给对应上游。
+  通过未文档化的导出才能触发。
+- **模型拿到工具返回之后做的事。** 上下文边界、脱敏、留存，属于持有模型的那一端。
+- **诱导模型调用某个工具的 prompt injection。** server 分辨不出这是用户的指令还是
+  攻击者的。
+- **用户给的凭据被用满。** 一个 SecretId 能删环境，是控制台给它的权限。
+- **没有可达调用路径、或上游还没有补丁的依赖告警。** 这类走 Dependabot。
+- 我们所集成的第三方服务自身的漏洞。
 - 需要攻击者已经控制用户机器、shell 或云账号才能成立的场景。
 - 公开端点的限流、爆破、缺少安全响应头，且未证明实际影响。
 - 没有具体攻击路径的最佳实践建议。
