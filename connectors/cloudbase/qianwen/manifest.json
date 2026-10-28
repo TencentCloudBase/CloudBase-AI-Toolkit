@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "platform": "qianwen-skill-market",
+  "dist": "dist/qianwen-skills",
+  "icon": "connectors/cloudbase/qianwen/assets/icon-512.png",
+  "license": "MIT",
+  "skills": [
+    {
+      "slug": "cloudbase",
+      "name": "腾讯云 CloudBase 开发",
+      "version": "2.36.3",
+      "summary": "CloudBase（云开发）入口技能：先判断国内站还是国际站，再把建站、小程序、数据库、云函数、云托管、存储、登录、AI 对话这些任务路由到对应的 MCP 工具；配方正文不打包，通过 CloudBase MCP 的知识库按技能名检索，拿到与最新版一致的做法。",
+      "source": {
+        "type": "authored",
+        "path": "connectors/cloudbase/qianwen/entry/cloudbase"
+      }
+    },
+    {
+      "slug": "cloudbase-miniprogram",
+      "name": "全栈小程序开发",
+      "version": "1.0.0",
+      "summary": "微信小程序全栈：从建环境、建集合、写云函数，到登录、图片上传、订阅消息，再到预览、上传代码、提交审核、发布。每一步给对应工具与检索入口，适合要把小程序真正做上线的人。",
+      "source": {
+        "type": "authored",
+        "path": "connectors/cloudbase/qianwen/entry/cloudbase-miniprogram"
+      }
+    },
+    {
+      "slug": "postgresql-development-cloudbase",
+      "name": "CloudBase PostgreSQL 开发",
+      "version": "2.36.2",
+      "summary": "用 CloudBase PostgreSQL 建表、写查询、配权限。覆盖 schema 设计、queryPgDatabase/managePgDatabase、JS SDK v3 的 app.rdb() 增删改查与 RPC、RLS 风格权限、用户名密码登录，以及配套后台的增删改。",
+      "source": {
+        "type": "skill",
+        "path": "connectors/cloudbase/skills/references/postgresql-development-cloudbase"
+      }
+    }
+  ]
+}
