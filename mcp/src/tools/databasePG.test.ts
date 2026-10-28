@@ -810,7 +810,7 @@ describe("PG database tools", () => {
         defaultRole: "cloudbase_postgres",
       },
     });
-    expect(payload.message).toContain("平台保留角色（cloudbase_admin）");
+    expect(payload.message).toContain("平台保留角色");
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -911,7 +911,7 @@ describe("PG database tools", () => {
     const description = databasePGDict.zh["schema.manageRole"];
 
     expect(description).toContain("cloudbase_postgres");
-    expect(description).toContain("平台保留角色（cloudbase_admin");
+    expect(description).toContain("平台保留角色（平台管理账号，不对用户开放）");
     expect(description).toContain("postgres_pgdb_*");
     expect(description).not.toMatch(/可传 postgres[^_]/);
     expect(databasePGDict.en["schema.manageRole"]).toContain(
