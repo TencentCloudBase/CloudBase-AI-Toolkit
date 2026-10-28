@@ -38,21 +38,11 @@ vulnerability reporting — that channel does not depend on one person's inbox.
 
 ## What to Report
 
-This project ships an MCP server, a set of skills, and IDE configuration that run on the
-user's own machine and act with the user's cloud credentials. Findings we care about:
+Anything that lets someone read, change, or delete a user's cloud resources without that
+user's consent, that exposes their credentials, or that runs code they did not intend to
+run — in the code we publish, the packages we ship, or the automation that builds them.
 
-- **Credential exposure** — tokens, API keys, or secrets leaked into the repository,
-  published packages, logs, or telemetry.
-- **Unconfirmed destructive or billable actions** — an MCP tool that deletes resources,
-  changes billing, or performs an irreversible operation without the user confirming it.
-- **Permission bypass** — a tool that reads or writes resources outside the caller's
-  identity, or that escalates beyond the credentials it was given.
-- **Local execution flaws** — command injection, path traversal, or privilege escalation
-  in the local MCP server or in a generated command.
-- **Supply chain** — a compromised dependency, a malicious package reachable through our
-  lockfile, or tampering with release artifacts.
-- **CI/CD injection** — a way to execute code or alter published output through our
-  workflows.
+If you are unsure whether something is in scope, report it and let us decide.
 
 ## What Is Out of Scope
 
@@ -98,16 +88,10 @@ latest version before reporting.
 
 ## 属于范围的漏洞
 
-本项目交付的是运行在用户本机、以用户云凭据执行操作的 MCP server、skills 与 IDE 配置。
-我们关注：
+凡是能让别人在你未同意的情况下读写、删除你的云资源，能拿到你的凭据，或能在你没打算
+执行的地方跑起代码的问题，都算 —— 无论是我们发布的代码、发布的包，还是构建它们的自动化。
 
-- **凭据泄漏** —— 令牌、API Key、密钥出现在仓库、发布包、日志或遥测数据中。
-- **未确认的破坏性/计费操作** —— MCP 工具在未经用户确认的情况下删除资源、变更计费
-  或执行不可逆操作。
-- **权限绕过** —— 工具读写调用者身份之外的资源，或超出所获凭据的权限。
-- **本地执行缺陷** —— 本地 MCP server 或生成的命令中的命令注入、路径穿越、提权。
-- **供应链** —— 依赖被投毒、lockfile 可解析到恶意包、发布产物被篡改。
-- **CI/CD 注入** —— 通过我们的 workflow 执行代码或篡改发布内容。
+拿不准是否属于范围，直接报，由我们判断。
 
 ## 不属于范围
 
