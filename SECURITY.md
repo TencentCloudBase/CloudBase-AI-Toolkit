@@ -71,6 +71,8 @@ does not match any of them but shows a real attack path is still worth sending.
 - **CI/CD injection** — an outside contributor reaching a credential CI should not hand a
   fork, or altering a release artifact.
 
+If you are unsure whether something is in scope, report it and let us decide.
+
 ## Defects That Are Not Vulnerabilities
 
 A real defect with no attacker behind it goes to the issue tracker and still gets fixed.
@@ -159,6 +161,8 @@ server 用的是用户交给它的凭据，而这类凭据是管理级的：用�
 - **本地执行缺陷** —— server 自己执行、且输入由攻击者指定的命令注入和路径穿越。
 - **供应链** —— 依赖上的已知漏洞在我们这种用法下能被打通，且有可用修复。
 - **CI/CD 注入** —— 外部贡献者能拿到 CI 本不该给 fork 的凭据，或能改动发布产物。
+
+拿不准是否属于范围，直接报，由我们判断。
 
 ## 是缺陷，不是漏洞
 
