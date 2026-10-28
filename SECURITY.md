@@ -59,8 +59,8 @@ it. See *Defects That Are Not Vulnerabilities* below.
 ## What to Report
 
 - **Credential egress** — a credential value that our code sends somewhere it should not
-  reach: the repository, a published package, a release artifact, our telemetry, or a
-  third-party endpoint.
+  reach: the repository, a published package, a release artifact, or a third-party
+  endpoint.
 - **Unconfirmed destructive or billable action** — a tool that performs an action the
   user did not ask for in that session. The user's own request, carried out through the
   model, is not unconfirmed; neither is a delete that proceeds because the client cannot
@@ -159,8 +159,8 @@ latest version before reporting.
 
 ## 属于范围的漏洞
 
-- **凭据外发** —— 我们的代码把凭据值送到了它不该到的地方：仓库、发布包、发布产物、
-  我们的遥测，或第三方端点。
+- **凭据外发** —— 我们的代码把凭据值送到了它不该到的地方：仓库、发布包、发布产物，
+  或第三方端点。
 - **未确认的破坏性/计费操作** —— 工具做了用户在这一轮里没有要求的事。用户自己提出、
   经模型执行的请求不算未确认；客户端渲染不出确认框而放行的删除也不算。
 - **权限绕过** —— 工具触碰到了它拿到的凭据在控制台里不允许的资源和动作。把用户给的
