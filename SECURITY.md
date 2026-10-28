@@ -58,24 +58,24 @@ it. See *Defects That Are Not Vulnerabilities* below.
 
 ## What to Report
 
-- **Credential egress** — a credential value that our code sends somewhere it should not
-  reach: the repository, a published package, a release artifact, or a third-party
-  endpoint.
-- **Unconfirmed destructive or billable action** — a tool that performs an action the
-  user did not ask for in that session. The user's own request, carried out through the
-  model, is not unconfirmed; neither is a delete that proceeds because the client cannot
-  render a confirmation prompt.
-- **Permission bypass** — a tool that reaches resources or actions beyond what the
-  credentials it was handed allow in the console. Using the credentials the user supplied,
-  to their full extent, is the intended behaviour.
-- **Local execution flaws** — command injection, path traversal, or privilege escalation
-  where the attacker controls the input. Input from the user, or from the model acting on
-  the user's instruction, is not attacker-controlled.
-- **Supply chain** — a malicious or compromised dependency on a code path we execute, or
-  tampering with a release artifact. A dependency advisory with no reachable call path is
-  tracked by Dependabot, not here.
-- **CI/CD injection** — a workflow that an outside contributor can make execute code or
-  alter published output, demonstrated end to end.
+- **Credential egress** — a live credential value that our code sends to an endpoint it
+  does not serve, or into a published artifact. Test fixtures, example values, and the
+  cloud API the credential exists for do not count.
+- **Unconfirmed destructive or billable action** — a tool acting on objects, or within a
+  scope, its own documentation does not describe, or creating resources the user did not
+  ask for. What the step the user asked for costs does not count.
+- **Permission bypass** — a tool doing what the credentials it was handed cannot do in
+  the console. Using those credentials to their limit does not count, and neither does a
+  tool holding broader credentials than its function needs; that is security debt.
+- **Local execution flaws** — command injection or path traversal in a command the
+  server runs itself, where the attacker chooses the input. A command generated for the
+  user to paste does not count, nor does a write outside a documented directory whose
+  path the attacker cannot choose.
+- **Supply chain** — a known vulnerability in a dependency that is reachable under how we
+  use it, with a fix available. A CVE number without a call path does not count, and
+  neither does one with no upstream patch.
+- **CI/CD injection** — an outside contributor reaching a credential CI should not hand
+  a fork, or altering a release artifact. Running test code in PR CI is by design.
 
 ## Defects That Are Not Vulnerabilities
 
@@ -159,17 +159,18 @@ latest version before reporting.
 
 ## 属于范围的漏洞
 
-- **凭据外发** —— 我们的代码把凭据值送到了它不该到的地方：仓库、发布包、发布产物，
-  或第三方端点。
-- **未确认的破坏性/计费操作** —— 工具做了用户在这一轮里没有要求的事。用户自己提出、
-  经模型执行的请求不算未确认；客户端渲染不出确认框而放行的删除也不算。
-- **权限绕过** —— 工具触碰到了它拿到的凭据在控制台里不允许的资源和动作。把用户给的
-  凭据用到它本来的上限，是设计如此。
-- **本地执行缺陷** —— 攻击者能控制输入时的命令注入、路径穿越、提权。来自用户、或来自
-  按用户要求行事的模型的输入，不算攻击者控制。
-- **供应链** —— 我们执行的代码路径上有被投毒或已失陷的依赖，或发布产物被篡改。
-  没有可达调用路径的依赖告警由 Dependabot 跟踪，不走这里。
-- **CI/CD 注入** —— 外部贡献者能让某个 workflow 执行代码或改动发布内容，且能端到端跑通。
+- **凭据外发** —— 真实有效的凭据值，被我们的代码送到它本来不服务的端点，或进入公开
+  发布的产物。测试用的假凭据、示例值、以及本来就该发给云 API 的凭据，不算。
+- **未确认的破坏性/计费操作** —— 工具的动作落到它自己文档没写的对象或范围上，或者在
+  用户没要求的情况下建了新资源。用户要求的那一步本身花多少钱，不算。
+- **权限绕过** —— 工具做到了它拿到的凭据在控制台里做不到的事。把凭据用到上限不算；
+  工具持有比功能更大的权限也不算，那算安全债。
+- **本地执行缺陷** —— server 自己执行、且路径或参数由攻击者指定的命令注入和路径穿越。
+  生成给用户自己粘贴执行的命令不算；写到文档声明目录之外但路径不可控，也不算。
+- **供应链** —— 依赖上的已知漏洞在我们这种用法下能被打通，且有可用修复。只给 CVE
+  编号、不给可达路径的不算；上游还没补丁的也不算。
+- **CI/CD 注入** —— 外部贡献者能拿到 CI 本不该给 fork 的凭据，或能改动发布产物。
+  在 PR CI 里跑测试代码是设计如此。
 
 ## 是缺陷，不是漏洞
 
