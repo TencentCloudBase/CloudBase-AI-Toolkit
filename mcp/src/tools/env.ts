@@ -40,6 +40,7 @@ import {
   TCB_QUERY_REGIONS,
 } from "../utils/site-map.js";
 import { readProjectEnvId, writeProjectConfig } from "../utils/project-config.js";
+import { buildDescribeEnvsFilter } from "../utils/describe-envs-query.js";
 import { normalizeLang, t, type Lang } from "../i18n/index.js";
 import {
   buildAuthNextStep,
@@ -3193,11 +3194,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 // Filter parameters match the reference conditions provided by user
                 result = await cloudbaseList.commonService("tcb", "2018-06-08").call({
                   Action: "DescribeEnvs",
-                  Param: {
-                    EnvTypes: ["weda", "baas"], // Include weda and baas (normal) environments
-                    IsVisible: false, // Filter out invisible environments
-                    Channels: ["dcloud", "iotenable", "tem", "scene_module"], // Filter special channels
-                  },
+                  // 过滤口径与 cloudbase-manager 共用一份，别在这里另写白名单
+                  Param: buildDescribeEnvsFilter(),
                 });
                 logCloudBaseResult(server.logger, result);
                 // Transform response format to match original listEnvs() format
