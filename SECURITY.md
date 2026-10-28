@@ -51,6 +51,9 @@ Missing any one of the three makes it a defect. See *Defects That Are Not Vulner
 
 ## What to Report
 
+The shapes below are the ones we see most often. The list is not exhaustive: a report that
+does not match any of them but shows a real attack path is still worth sending.
+
 - **Credential egress** — a live credential value sent to an endpoint that credential does
   not serve, or into a published artifact.
 - **Permission bypass** — a tool doing what the credentials it was handed cannot do in
@@ -71,21 +74,24 @@ opt-in, a delete that reaches further than the tool's own documentation describe
 
 ## What Is Out of Scope
 
+This list is how we usually decide. Something that falls under one of these entries but
+still shows concrete impact is worth sending; impact decides.
+
 - **Whether a destructive action asks before it runs.** Elicitation is optional in the
   protocol; the client and its host decide when to put a question in front of a person.
 - **Code a normal user cannot reach.** Not in `tools/list`, not in the docs, no caller in
   the repo, or reachable only through an undocumented export.
 - **What the model does with data a tool returns.** Context boundaries, redaction and
   retention belong to the host that holds the model.
-- **Prompt injection that leads a model to call a tool.** The server cannot tell the
-  user's instruction from an attacker's.
+- **Prompt injection that leads a model to call a tool.** The server has no reliable way
+  to tell the user's instruction from an attacker's.
 - **Credentials used to their limit.** If a SecretId can delete an environment, the console
   granted that.
-- **Dependency advisories with no reachable call path, or no upstream patch.** These go
-  through Dependabot.
+- **Dependency advisories with no reachable call path, or no upstream patch.** These
+  usually go through Dependabot.
 - Vulnerabilities in third-party services we integrate with.
-- Anything that requires the attacker to already control the user's machine, shell, or
-  cloud account.
+- Anything that only works because the attacker already controls the user's machine,
+  shell, or cloud account.
 - Rate limiting, brute force, or missing headers on public endpoints, with no demonstrated
   impact.
 - Best-practice suggestions with no concrete attack path ("this header should be set",
@@ -137,6 +143,8 @@ latest version before reporting.
 
 ## 属于范围的漏洞
 
+下面是常见的几类，不是穷举。不合其中任何一条、但能给出真实攻击路径的报告，一样可以发。
+
 - **凭据外发** —— 真实有效的凭据值，被送到这个凭据本来不服务的端点，或进入公开发布的
   产物。
 - **权限绕过** —— 工具做到了它拿到的凭据在控制台里做不到的事。
@@ -152,17 +160,20 @@ latest version before reporting.
 
 ## 不属于范围
 
+这份清单是我们通常的判断方式。落在其中某一条、但仍然有具体影响的报告，仍然可以发，
+影响说了算。
+
 - **破坏性操作执行前问不问人。** elicitation 在协议里是可选的，什么时候把问题摆到人面前
   由客户端和它的宿主决定。
 - **普通用户到不了的代码。** 不在 `tools/list` 里、文档没写、仓内没有调用方，或者只有
   通过未文档化的导出才能触发。
 - **模型拿到工具返回之后做的事。** 上下文边界、脱敏、留存，属于持有模型的那一端。
-- **诱导模型调用某个工具的 prompt injection。** server 分辨不出这是用户的指令还是
-  攻击者的。
+- **诱导模型调用某个工具的 prompt injection。** server 没有可靠办法分辨这是用户的指令
+  还是攻击者的。
 - **用户给的凭据被用满。** 一个 SecretId 能删环境，是控制台给它的权限。
-- **没有可达调用路径、或上游还没有补丁的依赖告警。** 这类走 Dependabot。
+- **没有可达调用路径、或上游还没有补丁的依赖告警。** 这类通常走 Dependabot。
 - 我们所集成的第三方服务自身的漏洞。
-- 需要攻击者已经控制用户机器、shell 或云账号才能成立的场景。
+- 只有在攻击者已经控制用户机器、shell 或云账号时才成立的场景。
 - 公开端点的限流、爆破、缺少安全响应头，且未证明实际影响。
 - 没有具体攻击路径的最佳实践建议。
 - 扫描器产出、没有 PoC、未验证影响的报告。
