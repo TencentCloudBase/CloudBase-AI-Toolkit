@@ -341,6 +341,11 @@ export async function createCloudBaseMcpServer(options?: {
       version,
     },
     {
+      // 工具入参的元素数上限（数组元素 + 对象键累加），超限直接返回 isError。
+      // MCP SDK 1.32 起支持，且**默认关闭**——不显式设置等于没开这道闸：
+      // 超大数组会一路进到 zod 逐个元素校验，每个失败元素生成一条 issue，
+      // 内存随元素数线性膨胀。我们的工具入参合法规模都在千级以内，留 10 倍余量。
+      maxToolInputElements: 10_000,
       capabilities: {
         tools: {},
         // MCP Apps 扩展声明：服务端按通用扩展机制用**空对象**（无 settings）。

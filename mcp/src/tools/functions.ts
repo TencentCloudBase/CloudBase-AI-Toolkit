@@ -664,9 +664,9 @@ const CREATE_FUNCTION_SCHEMA = z.object({
     .optional()
     .describe("functions.schema.create.buildStrategy"),
   imageConfig: IMAGE_CONFIG_SCHEMA.optional().describe("functions.schema.create.imageConfig"),
-  triggers: z.array(TRIGGER_SCHEMA).optional().describe("functions.schema.create.triggers"),
+  triggers: z.array(TRIGGER_SCHEMA).max(20).optional().describe("functions.schema.create.triggers"),
   handler: z.string().optional().describe("functions.schema.create.handler"),
-  ignore: z.union([z.string(), z.array(z.string())]).optional().describe("functions.schema.create.ignore"),
+  ignore: z.union([z.string(), z.array(z.string()).max(200)]).optional().describe("functions.schema.create.ignore"),
   isWaitInstall: z.boolean().optional().describe("functions.schema.create.isWaitInstall"),
   layers: z
     .array(
@@ -674,7 +674,7 @@ const CREATE_FUNCTION_SCHEMA = z.object({
         name: z.string(),
         version: z.number(),
       }),
-    )
+    ).max(10)
     .optional()
     .describe("functions.schema.create.layers"),
 });
@@ -718,12 +718,12 @@ const FUNCTION_VERSION_MATCH_SCHEMA = z.object({
 
 const FUNCTION_ROUTING_CONFIG_SCHEMA = z.object({
   AdditionalVersionWeights: z
-    .array(FUNCTION_VERSION_WEIGHT_SCHEMA)
+    .array(FUNCTION_VERSION_WEIGHT_SCHEMA).max(20)
     .optional()
     .describe("functions.schema.routing.additionalWeights"),
   // Keep SCF/SDK historical field name (typo included) as the public contract.
   AddtionVersionMatchs: z
-    .array(FUNCTION_VERSION_MATCH_SCHEMA)
+    .array(FUNCTION_VERSION_MATCH_SCHEMA).max(20)
     .optional()
     .describe("functions.schema.routing.additionalMatches"),
 });
@@ -3289,7 +3289,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         vpc: VPC_SCHEMA.optional().describe("functions.schema.manage.vpc"),
         params: z.record(z.any()).optional().describe("functions.schema.manage.params"),
         triggers: z
-          .array(TRIGGER_SCHEMA)
+          .array(TRIGGER_SCHEMA).max(20)
           .optional()
           .describe("functions.schema.manage.triggers"),
         triggerName: z.string().optional().describe("functions.schema.manage.triggerName"),
@@ -3300,11 +3300,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         layerVersion: z.number().optional().describe("functions.schema.manage.layerVersion"),
         contentPath: z.string().optional().describe("functions.schema.manage.contentPath"),
         base64Content: z.string().optional().describe("functions.schema.manage.base64Content"),
-        runtimes: z.array(z.string()).optional().describe("functions.schema.manage.runtimes"),
+        runtimes: z.array(z.string()).max(50).optional().describe("functions.schema.manage.runtimes"),
         description: z.string().optional().describe("functions.schema.manage.description"),
         licenseInfo: z.string().optional().describe("functions.schema.manage.licenseInfo"),
         layers: z
-          .array(MANAGE_LAYER_SCHEMA)
+          .array(MANAGE_LAYER_SCHEMA).max(10)
           .optional()
           .describe("functions.schema.manage.layers"),
         codeSecret: z.string().optional().describe("functions.schema.manage.codeSecret"),

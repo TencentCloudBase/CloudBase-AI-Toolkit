@@ -36,6 +36,9 @@ on:
       - 'plugins/experts/**'
       - '.github/workflows/open-plugin-spec-check.yml'
 
+permissions:
+  contents: read # 显式只读：仓库只读，写操作（如有）走各自的 PAT / 外部 token
+
 jobs:
   spec-check:
     runs-on: ubuntu-latest

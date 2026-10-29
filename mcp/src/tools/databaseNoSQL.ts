@@ -751,10 +751,10 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
                           .string()
                           .describe("databaseNoSQL.schema.writeStructure.createIndex.direction"),
                       }),
-                    ).describe("databaseNoSQL.schema.writeStructure.createIndex.fields"),
+                    ).max(32).describe("databaseNoSQL.schema.writeStructure.createIndex.fields"),
                   }).describe("databaseNoSQL.schema.writeStructure.createIndex.keySchema"),
                 }),
-              )
+              ).max(20)
               .optional()
               .describe("databaseNoSQL.schema.writeStructure.createIndexes"),
             DropIndexes: z
@@ -762,7 +762,7 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
                 z.object({
                   IndexName: z.string().describe("databaseNoSQL.schema.writeStructure.dropIndex.name"),
                 }),
-              )
+              ).max(20)
               .optional()
               .describe("databaseNoSQL.schema.writeStructure.dropIndexes"),
           })
@@ -966,7 +966,7 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
                   direction: z.number().describe("databaseNoSQL.schema.readContent.sort.direction"),
                 })
                 .passthrough(),
-            ),
+            ).max(10),
             z.string(),
           ])
           .optional()
@@ -1064,7 +1064,7 @@ export function registerDatabaseTools(server: ExtendedMcpServer) {
           .optional()
           .describe("databaseNoSQL.schema.writeContent.instanceId"),
         documents: z
-          .array(z.object({}).passthrough())
+          .array(z.object({}).passthrough()).max(100)
           .optional()
           .describe("databaseNoSQL.schema.writeContent.documents"),
         query: z

@@ -1477,11 +1477,11 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           .optional()
           .describe("databaseSQL.schema.query.sqlText"),
         logLevels: z
-          .array(z.enum(ERROR_LOG_LEVELS))
+          .array(z.enum(ERROR_LOG_LEVELS)).max(ERROR_LOG_LEVELS.length)
           .optional()
           .describe("databaseSQL.schema.query.logLevels"),
         keyWords: z
-          .array(z.string())
+          .array(z.string()).max(50)
           .optional()
           .describe("databaseSQL.schema.query.keyWords"),
       },
@@ -1539,7 +1539,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           .optional()
           .describe("databaseSQL.schema.manage.request"),
         statements: z
-          .array(z.string())
+          .array(z.string()).max(100)
           .optional()
           .describe("databaseSQL.schema.manage.statements"),
         requireReady: z

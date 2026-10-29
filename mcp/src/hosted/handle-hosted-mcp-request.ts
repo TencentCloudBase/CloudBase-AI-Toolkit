@@ -1,5 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import {
+  DEFAULT_MAX_REQUEST_BODY_SIZE,
+  requestBodyTooLargeMessage,
+} from "@modelcontextprotocol/sdk/server/requestBody.js";
 import { createCloudBaseMcpServer } from "../server.js";
 import { runWithEnvSlot, type EnvSlot } from "../utils/env-binding.js";
 import { hashCredentialParts } from "../utils/feedback-session.js";
@@ -114,11 +118,55 @@ function writeJsonRpcError(res: ServerResponse, body: unknown): void {
 }
 
 /**
- * One stateless JSON MCP request: a new server and SDK 1.30 transport, then close both.
- * Protocol versions are not rewritten. SDK 1.30 accepts `2025-11-25`. Later or
+ * 托管入口的请求体上限。调用方已经把 body 解析成对象再传进来（见
+ * `HostedMcpRequestInput.body`），SDK 只在它自己读流时才检查大小，所以必须在这里
+ * 按声明的 content-length 补一道。真正的上限还得由解析方设置（托管网关、
+ * express.json、Fastify 之类），否则分配已经发生在那一层。
+ */
+const MAX_HOSTED_REQUEST_BODY_BYTES = DEFAULT_MAX_REQUEST_BODY_SIZE;
+
+function declaredBodyBytes(req: IncomingMessage): number | undefined {
+  const raw = req.headers["content-length"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) {
+    return undefined;
+  }
+  const bytes = Number(value);
+  return Number.isFinite(bytes) && bytes >= 0 ? bytes : undefined;
+}
+
+function writeBodyTooLarge(res: ServerResponse, body: unknown): void {
+  if (res.headersSent || res.writableEnded) {
+    return;
+  }
+  res.statusCode = 413;
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify({
+    jsonrpc: "2.0",
+    error: {
+      code: -32000,
+      message: requestBodyTooLargeMessage(MAX_HOSTED_REQUEST_BODY_BYTES),
+    },
+    id: requestId(body),
+  }));
+}
+
+/**
+ * One stateless JSON MCP request: a new server and transport, then close both.
+ * Protocol versions are not rewritten. The SDK accepts `2025-11-25`. Later or
  * malformed `mcp-protocol-version` headers are passed through and rejected by the transport.
  */
 export async function handleHostedMcpRequest(input: HostedMcpRequestInput): Promise<void> {
+  const declaredBytes = declaredBodyBytes(input.req);
+  if (declaredBytes !== undefined && declaredBytes > MAX_HOSTED_REQUEST_BODY_BYTES) {
+    input.logger?.({
+      type: "cloudbase-mcp-request-body-too-large",
+      message: `declared ${declaredBytes} bytes`,
+    });
+    writeBodyTooLarge(input.res, input.body);
+    return;
+  }
+
   const credentialHash = hashCredentialParts({
     secretId: input.serverOptions.cloudBaseOptions?.secretId,
     token: input.serverOptions.cloudBaseOptions?.token,
@@ -171,6 +219,9 @@ export async function handleHostedMcpRequest(input: HostedMcpRequestInput): Prom
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,
+        // 只有在 handler 没拿到已解析 body、由 transport 自己读流时才生效；
+        // 当前调用方总会传 input.body，所以真正起作用的是上面那道 content-length 检查。
+        maxRequestBodySize: MAX_HOSTED_REQUEST_BODY_BYTES,
       });
       input.res.on("close", closeBoth);
       input.req.on("aborted", closeBoth);

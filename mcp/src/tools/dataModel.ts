@@ -634,7 +634,7 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
           .describe("dataModel.schema.manage.action"),
         name: z.string().optional().describe("dataModel.schema.manage.name"),
         names: z
-          .array(z.string())
+          .array(z.string()).max(100)
           .optional()
           .describe("dataModel.schema.manage.names"),
       },
