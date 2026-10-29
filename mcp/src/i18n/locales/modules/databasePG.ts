@@ -3,7 +3,7 @@ import { defineModule } from "../types.js";
 export const databasePG = defineModule(
   {
     "roleError.guidance":
-      "PostgreSQL role \"{role}\" 无法用于 ExecutePGSql（SET ROLE 失败或角色不存在）。不要从环境名或实例名臆造 postgres / postgres_pgdb_* 等角色。平台保留角色（cloudbase_admin）是平台管理账号，不能用于用户调用。请省略 role（默认为 cloudbase_postgres）或传入以下角色之一：{recommended}。要列出本数据库中实际存在的角色，请使用 role=cloudbase_postgres 重试并执行 SQL：SELECT rolname FROM pg_roles ORDER BY rolname;",
+      "PostgreSQL role \"{role}\" 无法用于 ExecutePGSql（SET ROLE 失败或角色不存在）。不要从环境名或实例名臆造 postgres / postgres_pgdb_* 等角色。平台保留角色是平台管理账号，不能用于用户调用。请省略 role（默认为 cloudbase_postgres）或传入以下角色之一：{recommended}。要列出本数据库中实际存在的角色，请使用 role=cloudbase_postgres 重试并执行 SQL：SELECT rolname FROM pg_roles ORDER BY rolname;",
     "roleError.retryWithoutCustomRole":
       "省略自定义 role（默认 {defaultRole}）重试，或显式传 role={defaultRole}。",
     "roleError.inspectContext": "重试前请检查自动推导的 PG 上下文（含默认 role）。",
@@ -32,7 +32,7 @@ export const databasePG = defineModule(
       "可选的 PostgreSQL 逻辑实例标识，默认 cloudbase-pg。",
     "schema.manageDefaultSchema": "可选的默认 schema，默认 public。",
     "schema.manageRole":
-      "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（cloudbase_admin，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。",
+      "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（平台管理账号，不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。",
     "schema.manageObjectName":
       "可选的对象名，当前仅用于非 migration 场景。migration 相关操作请使用 migrationName / migrationVersion。",
     "schema.manageMigrationName":
@@ -258,7 +258,7 @@ export const databasePG = defineModule(
   },
   {
     "roleError.guidance":
-      "PostgreSQL role \"{role}\" cannot be used with ExecutePGSql (SET ROLE failed or role does not exist). Do not invent roles like postgres / postgres_pgdb_* from env or instance names. Platform-reserved roles (cloudbase_admin) are the platform management account and must not be used by user calls. Omit role (defaults to cloudbase_postgres) or pass one of: {recommended}. To list roles that exist in this database, retry with role=cloudbase_postgres and SQL: SELECT rolname FROM pg_roles ORDER BY rolname;",
+      "PostgreSQL role \"{role}\" cannot be used with ExecutePGSql (SET ROLE failed or role does not exist). Do not invent roles like postgres / postgres_pgdb_* from env or instance names. Platform-reserved roles are the platform management account and must not be used by user calls. Omit role (defaults to cloudbase_postgres) or pass one of: {recommended}. To list roles that exist in this database, retry with role=cloudbase_postgres and SQL: SELECT rolname FROM pg_roles ORDER BY rolname;",
     "roleError.retryWithoutCustomRole":
       "Retry without a custom role (defaults to {defaultRole}), or pass role={defaultRole} explicitly.",
     "roleError.inspectContext":
@@ -292,7 +292,7 @@ export const databasePG = defineModule(
     "schema.manageDefaultSchema":
       "Optional default schema, defaults to public.",
     "schema.manageRole":
-      "Optional PostgreSQL role, passed as Role to the Manager SDK executePGSql (the platform issues SET ROLE). Defaults to cloudbase_postgres. Recommended values: cloudbase_postgres / anon / authenticated / service_role. Do not pass postgres, postgres_pgdb_*, platform-reserved roles (cloudbase_admin, the platform management account that is not exposed to users), or roles invented from the environment name; when unsure omit this field, or first run SELECT rolname FROM pg_roles with cloudbase_postgres.",
+      "Optional PostgreSQL role, passed as Role to the Manager SDK executePGSql (the platform issues SET ROLE). Defaults to cloudbase_postgres. Recommended values: cloudbase_postgres / anon / authenticated / service_role. Do not pass postgres, postgres_pgdb_*, platform-reserved roles (the platform management account, not exposed to users), or roles invented from the environment name; when unsure omit this field, or first run SELECT rolname FROM pg_roles with cloudbase_postgres.",
     "schema.manageObjectName":
       "Optional object name, currently only used for non-migration scenarios. For migration actions use migrationName / migrationVersion instead.",
     "schema.manageMigrationName":
