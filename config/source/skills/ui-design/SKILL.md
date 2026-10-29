@@ -82,20 +82,23 @@ Use this skill for **frontend UI design and interface creation** in any project 
 3. **Avoid Generic AI Aesthetics**
    - Never use forbidden colors (purple, violet, indigo, fuchsia, blue-purple gradients)
    - Never use forbidden fonts (Inter, Roboto, Arial, Helvetica, system-ui, -apple-system)
-   - Never use standard centered layouts without creative breaking
+   - Never use standard centered layouts on **persuade surfaces** without creative breaking (centered is correct on Operate and Read surfaces — see the scene judgement below)
    - Never use emoji as icons - always use professional icon libraries (FontAwesome, Heroicons, etc.)
 
 4. **Run Self-Audit Before Submitting**
    - Color audit (check for forbidden colors)
    - Font audit (check for forbidden fonts)
    - Icon audit (verify no emoji icons, using professional icon libraries)
-   - Layout audit (verify asymmetry/creativity)
+   - Layout audit (judged by scene, not one-size-fits-all)
+   - Measurable checks (contrast, spacing, states, overflow)
    - Design specification compliance check
 
 5. **Respect brand or design-system overrides when they are real constraints**
    - If the project already has approved brand colors, font tokens, or a design system, treat those as higher-priority constraints
    - Explicitly document which default UI-design prohibitions are being overridden and why
    - Keep the override narrow: preserve the overall quality bar instead of falling back to generic AI styling
+   - **Qualifies**: the project ships a `DESIGN.md`, a design-token file, or a published brand spec, and you can name the specific token you are honoring
+   - **Does not qualify**: "I like this better," or a value adjusted only to slip past a prohibition
 
 ---
 
@@ -112,14 +115,15 @@ You are a professional frontend engineer specializing in creating high-fidelity 
 ```
 DESIGN SPECIFICATION
 ====================
+0. Scene: [Persuade / Operate / Read — pick one; it decides every criterion below]
 1. Purpose Statement: [2-3 sentences about problem/users/context]
 2. Aesthetic Direction: [Choose ONE from list below, FORBIDDEN: "modern", "clean", "simple"]
 3. Color Palette: [List 3-5 specific colors with hex codes]
    ❌ FORBIDDEN COLORS: purple (#800080-#9370DB), violet (#8B00FF-#EE82EE), indigo (#4B0082-#6610F2), fuchsia (#FF00FF-#FF77FF), blue-purple gradients
 4. Typography: [Specify exact font names]
    ❌ FORBIDDEN FONTS: Inter, Roboto, Arial, Helvetica, system-ui, -apple-system
-5. Layout Strategy: [Describe specific asymmetric/diagonal/overlapping approach]
-   ❌ FORBIDDEN: Standard centered layouts, simple grid without creative breaking
+5. Layout Strategy: [the scale: breakpoint count, container width, column count, spacing base; on persuade surfaces only, which line breaks and why]
+   ❌ FORBIDDEN: a persuade surface in a standard centered layout with no breaking at all; starting any page without breakpoint and spacing scales
 ```
 
 **Aesthetic Direction Options:**
@@ -184,6 +188,20 @@ Guidance:
 
 ## Frontend Aesthetics Guidelines
 
+### Judge the scene before choosing criteria
+
+The same rules fight each other across three kinds of surface. Name the scene first:
+
+| Scene | Typical surfaces | What good layout means here |
+|---|---|---|
+| **Persuade** | Landing pages, marketing heroes, campaign pages | A committed visual position; asymmetry, grid-breaking, and deliberate impact are allowed |
+| **Operate** | Admin panels, forms, consoles, dashboards | Predictable structure, stable density, standard controls; never make the user re-learn placement |
+| **Read** | Docs, blogs, help centers | A linear path the reader can follow, 65–75ch measure, navigation where it is expected |
+
+- Persuade surfaces want to be remembered; Operate and Read surfaces want to be predictable.
+- **On the latter two, a novel layout is a defect, not an advantage.** Asymmetric grid-breaking on a docs page forces every reader to re-orient on every visit.
+- One site can host all three; a single page belongs to exactly one.
+
 ### Typography
 - **Avoid Generic Fonts**: Do not use overly common fonts like Arial, Inter, Roboto, system fonts
 - **Choose Distinctive Fonts**: Select beautiful, unique, and interesting fonts, for example:
@@ -214,10 +232,25 @@ Guidance:
 - **Icon Consistency**: Use icons from a single library throughout the project for visual consistency
 - **Icon Styling**: Icons should match the overall aesthetic direction and color palette
 
+### Grid & Breakpoints
+
+Set the scale before drawing components. The scale is infrastructure, not a per-component decision.
+
+- **At most four breakpoints**, reused site-wide. Never add a breakpoint because "it got cramped here" — that number carries no meaning outside the head of whoever typed it.
+- **One container width.** Two values coexisting (a custom 1200 plus a framework default 1140) means every style change starts by guessing which one wins.
+- **Pick structure by scene**:
+  - Persuade: use a column system. Card counts across sections (8/4/3/2) must land on the same columns and share a common divisor; a bespoke `repeat(N, 1fr)` per section means there is no grid.
+  - Operate / Read: skip the column system. What you need is a container, a 65–75ch body measure, and fixed column proportions. Measure is a hard constraint; a column grid here is over-engineering.
+- **Spacing comes from a scale**: 4-based (4/8/12/16/24/32/64), no one-off values.
+- **Question an equal-card grid before using it**: are these items genuinely equivalent? If some were already named in the copy above, the grid is a framework default rather than a decision.
+
 ### Spatial Composition
-- **Break Conventions**: Use unexpected layouts, asymmetry, overlap, diagonal flow
-- **Break the Grid**: Use grid-breaking elements
-- **Negative Space Control**: Either use generous negative space or control density
+
+Build the grid before breaking it. Breaking without a scale is just placing things by hand.
+
+- **Persuade**: asymmetry, overlap, diagonal flow, and grid-breaking elements are available. Breaking needs a reason — which line you break, and why that line should give.
+- **Operate / Read**: do not break. Repetition is not a weakness; it is what lets a reader build muscle memory.
+- **Negative space**: either generous enough to form rhythm, or dense enough to carry information. The worst case is every block taking the same spacing value — even a scale-legal 24px, once everything weighs the same, leaves the reader nowhere to land.
 
 ### Backgrounds & Visual Details
 - **Atmosphere Creation**: Create atmosphere and depth rather than defaulting to solid colors
@@ -236,7 +269,7 @@ Guidance:
 **Strictly Prohibit** the following generic AI-generated aesthetics:
 - Overused font families (Inter, Roboto, Arial, system fonts)
 - Cliched color schemes (particularly purple gradients on white backgrounds)
-- Predictable layouts and component patterns
+- Predictable layouts and component patterns on persuade surfaces (on Operate and Read surfaces they are the correct answer)
 - Cookie-cutter design that lacks context-specific character
 - **Emoji icons**: Never use emoji characters (🚀, ⭐, ❤️, etc.) as icons - always use professional icon libraries
 
@@ -252,11 +285,13 @@ className="bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50" // Warm edi
 className="bg-gradient-to-tr from-emerald-900 to-teal-700" // Dark organic
 className="bg-[#FF6B35] to-[#F7931E]" // Bold retro-futuristic
 
-// ❌ BAD: Generic centered card layout
+// ❌ BAD on persuade surfaces: Generic centered card layout
+// (on Operate and Read surfaces the centered version is correct — the defect there
+//  is an undesigned page, not the centering)
 <div className="flex items-center justify-center min-h-screen">
   <div className="bg-white rounded-lg shadow-lg p-8">
 
-// ✅ GOOD: Asymmetric layout with creative positioning
+// ✅ GOOD on persuade surfaces: Asymmetric layout with creative positioning
 <div className="grid grid-cols-12 min-h-screen">
   <div className="col-span-7 col-start-2 pt-24">
 
@@ -327,12 +362,20 @@ All interface prototypes must:
    # Verify icon library is properly imported and used
    ```
 
-4. **Layout Audit**:
-   - Does the layout use asymmetry/diagonal/overlap? (Required: YES)
-   - Is there creative grid-breaking? (Required: YES)
-   - Are elements only centered with symmetric spacing? (Allowed: NO)
+4. **Layout Audit** (judged by scene, not one-size-fits-all):
+   - Persuade: did you use asymmetry or breaking, and can you name the line you broke and why?
+   - Operate / Read: predictable structure, stable density, body measure within 65–75ch?
+   - All scenes: ≤4 breakpoints reused site-wide, a single container width, spacing drawn from the scale?
 
-5. **Design Specification Compliance**:
+5. **Measurable Checks** (measurable, not felt):
+   - **Contrast**: body and placeholder text ≥4.5:1, large text ≥3:1. On colored surfaces, tint secondary text from that hue rather than graying it — gray on color reads muddy and fails.
+   - **Spacing**: tight groups tighter, distant groups farther; more space above a heading than below. Read the computed value, not the impression.
+   - **Tracking**: never below -0.04em; -0.02 to -0.03em usually reads better.
+   - **Browser surfaces**: text selection, caret, scrollbars, focus rings, underline offset, tabular numerals — these ship with defaults that belong to no design system. Theme them from the palette. It is the cheapest signal that a page was built rather than assembled.
+   - **States**: are hover, disabled, loading, error, and empty all designed?
+   - **Overflow**: run real copy at every breakpoint and look for what wraps badly or gets clipped.
+
+6. **Design Specification Compliance**:
    - Did you output the DESIGN SPECIFICATION before code? (Required: YES)
    - Does the code match the aesthetic direction you declared? (Required: YES)
 
