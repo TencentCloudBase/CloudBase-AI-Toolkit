@@ -15,7 +15,7 @@ function fakeRequest(contentLength?: string): IncomingMessage {
 }
 
 function fakeResponse() {
-  const state = { statusCode: 200, headers: {} as Record<string, string>, body: "" };
+  const state = { statusCode: 200, headers: {} as Record<string, string>, body: "", ended: false };
   const res = {
     get statusCode() {
       return state.statusCode;
@@ -23,15 +23,19 @@ function fakeResponse() {
     set statusCode(value: number) {
       state.statusCode = value;
     },
-    headersSent: false,
-    writableEnded: false,
+    get headersSent() {
+      return state.ended;
+    },
+    get writableEnded() {
+      return state.ended;
+    },
     setHeader(name: string, value: string) {
       state.headers[name.toLowerCase()] = value;
       return res;
     },
     end(chunk?: string) {
       state.body = chunk ?? "";
-      res.writableEnded = true;
+      state.ended = true;
       return res;
     },
   } as unknown as ServerResponse;
