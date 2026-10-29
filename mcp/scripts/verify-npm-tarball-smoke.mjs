@@ -169,6 +169,24 @@ function assertOpaStrings(pkgRoot) {
   }
 }
 
+/**
+ * 发布形态的 package.json 里 dependencies 必须为空。
+ *
+ * mcp 把运行时依赖全部打进 dist bundle，发布前由 scripts/prepare-publish.cjs
+ * 清空 dependencies；否则用户装包时会再重复安装一整套运行时依赖（含 express 之类的传递树）。
+ * 那一步挂在 npm 的 prepublishOnly 钩子上，钩子没执行时包照样能发出去，所以在这里兜一道。
+ */
+export function assertNoRuntimeDependencies(pkgJson) {
+  const declared = Object.keys(pkgJson.dependencies ?? {});
+  assert(
+    declared.length === 0,
+    `Published package.json still declares ${declared.length} runtime ` +
+      `dependenc${declared.length === 1 ? "y" : "ies"} (${declared.join(", ")}); ` +
+      "prepare-publish did not run before publish",
+  );
+  log("dependencies", "none declared");
+}
+
 async function assertToolRegistration(pkgRoot) {
   const entryCjs = path.join(pkgRoot, "dist", "index.cjs");
   assert(existsSync(entryCjs), `Missing published entry ${entryCjs}`);
@@ -360,6 +378,7 @@ async function main() {
     const pkgJson = JSON.parse(readFileSync(path.join(pkgRoot, "package.json"), "utf8"));
     assert(pkgJson.version === meta.version, `package.json version ${pkgJson.version} != ${meta.version}`);
     log("package.json", `version=${pkgJson.version}`);
+    assertNoRuntimeDependencies(pkgJson);
 
     // server.json ships inside the tarball (see package.json "files"); its
     // version must match the published version, otherwise the MCP Registry
