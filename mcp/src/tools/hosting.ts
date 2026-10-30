@@ -52,19 +52,19 @@ const domainConfigSchema = z.object({
     Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('hosting.schema.domainConfig.refer.switch'),
     RefererRules: z.array(z.object({
       RefererType: z.enum(HOSTING_REFERER_TYPES).describe('hosting.schema.domainConfig.refer.rules.type'),
-      Referers: z.array(z.string()).describe('hosting.schema.domainConfig.refer.rules.referers'),
+      Referers: z.array(z.string()).max(100).describe('hosting.schema.domainConfig.refer.rules.referers'),
       AllowEmpty: z.boolean().describe('hosting.schema.domainConfig.refer.rules.allowEmpty'),
-    })).optional().describe('hosting.schema.domainConfig.refer.rules'),
+    })).max(20).optional().describe('hosting.schema.domainConfig.refer.rules'),
   }).optional().describe('hosting.schema.domainConfig.refer'),
   Cache: z.array(z.object({
     RuleType: z.enum(HOSTING_CACHE_RULE_TYPES).describe('hosting.schema.domainConfig.cache.ruleType'),
     RuleValue: z.string().describe('hosting.schema.domainConfig.cache.ruleValue'),
     CacheTtl: z.number().describe('hosting.schema.domainConfig.cache.cacheTtl'),
-  })).optional().describe('hosting.schema.domainConfig.cache'),
+  })).max(20).optional().describe('hosting.schema.domainConfig.cache'),
   IpFilter: z.object({
     Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('hosting.schema.domainConfig.ipFilter.switch'),
     FilterType: z.enum(HOSTING_IP_FILTER_TYPES).optional().describe('hosting.schema.domainConfig.ipFilter.filterType'),
-    Filters: z.array(z.string()).optional().describe('hosting.schema.domainConfig.ipFilter.filters'),
+    Filters: z.array(z.string()).max(100).optional().describe('hosting.schema.domainConfig.ipFilter.filters'),
   }).optional().describe('hosting.schema.domainConfig.ipFilter'),
   IpFreqLimit: z.object({
     Switch: z.enum(HOSTING_CDN_SWITCH_VALUES).describe('hosting.schema.domainConfig.ipFreqLimit.switch'),
@@ -77,7 +77,7 @@ const queryHostingInputSchema = {
   prefix: z.string().optional().describe('hosting.schema.query.prefix'),
   marker: z.string().optional().describe('hosting.schema.query.marker'),
   maxKeys: z.number().int().positive().optional().describe('hosting.schema.query.maxKeys'),
-  domains: z.array(z.string()).optional().describe('hosting.schema.query.domains'),
+  domains: z.array(z.string()).max(100).optional().describe('hosting.schema.query.domains'),
 };
 
 const manageHostingInputSchema = {
@@ -87,13 +87,13 @@ const manageHostingInputSchema = {
   files: z.array(z.object({
     localPath: z.string().describe('hosting.schema.manage.files.localPath'),
     cloudPath: z.string().describe('hosting.schema.manage.files.cloudPath'),
-  })).default([]).describe('hosting.schema.manage.files'),
-  ignore: z.union([z.string(), z.array(z.string())]).optional().describe('hosting.schema.manage.ignore'),
+  })).max(500).default([]).describe('hosting.schema.manage.files'),
+  ignore: z.union([z.string(), z.array(z.string()).max(200)]).optional().describe('hosting.schema.manage.ignore'),
   isDir: z.boolean().optional().default(false).describe('hosting.schema.manage.isDir'),
   confirm: z.boolean().optional().default(false).describe('hosting.schema.manage.confirm'),
   indexDocument: z.string().optional().describe('hosting.schema.manage.indexDocument'),
   errorDocument: z.string().optional().describe('hosting.schema.manage.errorDocument'),
-  routingRules: z.array(routingRuleSchema).optional().describe('hosting.schema.manage.routingRules'),
+  routingRules: z.array(routingRuleSchema).max(50).optional().describe('hosting.schema.manage.routingRules'),
   domain: z.string().optional().describe('hosting.schema.manage.domain'),
   certId: z.string().optional().describe('hosting.schema.manage.certId'),
   domainId: z.number().optional().describe('hosting.schema.manage.domainId'),

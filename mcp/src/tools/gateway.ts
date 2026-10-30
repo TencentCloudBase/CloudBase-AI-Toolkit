@@ -242,10 +242,10 @@ const headerToAddSchema = z.object({
 });
 
 const headersHandlerSchema = z.object({
-  requestHeadersToAdd: z.array(headerToAddSchema).optional(),
-  requestHeadersToRemove: z.array(z.string()).optional(),
-  responseHeadersToAdd: z.array(headerToAddSchema).optional(),
-  responseHeadersToRemove: z.array(z.string()).optional(),
+  requestHeadersToAdd: z.array(headerToAddSchema).max(100).optional(),
+  requestHeadersToRemove: z.array(z.string()).max(100).optional(),
+  responseHeadersToAdd: z.array(headerToAddSchema).max(100).optional(),
+  responseHeadersToRemove: z.array(z.string()).max(100).optional(),
 });
 
 const cacheRuleSchema = z.object({
@@ -255,7 +255,7 @@ const cacheRuleSchema = z.object({
     .object({
       target: z.enum(["url_path", "file_extension", "full_uri"]).optional(),
       matchType: z.enum(["prefix", "suffix", "contains", "exact"]).optional(),
-      values: z.array(z.string()).optional(),
+      values: z.array(z.string()).max(50).optional(),
     })
     .describe("gateway.schema.manage.extension.cacheCondition"),
   actions: z
@@ -275,17 +275,17 @@ const cacheRuleSchema = z.object({
             fullUrlCache: z.enum(["on", "off"]).optional(),
             queryStringSwitch: z.enum(["on", "off"]).optional(),
             queryStringAction: z.enum(["includeCustom", "excludeCustom"]).optional(),
-            queryStringValues: z.array(z.string()).optional(),
+            queryStringValues: z.array(z.string()).max(50).optional(),
           })
           .optional(),
       }),
-    )
+    ).max(20)
     .describe("gateway.schema.manage.extension.cacheActions"),
 });
 
 const extensionSchema = z.object({
   headersHandler: headersHandlerSchema.optional(),
-  cache: z.object({ rules: z.array(cacheRuleSchema).optional() }).optional(),
+  cache: z.object({ rules: z.array(cacheRuleSchema).max(50).optional() }).optional(),
 });
 
 const pathRewriteSchema = z.object({
@@ -2290,7 +2290,7 @@ export function registerGatewayTools(server: ExtendedMcpServer) {
           .optional()
           .describe("gateway.schema.manage.purgeType"),
         targets: z
-          .array(z.string())
+          .array(z.string()).max(200)
           .optional()
           .describe("gateway.schema.manage.targets"),
       },

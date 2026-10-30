@@ -30,12 +30,19 @@ export function UrlPreview(props: UrlPreviewProps): React.ReactElement {
   const [recent, setRecent] = React.useState<RecentDeploy[]>(() => getRecentDeploys());
 
   // 同步 props.seedUrl → 自动加载到 iframe。
+  // 和手输那条一样要过 safeUrl：seedUrl 来自部署结果，是外部字符串，
+  // 直接塞进 iframe src 等于把 data:/javascript: 之类的协议放进来。
   React.useEffect(() => {
     if (!props.seedUrl) return;
-    recordDeployUrl(props.seedUrl);
+    const target = safeUrl(props.seedUrl);
+    if (target === EMPTY) {
+      setUrl(props.seedUrl);
+      return;
+    }
+    recordDeployUrl(target);
     setRecent(getRecentDeploys());
-    setUrl(props.seedUrl);
-    setFrameUrl(props.seedUrl);
+    setUrl(target);
+    setFrameUrl(target);
   }, [props.seedUrl]);
 
   // 监听 storage / kit 事件，其他组件写入最近地址后同步刷新列表。
@@ -74,8 +81,9 @@ export function UrlPreview(props: UrlPreviewProps): React.ReactElement {
   };
 
   const pickRecent = (entry: RecentDeploy) => {
+    // 历史记录同样来自外部输入（localStorage 可被写入），过一遍 safeUrl 再进 iframe。
     setUrl(entry.url);
-    setFrameUrl(entry.url);
+    setFrameUrl(safeUrl(entry.url));
   };
 
   return (

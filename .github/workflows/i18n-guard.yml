@@ -49,6 +49,9 @@ on:
       - 'platform-kit/scripts/validate-i18n.mjs'
       - '.github/workflows/i18n-guard.yml'
 
+permissions:
+  contents: read # 显式只读：仓库只读，写操作（如有）走各自的 PAT / 外部 token
+
 jobs:
   mcp-description-surface:
     name: mcp 描述面（工具级 meta + 参数级棘轮）

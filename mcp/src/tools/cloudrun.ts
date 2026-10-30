@@ -136,14 +136,14 @@ const ManageCloudRunInputSchema = {
   envId: z.string().optional().describe('cloudrun.schema.manage.envId'),
   packageType: z.enum(CLOUDRUN_PACKAGE_TYPES).optional().default('Trial').describe('cloudrun.schema.manage.packageType'),
   vpcId: z.string().optional().describe('cloudrun.schema.manage.vpcId'),
-  subnetIds: z.array(z.string()).optional().describe('cloudrun.schema.manage.subnetIds'),
+  subnetIds: z.array(z.string()).max(20).optional().describe('cloudrun.schema.manage.subnetIds'),
 
   // Deploy operation parameters
   targetPath: z.string().optional().describe('cloudrun.schema.manage.targetPath'),
   imageUrl: z.string().optional().describe('cloudrun.schema.manage.imageUrl'),
   envParamsReplaceAll: z.boolean().optional().default(false).describe('cloudrun.schema.manage.envParamsReplaceAll'),
   serverConfig: z.object({
-    OpenAccessTypes: z.array(z.enum(CLOUDRUN_ACCESS_TYPES)).optional().describe('cloudrun.schema.manage.serverConfig.openAccessTypes'),
+    OpenAccessTypes: z.array(z.enum(CLOUDRUN_ACCESS_TYPES)).max(CLOUDRUN_ACCESS_TYPES.length).optional().describe('cloudrun.schema.manage.serverConfig.openAccessTypes'),
     Cpu: z.number().positive().optional().describe('cloudrun.schema.manage.serverConfig.cpu'),
     Mem: z.number().positive().optional().describe('cloudrun.schema.manage.serverConfig.mem'),
     MinNum: z.number().min(0).optional().describe('cloudrun.schema.manage.serverConfig.minNum'),
@@ -151,7 +151,7 @@ const ManageCloudRunInputSchema = {
     PolicyDetails: z.array(z.object({
       PolicyType: z.enum(['cpu', 'mem', 'cpu/mem']).describe('cloudrun.schema.manage.serverConfig.policyDetails.policyType'),
       PolicyThreshold: z.number().min(1).max(100).describe('cloudrun.schema.manage.serverConfig.policyDetails.policyThreshold')
-    })).optional().describe('cloudrun.schema.manage.serverConfig.policyDetails'),
+    })).max(10).optional().describe('cloudrun.schema.manage.serverConfig.policyDetails'),
     CustomLogs: z.string().optional().describe('cloudrun.schema.manage.serverConfig.customLogs'),
     Port: z.number().min(1).max(65535).optional().describe('cloudrun.schema.manage.serverConfig.port'),
     EnvParams: z.string().optional().describe('cloudrun.schema.manage.serverConfig.envParams'),
@@ -159,8 +159,8 @@ const ManageCloudRunInputSchema = {
     BuildDir: z.string().optional().describe('cloudrun.schema.manage.serverConfig.buildDir'),
     InternalAccess: z.string().optional().describe('cloudrun.schema.manage.serverConfig.internalAccess'),
     InternalDomain: z.string().optional().describe('cloudrun.schema.manage.serverConfig.internalDomain'),
-    EntryPoint: z.array(z.string()).optional().describe('cloudrun.schema.manage.serverConfig.entryPoint'),
-    Cmd: z.array(z.string()).optional().describe('cloudrun.schema.manage.serverConfig.cmd'),
+    EntryPoint: z.array(z.string()).max(100).optional().describe('cloudrun.schema.manage.serverConfig.entryPoint'),
+    Cmd: z.array(z.string()).max(100).optional().describe('cloudrun.schema.manage.serverConfig.cmd'),
     InitialDelaySeconds: z.number().min(0).optional().describe('cloudrun.schema.manage.serverConfig.initialDelaySeconds'),
     LogType: z.string().optional().describe('cloudrun.schema.manage.serverConfig.logType'),
     LogSetId: z.string().optional().describe('cloudrun.schema.manage.serverConfig.logSetId'),
@@ -176,7 +176,7 @@ const ManageCloudRunInputSchema = {
       StartTime: z.string().describe('cloudrun.schema.manage.serverConfig.timerScale.startTime'),
       EndTime: z.string().describe('cloudrun.schema.manage.serverConfig.timerScale.endTime'),
       ReplicaNum: z.number().min(0).describe('cloudrun.schema.manage.serverConfig.timerScale.replicaNum')
-    })).optional().describe('cloudrun.schema.manage.serverConfig.timerScale'),
+    })).max(10).optional().describe('cloudrun.schema.manage.serverConfig.timerScale'),
     VpcConf: z.object({
       VpcId: z.string().describe('cloudrun.schema.manage.serverConfig.vpcConf.vpcId'),
       SubnetId: z.string().describe('cloudrun.schema.manage.serverConfig.vpcConf.subnetId'),
@@ -185,7 +185,7 @@ const ManageCloudRunInputSchema = {
       VolumeName: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.volumeName'),
       VolumeType: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.volumeType'),
       VolumePath: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.volumePath')
-    })).optional().describe('cloudrun.schema.manage.serverConfig.volumesConf'),
+    })).max(10).optional().describe('cloudrun.schema.manage.serverConfig.volumesConf'),
     PublicNetConf: z.object({
       PublicAccess: z.boolean().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicAccess'),
       PublicAccessPath: z.string().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicAccessPath')

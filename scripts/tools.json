@@ -150,6 +150,7 @@
                 "IsDefault"
               ]
             },
+            "maxItems": 8,
             "description": "返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选"
           },
           "type": {
@@ -172,6 +173,7 @@
                 "Other"
               ]
             },
+            "maxItems": 13,
             "description": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值对齐 tcb CLI：FLEXDB、TDSQL、SCF、EKS、COS、AI、HOSTING、Auth、APIInvocation、HTTPInvocation、VM、Workflow、Other。"
           },
           "startDate": {
@@ -266,6 +268,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 100,
             "description": "安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。注意：不是自定义域名，不需要证书。"
           }
         },
@@ -300,6 +303,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 100,
             "description": "安全域名数组（格式：host:port，例如 localhost:5173 或 127.0.0.1:4173）。仅 action=addSecurityDomain/removeSecurityDomain 时有效且必填。注意：这是 CORS 白名单条目，不是自定义域名，不需要证书。添加前应先用 queryEnv(action=domains) 检查浏览器实际 origin 是否已在白名单中。"
           },
           "alias": {
@@ -320,6 +324,7 @@
                 "postgresql"
               ]
             },
+            "maxItems": 3,
             "description": "启用的资源类型（action=create 时可选）。可选值：storage(存储)、function(云函数)、postgresql(PostgreSQL)，省略时默认全部三项。CreateEnv 要求 Resources 非空，MCP 会始终下发该字段。不再包含 flexdb(文档数据库)：新建环境不会创建 NoSQL 实例，其可用性以 queryEnv(action=\"info\") 返回的 EnvInfo.RuntimeBackends 为准。"
           },
           "duration": {
@@ -481,6 +486,7 @@
                             ],
                             "additionalProperties": false
                           },
+                          "maxItems": 32,
                           "description": "索引字段列表，支持单字段或复合索引"
                         }
                       },
@@ -498,6 +504,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 20,
                 "description": "要添加的索引列表"
               },
               "DropIndexes": {
@@ -515,6 +522,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 20,
                 "description": "要删除的索引列表"
               }
             },
@@ -591,7 +599,8 @@
                     "direction"
                   ],
                   "additionalProperties": true
-                }
+                },
+                "maxItems": 10
               },
               {
                 "type": "string"
@@ -645,6 +654,7 @@
               "properties": {},
               "additionalProperties": true
             },
+            "maxItems": 100,
             "description": "要插入的文档对象数组,每个文档都是对象(insert 操作必填)"
           },
           "query": {
@@ -714,6 +724,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 100,
             "description": "模型名称数组（list操作时可选，用于过滤）"
           }
         },
@@ -850,7 +861,7 @@
           },
           "role": {
             "type": "string",
-            "description": "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（cloudbase_admin，为平台管理账号不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。"
+            "description": "可选的 PostgreSQL role，传给 Manager SDK executePGSql 的 Role（平台会 SET ROLE）。默认 cloudbase_postgres。推荐取值：cloudbase_postgres / anon / authenticated / service_role。不要传 postgres、postgres_pgdb_*、平台保留角色（平台管理账号，不对用户开放）或从环境名臆造的角色；不确定时省略本字段，或先用 cloudbase_postgres 执行 SELECT rolname FROM pg_roles。"
           },
           "objectName": {
             "type": "string",
@@ -967,6 +978,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
             "description": "多个对象 key，用于对象元信息查询规划"
           },
           "objects": {
@@ -990,6 +1002,7 @@
               ],
               "additionalProperties": false
             },
+            "maxItems": 500,
             "description": "待上传对象的元信息。文件字节内容不会通过 MCP 传递。"
           },
           "expiresIn": {
@@ -1111,6 +1124,7 @@
                 "note"
               ]
             },
+            "maxItems": 3,
             "description": "错误日志等级过滤，可选值：error / warning / note"
           },
           "keyWords": {
@@ -1118,6 +1132,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 50,
             "description": "错误日志关键字模糊搜索列表"
           }
         },
@@ -1161,6 +1176,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 100,
             "description": "action=initializeSchema 使用的有序 Schema 初始化 SQL 语句"
           },
           "requireReady": {
@@ -1469,6 +1485,7 @@
                     "items": {
                       "type": "string"
                     },
+                    "maxItems": 100,
                     "description": "镜像启动命令的数组写法，元素已按参数切分，适用于命令本身含空格的场景。"
                   },
                   "argsList": {
@@ -1476,6 +1493,7 @@
                     "items": {
                       "type": "string"
                     },
+                    "maxItems": 100,
                     "description": "镜像启动参数的数组写法，元素已按参数切分，适用于参数本身含空格的场景。"
                   },
                   "containerImageAccelerate": {
@@ -1603,6 +1621,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 20,
                 "description": "触发器配置数组"
               },
               "handler": {
@@ -1618,7 +1637,8 @@
                     "type": "array",
                     "items": {
                       "type": "string"
-                    }
+                    },
+                    "maxItems": 200
                   }
                 ],
                 "description": "忽略文件"
@@ -1645,6 +1665,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 10,
                 "description": "Layer 配置"
               }
             },
@@ -1722,6 +1743,7 @@
             "items": {
               "$ref": "#/properties/func/properties/triggers/items"
             },
+            "maxItems": 20,
             "description": "createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 \"0 */5 * * * * *\" 表示每5分钟执行一次"
           },
           "triggerName": {
@@ -1749,6 +1771,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 50,
             "description": "层适用的运行时列表"
           },
           "description": {
@@ -1779,6 +1802,7 @@
               ],
               "additionalProperties": false
             },
+            "maxItems": 10,
             "description": "updateFunctionLayers 的目标层列表，顺序即最终顺序"
           },
           "codeSecret": {
@@ -1839,6 +1863,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 20,
                 "description": "附加版本权重列表（灰度发布）"
               },
               "AddtionVersionMatchs": {
@@ -1871,6 +1896,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 20,
                 "description": "附加版本匹配规则列表（字段名保持 SCF AddtionVersionMatchs）"
               }
             },
@@ -1920,6 +1946,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 100,
             "description": "要查询的自定义域名列表。仅 action=domainStatus 时使用，例如 [\"www.example.com\"]。"
           }
         },
@@ -1979,6 +2006,7 @@
               ],
               "additionalProperties": false
             },
+            "maxItems": 500,
             "default": [],
             "description": "多文件上传配置。仅 action=upload 时可选；传入后会逐项上传，不再依赖单个 localPath/cloudPath。"
           },
@@ -1991,7 +2019,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "maxItems": 200
               }
             ],
             "description": "上传时忽略的文件模式。仅 action=upload 时可选，例如 node_modules 或 [\"**/*.map\", \"**/.DS_Store\"]。"
@@ -2038,6 +2067,7 @@
               },
               "additionalProperties": false
             },
+            "maxItems": 50,
             "description": "网站路由规则列表。仅 action=setWebsiteDocument 时可选。SPA 常见配置是将 404 重写到 index.html。"
           },
           "domain": {
@@ -2084,6 +2114,7 @@
                           "items": {
                             "type": "string"
                           },
+                          "maxItems": 100,
                           "description": "Referer 规则值列表。"
                         },
                         "AllowEmpty": {
@@ -2098,6 +2129,7 @@
                       ],
                       "additionalProperties": false
                     },
+                    "maxItems": 20,
                     "description": "Referer 规则列表。"
                   }
                 },
@@ -2136,6 +2168,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 20,
                 "description": "CDN 缓存规则列表。"
               },
               "IpFilter": {
@@ -2162,6 +2195,7 @@
                     "items": {
                       "type": "string"
                     },
+                    "maxItems": 100,
                     "description": "IP 规则列表。"
                   }
                 },
@@ -2343,7 +2377,7 @@
     },
     {
       "name": "searchKnowledgeBase",
-      "description": "云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。\n\n      按场景选择 mode：\n      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试\n      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）\n      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）\n      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName\n      - 需要 HTTP API 的接口定义时：mode=openapi + apiName\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)\n      - 需要 auth-tool-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)\n      - 需要 auth-web-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n      - 需要 MCP 接入方式（本地 / 远程）、用 mcporter 在命令行调用工具、或站点 / 插件开关时：searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)\n\n      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。\n\n      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。\n\n      注意：OpenAPI 文档 (openapi) 查询只需要传 mode=\"openapi\" 和 apiName，不要传 action；action 仅用于 mode=\"docs\"。",
+      "description": "云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。\n\n      按场景选择 mode：\n      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试\n      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）\n      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）\n      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName\n      - 需要 HTTP API 的接口定义时：mode=openapi + apiName\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)\n      - 需要 auth-tool-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)\n      - 需要 auth-web-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n      - 需要 MCP 接入方式（本地 / 远程）、用 mcporter 在命令行调用工具、或站点 / 插件开关时：searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)\n\n      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。\n\n      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 32 个，API 共 8 个）。\n\n      注意：OpenAPI 文档 (openapi) 查询只需要传 mode=\"openapi\" 和 apiName，不要传 action；action 仅用于 mode=\"docs\"。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -2358,6 +2392,7 @@
           "skillName": {
             "type": "string",
             "enum": [
+              "cloudbase-all-in-one",
               "ai-model-nodejs",
               "ai-model-web",
               "ai-model-wechat",
@@ -2586,6 +2621,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 20,
             "description": "子网 ID 列表（action=initEnv 时可选）。当需指定自有 VPC 时必填，如 [\"subnet-xxxxxxxx\"]。与 vpcId 一起透传给 CreateCloudRunEnv 的 SubNetIds"
           },
           "targetPath": {
@@ -2615,6 +2651,7 @@
                     "VPC"
                   ]
                 },
+                "maxItems": 4,
                 "description": "公网访问类型配置，控制服务的访问权限：OA=办公网访问，PUBLIC=公网访问（默认，可通过HTTPS域名访问），MINIAPP=小程序访问，VPC=VPC访问（仅同VPC内可访问）。可配置多个类型"
               },
               "Cpu": {
@@ -2664,6 +2701,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 10,
                 "description": "扩缩容配置数组，用于配置服务的自动扩缩容策略。可配置多个扩缩容策略"
               },
               "CustomLogs": {
@@ -2701,6 +2739,7 @@
                 "items": {
                   "type": "string"
                 },
+                "maxItems": 100,
                 "description": "Dockerfile EntryPoint参数配置，仅容器型服务需要。指定容器启动时的入口程序数组，如[\"node\",\"app.js\"]"
               },
               "Cmd": {
@@ -2708,6 +2747,7 @@
                 "items": {
                   "type": "string"
                 },
+                "maxItems": 100,
                 "description": "Dockerfile Cmd参数配置，仅容器型服务需要。指定容器启动时的默认命令数组，如[\"npm\",\"start\"]"
               },
               "InitialDelaySeconds": {
@@ -2788,6 +2828,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 10,
                 "description": "定时扩缩容配置数组，用于配置服务的定时自动扩缩容策略。可配置多个时间段的扩缩容计划，支持每日/每周/每月循环"
               },
               "VpcConf": {
@@ -2834,6 +2875,7 @@
                   ],
                   "additionalProperties": false
                 },
+                "maxItems": 10,
                 "description": "存储卷配置数组，用于挂载云存储（如CFS）到服务实例中。可用于持久化数据或共享文件"
               },
               "PublicNetConf": {
@@ -2996,6 +3038,7 @@
                 "gateway"
               ]
             },
+            "maxItems": 5,
             "description": "仅计算指定资源类型的计划，可选值：database/functions/app/hosting/gateway"
           },
           "skip": {
@@ -3010,6 +3053,7 @@
                 "gateway"
               ]
             },
+            "maxItems": 5,
             "description": "跳过指定资源类型，可选值：database/functions/app/hosting/gateway"
           },
           "yes": {
@@ -3059,6 +3103,7 @@
                 "gateway"
               ]
             },
+            "maxItems": 5,
             "description": "仅部署指定资源类型，可选值：database/functions/app/hosting/gateway"
           },
           "skip": {
@@ -3073,6 +3118,7 @@
                 "gateway"
               ]
             },
+            "maxItems": 5,
             "description": "跳过指定资源类型，可选值：database/functions/app/hosting/gateway"
           },
           "yes": {
@@ -3303,25 +3349,29 @@
                         "value"
                       ],
                       "additionalProperties": false
-                    }
+                    },
+                    "maxItems": 100
                   },
                   "requestHeadersToRemove": {
                     "type": "array",
                     "items": {
                       "type": "string"
-                    }
+                    },
+                    "maxItems": 100
                   },
                   "responseHeadersToAdd": {
                     "type": "array",
                     "items": {
                       "$ref": "#/properties/extension/properties/headersHandler/properties/requestHeadersToAdd/items"
-                    }
+                    },
+                    "maxItems": 100
                   },
                   "responseHeadersToRemove": {
                     "type": "array",
                     "items": {
                       "type": "string"
-                    }
+                    },
+                    "maxItems": 100
                   }
                 },
                 "additionalProperties": false
@@ -3364,7 +3414,8 @@
                               "type": "array",
                               "items": {
                                 "type": "string"
-                              }
+                              },
+                              "maxItems": 50
                             }
                           },
                           "additionalProperties": false,
@@ -3430,7 +3481,8 @@
                                     "type": "array",
                                     "items": {
                                       "type": "string"
-                                    }
+                                    },
+                                    "maxItems": 50
                                   }
                                 },
                                 "additionalProperties": false
@@ -3438,6 +3490,7 @@
                             },
                             "additionalProperties": false
                           },
+                          "maxItems": 20,
                           "description": "缓存动作数组：type=Cache 配 cache{followOrigin,noCache,cacheTime,maxAgeTime}（三者互斥，需开启其一）；type=CacheKey 配 cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}"
                         }
                       },
@@ -3446,7 +3499,8 @@
                         "actions"
                       ],
                       "additionalProperties": false
-                    }
+                    },
+                    "maxItems": 50
                   }
                 },
                 "additionalProperties": false
@@ -3570,6 +3624,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 200,
             "description": "清除目标（仅 purgeCache，必填）：PURGE_URL 传 https://域名/路径 形式；PURGE_PREFIX 传 /static/ 这样的前缀；PURGE_HOST 传域名本身"
           }
         },
@@ -3859,6 +3914,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 200,
             "description": "上传时忽略的文件/目录 glob 模式，例如 **/node_modules/**。\n⚠️ 打包的是项目根目录（filePath）而非 buildPath 产物目录：若项目根含 target/（Rust）、.next/、dist-old/、build/ 等大构建产物，必须加进 ignore（如 **/target/**），否则整个目录被打进上传 zip（实证 54GB target → 34GB zip）。默认已排除 node_modules/.git/.DS_Store/**/target/**/.next/**/.next.bak/**。"
           },
           "versionName": {
@@ -3909,7 +3965,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "maxItems": 200
           },
           "roleId": {
             "type": "string"
@@ -4008,7 +4065,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "maxItems": 100
           },
           "roleName": {
             "type": "string"
@@ -4024,20 +4082,23 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "maxItems": 100
           },
           "policies": {
             "type": "array",
             "items": {
               "type": "object",
               "additionalProperties": {}
-            }
+            },
+            "maxItems": 20
           },
           "policyIds": {
             "type": "array",
             "items": {
               "type": "string"
             },
+            "maxItems": 100,
             "description": "策略 ID 列表（当前不支持直接按 ID 绑定，请改传 policies 详情对象）"
           },
           "uid": {
@@ -4047,7 +4108,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "maxItems": 100
           },
           "username": {
             "type": "string"
@@ -4456,6 +4518,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 50,
             "description": "要操作的事件列表（仅 msg_type=\"event\" 时使用；可先 queryMessagePush(action=listSupportedEvents) 查询全量约束）。subscribe 缺省时默认订阅虚拟支付 7 个事件；unsubscribe / setEnable 且 msg_type=event 时必填。"
           },
           "enable": {

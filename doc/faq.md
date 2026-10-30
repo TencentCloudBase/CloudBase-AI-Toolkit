@@ -187,17 +187,6 @@ CloudBase AI CLI 的快速安装方式适用于所有支持 MCP（Model Context 
 - Cursor 中正常配置效果
 ![](https://qcloudimg.tencent-cloud.cn/raw/344fe2c5a96a3e19c6cafc2bcbe73f96.png)
 
-#### 了解更多
-
-CloudBase AI CLI 不仅内置了 CloudBase AI Toolkit MCP，还支持多种主流 AI 编程工具：
-
-- **Claude Code** - Anthropic 的 AI 编程助手
-- **OpenAI Codex** - OpenAI 的代码生成工具  
-- **aider** - 开源的 AI 编程助手
-- **Qwen Code** - 通义灵码
-
-详细使用说明请参考：[CloudBase AI CLI 使用文档](/cli-v1/ai/introduce)
-
 ### MCP 配置不生效怎么办？
 
 1. 检查配置格式是否正确

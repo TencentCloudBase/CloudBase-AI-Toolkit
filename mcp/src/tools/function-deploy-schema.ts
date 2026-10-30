@@ -176,7 +176,7 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
     .optional()
     .describe("functionDeploySchema.schema.http.envVariables"),
   vpc: FUNCTION_VPC_SCHEMA.optional().describe("functionDeploySchema.schema.http.vpc"),
-  layers: z.array(FUNCTION_LAYER_SCHEMA).optional().describe("functionDeploySchema.schema.http.layers"),
+  layers: z.array(FUNCTION_LAYER_SCHEMA).max(10).optional().describe("functionDeploySchema.schema.http.layers"),
   role: z.string().min(1).optional().describe("functionDeploySchema.schema.http.role"),
   codeSecret: z.string().min(1).optional().describe("functionDeploySchema.schema.http.codeSecret"),
   public: z.boolean().optional().describe("functionDeploySchema.schema.http.public"),
@@ -243,11 +243,11 @@ export const FUNCTION_IMAGE_CONFIG_COMMON_FIELDS = {
     .optional()
     .describe("functionDeploySchema.schema.image.args"),
   commandList: z
-    .array(z.string())
+    .array(z.string()).max(100)
     .optional()
     .describe("functionDeploySchema.schema.image.commandList"),
   argsList: z
-    .array(z.string())
+    .array(z.string()).max(100)
     .optional()
     .describe("functionDeploySchema.schema.image.argsList"),
   containerImageAccelerate: z

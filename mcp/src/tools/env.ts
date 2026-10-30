@@ -3551,11 +3551,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       limit: z.number().int().positive().optional().describe("env.schema.query.limit"),
       offset: z.number().int().min(0).optional().describe("env.schema.query.offset"),
       fields: z
-        .array(z.enum(DEFAULT_ENV_FIELDS))
+        .array(z.enum(DEFAULT_ENV_FIELDS)).max(DEFAULT_ENV_FIELDS.length)
         .optional()
         .describe("env.schema.query.fields"),
       type: z
-        .array(z.enum(ENV_USAGE_MODULE_VALUES))
+        .array(z.enum(ENV_USAGE_MODULE_VALUES)).max(ENV_USAGE_MODULE_VALUES.length)
         .optional()
         .describe("env.schema.query.type"),
       startDate: z
@@ -3616,7 +3616,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         action: z
           .enum(["create", "delete"])
           .describe("env.schema.domain.action"),
-        domains: z.array(z.string()).describe("env.schema.domain.domains"),
+        domains: z.array(z.string()).max(100).describe("env.schema.domain.domains"),
       },
       annotations: {
         readOnlyHint: false,
@@ -3685,7 +3685,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .enum(["listPackages", "create", "modifyPlan", "renew", "addSecurityDomain", "removeSecurityDomain"])
           .describe("env.schema.manage.action"),
         domains: z
-          .array(z.string())
+          .array(z.string()).max(100)
           .optional()
           .describe("env.schema.manage.domains"),
         alias: z
@@ -3697,7 +3697,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           .optional()
           .describe("env.schema.manage.packageId"),
         resources: z
-          .array(z.enum(CREATE_ENV_RESOURCE_VALUES))
+          .array(z.enum(CREATE_ENV_RESOURCE_VALUES)).max(CREATE_ENV_RESOURCE_VALUES.length)
           .optional()
           .describe("env.schema.manage.resources"),
         duration: z

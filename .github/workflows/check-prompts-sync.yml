@@ -43,6 +43,9 @@ on:
       - 'tests/generate-prompts.test.js'
       - 'package.json'
 
+permissions:
+  contents: read # 显式只读：仓库只读，写操作（如有）走各自的 PAT / 外部 token
+
 jobs:
   prompts-sync:
     runs-on: ubuntu-latest

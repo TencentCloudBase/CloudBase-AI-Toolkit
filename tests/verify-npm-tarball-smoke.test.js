@@ -15,7 +15,10 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { evaluateLiveQueryPermissionsPayload } from "../mcp/scripts/verify-npm-tarball-smoke.mjs";
+import {
+  assertNoRuntimeDependencies,
+  evaluateLiveQueryPermissionsPayload,
+} from "../mcp/scripts/verify-npm-tarball-smoke.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SMOKE_SCRIPT = path.join(ROOT, "mcp/scripts/verify-npm-tarball-smoke.mjs");
@@ -83,6 +86,28 @@ describe("evaluateLiveQueryPermissionsPayload", () => {
         message: "权限查询失败",
       }),
     ).toThrow(/Live queryPermissions failed/);
+  });
+});
+
+describe("assertNoRuntimeDependencies", () => {
+  test("accepts a published package.json with no dependencies", () => {
+    expect(() => assertNoRuntimeDependencies({ version: "1.0.0" })).not.toThrow();
+    expect(() => assertNoRuntimeDependencies({ dependencies: {} })).not.toThrow();
+  });
+
+  test("fails and names the leftovers when prepare-publish did not run", () => {
+    expect(() =>
+      assertNoRuntimeDependencies({
+        dependencies: {
+          "@modelcontextprotocol/sdk": "1.32.2",
+          zod: "3.25.76",
+        },
+      }),
+    ).toThrow(/still declares 2 runtime dependencies/);
+
+    expect(() =>
+      assertNoRuntimeDependencies({ dependencies: { zod: "3.25.76" } }),
+    ).toThrow(/still declares 1 runtime dependency \(zod\)/);
   });
 });
 
