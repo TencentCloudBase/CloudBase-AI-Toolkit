@@ -17,8 +17,12 @@ describe('CloudBase plugin marketplace', () => {
     expect(marketplace.interface.displayName).toBe('Tencent CloudBase');
 
     const expectedPlugins = new Map([
-      ['cloudbase', './plugin/cloudbase'],
-      ['cloudbase-sites', './plugin/cloudbase-sites'],
+      // Client marketplaces serve the Codex variant: Codex drops plugin hooks
+      // for packages carrying the Agent Plugins root manifest, so the mounted
+      // package is the generated `-codex` copy. The portable package remains at
+      // ./plugin/<name> for OPS repo sync and `npx plugins`.
+      ['cloudbase', './plugin/cloudbase-codex'],
+      ['cloudbase-sites', './plugin/cloudbase-sites-codex'],
     ]);
 
     for (const [name, sourcePath] of expectedPlugins) {
@@ -59,8 +63,12 @@ describe('CloudBase plugin marketplace', () => {
     expect(marketplace.owner.name).toBe('Tencent CloudBase');
 
     const expectedPlugins = new Map([
-      ['cloudbase', './plugin/cloudbase'],
-      ['cloudbase-sites', './plugin/cloudbase-sites'],
+      // Client marketplaces serve the Codex variant: Codex drops plugin hooks
+      // for packages carrying the Agent Plugins root manifest, so the mounted
+      // package is the generated `-codex` copy. The portable package remains at
+      // ./plugin/<name> for OPS repo sync and `npx plugins`.
+      ['cloudbase', './plugin/cloudbase-codex'],
+      ['cloudbase-sites', './plugin/cloudbase-sites-codex'],
     ]);
 
     for (const [name, sourcePath] of expectedPlugins) {
