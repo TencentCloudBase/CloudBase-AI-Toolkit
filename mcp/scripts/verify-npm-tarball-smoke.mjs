@@ -98,7 +98,8 @@ async function fetchJson(url) {
 }
 
 async function resolvePackageMeta(requested) {
-  const encodedName = PACKAGE_NAME.replace("/", "%2F");
+  // 包名可能被 PACKAGE_NAME 覆盖，斜杠不止一个；registry 的 scoped 路径要求每个斜杠都编码。
+  const encodedName = PACKAGE_NAME.replaceAll("/", "%2F");
   const metaUrl = `${NPM_REGISTRY}/${encodedName}/${encodeURIComponent(requested)}`;
   log("resolve", metaUrl);
 
