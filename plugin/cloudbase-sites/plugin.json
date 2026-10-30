@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "cloudbase-sites",
   "description": "CloudBase Sites — create, save, deploy, and inspect React/Vite web apps hosted on Tencent CloudBase. Inspired by Codex Sites' two-stage save→deploy pattern; powered by cloudbase-mcp.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "Tencent CloudBase",
     "url": "https://cloudbase.net"

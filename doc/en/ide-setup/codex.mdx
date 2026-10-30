@@ -71,6 +71,17 @@ A: Check if the command executed correctly, restart Codex, and verify your netwo
 **Q: Showing 0 tools?**
 A: See the [FAQ](../faq#mcp-shows-0-tools).
 
+**Q: Nothing changed after the plugin updated to a new version?**
+A: Codex records each plugin install against a version, so refreshing the marketplace snapshot does not replace the copy that is already installed. Uninstall and reinstall once after updating:
+
+```bash
+codex plugin remove cloudbase@tencent-cloudbase
+codex plugin marketplace upgrade tencent-cloudbase
+codex plugin add cloudbase@tencent-cloudbase
+```
+
+In the Codex App, remove `cloudbase` from the plugin panel and install it again. Start a new thread afterwards so the plugin and its tools reload.
+
 More questions: [Full FAQ](../faq)
 
 <RelatedResources ideName="Codex" ideDocUrl="https://developers.openai.com/codex/plugins" />

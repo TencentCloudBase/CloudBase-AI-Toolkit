@@ -96,6 +96,10 @@ export default function CodexInstallSelector() {
                 <p>After installation, start a new Codex thread to let the plugin, skills, and MCP tools fully load.</p>
               </div>
             </div>
+
+            <p className={styles.description}>
+              After the plugin updates to a new version, remove and reinstall it once — refreshing the marketplace does not replace the copy that is already installed.
+            </p>
           </div>
         </div>
       )}
@@ -143,6 +147,10 @@ export default function CodexInstallSelector() {
                 </div>
               </div>
             </div>
+
+            <p className={styles.description}>
+              After the plugin updates to a new version, run <code>codex plugin remove cloudbase@tencent-cloudbase</code> and install it again — refreshing the marketplace does not replace the copy that is already installed.
+            </p>
           </div>
         </div>
       )}

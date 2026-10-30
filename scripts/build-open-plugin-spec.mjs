@@ -239,7 +239,11 @@ function buildCursorMarketplace() {
       }
       return {
         name: cm.name,
-        source: `plugin/${plugin.name}`,
+        // Client marketplaces consume the Codex variant: none of Cursor, Claude
+        // or Codex reads the Agent Plugins root manifest, and Codex actively
+        // drops hooks when it is present. The portable package at plugin/<name>
+        // is published separately for `npx plugins` / agent-plugins.org clients.
+        source: `plugin/${plugin.name}-codex`,
         description: plugin.marketplaceDescription,
         version: cm.version,
         author: { name: cm.author?.name || "Tencent CloudBase" },
@@ -264,6 +268,58 @@ function verifyDiscover(pluginDir) {
     return null;
   }
 }
+
+/**
+ * Codex variant.
+ *
+ * Codex treats a root `plugin.json` whose `$schema` is the Agent Plugins URI as
+ * an Agent Plugins manifest, and in that mode it drops plugin hooks entirely
+ * (codex-rs/core-plugins/src/loader.rs only reaches `load_plugin_hooks` in the
+ * Legacy arm). It does not offer a per-marketplace opt-out, so the only way to
+ * keep hooks working on Codex is to hand it a package without the root manifest.
+ *
+ * Everything else in the package is identical, so the variant is generated from
+ * the primary plugin directory with the root manifest removed. Never edit
+ * `plugin/<name>-codex` by hand — `--check` fails when it drifts.
+ */
+const CODEX_VARIANT_OMIT = new Set(["plugin.json"]);
+
+function listFiles(root, base = root, out = []) {
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const abs = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      listFiles(abs, base, out);
+    } else {
+      out.push(path.relative(base, abs));
+    }
+  }
+  return out.sort();
+}
+
+function writeCodexVariant(dir, codexDir) {
+  fs.rmSync(codexDir, { recursive: true, force: true });
+  fs.cpSync(dir, codexDir, { recursive: true, dereference: true });
+  fs.rmSync(path.join(codexDir, "plugin.json"), { force: true });
+}
+
+function codexVariantDrift(dir, codexDir) {
+  if (!fs.existsSync(codexDir)) return "directory missing";
+  const expected = listFiles(dir).filter((rel) => !CODEX_VARIANT_OMIT.has(rel));
+  const actual = listFiles(codexDir);
+  for (const rel of actual) {
+    if (CODEX_VARIANT_OMIT.has(rel)) return `root manifest must not exist: ${rel}`;
+    if (!expected.includes(rel)) return `unexpected file: ${rel}`;
+  }
+  for (const rel of expected) {
+    const target = path.join(codexDir, rel);
+    if (!fs.existsSync(target)) return `missing file: ${rel}`;
+    if (!fs.readFileSync(path.join(dir, rel)).equals(fs.readFileSync(target))) {
+      return `content differs: ${rel}`;
+    }
+  }
+  return null;
+}
+
 
 function parseArgs() {
   return { check: process.argv.slice(2).includes("--check") };
@@ -326,6 +382,22 @@ function main() {
       writeJson(cursorManifest, cursor);
       writeJson(qoderManifest, qoder);
       console.log(`✓ [${name}] Generated: plugin.json + .plugin/plugin.json + mcp.json + .cursor-plugin/plugin.json + .qoder-plugin/plugin.json`);
+    }
+
+    const codexDir = path.join(ROOT_DIR, "plugin", `${name}-codex`);
+    const drift = codexVariantDrift(dir, codexDir);
+    if (check) {
+      if (drift) {
+        console.error(`✗ [${name}] Outdated: plugin/${name}-codex (${drift})`);
+        allGood = false;
+      } else {
+        console.log(`✓ [${name}] Up to date: plugin/${name}-codex (Codex variant, no root manifest)`);
+      }
+    } else if (drift) {
+      writeCodexVariant(dir, codexDir);
+      console.log(`✓ [${name}] Generated: plugin/${name}-codex (Codex variant, no root manifest)`);
+    } else {
+      console.log(`· [${name}] Unchanged: plugin/${name}-codex`);
     }
   }
 

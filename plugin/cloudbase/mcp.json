@@ -1,16 +1,17 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "cloudbase-remote": {
-      "type": "http",
+      "type": "streamable-http",
       "url": "https://tcb-api.cloud.tencent.com/mcp/v1"
     },
     "cloudbase-local": {
+      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
         "@cloudbase/cloudbase-mcp@latest"
-      ],
-      "env": {}
+      ]
     }
   }
 }

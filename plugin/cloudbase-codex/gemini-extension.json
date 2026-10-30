@@ -1,0 +1,21 @@
+{
+  "name": "cloudbase",
+  "version": "0.1.0",
+  "description": "Tencent CloudBase — AI models, auth, NoSQL/PostgreSQL databases, cloud functions, storage, CloudRun, and WeChat Mini Program integration.",
+  "contextFileName": "GEMINI.md",
+  "mcpServers": {
+    "cloudbase-remote": {
+      "httpUrl": "https://tcb-api.cloud.tencent.com/mcp/v1"
+    },
+    "cloudbase-local": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cloudbase/cloudbase-mcp@latest"
+      ],
+      "env": {
+        "INTEGRATION_IDE": "Gemini"
+      }
+    }
+  }
+}

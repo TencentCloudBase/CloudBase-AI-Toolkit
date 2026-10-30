@@ -8,7 +8,7 @@
       "name": "cloudbase",
       "source": {
         "source": "local",
-        "path": "./plugin/cloudbase"
+        "path": "./plugin/cloudbase-codex"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -20,7 +20,7 @@
       "name": "cloudbase-sites",
       "source": {
         "source": "local",
-        "path": "./plugin/cloudbase-sites"
+        "path": "./plugin/cloudbase-sites-codex"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://kimi.com/schemas/kimi.plugin.schema.json",
+  "name": "cloudbase",
+  "version": "0.2.1",
+  "description": "Tencent CloudBase \u2014 AI models, authentication, NoSQL/PostgreSQL databases, cloud functions, cloud storage, CloudRun backend services, and WeChat Mini Program integration. Powered by cloudbase-mcp.",
+  "keywords": [
+    "cloudbase",
+    "tencent-cloud",
+    "baas",
+    "kimi-code",
+    "database",
+    "cloud-function",
+    "storage",
+    "cloudrun",
+    "auth",
+    "hosting"
+  ],
+  "author": "Tencent CloudBase",
+  "homepage": "https://github.com/TencentCloudBase/CloudBase-AI-Toolkit",
+  "license": "MIT",
+  "interface": {
+    "displayName": "Tencent CloudBase",
+    "shortDescription": "Build, deploy, and manage CloudBase apps",
+    "longDescription": "CloudBase \u5b98\u65b9 Kimi \u63d2\u4ef6\u3002\u63d0\u4f9b cloudbase-mcp \u5de5\u5177\u8c03\u7528\u4e0e routing skill\uff0c\u8ba9\u4f60\u4ece Kimi \u76f4\u63a5\u5f00\u53d1\u3001\u90e8\u7f72\u3001\u8fd0\u7ef4 CloudBase \u5e94\u7528\u3002\n\nTry with prompts like:\n- CloudBase \u5e2e\u6211\u642d\u4e00\u4e2a\u5e26\u7528\u6237\u767b\u5f55\u3001\u6570\u636e\u5e93\u548c\u7ba1\u7406\u540e\u53f0\u7684 Web \u5e94\u7528\u5e76\u90e8\u7f72\n- CloudBase \u5217\u51fa\u73af\u5883\u91cc\u6240\u6709 CloudRun \u670d\u52a1\u548c\u6700\u8fd1 1 \u5c0f\u65f6\u4e91\u51fd\u6570\u62a5\u9519\n- CloudBase \u7528 CloudBase PG \u5efa\u4e00\u5f20\u7528\u6237\u8868\u5e76\u542f\u7528 RLS \u5b89\u5168\u89c4\u5219",
+    "developerName": "Tencent CloudBase",
+    "websiteURL": "https://cloudbase.net",
+    "iconUrl": "https://raw.githubusercontent.com/TencentCloudBase/CloudBase-AI-Toolkit/main/plugin/cloudbase/assets/logo.png"
+  },
+  "skills": "./skills/cloudbase/",
+  "sessionStart": {
+    "skill": "cloudbase"
+  },
+  "skillInstructions": "Two MCP servers are connected: `cloudbase-remote` (hosted, sign in through Kimi's MCP OAuth flow via `/mcp-config login`) and `cloudbase-local` (local stdio, use it when the account signs in with a CloudBase API key or the task needs local files). Prefer the remote one by default. Domain knowledge is fetched on demand via the routing skill (searchKnowledgeBase mode=skill).",
+  "mcpServers": {
+    "cloudbase-remote": {
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1"
+    },
+    "cloudbase-local": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cloudbase/cloudbase-mcp@latest"
+      ]
+    }
+  },
+  "hooks": []
+}

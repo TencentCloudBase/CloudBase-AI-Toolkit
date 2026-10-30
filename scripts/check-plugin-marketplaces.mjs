@@ -21,9 +21,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 
+// Codex drops plugin hooks for any package carrying an Agent Plugins root
+// manifest, so the Codex marketplace points at the generated `-codex` variants
+// that omit it. The portable packages stay at plugin/<name> for every other
+// client (Claude, Cursor, Qoder, npx plugins). Variants are produced by
+// scripts/build-open-plugin-spec.mjs and verified by its --check mode.
 const EXPECTED_PLUGINS = [
-  { name: "cloudbase", sourcePath: "./plugin/cloudbase" },
-  { name: "cloudbase-sites", sourcePath: "./plugin/cloudbase-sites" },
+  { name: "cloudbase", sourcePath: "./plugin/cloudbase-codex" },
+  { name: "cloudbase-sites", sourcePath: "./plugin/cloudbase-sites-codex" },
 ];
 
 /** @type {string[]} */

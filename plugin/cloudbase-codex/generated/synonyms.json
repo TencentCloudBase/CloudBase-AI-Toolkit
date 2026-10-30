@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "synonyms": {
+    "web": ["前端", "frontend", "浏览器", "browser", "spa", "ssr"],
+    "小程序": ["miniprogram", "wechat", "微信", "wxmp", "wx"],
+    "云托管": ["cloudrun", "container", "容器", "docker"],
+    "部署": ["deploy", "ship", "release", "publish", "上线"],
+    "预览": ["preview", "查看"],
+    "数据库": ["database", "db", "数据存储"],
+    "云函数": ["function", "serverless", "lambda", "scf", "无服务器"],
+    "文档数据库": ["nosql", "mongodb", "firestore", "collection"],
+    "关系型": ["mysql", "postgresql", "postgres", "sql", "prisma", "drizzle"],
+    "登录": ["login", "signin", "auth", "认证", "身份验证"],
+    "认证": ["auth", "authentication", "身份"],
+    "云存储": ["storage", "upload", "上传", "下载", "download", "文件"],
+    "ai": ["人工智能", "llm", "gpt", "hunyuan", "混元", "deepseek", "glm", "kimi"],
+    "模型": ["model", "llm", "gpt"],
+    "巡检": ["inspect", "diagnose", "诊断", "health", "健康检查"],
+    "代码审查": ["review", "lint", "审查", "code review"],
+    "环境": ["env", "environment", "配置"],
+    "模板": ["template", "boilerplate", "脚手架", "scaffold"],
+    "ui": ["界面", "interface", "设计", "design", "prototype", "原型"]
+  }
+}
