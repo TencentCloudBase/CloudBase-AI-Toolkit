@@ -96,6 +96,10 @@ export default function CodexInstallSelector() {
                 <p>安装后建议新开一个 Codex 线程，让插件、技能和 MCP 工具完整加载。</p>
               </div>
             </div>
+
+            <p className={styles.description}>
+              插件更新到新版本后，需要移除再重新安装一次才会生效——刷新市场不会替换已经装好的那一份。
+            </p>
           </div>
         </div>
       )}
@@ -143,6 +147,10 @@ export default function CodexInstallSelector() {
                 </div>
               </div>
             </div>
+
+            <p className={styles.description}>
+              插件更新到新版本后，需要先 <code>codex plugin remove cloudbase@tencent-cloudbase</code> 再重新安装才会生效——刷新市场不会替换已经装好的那一份。
+            </p>
           </div>
         </div>
       )}

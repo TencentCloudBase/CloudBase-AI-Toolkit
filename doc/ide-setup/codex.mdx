@@ -71,6 +71,17 @@ A: 检查命令是否正确执行，重启 Codex，确认网络连接正常。
 **Q: 工具数量显示为 0？**
 A: 请参考[常见问题](../faq#mcp-显示工具数量为-0-怎么办)。
 
+**Q: 插件更新到新版本后，工具连接或 AI Skills 没变化？**
+A: Codex 按版本号记录插件的安装位置，刷新市场快照不会替换已经装好的那一份。更新后需要卸载再重装一次：
+
+```bash
+codex plugin remove cloudbase@tencent-cloudbase
+codex plugin marketplace upgrade tencent-cloudbase
+codex plugin add cloudbase@tencent-cloudbase
+```
+
+使用 Codex App 的话，在插件面板里移除 `cloudbase` 后重新安装即可。装完新开一个线程，让插件和工具重新加载。
+
 更多问题请查看：[完整 FAQ](../faq)
 
 <RelatedResources ideName="Codex" ideDocUrl="https://developers.openai.com/codex/plugins" />
