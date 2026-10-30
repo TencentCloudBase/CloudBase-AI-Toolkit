@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-10-29
+> - 最近同步：2026-10-30
 
 ## API 概览
 
@@ -174,6 +174,7 @@
 | [UpgradePGInstanceToDedicated](https://cloud.tencent.com/document/api/876/138617) | 发起共享升级独享 | 20 |
 | [ResetPGAccountPassword](https://cloud.tencent.com/document/api/876/138618) | 修改 PG 实例用户角色密码 | 20 |
 | [DescribeTaskResult](https://cloud.tencent.com/document/api/876/138619) | 查看任务结果 | 20 |
+| [EnablePGDocumentExt](https://cloud.tencent.com/document/api/876/140402) | 开通 PG 数据库文档插件能力 | 20 |
 
 ### 云函数相关接口
 
