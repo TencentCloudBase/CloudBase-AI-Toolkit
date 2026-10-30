@@ -426,11 +426,11 @@ export function registerDeployTools(server: ExtendedMcpServer) {
           .optional()
           .describe("deploy.schema.plan.envId"),
         only: z
-          .array(z.enum(RESOURCE_TYPES))
+          .array(z.enum(RESOURCE_TYPES)).max(RESOURCE_TYPES.length)
           .optional()
           .describe("deploy.schema.plan.only"),
         skip: z
-          .array(z.enum(RESOURCE_TYPES))
+          .array(z.enum(RESOURCE_TYPES)).max(RESOURCE_TYPES.length)
           .optional()
           .describe("deploy.schema.plan.skip"),
         yes: z
@@ -523,11 +523,11 @@ export function registerDeployTools(server: ExtendedMcpServer) {
           .optional()
           .describe("deploy.schema.apply.envId"),
         only: z
-          .array(z.enum(RESOURCE_TYPES))
+          .array(z.enum(RESOURCE_TYPES)).max(RESOURCE_TYPES.length)
           .optional()
           .describe("deploy.schema.apply.only"),
         skip: z
-          .array(z.enum(RESOURCE_TYPES))
+          .array(z.enum(RESOURCE_TYPES)).max(RESOURCE_TYPES.length)
           .optional()
           .describe("deploy.schema.apply.skip"),
         yes: z

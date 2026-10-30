@@ -424,7 +424,7 @@ export function registerAppTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe("apps.schema.deployCmd"),
-        ignore: z.array(z.string()).optional().describe("apps.schema.ignore"),
+        ignore: z.array(z.string()).max(200).optional().describe("apps.schema.ignore"),
         versionName: z
           .string()
           .optional()

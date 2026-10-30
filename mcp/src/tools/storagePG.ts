@@ -264,7 +264,7 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
           .describe("storagePG.schema.action"),
         bucket: z.string().optional().describe("storagePG.schema.bucket"),
         objectKey: z.string().optional().describe("storagePG.schema.objectKey"),
-        objectKeys: z.array(z.string()).optional().describe("storagePG.schema.objectKeys"),
+        objectKeys: z.array(z.string()).max(500).optional().describe("storagePG.schema.objectKeys"),
         objects: z
           .array(
             z.object({
@@ -272,7 +272,7 @@ export function registerPGStorageTools(server: ExtendedMcpServer) {
               contentType: z.string().optional(),
               sizeBytes: z.number().int().nonnegative().optional(),
             }),
-          )
+          ).max(500)
           .optional()
           .describe("storagePG.schema.objects"),
         expiresIn: z.number().int().min(60).max(86400).optional().describe("storagePG.schema.expiresIn"),

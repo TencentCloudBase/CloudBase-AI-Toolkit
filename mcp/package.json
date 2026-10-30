@@ -78,7 +78,7 @@
     "@cloudbase/manager-node": "5.8.8",
     "@cloudbase/mcp": "1.0.0-beta.25",
     "@cloudbase/toolbox": "^0.8.4",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/adm-zip": "^0.5.7",
     "adm-zip": "0.6.1",
     "cors": "^2.8.5",
@@ -148,6 +148,6 @@
     "adm-zip": "0.6.1",
     "decompress": "npm:@xhmikosr/decompress@11.1.4",
     "nanoid": "3.3.18",
-    "@modelcontextprotocol/sdk": "1.30.0"
+    "@modelcontextprotocol/sdk": "1.32.2"
   }
 }

@@ -14,6 +14,9 @@ on:
   schedule:
     - cron: '30 21 * * *'
 
+permissions:
+  contents: read # 显式只读：仓库只读，写操作（如有）走各自的 PAT / 外部 token
+
 jobs:
   # 门禁 job：构建 + 单测（含真云 E2E）+ hooks。
   # 发布预览包（pkg.pr.new）只是附带动作，上游抖动不应把门禁判红（见该步骤的 continue-on-error）。

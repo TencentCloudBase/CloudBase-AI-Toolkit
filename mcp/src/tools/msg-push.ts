@@ -803,7 +803,7 @@ export function registerMsgPushTools(server: ExtendedMcpServer) {
           .optional()
           .describe("msgPush.schema.msgType"),
         event_types: z
-          .array(z.string())
+          .array(z.string()).max(50)
           .optional()
           .describe("msgPush.schema.eventTypes"),
         enable: z.boolean().optional().describe("msgPush.schema.enable"),
