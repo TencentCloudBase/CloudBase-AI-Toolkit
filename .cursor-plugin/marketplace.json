@@ -12,7 +12,7 @@
       "name": "cloudbase",
       "source": "plugin/cloudbase-codex",
       "description": "CloudBase platform capabilities: AI, auth, databases, cloud functions, storage, CloudRun, and Mini Program integration.",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "author": {
         "name": "Tencent CloudBase"
       },
@@ -40,7 +40,7 @@
       "name": "cloudbase-sites",
       "source": "plugin/cloudbase-sites-codex",
       "description": "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": {
         "name": "Tencent CloudBase"
       },
