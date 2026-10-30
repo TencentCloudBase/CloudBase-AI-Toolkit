@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "comment": "REQUIRED when landing a new plugin skill (e.g. cloudbase-perf-review). Copy the object under skills into plugin/cloudbase/skill-metadata.json. The key MUST equal the directory name plugin/cloudbase/skills/<dir>. Then run npm run build:skill-manifest (CLI fails if the entry is missing). Do not rely on SKILL.md frontmatter — sync overwrites it.",
+  "skills": {
+    "your-skill-dir-name": {
+      "priority": 5,
+      "promptSignals": {
+        "phrases": ["example phrase unique to this skill"],
+        "allOf": [],
+        "anyOf": [],
+        "noneOf": [],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": ["example alias"],
+        "intents": ["example user intent"],
+        "entities": ["ExampleEntity"],
+        "examples": ["example user prompt that should trigger this skill"]
+      }
+    }
+  }
+}

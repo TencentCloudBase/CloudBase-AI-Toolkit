@@ -1,0 +1,28 @@
+{
+  "name": "cloudbase-sites",
+  "version": "0.1.0",
+  "description": "CloudBase Sites — create, save, deploy, and inspect React/Vite web apps hosted on Tencent CloudBase. Inspired by Codex Sites' two-stage save→deploy pattern; powered by cloudbase-mcp.",
+  "author": {
+    "name": "Tencent CloudBase",
+    "url": "https://cloudbase.net"
+  },
+  "homepage": "https://github.com/TencentCloudBase/cloudbase-sites-plugin",
+  "repository": "https://github.com/TencentCloudBase/CloudBase-MCP",
+  "license": "MIT",
+  "keywords": [
+    "cloudbase",
+    "sites",
+    "vibe-coding",
+    "vite",
+    "react",
+    "vue",
+    "claude-code",
+    "codebuddy",
+    "openclaw",
+    "qoder",
+    "qoderwork"
+  ],
+  "skills": [
+    "./skills/cloudbase-sites-runtime/"
+  ]
+}

@@ -123,7 +123,10 @@ function checkClaude() {
     for (const name of PLUGINS) {
       const entry = (marketplace.plugins || []).find((p) => p.name === name);
       if (!entry) fail(`.claude-plugin/marketplace.json missing ${name}`);
-      else if (entry.source !== `./plugin/${name}`) {
+      // Client marketplaces point at the Codex variant: it is the same package
+      // minus the Agent Plugins root manifest, which Codex treats as a signal to
+      // disable plugin hooks. The portable package stays at ./plugin/<name>.
+      else if (entry.source !== `./plugin/${name}-codex`) {
         fail(`.claude-plugin/marketplace.json ${name} source mismatch`);
       }
     }
