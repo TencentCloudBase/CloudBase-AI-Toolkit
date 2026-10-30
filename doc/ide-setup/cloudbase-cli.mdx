@@ -77,10 +77,24 @@ tcb ai
 
 首次启动，配置向导会引导你完成：
 
-- 选择 AI 工具（CodeBuddy Code、Claude Code、OpenAI Codex、aider、Qwen Code）
-- 完成 AI 工具的配置（支持自定义 LLM 或使用云开发环境中的 LLM）
+- 选择 AI 工具（CodeBuddy Code、Claude Code、OpenAI Codex、Cursor、aider、Qwen Code）
+- 配置 AI 工具的模型（支持自定义 LLM 或使用云开发环境中的 LLM）
+- 写入 MCP 与 Skills 配置
 
-完成配置后，即可开始使用 AI 工具进行辅助开发。后续可以运行 `tcb ai --setup` 来切换工具和模型。
+完成配置后，即可开始使用 AI 工具进行辅助开发。后续可以运行 `tcb ai --setup` 重新配置工具、MCP 或 Skills。
+
+**常用参数：**
+
+| 参数 | 说明 |
+| ---- | ---- |
+| `-a, --agent` | 直接指定 AI 工具，跳过选择 |
+| `--setup` | 运行配置向导（AI 工具、MCP、Skills） |
+| `--scope` | MCP / Skills 配置写到哪里：`project` / `global` / `custom`，配合 `--setup` 使用 |
+| `--dir` | 自定义配置目录，`--scope custom` 时必填 |
+| `--template` | 项目模板：`miniprogram` / `react` / `vue` / `uniapp` / `rules` |
+| `--config` | 查看当前配置 |
+| `--reset` | 重置所有配置 |
+| `--json` | 以 JSON 输出 |
 
 ## 开始使用
 
@@ -107,6 +121,7 @@ CloudBase CLI 支持以下 AI 编程工具：
 | CodeBuddy Code | `-a codebuddy` |
 | Claude Code | `-a claude` |
 | OpenAI Codex | `-a codex` |
+| Cursor | `-a cursor` |
 | aider | `-a aider` |
 | Qwen Code | `-a qwen` |
 
@@ -117,7 +132,7 @@ CloudBase CLI 支持项目级配置，配置文件会自动保存在项目根目
 ## 常见问题
 
 **Q: 如何切换 AI 工具？**
-A: 运行 `tcb ai --setup` 重新运行配置向导，选择不同的 AI 工具。
+A: 运行 `tcb ai --setup` 重新运行配置向导，选择不同的 AI 工具；也可以加 `--scope` 指定把 MCP / Skills 配置写到项目还是全局。
 
 **Q: 如何查看当前配置？**
 A: 运行 `tcb ai --config` 查看当前配置信息。
