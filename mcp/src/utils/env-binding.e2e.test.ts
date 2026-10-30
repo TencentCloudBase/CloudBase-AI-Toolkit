@@ -24,10 +24,13 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 const mockCloudBaseCtor = vi.fn();
 vi.mock("@cloudbase/manager-node", () => ({
-  default: mockCloudBaseCtor.mockImplementation(() => ({
-    commonService: vi.fn(() => ({ call: vi.fn(async () => ({ EnvList: [] })) })),
-    env: { listEnvs: vi.fn(async () => ({ EnvList: [] })) },
-  })),
+  // vitest 4 起，被 `new` 调用的 mock 实现必须是 function/class。
+  default: mockCloudBaseCtor.mockImplementation(function () {
+    return {
+      commonService: vi.fn(() => ({ call: vi.fn(async () => ({ EnvList: [] })) })),
+      env: { listEnvs: vi.fn(async () => ({ EnvList: [] })) },
+    };
+  }),
 }));
 
 let fakeHome: string;
