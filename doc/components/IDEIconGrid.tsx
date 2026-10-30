@@ -223,13 +223,6 @@ const IDES: IDE[] = [
     iconUrl: '/img/ide-logos/baidu-comate.png',
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/baidu-comate',
   },
-  {
-    id: 'cloudbase-cli',
-    name: 'CloudBase CLI',
-    platform: '命令行工具',
-    iconUrl: '/img/ide-logos/cloudbase-cli.png',
-    docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/cloudbase-cli',
-  },
 ]
 
 const iconsWithColor = new Set(['claude', 'gemini', 'baidu', 'alibaba', 'qwen', 'bytedance', 'tencent']);

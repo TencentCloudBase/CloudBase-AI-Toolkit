@@ -97,15 +97,16 @@ Set up CloudBase for me:
 ```
 
 <details>
-<summary>Pick one default path for your tool (Plugin / CLI / MCP)</summary>
+<summary>Pick one default path for your tool (Plugin / MCP)</summary>
 
 | Your tool | Suggested path |
 |----------|----------|
 | Claude Code / Codex (native marketplace) | Add this repo as marketplace, then install the `cloudbase` plugin ([plugin docs](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)) |
 | Open Plugin Spec tools | `npx plugins add TencentCloudBase/cloudbase-plugin` |
-| Prefer one CLI for many tools | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce): `npm i -g @cloudbase/cli && tcb ai` |
 | CodeBuddy / WorkBuddy / Doubao / MiniMax Code / DeepSeek Harness / ZCode / Kimi (built-in) | Use the IDE's built-in CloudBase plugin or connector; for CodeBuddy you can also [install via plugin marketplace](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
 | Other MCP-capable IDEs | MCP config only (below) |
+
+> Already using CloudBase CLI? `tcb ai` sets up MCP and Skills too ([docs](https://docs.cloudbase.net/cli-v1/ai/introduce)).
 
 #### Plugin
 
@@ -150,7 +151,6 @@ Skills shape structure and practice; MCP handles environment and resources. You 
 
 | Tool | Platform | Guide |
 |------|------|------|
-| [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) | CLI | [Guide](https://docs.cloudbase.net/cli-v1/ai/introduce) |
 | [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | Standalone IDE | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
 | [Doubao](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) | Desktop & web (plugin marketplace) | [Guide](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) |
@@ -207,9 +207,9 @@ Methods, data, and limits: [Same-task evaluation: cloud VM vs CloudBase](https:/
 
 1. **Plugin** (when the tool supports it)  
    `npx plugins add TencentCloudBase/cloudbase-plugin`
-2. **CloudBase AI CLI**  
-   `npm i -g @cloudbase/cli && tcb ai`
-3. **Manual MCP** (write the IDE config file)
+2. **Manual MCP** (write the IDE config file)
+
+> Already using CloudBase CLI? `tcb ai` sets up MCP and Skills too ([docs](https://docs.cloudbase.net/cli-v1/ai/introduce)).
 
 <details>
 <summary>Cursor (.cursor/mcp.json)</summary>

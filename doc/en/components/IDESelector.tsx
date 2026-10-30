@@ -743,22 +743,6 @@ const IDES: IDE[] = [
   }
 }`,
   },
-  {
-    id: 'cloudbase-cli',
-    name: 'CloudBase CLI',
-    platform: '命令行工具',
-    platformEn: 'CLI',
-    configPath: '项目级配置',
-    configPathEn: 'Project-level config',
-    iconUrl: '/img/ide-logos/cloudbase-cli.png',
-    docUrl: 'https://docs.cloudbase.net/cli-v1/ai/introduce',
-    supportsProjectMCP: true,
-    useCommandInsteadOfConfig: true,
-    installCommand: 'npm i -g @cloudbase/cli',
-    installCommandDocs: '**安装 CloudBase CLI：**\n\n```bash\nnpm i -g @cloudbase/cli\n```\n\n**初始化配置：**\n\n```bash\ntcb ai\n```\n\n配置向导会引导你完成 AI 工具的配置。CloudBase CLI 内置了 MCP 和 AI 开发规则，无需手动配置。\n\n**开始使用：**\n\n```bash\ntcb ai\n```',
-    installCommandDocsEn: '**Install CloudBase CLI:**\n\n```bash\nnpm i -g @cloudbase/cli\n```\n\n**Initialize:**\n\n```bash\ntcb ai\n```\n\nThe wizard walks you through configuring your AI tools. CloudBase CLI ships MCP and the AI development rules built in, so there is nothing to configure by hand.\n\n**Start using it:**\n\n```bash\ntcb ai\n```',
-    configExample: '',
-  },
 ]
 
 /**
@@ -794,7 +778,6 @@ const CHANNEL_BY_ID: Record<string, ChannelType> = {
   zcode: 'builtin',
   'codex-app': 'builtin',
   openclaw: 'builtin',
-  'cloudbase-cli': 'builtin',
   doubao: 'builtin',
   'minimax-code': 'builtin',
   'deepseek-harness': 'cli',

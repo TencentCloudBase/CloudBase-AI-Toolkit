@@ -96,15 +96,16 @@ AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真
 ```
 
 <details>
-<summary>按你的工具选一条默认路径（Plugin / CLI / MCP）</summary>
+<summary>按你的工具选一条默认路径（Plugin / MCP）</summary>
 
 | 你的工具 | 建议做法 |
 |----------|----------|
 | Claude Code / Codex（原生 marketplace） | 添加本仓库为 marketplace，再安装 `cloudbase` 插件（见[插件文档](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ai-agent-plugins)） |
 | 支持 Open Plugin Spec 的工具 | `npx plugins add TencentCloudBase/cloudbase-plugin` |
-| 希望 CLI 统一配置多种工具 | [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce)：`npm i -g @cloudbase/cli && tcb ai` |
 | CodeBuddy / WorkBuddy / 豆包 / MiniMax Code / DeepSeek Harness / ZCode / Kimi（已内置） | 使用 IDE 内置的 CloudBase 插件或连接器；CodeBuddy 也可通过[插件市场安装](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/codebuddy) |
 | 其他支持 MCP 的 IDE | 仅配置 MCP（见下方） |
+
+> 已经在用 CloudBase CLI 的话，`tcb ai` 同样能配好 MCP 和 Skills（[说明](https://docs.cloudbase.net/cli-v1/ai/introduce)）。
 
 #### Plugin
 
@@ -149,7 +150,6 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 
 | 工具 | 平台 | 指引 |
 |------|------|------|
-| [CloudBase AI CLI](https://docs.cloudbase.net/cli-v1/ai/introduce) | CLI | [指引](https://docs.cloudbase.net/cli-v1/ai/introduce) |
 | [OpenClaw](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) | CLI | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/openclaw) |
 | [WorkBuddy](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) | 独立 IDE | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/workbuddy) |
 | [豆包](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) | 桌面端 / 网页版（插件市场） | [指引](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/ide-setup/doubao) |
@@ -206,9 +206,9 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 
 1. **Plugin**（推荐，能装插件时）  
    `npx plugins add TencentCloudBase/cloudbase-plugin`
-2. **CloudBase AI CLI**  
-   `npm i -g @cloudbase/cli && tcb ai`
-3. **手动 MCP**（按 IDE 写入配置文件）
+2. **手动 MCP**（按 IDE 写入配置文件）
+
+> 已经在用 CloudBase CLI 的话，`tcb ai` 同样能配好 MCP 和 Skills（[说明](https://docs.cloudbase.net/cli-v1/ai/introduce)）。
 
 <details>
 <summary>Cursor（.cursor/mcp.json）</summary>
