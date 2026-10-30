@@ -189,17 +189,6 @@ One install, and you can switch between AI IDEs without reconfiguring anything.
 - Working setup in Cursor
 ![](https://qcloudimg.tencent-cloud.cn/raw/344fe2c5a96a3e19c6cafc2bcbe73f96.png)
 
-#### Learn more
-
-CloudBase AI CLI ships with the CloudBase AI Toolkit MCP and also supports other mainstream AI coding tools:
-
-- **Claude Code** - Anthropic's AI coding assistant
-- **OpenAI Codex** - OpenAI's code generation tool  
-- **aider** - open-source AI pairing assistant
-- **Qwen Code** - Tongyi Lingma
-
-See the [CloudBase AI CLI docs](/cli-v1/ai/introduce) for details.
-
 ### The MCP configuration doesn't take effect
 
 1. Check that the config format is correct
