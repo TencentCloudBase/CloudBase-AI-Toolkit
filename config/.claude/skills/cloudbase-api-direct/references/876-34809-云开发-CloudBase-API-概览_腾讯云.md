@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-10-27 02:35:04
+最近更新时间：2026-10-30 02:36:12
 
 -   微信扫一扫 
 -   QQ
@@ -196,6 +196,7 @@ _我的收藏_
 | [UpgradePGInstanceToDedicated](/document/api/876/138617) | 发起共享升级独享 | 20 |
 | [ResetPGAccountPassword](/document/api/876/138618) | 修改 PG 实例用户角色密码 | 20 |
 | [DescribeTaskResult](/document/api/876/138619) | 查看任务结果 | 20 |
+| [EnablePGDocumentExt](/document/api/876/140402) | 开通 PG 数据库文档插件能力 | 20 |
 
 ## 云函数相关接口
 
