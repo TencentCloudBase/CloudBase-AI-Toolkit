@@ -36,8 +36,7 @@
     "clean": "rm -rf dist",
     "build": "node build.mjs",
     "generate:skills": "node scripts/generate-skills.mjs",
-    "pretest": "node scripts/generate-skills.mjs",
-    "test": "vitest run",
+    "test": "node scripts/generate-skills.mjs && vitest run",
     "typecheck": "tsc --noEmit",
     "e2e:live": "node scripts/e2e-live.mjs",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
