@@ -399,6 +399,7 @@
 }
 
 .installCommandText {
+  white-space: pre-line;
   margin: 0 0 0.75rem 0;
   font-size: 0.875rem;
   color: var(--ifm-color-emphasis-700);
