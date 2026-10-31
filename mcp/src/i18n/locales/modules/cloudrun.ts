@@ -14,6 +14,8 @@ export const cloudrun = defineModule(
     "error.unsupportedAction": "不支持的操作：{action}",
     "error.pathOutsideCwd":
       "路径必须在当前工作目录内：{cwd}。允许：`{cwd}` 下的路径，或传入项目目录的绝对路径（相对路径不能通过 `../` 逃逸 CWD）。收到的解析路径：{resolvedPath}。建议：将 targetPath 设为项目绝对路径（deploy/download/init）。",
+    "error.targetPathForbidden":
+      "targetPath 不能指向 `{resolvedPath}`：那不是项目目录（文件系统根、家目录本身、系统目录或凭据目录）。请改成具体的项目目录，例如 `~/Desktop/my-project`。",
     "error.commonServiceQueryEnv":
       "当前 CloudBase Manager 不支持 commonService，无法查询云托管环境开通状态。",
     "error.commonServiceInitEnv":
@@ -248,7 +250,7 @@ export const cloudrun = defineModule(
     "schema.manage.subnetIds":
       "子网 ID 列表（action=initEnv 时可选）。当需指定自有 VPC 时必填，如 [\"subnet-xxxxxxxx\"]。与 vpcId 一起透传给 CreateCloudRunEnv 的 SubNetIds",
     "schema.manage.targetPath":
-      "本地代码路径，必须是绝对路径。在deploy操作中指定要部署的代码目录，在download操作中指定下载目标目录，在init操作中指定云托管服务的上级目录（会在该目录下创建以serverName命名的子目录）。updateConfig 不需要此参数。建议约定：项目根目录下的cloudrun/目录，例如：/Users/username/projects/my-project/cloudrun。使用 imageUrl 部署已有镜像时此参数可省略。注意：本地有源码目录不等于必须走源码构建；若用户指定镜像请优先传 imageUrl，不要仅因存在 targetPath 就回退到源码构建",
+      "本地代码路径，必须是绝对路径。在deploy操作中指定要部署的代码目录，在download操作中指定下载目标目录，在init操作中指定云托管服务的上级目录（会在该目录下创建以serverName命名的子目录）。updateConfig 不需要此参数。建议约定：项目根目录下的cloudrun/目录，例如：/Users/username/projects/my-project/cloudrun。必须指向具体的项目目录：文件系统根、家目录本身、系统目录，以及 .ssh / .config/.cloudbase 这类凭据目录都会被拒绝。使用 imageUrl 部署已有镜像时此参数可省略。注意：本地有源码目录不等于必须走源码构建；若用户指定镜像请优先传 imageUrl，不要仅因存在 targetPath 就回退到源码构建",
     "schema.manage.imageUrl":
       "已有镜像部署（action=deploy 时使用）：直接指定容器镜像地址，如 ccr.ccs.tencentyun.com/ns/img:v1 或公网 registry 地址。传入后走 DeployType=\"image\"（容器型）部署，无需本地源码目录（targetPath 可省略）。支持：1) 公网匿名可拉取的镜像直填地址；2) 私有/需登录的镜像（如 ghcr.io）需先在本地 docker pull → docker tag/push 到腾讯云 CCR → 填入 CCR 地址。不传则维持源码构建（本地代码打包上传）。约束：若用户明确提到使用某个镜像、或无需重新构建代码，则必须传 imageUrl 走镜像部署，不要回退到源码构建。注意：无论哪种部署方式，环境都需先开通云托管（未开通时先调用 initEnv，Status=normal 后再部署）",
     "schema.manage.envParamsReplaceAll":
@@ -370,6 +372,8 @@ export const cloudrun = defineModule(
     "error.unsupportedAction": "Unsupported action: {action}",
     "error.pathOutsideCwd":
       "Path must be within current working directory: {cwd}. Allowed: paths under `{cwd}`, or pass an absolute path to the project directory (relative paths cannot escape CWD via `../`). Received resolved path: {resolvedPath}. Suggestion: set targetPath to the absolute project path (deploy/download/init).",
+    "error.targetPathForbidden":
+      "targetPath cannot point at `{resolvedPath}`: it is not a project directory (filesystem root, the home directory itself, a system directory, or a credential directory). Pass a specific project directory such as `~/Desktop/my-project`.",
     "error.commonServiceQueryEnv":
       "Current CloudBase Manager does not support commonService; cannot query CloudRun env status.",
     "error.commonServiceInitEnv":
@@ -614,7 +618,7 @@ export const cloudrun = defineModule(
     "schema.manage.subnetIds":
       "Subnet ID list (optional with action=initEnv). Required when you need to specify your own VPC, e.g. [\"subnet-xxxxxxxx\"]. Passed through to SubNetIds of CreateCloudRunEnv together with vpcId",
     "schema.manage.targetPath":
-      "Local code path; must be absolute. For deploy it is the code directory to deploy, for download it is the download target directory, and for init it is the parent directory of the CloudRun service (a subdirectory named after serverName is created there). updateConfig does not need this parameter. Recommended convention: the cloudrun/ directory under the project root, e.g. /Users/username/projects/my-project/cloudrun. It may be omitted when deploying an existing image via imageUrl. Note: having a local source directory does not mean a source build is required; when the user specifies an image, prefer imageUrl instead of falling back to a source build just because targetPath exists",
+      "Local code path; must be absolute. For deploy it is the code directory to deploy, for download it is the download target directory, and for init it is the parent directory of the CloudRun service (a subdirectory named after serverName is created there). updateConfig does not need this parameter. Recommended convention: the cloudrun/ directory under the project root, e.g. /Users/username/projects/my-project/cloudrun. It must name a specific project directory: the filesystem root, the home directory itself, system directories, and credential directories such as .ssh or .config/.cloudbase are rejected. It may be omitted when deploying an existing image via imageUrl. Note: having a local source directory does not mean a source build is required; when the user specifies an image, prefer imageUrl instead of falling back to a source build just because targetPath exists",
     "schema.manage.imageUrl":
       "Existing-image deploy (used with action=deploy): specify the container image address directly, e.g. ccr.ccs.tencentyun.com/ns/img:v1 or a public registry address. When provided, deployment uses DeployType=\"image\" (container type) and no local source directory is needed (targetPath may be omitted). Supported: 1) publicly pullable anonymous images can be used directly; 2) private/login-required images (such as ghcr.io) must first be docker pull'ed locally, then docker tag/push'ed to Tencent Cloud CCR, and the CCR address used here. When omitted, the source build path is kept (local code is packaged and uploaded). Constraint: if the user explicitly mentions using a specific image, or no code rebuild is needed, you must pass imageUrl for an image deploy instead of falling back to a source build. Note: whichever deploy mode you use, the env must have CloudRun provisioned first (call initEnv when it is not, then deploy after Status=normal)",
     "schema.manage.envParamsReplaceAll":

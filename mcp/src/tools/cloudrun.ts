@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
+import { homedir } from 'node:os';
 import path from 'path';
 import { z } from "zod";
 import { getCloudBaseManager, getEnvId } from '../cloudbase-manager.js';
@@ -305,13 +306,97 @@ function checkIfAgentProject(projectPath: string): boolean {
 }
 
 /**
+ * Directories that are never a CloudRun project, checked as whole trees (the directory
+ * itself plus everything under it).
+ */
+const FORBIDDEN_TARGET_TREES = [
+  '/etc',
+  '/private/etc',
+  '/dev',
+  '/proc',
+  '/sys',
+  '/System',
+  '/Library',
+  '/private/var/root',
+];
+
+/** Directories that are never a project themselves, while their subdirectories may be. */
+const FORBIDDEN_TARGET_ROOTS = ['/usr', '/bin', '/sbin', '/boot', '/root', '/home', '/private'];
+
+/**
+ * Credential / host-profile directories under the home directory. Anything there is host
+ * state, not a project: `deploy` would upload it as the build context and `init` / `download`
+ * would unpack a template over it.
+ */
+const FORBIDDEN_HOME_DIRS = [
+  '.ssh',
+  '.aws',
+  '.gnupg',
+  '.kube',
+  '.dsh',
+  path.join('.config', '.cloudbase'),
+];
+
+function isSameOrInside(candidate: string, dir: string): boolean {
+  const rel = path.relative(dir, candidate);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * Canonical form of an existing path, used only for the checks below.
+ *
+ * macOS and Windows resolve paths case-insensitively, so `~/Desktop` and `~/desktop` are the
+ * same directory while `path.relative` compares strings. Windows also answers with a `\\?\`
+ * extended-length prefix, which is stripped so a canonical directory and a not-yet-created
+ * child compare on the same shape. The caller returns the original resolved path either way;
+ * only the comparison runs on the canonical form.
+ */
+function canonicalForCheck(target: string): string {
+  try {
+    const resolved = fs.realpathSync.native(target);
+    return resolved.startsWith('\\\\?\\') ? resolved.slice(4) : resolved;
+  } catch {
+    return target;
+  }
+}
+
+/**
+ * Reject absolute target paths that cannot be a project directory.
+ *
+ * The value decides where templates are extracted, where `cloudbaserc.json` is written,
+ * which Dockerfile `run` executes, and — for `deploy` — which tree is uploaded as the build
+ * context. The home directory itself or a credential directory would therefore overwrite host
+ * files and ship secrets to the cloud build. Naming a specific directory under the home
+ * directory stays allowed; that is the normal case when the MCP process runs from an IDE home.
+ */
+function assertTargetPathIsProject(resolved: string): void {
+  const reject = (): never => {
+    throw new Error(t("cloudrun.error.targetPathForbidden", { resolvedPath: resolved }));
+  };
+
+  const canonical = canonicalForCheck(resolved);
+
+  // A drive root (`/`, `C:\`) is never a project directory.
+  if (canonical === path.parse(canonical).root) reject();
+
+  const home = canonicalForCheck(path.resolve(homedir()));
+  if (canonical === home) reject();
+  if (FORBIDDEN_HOME_DIRS.some((dir) => isSameOrInside(canonical, path.join(home, dir)))) reject();
+  if (FORBIDDEN_TARGET_TREES.some((dir) => isSameOrInside(canonical, dir))) reject();
+  if (FORBIDDEN_TARGET_ROOTS.some((dir) => canonical === dir)) reject();
+}
+
+/**
  * Validate and normalize a file path.
- * Absolute paths are accepted as-is. Relative paths resolve against the project
- * root and must stay inside it.
+ * Absolute paths are accepted as-is unless they point at host state (see
+ * `assertTargetPathIsProject`). Relative paths resolve against the project root and must
+ * stay inside it.
  */
 export function validateAndNormalizePath(inputPath: string): string {
   if (path.isAbsolute(inputPath)) {
-    return path.resolve(inputPath);
+    const resolved = path.resolve(inputPath);
+    assertTargetPathIsProject(resolved);
+    return resolved;
   }
 
   const projectRoot = requireProjectRoot();

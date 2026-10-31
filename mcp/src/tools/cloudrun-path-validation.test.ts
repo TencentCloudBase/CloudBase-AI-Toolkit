@@ -36,4 +36,44 @@ describe("validateAndNormalizePath", () => {
       /absolute path to the project directory|项目目录的绝对路径/,
     );
   });
+
+  it("rejects the home directory itself", () => {
+    expect(() => validateAndNormalizePath(os.homedir())).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it("rejects credential and host-profile directories under the home directory", () => {
+    for (const dir of [".ssh", ".aws", ".config/.cloudbase", ".dsh"]) {
+      expect(() => validateAndNormalizePath(path.join(os.homedir(), dir))).toThrow(
+        /not a project directory|不是项目目录/,
+      );
+    }
+  });
+
+  it("rejects system directories", () => {
+    expect(() => validateAndNormalizePath("/etc/nginx")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")("rejects the filesystem root", () => {
+    expect(() => validateAndNormalizePath("/")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it("still accepts a specific project directory under the home directory", () => {
+    const project = path.join(os.homedir(), "Desktop", "my-cloudrun-project");
+    expect(validateAndNormalizePath(project)).toBe(path.resolve(project));
+  });
+
+  it.skipIf(process.platform !== "darwin")(
+    "rejects the home directory written with a different case",
+    () => {
+      expect(() => validateAndNormalizePath(os.homedir().toUpperCase())).toThrow(
+        /not a project directory|不是项目目录/,
+      );
+    },
+  );
 });
