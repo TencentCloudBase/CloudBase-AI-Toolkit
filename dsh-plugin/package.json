@@ -91,7 +91,7 @@
     "@types/react": "19.1.12",
     "esbuild": "0.25.9",
     "typescript": "5.9.2",
-    "vitest": "3.2.7",
+    "vitest": "4.0.18",
     "zod": "4.6.6"
   },
   "dsh": {
