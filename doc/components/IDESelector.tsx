@@ -52,6 +52,9 @@ interface IDE {
   installCommandDocs?: string | ((ctx: InstallDocsContext) => string);
   /** 英文站上显示的安装说明。缺省用 installCommandDocs。 */
   installCommandDocsEn?: string;
+  /** builtin 通道的自定义说明，覆盖默认的 builtinNote 文案。 */
+  builtinNote?: string;
+  builtinNoteEn?: string;
   useCommandInsteadOfConfig?: boolean;
   /** 该客户端是否出「远端 / 本地」与站点开关。`builtin` 通道不出——那些客户端走自有市场，用户选了也不生效。 */
   showModeSwitch?: boolean;
@@ -135,6 +138,7 @@ function localizeIDE(ide: IDE, isEnglish: boolean): IDE {
   }
   return {
     ...ide,
+    builtinNote: ide.builtinNoteEn ?? ide.builtinNote,
     name: ide.nameEn ?? ide.name,
     platform: ide.platformEn ?? ide.platform,
     configPath: ide.configPathEn ?? ide.configPath,
@@ -165,8 +169,10 @@ const IDES: IDE[] = [
     docUrl: 'https://docs.cloudbase.net/skill.md',
     supportsProjectMCP: false,
     useCommandInsteadOfConfig: true,
-    installCommandDocs: '**用 AI 开发小程序**\n\n复制这段话发给 AI，它会照着官方文档把 CloudBase 接好：\n\n```text\n阅读 https://docs.cloudbase.net/skill.md，帮我接入 CloudBase 国内站。\n完成后告诉我，并建议最相关的下一步。\n```\n\n> ⚠️ 登录云开发控制台时，选「**使用微信公众平台账号登录**」（适用于小程序 / 小游戏 / 公众号网页），不要选腾讯云账号登录——选错了，环境和你的小程序绑不上，后面每一步都会失败。\n\n想让它更懂小程序？WorkBuddy 专家中心有 CloudBase 的小程序开发专家：需求拆解、页面结构、云开发接口该用哪个，都按小程序的路子来，不用每次从头解释。[点这里直达专家](https://www.workbuddy.cn/share/asset?shareCode=Qm1h3644twDogAMPR5teEt&sig=fnGdahbxTKljsQBG)。',
-    installCommandDocsEn: '**Build a mini program with AI**\n\nPaste this into your AI chat — it onboards CloudBase following the official docs:\n\n```text\nRead https://docs.cloudbase.net/skill.md and set up CloudBase for me.\nTell me when you are done, and suggest the most relevant next steps.\n```\n\n> ⚠️ When signing in to the CloudBase console, choose **WeChat platform account sign-in** (for mini programs / mini games / official-account web pages), not the Tencent Cloud account — the wrong one leaves the environment unbound to your mini program and every later step fails.\n\nWant AI that thinks in mini-program terms? The WorkBuddy Expert Center has a CloudBase mini-program expert: requirement breakdown, page structure, and which cloud API to use — all the mini-program way, no re-explaining each time. [Open the expert](https://www.workbuddy.cn/share/asset?shareCode=Qm1h3644twDogAMPR5teEt&sig=fnGdahbxTKljsQBG).',
+    builtinNote: '微信开发者工具已内置云开发能力，接入以微信官方「开发者工具 Skills」为准，无需在此选择。',
+    builtinNoteEn: 'WeChat DevTools ships cloud-development capabilities built in — follow the official WeChat DevTools Skills; nothing to pick here.',
+    installCommandDocs: '**用 AI 开发小程序**\n\n复制这段话发给 AI，它会照着官方文档把 CloudBase 接好：\n\n阅读 https://docs.cloudbase.net/skill.md，帮我接入 CloudBase 国内站。完成后告诉我，并建议最相关的下一步。\n\n⚠️ 登录云开发控制台时，选「使用微信公众平台账号登录」（适用于小程序 / 小游戏 / 公众号网页），不要选腾讯云账号登录——选错了，环境和你的小程序绑不上，后面每一步都会失败。\n\n想让它更懂小程序？WorkBuddy 专家中心有 CloudBase 的小程序开发专家：需求拆解、页面结构、云开发接口该用哪个，都按小程序的路子来，不用每次从头解释。[点这里直达专家](https://www.workbuddy.cn/share/asset?shareCode=Qm1h3644twDogAMPR5teEt&sig=fnGdahbxTKljsQBG)。',
+    installCommandDocsEn: '**Build a mini program with AI**\n\nPaste this into your AI chat — it onboards CloudBase following the official docs:\n\nRead https://docs.cloudbase.net/skill.md and set up CloudBase for me. Tell me when you are done, and suggest the most relevant next steps.\n\n⚠️ When signing in to the CloudBase console, choose WeChat platform account sign-in (for mini programs / mini games / official-account web pages), not the Tencent Cloud account — the wrong one leaves the environment unbound to your mini program and every later step fails.\n\nWant AI that thinks in mini-program terms? The WorkBuddy Expert Center has a CloudBase mini-program expert: requirement breakdown, page structure, and which cloud API to use — all the mini-program way, no re-explaining each time. [Open the expert](https://www.workbuddy.cn/share/asset?shareCode=Qm1h3644twDogAMPR5teEt&sig=fnGdahbxTKljsQBG).',
     configExample: '',
   },
   {
@@ -1453,7 +1459,7 @@ export default function IDESelector({
           </p>
         </>
       ) : (
-        <p className={styles.builtinNote}>{t.builtinNote}</p>
+        <p className={styles.builtinNote}>{ide.builtinNote ?? t.builtinNote}</p>
       )}
 
       <p className={styles.description}>
