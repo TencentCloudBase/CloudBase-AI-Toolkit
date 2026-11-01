@@ -36,4 +36,65 @@ describe("validateAndNormalizePath", () => {
       /absolute path to the project directory|项目目录的绝对路径/,
     );
   });
+
+  it("rejects the home directory itself", () => {
+    expect(() => validateAndNormalizePath(os.homedir())).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it("rejects credential and host-profile directories under the home directory", () => {
+    for (const dir of [".ssh", ".aws", ".config/.cloudbase", ".dsh", "Library"]) {
+      expect(() => validateAndNormalizePath(path.join(os.homedir(), dir))).toThrow(
+        /not a project directory|不是项目目录/,
+      );
+    }
+  });
+
+  it.skipIf(process.platform === "win32")("rejects /Users itself but not a project under it", () => {
+    expect(() => validateAndNormalizePath("/Users")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")("rejects children of system directories", () => {
+    expect(() => validateAndNormalizePath("/bin/not-a-cloudrun-project")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it.skipIf(process.platform !== "darwin")(
+    "rejects a not-yet-created path whose prefix only differs by case",
+    () => {
+      expect(() => validateAndNormalizePath("/ETC/cloudrun-case-probe")).toThrow(
+        /not a project directory|不是项目目录/,
+      );
+    },
+  );
+
+  it("rejects system directories", () => {
+    expect(() => validateAndNormalizePath("/etc/nginx")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")("rejects the filesystem root", () => {
+    expect(() => validateAndNormalizePath("/")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it("still accepts a specific project directory under the home directory", () => {
+    const project = path.join(os.homedir(), "Desktop", "my-cloudrun-project");
+    expect(validateAndNormalizePath(project)).toBe(path.resolve(project));
+  });
+
+  it.skipIf(process.platform !== "darwin")(
+    "rejects the home directory written with a different case",
+    () => {
+      expect(() => validateAndNormalizePath(os.homedir().toUpperCase())).toThrow(
+        /not a project directory|不是项目目录/,
+      );
+    },
+  );
 });
