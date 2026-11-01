@@ -1114,6 +1114,40 @@ export async function inspectFunctionUpdateOutcome(
   return { state: "pending", status };
 }
 
+/**
+ * 把 `inspectFunctionUpdateOutcome` 的失败结果转成可读错误。
+ * `kind` 只影响文案（配置更新 / 代码更新），两种动作的失败形态是一样的。
+ */
+export function buildFunctionUpdateFailure(options: {
+  kind: "config" | "code";
+  functionName: string;
+  status: string;
+  reasons: FunctionStatusReason[];
+}): Error {
+  const details = options.reasons
+    .map((item) => `[${item.ErrorCode ?? "Unknown"}] ${item.ErrorMessage ?? ""}`.trim())
+    .join("；");
+  const params = {
+    fnName: options.functionName,
+    status: options.status,
+    details,
+  };
+
+  if (options.kind === "code") {
+    return new Error(
+      details
+        ? t("functions.codeUpdateFailed", params)
+        : t("functions.codeUpdateFailedNoReason", params),
+    );
+  }
+
+  return new Error(
+    details
+      ? t("functions.updateFailed", params)
+      : t("functions.updateFailedNoReason", params),
+  );
+}
+
 export function registerFunctionTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const deployOverrides = server.pluginOptions?.functions;
@@ -2751,11 +2785,24 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             error,
           );
         }
+        const cosOutcome = await inspectFunctionUpdateOutcome(() =>
+          cloudbase.functions.getFunctionDetail(input.functionName as string),
+        );
+        if (cosOutcome.state === "failed") {
+          throw buildFunctionUpdateFailure({
+            kind: "code",
+            functionName: input.functionName,
+            status: cosOutcome.status,
+            reasons: cosOutcome.reasons,
+          });
+        }
+
         logCloudBaseResult(server.logger, cosUpdateResult);
         return buildEnvelope(
           {
             action: input.action,
             functionName: input.functionName,
+            status: cosOutcome.status,
             deployMode: "cos",
             cosBucketName,
             cosBucketRegion,
@@ -2809,6 +2856,19 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         );
       }
 
+      // 代码更新同样是异步的：接口受理后真实结果写在 Status / StatusReasons 里。
+      const codeOutcome = await inspectFunctionUpdateOutcome(() =>
+        cloudbase.functions.getFunctionDetail(input.functionName as string),
+      );
+      if (codeOutcome.state === "failed") {
+        throw buildFunctionUpdateFailure({
+          kind: "code",
+          functionName: input.functionName,
+          status: codeOutcome.status,
+          reasons: codeOutcome.reasons,
+        });
+      }
+
       logCloudBaseResult(server.logger, result);
       const envId = cloudBaseOptions?.envId ?? await getEnvId(cloudBaseOptions);
       const gatewayAccess = await resolveGatewayAccessUrls({
@@ -2823,10 +2883,18 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           return manager as any;
         },
       });
+      const codeWarnings: string[] = [];
+      if (input.dryRun === true) {
+        codeWarnings.push(t("functions.dryRunNotApplicable"));
+      }
+      if (input.wait !== undefined) {
+        codeWarnings.push(t("functions.waitNotApplicable"));
+      }
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
+          status: codeOutcome.status,
           ...(gatewayAccess.accessUrl ? { accessUrl: gatewayAccess.accessUrl } : {}),
           ...(gatewayAccess.accessUrls.length > 0
             ? { accessUrls: gatewayAccess.accessUrls }
@@ -2844,6 +2912,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: t("functions.reason.latestConfig"),
           },
         ],
+        codeWarnings,
       );
     }
     case "updateFunctionConfig": {
@@ -2911,32 +2980,25 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           }),
         );
 
-        const outcome =
-          input.wait === false
-            ? ({ state: "ok" } as FunctionUpdateOutcome)
-            : await inspectFunctionUpdateOutcome(() =>
-                cloudbase.functions.getFunctionDetail(input.functionName as string),
-              );
+        const outcome = await inspectFunctionUpdateOutcome(() =>
+          cloudbase.functions.getFunctionDetail(input.functionName as string),
+        );
 
         if (outcome.state === "failed") {
-          const details = outcome.reasons
-            .map(
-              (item) =>
-                `[${item.ErrorCode ?? "Unknown"}] ${item.ErrorMessage ?? ""}`.trim(),
-            )
-            .join("；");
-          throw new Error(
-            details
-              ? t("functions.updateFailed", {
-                  fnName: input.functionName,
-                  status: outcome.status,
-                  details,
-                })
-              : t("functions.updateFailedNoReason", {
-                  fnName: input.functionName,
-                  status: outcome.status,
-                }),
-          );
+          throw buildFunctionUpdateFailure({
+            kind: "config",
+            functionName: input.functionName,
+            status: outcome.status,
+            reasons: outcome.reasons,
+          });
+        }
+
+        const misuseWarnings: string[] = [];
+        if (input.dryRun === true) {
+          misuseWarnings.push(t("functions.dryRunNotApplicable"));
+        }
+        if (input.wait !== undefined) {
+          misuseWarnings.push(t("functions.waitNotApplicable"));
         }
 
         logCloudBaseResult(server.logger, result);
@@ -2968,6 +3030,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
               status: outcome.status ?? "Updating",
             }),
             nextActions,
+            misuseWarnings,
           );
         }
 
@@ -2980,6 +3043,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           },
           t("functions.updatedConfigPreservingLogs", { fnName: input.functionName }),
           nextActions,
+          misuseWarnings,
         );
       } catch (error) {
         if (isFunctionUpdatingError(error)) {
