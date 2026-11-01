@@ -77,10 +77,24 @@ tcb ai
 
 On first run, the wizard helps you:
 
-- Choose an AI tool (CodeBuddy Code, Claude Code, OpenAI Codex, aider, Qwen Code)
-- Configure the AI tool (custom LLM or CloudBase-provided LLM)
+- Choose an AI tool (CodeBuddy Code, Claude Code, OpenAI Codex, Cursor, aider, Qwen Code)
+- Configure the AI tool's model (custom LLM or CloudBase-provided LLM)
+- Write the MCP and Skills configuration
 
-After setup, you can start using AI tools for assisted development. You can run `tcb ai --setup` later to switch tools and models.
+After setup, you can start using AI tools for assisted development. You can run `tcb ai --setup` later to reconfigure the tool, MCP or Skills.
+
+**Common flags:**
+
+| Flag | Description |
+| ---- | ----------- |
+| `-a, --agent` | Pick the AI tool up front and skip the prompt |
+| `--setup` | Run the setup wizard (AI tool, MCP, Skills) |
+| `--scope` | Where the MCP / Skills config is written: `project` / `global` / `custom`. Use with `--setup` |
+| `--dir` | Custom config directory; required when `--scope custom` |
+| `--template` | Project template: `miniprogram` / `react` / `vue` / `uniapp` / `rules` |
+| `--config` | Show the current config |
+| `--reset` | Reset all config |
+| `--json` | Output as JSON |
 
 ## Start using it
 
@@ -107,6 +121,7 @@ CloudBase CLI supports the following AI coding tools:
 | CodeBuddy Code | `-a codebuddy` |
 | Claude Code | `-a claude` |
 | OpenAI Codex | `-a codex` |
+| Cursor | `-a cursor` |
 | aider | `-a aider` |
 | Qwen Code | `-a qwen` |
 
@@ -118,7 +133,7 @@ CloudBase CLI supports project-level configuration and stores config files in yo
 
 **Q: How do I switch the AI tool?**
 
-A: Run `tcb ai --setup` to open the setup wizard again and choose a different tool.
+A: Run `tcb ai --setup` to open the setup wizard again and choose a different tool. Add `--scope` to control whether the MCP / Skills config is written to the project or to your home directory.
 
 **Q: How do I view current config?**
 
