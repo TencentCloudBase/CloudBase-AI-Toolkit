@@ -1375,7 +1375,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
         {
           name: "runtime",
           type: "string",
-          description: `运行时环境。Event 函数支持多种运行时:   Nodejs: Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9   Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7   Php: Php8.0, Php7.4, Php7.2   Java: Java8, Java11   Golang: Golang1 推荐运行时:   Node.js: Nodejs18.15   Python: Python3.9   PHP: Php7.4   Java: Java11   Go: Golang1 镜像部署（基于 TCR 镜像创建函数）时填 "CustomImage"，并提供 imageConfig；此时无需 functionRootPath/zipFile。`,
+          description: `运行时环境。Event 函数支持多种运行时:   Nodejs: Nodejs22.21, Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9   Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7   Php: Php8.0, Php7.4, Php7.2   Java: Java8, Java11   Golang: Golang1 推荐运行时:   Node.js: Nodejs18.15   Python: Python3.9   PHP: Php7.4   Java: Java11   Go: Golang1 镜像部署（基于 TCR 镜像创建函数）时填 "CustomImage"，并提供 imageConfig；此时无需 functionRootPath/zipFile。`,
         },
         {
           name: "buildStrategy",
