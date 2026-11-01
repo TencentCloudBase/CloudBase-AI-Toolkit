@@ -343,4 +343,35 @@ describe("manageFunctions updateFunctionConfig", () => {
     expect(payload.message).toContain("代码更新失败");
     expect(payload.message).toContain("InvalidParameter.Cls");
   });
+
+  it("does not report a code update as finished while Status is still Updating", async () => {
+    mockUpdateFunctionCode.mockResolvedValue({ RequestId: "req-code-pending" });
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({
+        Status: "Active",
+        Timeout: 10,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      })
+      .mockResolvedValue({ Status: "Updating", StatusReasons: [] });
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "notification-get-list",
+      functionRootPath: "/tmp/functions",
+      confirm: true,
+      dryRun: true,
+      wait: false,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.data.status).toBe("Updating");
+    expect(payload.message).toContain("仍处于");
+    expect(payload.message).not.toContain("已更新函数");
+    expect(payload.warnings).toEqual([
+      expect.stringContaining("dryRun"),
+      expect.stringContaining("wait"),
+    ]);
+  });
 });

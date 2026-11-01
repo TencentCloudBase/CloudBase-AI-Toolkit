@@ -1148,6 +1148,52 @@ export function buildFunctionUpdateFailure(options: {
   );
 }
 
+/** Seconds spent in inspectFunctionUpdateOutcome with the default schedule. */
+export function functionUpdateWaitedSeconds(): number {
+  return (
+    FUNCTION_UPDATE_OUTCOME_WAIT.initialDelayMs +
+    FUNCTION_UPDATE_OUTCOME_WAIT.intervalMs *
+      (FUNCTION_UPDATE_OUTCOME_WAIT.maxAttempts - 1)
+  ) / 1000;
+}
+
+/**
+ * dryRun and wait only apply to image build deployment. Other actions still
+ * run; the caller gets a warning instead of a silent ignore.
+ */
+export function functionUpdateMisuseWarnings(input: {
+  dryRun?: boolean;
+  wait?: boolean;
+}): string[] {
+  const warnings: string[] = [];
+  if (input.dryRun === true) {
+    warnings.push(t("functions.dryRunNotApplicable"));
+  }
+  if (input.wait !== undefined) {
+    warnings.push(t("functions.waitNotApplicable"));
+  }
+  return warnings;
+}
+
+/**
+ * A code update that is still Updating is not done. Keep the settled copy only
+ * when the outcome is ok; pending uses the shared still-running message.
+ */
+function codeUpdateProgressMessage(
+  functionName: string,
+  outcome: FunctionUpdateOutcome,
+  settledMessage: string,
+): string {
+  if (outcome.state !== "pending") {
+    return settledMessage;
+  }
+  return t("functions.codeUpdateStillRunning", {
+    fnName: functionName,
+    seconds: functionUpdateWaitedSeconds(),
+    status: outcome.status ?? "Updating",
+  });
+}
+
 export function registerFunctionTools(server: ExtendedMcpServer) {
   const cloudBaseOptions = server.cloudBaseOptions;
   const deployOverrides = server.pluginOptions?.functions;
@@ -2798,6 +2844,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         }
 
         logCloudBaseResult(server.logger, cosUpdateResult);
+        const cosWarnings = functionUpdateMisuseWarnings(input);
         return buildEnvelope(
           {
             action: input.action,
@@ -2809,7 +2856,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             cosObjectName: input.code.cosObjectName,
             raw: cosUpdateResult as Record<string, unknown>,
           },
-          t("functions.cosUpdatedMessage", { fnName: input.functionName }),
+          codeUpdateProgressMessage(
+            input.functionName,
+            cosOutcome,
+            t("functions.cosUpdatedMessage", { fnName: input.functionName }),
+          ),
           [
             {
               tool: "queryFunctions",
@@ -2817,6 +2868,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
               reason: t("functions.reason.confirmConfig"),
             },
           ],
+          cosWarnings,
         );
       }
 
@@ -2869,6 +2921,32 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         });
       }
 
+      const codeWarnings = functionUpdateMisuseWarnings(input);
+      if (codeOutcome.state === "pending") {
+        logCloudBaseResult(server.logger, result);
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName: input.functionName,
+            status: codeOutcome.status,
+            raw: result as Record<string, unknown>,
+          },
+          codeUpdateProgressMessage(
+            input.functionName,
+            codeOutcome,
+            t("functions.updatedCode", { fnName: input.functionName }),
+          ),
+          [
+            {
+              tool: "queryFunctions",
+              action: "getFunctionDetail",
+              reason: t("functions.reason.latestConfig"),
+            },
+          ],
+          codeWarnings,
+        );
+      }
+
       logCloudBaseResult(server.logger, result);
       const envId = cloudBaseOptions?.envId ?? await getEnvId(cloudBaseOptions);
       const gatewayAccess = await resolveGatewayAccessUrls({
@@ -2883,13 +2961,6 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           return manager as any;
         },
       });
-      const codeWarnings: string[] = [];
-      if (input.dryRun === true) {
-        codeWarnings.push(t("functions.dryRunNotApplicable"));
-      }
-      if (input.wait !== undefined) {
-        codeWarnings.push(t("functions.waitNotApplicable"));
-      }
       return buildEnvelope(
         {
           action: input.action,
@@ -2904,7 +2975,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             : {}),
           raw: result as Record<string, unknown>,
         },
-        t("functions.updatedCode", { fnName: input.functionName }),
+        codeUpdateProgressMessage(
+          input.functionName,
+          codeOutcome,
+          t("functions.updatedCode", { fnName: input.functionName }),
+        ),
         [
           {
             tool: "queryFunctions",
@@ -2993,13 +3068,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           });
         }
 
-        const misuseWarnings: string[] = [];
-        if (input.dryRun === true) {
-          misuseWarnings.push(t("functions.dryRunNotApplicable"));
-        }
-        if (input.wait !== undefined) {
-          misuseWarnings.push(t("functions.waitNotApplicable"));
-        }
+        const misuseWarnings = functionUpdateMisuseWarnings(input);
 
         logCloudBaseResult(server.logger, result);
 
@@ -3012,11 +3081,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         ];
 
         if (outcome.state === "pending") {
-          const waitedSeconds =
-            (FUNCTION_UPDATE_OUTCOME_WAIT.initialDelayMs +
-              FUNCTION_UPDATE_OUTCOME_WAIT.intervalMs *
-                (FUNCTION_UPDATE_OUTCOME_WAIT.maxAttempts - 1)) /
-            1000;
+          const waitedSeconds = functionUpdateWaitedSeconds();
           return buildEnvelope(
             {
               action: input.action,
