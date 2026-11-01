@@ -44,12 +44,33 @@ describe("validateAndNormalizePath", () => {
   });
 
   it("rejects credential and host-profile directories under the home directory", () => {
-    for (const dir of [".ssh", ".aws", ".config/.cloudbase", ".dsh"]) {
+    for (const dir of [".ssh", ".aws", ".config/.cloudbase", ".dsh", "Library"]) {
       expect(() => validateAndNormalizePath(path.join(os.homedir(), dir))).toThrow(
         /not a project directory|不是项目目录/,
       );
     }
   });
+
+  it.skipIf(process.platform === "win32")("rejects /Users itself but not a project under it", () => {
+    expect(() => validateAndNormalizePath("/Users")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")("rejects children of system directories", () => {
+    expect(() => validateAndNormalizePath("/bin/not-a-cloudrun-project")).toThrow(
+      /not a project directory|不是项目目录/,
+    );
+  });
+
+  it.skipIf(process.platform !== "darwin")(
+    "rejects a not-yet-created path whose prefix only differs by case",
+    () => {
+      expect(() => validateAndNormalizePath("/ETC/cloudrun-case-probe")).toThrow(
+        /not a project directory|不是项目目录/,
+      );
+    },
+  );
 
   it("rejects system directories", () => {
     expect(() => validateAndNormalizePath("/etc/nginx")).toThrow(

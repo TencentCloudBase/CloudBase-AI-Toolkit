@@ -318,10 +318,17 @@ const FORBIDDEN_TARGET_TREES = [
   '/System',
   '/Library',
   '/private/var/root',
+  '/bin',
+  '/sbin',
+  '/boot',
 ];
 
-/** Directories that are never a project themselves, while their subdirectories may be. */
-const FORBIDDEN_TARGET_ROOTS = ['/usr', '/bin', '/sbin', '/boot', '/root', '/home', '/private'];
+/**
+ * Directories that are never a project themselves, while a specific child may be.
+ * `/bin` is a tree (above); `/usr` and `/home` stay exact so `/usr/local/...` and
+ * `/home/<user>/<project>` still work. `/Users` is the same shape as `/home`.
+ */
+const FORBIDDEN_TARGET_ROOTS = ['/usr', '/root', '/home', '/private', '/Users'];
 
 /**
  * Credential / host-profile directories under the home directory. Anything there is host
@@ -334,12 +341,40 @@ const FORBIDDEN_HOME_DIRS = [
   '.gnupg',
   '.kube',
   '.dsh',
+  'Library',
   path.join('.config', '.cloudbase'),
 ];
 
+/**
+ * darwin and win32 identify directories case-insensitively. A path that does not
+ * exist yet never reaches realpath, so the string compared here has to fold too.
+ * Linux stays case-sensitive.
+ */
+function pathCompareKey(target: string): string {
+  if (process.platform === 'linux') return target;
+  return target.toLowerCase();
+}
+
 function isSameOrInside(candidate: string, dir: string): boolean {
-  const rel = path.relative(dir, candidate);
+  const rel = path.relative(pathCompareKey(dir), pathCompareKey(candidate));
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function samePath(left: string, right: string): boolean {
+  return pathCompareKey(left) === pathCompareKey(right);
+}
+
+function windowsForbiddenTrees(): string[] {
+  if (process.platform !== 'win32') return [];
+  const systemRoot = process.env.SystemRoot || 'C:\\Windows';
+  const programData = process.env.ProgramData || 'C:\\ProgramData';
+  return [systemRoot, programData];
+}
+
+function windowsForbiddenRoots(): string[] {
+  if (process.platform !== 'win32') return [];
+  const systemDrive = path.parse(process.env.SystemRoot || 'C:\\Windows').root;
+  return [path.join(systemDrive, 'Users')];
 }
 
 /**
@@ -377,13 +412,14 @@ function assertTargetPathIsProject(resolved: string): void {
   const canonical = canonicalForCheck(resolved);
 
   // A drive root (`/`, `C:\`) is never a project directory.
-  if (canonical === path.parse(canonical).root) reject();
+  if (samePath(canonical, path.parse(canonical).root)) reject();
 
   const home = canonicalForCheck(path.resolve(homedir()));
-  if (canonical === home) reject();
+  if (samePath(canonical, home)) reject();
   if (FORBIDDEN_HOME_DIRS.some((dir) => isSameOrInside(canonical, path.join(home, dir)))) reject();
-  if (FORBIDDEN_TARGET_TREES.some((dir) => isSameOrInside(canonical, dir))) reject();
-  if (FORBIDDEN_TARGET_ROOTS.some((dir) => canonical === dir)) reject();
+  if (process.platform === 'win32' && isSameOrInside(canonical, path.join(home, 'AppData'))) reject();
+  if ([...FORBIDDEN_TARGET_TREES, ...windowsForbiddenTrees()].some((dir) => isSameOrInside(canonical, dir))) reject();
+  if ([...FORBIDDEN_TARGET_ROOTS, ...windowsForbiddenRoots()].some((dir) => samePath(canonical, dir))) reject();
 }
 
 /**
