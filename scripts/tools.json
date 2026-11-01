@@ -1434,7 +1434,7 @@
               },
               "runtime": {
                 "type": "string",
-                "description": "运行时环境。Event 函数支持多种运行时:\n  Nodejs: Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9\n  Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7\n  Php: Php8.0, Php7.4, Php7.2\n  Java: Java8, Java11\n  Golang: Golang1\n\n推荐运行时:\n  Node.js: Nodejs18.15\n  Python: Python3.9\n  PHP: Php7.4\n  Java: Java11\n  Go: Golang1\n\n镜像部署（基于 TCR 镜像创建函数）时填 \"CustomImage\"，并提供 imageConfig；此时无需 functionRootPath/zipFile。"
+                "description": "运行时环境。Event 函数支持多种运行时:\n  Nodejs: Nodejs22.21, Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9\n  Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7\n  Php: Php8.0, Php7.4, Php7.2\n  Java: Java8, Java11\n  Golang: Golang1\n\n推荐运行时:\n  Node.js: Nodejs18.15\n  Python: Python3.9\n  PHP: Php7.4\n  Java: Java11\n  Go: Golang1\n\n镜像部署（基于 TCR 镜像创建函数）时填 \"CustomImage\"，并提供 imageConfig；此时无需 functionRootPath/zipFile。"
               },
               "buildStrategy": {
                 "type": "string",
