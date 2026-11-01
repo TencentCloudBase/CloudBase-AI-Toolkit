@@ -44,10 +44,13 @@ vi.mock("../auth.js", () => ({
 }));
 
 vi.mock("@cloudbase/manager-node", () => ({
-  default: mockCloudBaseCtor.mockImplementation(() => ({
-    commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
-    env: { listEnvs: mockListEnvs },
-  })),
+  // vitest 4 起，被 `new` 调用的 mock 实现必须是 function/class。
+  default: mockCloudBaseCtor.mockImplementation(function () {
+    return {
+      commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
+      env: { listEnvs: mockListEnvs },
+    };
+  }),
 }));
 
 /** 每个用例的干净起点：清模块级缓存（`envManager`、槽、`process.env`） */

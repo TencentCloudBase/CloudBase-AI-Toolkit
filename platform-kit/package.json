@@ -69,6 +69,6 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "typescript": "5.9.2",
-    "vitest": "3.2.7"
+    "vitest": "4.0.18"
   }
 }

@@ -40,14 +40,18 @@ vi.mock("./auth.js", () => ({
 }));
 
 vi.mock("@cloudbase/manager-node", () => ({
-  default: mockCloudBaseCtor.mockImplementation(() => ({
-    commonService: vi.fn(() => ({
-      call: mockCommonServiceCall,
-    })),
-    env: {
-      listEnvs: mockListEnvs,
-    },
-  })),
+  // vitest 4 起，被 `new` 调用的 mock 实现必须是 function/class，箭头函数会抛
+  // "did not use 'function' or 'class' in its implementation"。
+  default: mockCloudBaseCtor.mockImplementation(function () {
+    return {
+      commonService: vi.fn(() => ({
+        call: mockCommonServiceCall,
+      })),
+      env: {
+        listEnvs: mockListEnvs,
+      },
+    };
+  }),
 }));
 
 describe("cloudbase manager auth gate", () => {
@@ -935,10 +939,12 @@ describe("env binding slot", () => {
     mockCommonServiceCall.mockResolvedValue({
       EnvList: [{ EnvId: "env-only", Alias: "only", Region: "ap-shanghai" }],
     });
-    mockCloudBaseCtor.mockImplementation(() => ({
-      commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
-      env: { listEnvs: mockListEnvs },
-    }));
+    mockCloudBaseCtor.mockImplementation(function () {
+      return {
+        commonService: vi.fn(() => ({ call: mockCommonServiceCall })),
+        env: { listEnvs: mockListEnvs },
+      };
+    });
 
     const { getEnvId, getCachedEnvId, runInEnvSlot } = await import("./cloudbase-manager.js");
     const { readReportedEnv } = await import("./utils/env-binding.js");
