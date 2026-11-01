@@ -59,7 +59,7 @@
     "tsx": "^4.21.0",
     "undici": "6.29.1",
     "vite": "6.4.5",
-    "vitest": "4.0.18"
+    "vitest": "4.1.12"
   },
   "dependencies": {
     "@cloudbase/manager-node": "5.8.8"
