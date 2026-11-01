@@ -15,6 +15,7 @@ const {
   mockScfRequest,
   mockSdkUpdateFunctionConfig,
   mockGetFunctionDetail,
+  mockUpdateFunctionCode,
 } = vi.hoisted(() => ({
   mockGetCloudBaseManager: vi.fn(),
   mockGetEnvId: vi.fn(),
@@ -22,6 +23,7 @@ const {
   mockScfRequest: vi.fn(),
   mockSdkUpdateFunctionConfig: vi.fn(),
   mockGetFunctionDetail: vi.fn(),
+  mockUpdateFunctionCode: vi.fn(),
 }));
 
 vi.mock("../cloudbase-manager.js", () => ({
@@ -202,6 +204,7 @@ describe("manageFunctions updateFunctionConfig", () => {
         scfService: { request: mockScfRequest },
         getFunctionDetail: mockGetFunctionDetail,
         updateFunctionConfig: mockSdkUpdateFunctionConfig,
+        updateFunctionCode: mockUpdateFunctionCode,
       },
     });
     tools = createMockServer();
@@ -281,24 +284,94 @@ describe("manageFunctions updateFunctionConfig", () => {
     expect(payload.message).toContain("ClsLogSetId & ClsTopicId not matched");
   });
 
-  it("skips the status check when wait=false", async () => {
-    mockGetFunctionDetail.mockResolvedValue({
-      Status: "UpdateFailed",
-      Timeout: 10,
-      Environment: { Variables: [] },
-      VpcConfig: {},
-    });
+  it("warns that dryRun and wait do not apply to config updates", async () => {
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({
+        Status: "Active",
+        Timeout: 10,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      })
+      .mockResolvedValue({ Status: "Active", StatusReasons: [] });
 
     const result = await tools.manageFunctions.handler({
       action: "updateFunctionConfig",
       functionName: "notification-get-list",
       envVariables: { OVERVIEW_DIAG_AUDIENCE: "trial" },
       confirm: true,
+      dryRun: true,
+      wait: true,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.warnings).toEqual([
+      expect.stringContaining("dryRun"),
+      expect.stringContaining("wait"),
+    ]);
+    expect(mockScfRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces UpdateFailed after a code update too", async () => {
+    mockUpdateFunctionCode.mockResolvedValue({ RequestId: "req-code" });
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({
+        Status: "Active",
+        Timeout: 10,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      })
+      .mockResolvedValue({
+        Status: "UpdateFailed",
+        StatusReasons: [
+          {
+            ErrorCode: "InvalidParameter.Cls",
+            ErrorMessage: "ClsLogSetId & ClsTopicId not matched",
+          },
+        ],
+      });
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "notification-get-list",
+      functionRootPath: "/tmp/functions",
+      confirm: true,
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.message).toContain("代码更新失败");
+    expect(payload.message).toContain("InvalidParameter.Cls");
+  });
+
+  it("does not report a code update as finished while Status is still Updating", async () => {
+    mockUpdateFunctionCode.mockResolvedValue({ RequestId: "req-code-pending" });
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({
+        Status: "Active",
+        Timeout: 10,
+        Environment: { Variables: [] },
+        VpcConfig: {},
+      })
+      .mockResolvedValue({ Status: "Updating", StatusReasons: [] });
+
+    const result = await tools.manageFunctions.handler({
+      action: "updateFunctionCode",
+      functionName: "notification-get-list",
+      functionRootPath: "/tmp/functions",
+      confirm: true,
+      dryRun: true,
       wait: false,
     });
 
     const payload = JSON.parse(result.content[0].text);
     expect(payload.success).toBe(true);
-    expect(mockScfRequest).toHaveBeenCalledTimes(1);
+    expect(payload.data.status).toBe("Updating");
+    expect(payload.message).toContain("仍处于");
+    expect(payload.message).not.toContain("已更新函数");
+    expect(payload.warnings).toEqual([
+      expect.stringContaining("dryRun"),
+      expect.stringContaining("wait"),
+    ]);
   });
 });
