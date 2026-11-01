@@ -79,6 +79,9 @@
       "optional": true
     }
   },
+  "overrides": {
+    "vite": "7.3.7"
+  },
   "devDependencies": {
     "@codemirror/commands": "6.10.3",
     "@codemirror/lang-sql": "6.10.0",
@@ -91,7 +94,7 @@
     "@types/react": "19.1.12",
     "esbuild": "0.25.9",
     "typescript": "5.9.2",
-    "vitest": "4.0.18",
+    "vitest": "4.1.12",
     "zod": "4.6.6"
   },
   "dsh": {
