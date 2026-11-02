@@ -1922,6 +1922,187 @@ describe("env tools - queryEnv", () => {
     expect(payload.EnvInfo.routeDisabled).toBeUndefined();
   });
 
+  it("queryEnv(info) fills EnvBaseInfo keys the SDK omitted without clobbering enrichers", async () => {
+    const commonServiceCall = vi.fn(async ({ Action }: { Action: string }) => {
+      if (Action === "DescribeBillingInfo") {
+        return {
+          EnvBillingInfoList: [
+            {
+              EnvId: "env-test",
+              ExpireTime: "2026-12-31 00:00:00",
+              PayMode: "PREPAYMENT",
+              IsAutoRenew: true,
+            },
+          ],
+        };
+      }
+      if (Action === "DescribeEnvInfo") {
+        return {
+          EnvInfo: {
+            EnvBaseInfo: {
+              EnvId: "env-raw",
+              PackageId: "raw-package",
+              PostgreSQL: [{ InstanceId: "pg-raw" }],
+              Meta: [{ Key: "other", Value: "x" }],
+              Storages: [{ Bucket: "raw-bucket" }],
+              LogServices: [{ LogsetId: "ls-1", TopicId: "tp-1" }],
+              StaticStorages: [
+                {
+                  StaticDomain: "env-test.tcloudbaseapp.com",
+                  Bucket: "hosting-bucket",
+                },
+              ],
+              FutureFlag: "on",
+              BillingInfo: { PayMode: "RAW" },
+              RuntimeMode: "nosql",
+              RuntimeBackends: { postgresql: false, nosql: false, mysql: false },
+              staticDomainRouteEnabled: true,
+              accessUrlReachable: true,
+              routeDisabled: false,
+              disabledAccessUrls: ["https://evil.example/"],
+            },
+          },
+        };
+      }
+      return {};
+    });
+
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        getEnvInfo: vi.fn().mockResolvedValue({
+          EnvInfo: {
+            EnvId: "env-test",
+            PackageId: "baas_personal",
+            PostgreSQL: [{ InstanceId: "pg-sdk" }],
+            Meta: [{ Key: "postgresql", Value: "enable" }],
+            Storages: [{ Bucket: "sdk-bucket" }],
+          },
+        }),
+        describeHttpServiceRoute: vi.fn().mockResolvedValue({
+          Domains: [
+            {
+              Domain: "env-test.tcloudbaseapp.com",
+              IsDefault: true,
+              Routes: [
+                {
+                  Path: "/",
+                  Enable: false,
+                  UpstreamResourceType: "STATIC_STORE",
+                  UpstreamResourceName: "staticstore",
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      commonService: vi.fn(() => ({ call: commonServiceCall })),
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.queryEnv.handler({ action: "info", envId: "env-test" })
+      ).content[0].text,
+    );
+
+    expect(commonServiceCall).toHaveBeenCalledWith({
+      Action: "DescribeEnvInfo",
+      Param: { EnvId: "env-test" },
+    });
+    expect(payload.EnvInfo.EnvId).toBe("env-test");
+    expect(payload.EnvInfo.PackageId).toBe("baas_personal");
+    expect(payload.EnvInfo.PostgreSQL).toEqual([{ InstanceId: "pg-sdk" }]);
+    expect(payload.EnvInfo.Meta).toEqual([{ Key: "postgresql", Value: "enable" }]);
+    expect(payload.EnvInfo.Storages).toEqual([{ Bucket: "sdk-bucket" }]);
+    expect(payload.EnvInfo.LogServices).toEqual([{ LogsetId: "ls-1", TopicId: "tp-1" }]);
+    expect(payload.EnvInfo.FutureFlag).toBe("on");
+    expect(payload.EnvInfo.StaticStorages[0]).toMatchObject({
+      StaticDomain: "env-test.tcloudbaseapp.com",
+      Bucket: "hosting-bucket",
+      staticDomainRouteEnabled: false,
+    });
+    expect(payload.EnvInfo.BillingInfo).toMatchObject({
+      PayMode: "PREPAYMENT",
+      ExpireTime: "2026-12-31 00:00:00",
+    });
+    expect(payload.EnvInfo.RuntimeMode).toBe("postgresql");
+    expect(payload.EnvInfo.RuntimeBackends.postgresql).toBe(true);
+    expect(payload.EnvInfo.staticDomainRouteEnabled).toBe(false);
+    expect(payload.EnvInfo.accessUrlReachable).toBe(false);
+    expect(payload.EnvInfo.routeDisabled).toBe(true);
+    expect(payload.EnvInfo.disabledAccessUrls).toEqual([
+      "https://env-test.tcloudbaseapp.com/",
+    ]);
+  });
+
+  it("queryEnv(info) keeps SDK StaticStorages when DescribeEnvInfo also returns them", async () => {
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: {
+        getEnvInfo: vi.fn().mockResolvedValue({
+          EnvInfo: {
+            EnvId: "env-test",
+            StaticStorages: [
+              {
+                StaticDomain: "sdk.tcloudbaseapp.com",
+                Bucket: "sdk-hosting",
+              },
+            ],
+          },
+        }),
+        describeHttpServiceRoute: vi.fn().mockResolvedValue({
+          Domains: [
+            {
+              Domain: "sdk.tcloudbaseapp.com",
+              IsDefault: true,
+              Routes: [
+                {
+                  Path: "/",
+                  Enable: true,
+                  UpstreamResourceType: "STATIC_STORE",
+                  UpstreamResourceName: "staticstore",
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      commonService: vi.fn(() => ({
+        call: vi.fn(async ({ Action }: { Action: string }) => {
+          if (Action === "DescribeEnvInfo") {
+            return {
+              EnvInfo: {
+                EnvBaseInfo: {
+                  StaticStorages: [
+                    {
+                      StaticDomain: "raw.tcloudbaseapp.com",
+                      Bucket: "raw-hosting",
+                    },
+                  ],
+                },
+              },
+            };
+          }
+          return {};
+        }),
+      })),
+    });
+
+    const { tools } = createMockServer();
+    const payload = JSON.parse(
+      (
+        await tools.queryEnv.handler({ action: "info", envId: "env-test" })
+      ).content[0].text,
+    );
+
+    expect(payload.EnvInfo.StaticStorages).toEqual([
+      {
+        StaticDomain: "sdk.tcloudbaseapp.com",
+        Bucket: "sdk-hosting",
+        staticDomainRouteEnabled: true,
+      },
+    ]);
+  });
+
   it("queryEnv(info) RuntimeBackends.nosql should require usable Databases InstanceId", async () => {
     const cases: Array<{
       name: string;
