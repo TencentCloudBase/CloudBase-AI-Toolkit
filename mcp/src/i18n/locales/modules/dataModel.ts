@@ -67,6 +67,8 @@ classDiagram
     "modifyDataModel.noSchemas": "无法从Mermaid图表生成数据模型Schema",
     "modifyDataModel.defaultModelDescription": "{name}数据模型",
     "modifyDataModel.noTaskId": "创建任务失败，未返回任务ID",
+    "modifyDataModel.createCallFailed":
+      "创建数据模型请求失败（阶段：{stage}）：{reason}。已附带 envId / dbInstanceType / 模型名，便于判断是环境未绑定、参数缺失，还是服务端拒绝。",
     "modifyDataModel.createSuccess": "数据模型创建成功，共处理{count}个模型",
     "modifyDataModel.taskTimeout":
       "任务超时（最后状态: {status}），任务ID: {taskId}，请稍后手动查询状态",
@@ -149,6 +151,8 @@ classDiagram
       "Cannot generate data model Schema from the Mermaid diagram",
     "modifyDataModel.defaultModelDescription": "{name} data model",
     "modifyDataModel.noTaskId": "Creation task failed: no task ID returned",
+    "modifyDataModel.createCallFailed":
+      "Data model creation request failed (stage: {stage}): {reason}. The response includes envId / dbInstanceType / model names so you can tell whether the environment is unbound, a parameter is missing, or the server rejected it.",
     "modifyDataModel.createSuccess":
       "Data models created successfully, {count} models processed in total",
     "modifyDataModel.taskTimeout":

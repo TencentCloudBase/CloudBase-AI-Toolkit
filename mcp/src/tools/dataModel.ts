@@ -1077,15 +1077,49 @@ export function registerDataModelTools(server: ExtendedMcpServer) {
         );
 
         // 调用批量创建数据模型API
-        const result = await cloudbase.commonService("lowcode").call({
-          Action: "BatchCreateDataModelList",
-          Param: {
-            CreateDataModelList: createDataModelList,
-            Creator: null,
-            DbInstanceType: dbInstanceType,
-            EnvId: currentEnvId,
-          },
-        });
+        let result: any;
+        try {
+          result = await cloudbase.commonService("lowcode").call({
+            Action: "BatchCreateDataModelList",
+            Param: {
+              CreateDataModelList: createDataModelList,
+              Creator: null,
+              DbInstanceType: dbInstanceType,
+              EnvId: currentEnvId,
+            },
+          });
+        } catch (error) {
+          // SDK 抛出来的原始错误常常只有一句「Expected object, got undefined」，
+          // 看不出是环境中没绑、dbInstanceType 没传，还是模型结构不合法。
+          // 把阶段和关键入参一起带上，下一次能直接判断。
+          const reason = error instanceof Error ? error.message : String(error);
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    success: false,
+                    stage: "BatchCreateDataModelList",
+                    error: reason,
+                    message: t("dataModel.modifyDataModel.createCallFailed", {
+                      stage: "BatchCreateDataModelList",
+                      reason,
+                    }),
+                    context: {
+                      envId: currentEnvId ?? null,
+                      dbInstanceType: dbInstanceType ?? null,
+                      modelCount: createDataModelList.length,
+                      modelNames: createDataModelList.map((item) => item.Name),
+                    },
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+          };
+        }
         logCloudBaseResult(server.logger, result);
 
         const taskId = result.Data?.TaskId;

@@ -117,4 +117,35 @@ describe("data model tools", () => {
     expect(payload.status).toBe("fail");
     expect(payload.message).toContain("fail");
   });
+  it("modifyDataModel reports the stage and context when the SDK call throws", async () => {
+    // 灯塔 168h：modifyDataModel 的 24 次失败只看到「Expected object, got undefined」，
+    // 看不出是环境没绑、dbInstanceType 没传，还是模型结构不合法。这条锁住阶段与上下文。
+    mockGetEnvId.mockResolvedValue("env-test");
+    mockGetCloudBaseManager.mockResolvedValue({
+      commonService: () => ({
+        call: vi.fn().mockRejectedValue(new Error("Expected object, got undefined")),
+      }),
+    });
+
+    try {
+      const { tools } = createMockServer();
+      const result = await tools.modifyDataModel.handler({
+        mermaidDiagram: "classDiagram\n  class demo {\n    id: string <<主键>>\n  }\n",
+        action: "create",
+        dbInstanceType: "FLEXDB",
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.stage).toBe("BatchCreateDataModelList");
+      expect(payload.error).toContain("Expected object");
+      expect(payload.context).toMatchObject({
+        envId: "env-test",
+        dbInstanceType: "FLEXDB",
+        modelCount: 1,
+      });
+    } finally {
+      mockGetCloudBaseManager.mockReset();
+      mockGetEnvId.mockReset();
+    }
+  });
 });
