@@ -1773,6 +1773,33 @@ describe("PG database tools", () => {
       expect(fs.readFileSync(absolute, "utf8")).toBe("CREATE TABLE public.other(id int);\n");
     });
 
+    it("applyMigration treats whitespace-only differences as the same local file", async () => {
+      // 灯塔 168h：476 次 / 221 环境因为「只差空白」被判 LOCAL_MIGRATION_FILE_MISMATCH
+      // 而 fail-closed —— 这是 applyMigration 失败里跨环境最多的一类。
+      // 本地文件只是多了行尾空格和空行，语义上就是同一份 SQL，不该拒绝。
+      const relative = "cloudbase/migrations/20260720160000_create_test_table.sql";
+      const absolute = path.join(migrationWorkspace, relative);
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(absolute, "CREATE TABLE public.test(id int)   \n\n\n", "utf8");
+
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockApplyMigrationCloudApis();
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "create_test_table",
+          migrationVersion: "20260720160000",
+          sql: "CREATE TABLE public.test(id int)",
+          confirm: true,
+        }),
+      );
+
+      expect(payload.errorCode).not.toBe("LOCAL_MIGRATION_FILE_MISMATCH");
+    });
+
     it("applyMigration accepts matching legacy migrations/ path without duplicating", async () => {
       const legacyRelative = "migrations/20260720160000_create_test_table.sql";
       const legacyAbsolute = path.join(migrationWorkspace, legacyRelative);
