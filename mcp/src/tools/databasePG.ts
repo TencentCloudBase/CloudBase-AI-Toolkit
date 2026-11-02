@@ -506,6 +506,28 @@ function normalizeMigrationSqlForLocalFile(sql: string): string {
   return `${normalized}\n`;
 }
 
+/**
+ * 比对专用的宽松归一化（2026-11-02）。
+ *
+ * 原实现把「写入格式」直接拿来比对：只要每行尾随空格、或中间多一个空行，
+ * 就会被判成 LOCAL_MIGRATION_FILE_MISMATCH 而 fail-closed（灯塔 168h：476 次 /
+ * 221 个环境，是 applyMigration 失败里跨环境最多的一类）。而那些差异在语义上
+ * 完全等价——同一条迁移只是被模型重排了空白。
+ *
+ * 写入仍走 normalizeMigrationSqlForLocalFile，落盘格式不变；这里只放宽「是否同一份」。
+ */
+function normalizeMigrationSqlForCompare(sql: string): string {
+  const lines = normalizeMigrationSqlForLocalFile(sql)
+    .split("\n")
+    .map((line) => line.replace(/\s+$/u, ""));
+  const squeezed: string[] = [];
+  for (const line of lines) {
+    if (line === "" && squeezed[squeezed.length - 1] === "") continue;
+    squeezed.push(line);
+  }
+  return squeezed.join("\n").replace(/\n+$/u, "");
+}
+
 type LocalMigrationFileEnsureResult =
   | {
       ok: true;
@@ -564,7 +586,7 @@ function ensureLocalMigrationSqlFile(
         absolutePath: candidate.absolutePath,
       };
     }
-    if (normalizeMigrationSqlForLocalFile(existing) === expected) {
+    if (normalizeMigrationSqlForCompare(existing) === normalizeMigrationSqlForCompare(sql)) {
       return {
         ok: true,
         relativePath: candidate.relativePath,

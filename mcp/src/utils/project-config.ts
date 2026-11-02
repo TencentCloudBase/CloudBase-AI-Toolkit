@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { loadEnvVariables } from "@cloudbase/toolbox";
 import { t } from "../i18n/index.js";
 import type { ProjectConfig } from "./site-map.js";
@@ -37,11 +37,24 @@ function firstPathSegment(value: string): string | undefined {
     .find((segment) => segment.length > 0);
 }
 
+/**
+ * `~/.dsh/profiles/**` 是宿主给每个会话分配的工作区，不是配置目录。
+ *
+ * 2026-11-02 之前这里把所有 `~/.dsh` 下的路径一律当成宿主配置根拒掉，
+ * 结果 cwd 落在 `C:\Users\*\...\.dsh\profiles\desktop` 的调用被误伤
+ * （灯塔 168h：34 次 / 22 环境），报的还是「这是宿主配置目录，不是项目」——
+ * 和用户实际在做的事（PG 迁移）毫无关系。
+ */
+const HOST_CONFIG_EXEMPT_SEGMENTS = ["profiles"];
+
 function isUnderHostConfig(candidate: string): boolean {
   const hostRoot = resolve(homedir(), ".dsh");
   const resolved = resolve(candidate);
   const rel = relative(hostRoot, resolved);
-  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+  if (rel === "") return true;
+  if (rel.startsWith("..") || isAbsolute(rel)) return false;
+  const firstSegment = rel.split(sep)[0];
+  return !HOST_CONFIG_EXEMPT_SEGMENTS.includes(firstSegment);
 }
 
 /**
