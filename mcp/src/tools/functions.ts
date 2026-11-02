@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  extractRequestId,
   getCloudBaseManager,
   getEnvId,
   logCloudBaseResult,
@@ -53,6 +54,22 @@ import path from "path";
 
 export const FUNCTION_UPLOAD_TARGET_NOT_FOUND_ERROR_CODE =
   "FUNCTION_UPLOAD_TARGET_NOT_FOUND";
+
+/** SCF 日志配对失败的错误码，两个病因共用这一句。 */
+export const CLS_MISMATCH_ERROR_CODE = "InvalidParameter.Cls";
+
+/**
+ * SDK 的错误文案里常带 `reqId=<uuid>`，但错误对象本身没有这个字段。
+ * 取不到结构化 RequestId 时用它兜底，调用方仍能把请求号交给后台。
+ */
+export function extractRequestIdFromMessage(
+  message: string,
+): string | undefined {
+  const match = message.match(
+    /\breq(?:uest)?[_-]?id\s*[=:]\s*([0-9a-fA-F-]{36})/i,
+  );
+  return match?.[1];
+}
 
 /**
  * 阶段 B 校验：code 三元组必须是当前环境自有存储桶里的代码包地址。
@@ -1218,15 +1235,48 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
     ...(warnings?.length ? { warnings } : {}),
   });
 
+  /**
+   * `InvalidParameter.Cls: ClsLogSetId & ClsTopicId not matched` 有两个病因：
+   * 传入的日志对不配对，或函数运行角色无权使用该日志目的地。两种都报同一句话，
+   * 所以给两条并列的自查路径，而不是让人按字面意思先去改 ID。
+   */
+  const buildClsDiagnosis = (
+    message: string,
+  ): FunctionToolEnvelope["nextActions"] => {
+    if (!message.includes(CLS_MISMATCH_ERROR_CODE)) {
+      return undefined;
+    }
+    return [
+      {
+        tool: "queryFunctions",
+        action: "getFunctionDetail",
+        reason: t("functions.reason.clsCheckFunction"),
+      },
+      {
+        tool: "queryEnv",
+        action: "info",
+        reason: t("functions.reason.clsCheckEnv"),
+      },
+    ];
+  };
+
   const buildErrorEnvelope = (
     error: unknown,
     errorCode?: string,
-  ): Record<string, unknown> => ({
-    success: false,
-    data: {},
-    message: error instanceof Error ? error.message : String(error),
-    ...(errorCode ? { errorCode } : {}),
-  });
+  ): Record<string, unknown> => {
+    const message = error instanceof Error ? error.message : String(error);
+    const requestId =
+      extractRequestId(error) ?? extractRequestIdFromMessage(message);
+    const nextActions = buildClsDiagnosis(message);
+    return {
+      success: false,
+      data: {},
+      message,
+      ...(errorCode ? { errorCode } : {}),
+      ...(requestId ? { requestId } : {}),
+      ...(nextActions?.length ? { nextActions } : {}),
+    };
+  };
 
   const withEnvelope = async (handler: () => Promise<FunctionToolEnvelope>) => {
     try {

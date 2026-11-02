@@ -31,6 +31,7 @@ vi.mock("../cloudbase-manager.js", () => ({
   getEnvId: mockGetEnvId,
   logCloudBaseResult: mockLogCloudBaseResult,
   probeCamCapabilityForLogin: vi.fn(async () => "capable"),
+  extractRequestId: (value: any) => value?.RequestId ?? value?.requestId,
 }));
 
 vi.mock("../utils/cloud-mode.js", () => ({
