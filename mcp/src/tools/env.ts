@@ -1499,14 +1499,29 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
 }
 
 /**
- * 补充 SDK getEnvInfo() 遗漏的字段。
+ * Keys written by later queryEnv(info) enrichers. Raw DescribeEnvInfo must
+ * not overwrite them, even when EnvBaseInfo uses the same name.
+ */
+const ENV_INFO_OWNED_KEYS = new Set([
+  "BillingInfo",
+  "RuntimeMode",
+  "RuntimeBackends",
+  "RuntimeModeHints",
+  "staticDomainRouteEnabled",
+  "accessUrlReachable",
+  "routeDisabled",
+  "disabledAccessUrls",
+]);
+
+/**
+ * Fill EnvInfo keys that Manager SDK getEnvInfo() dropped.
  *
- * @cloudbase/manager-node 的 getEnvInfo() 从 DescribeEnvInfo CAPI 响应的
- * EnvBaseInfo 中手写白名单映射时，漏掉了 PostgreSQL、Meta、StaticStorages 等字段。
- * 这导致 enrichEnvInfoWithRuntimeMode 无法正确判断环境是否支持 PostgreSQL。
- *
- * 此函数通过 commonService 额外调用 DescribeEnvInfo CAPI，从原始响应中提取
- * 缺失字段补到 EnvInfo 上。
+ * getEnvInfo() copies DescribeEnvInfo EnvBaseInfo through a handwritten
+ * allowlist, so newly added fields (and previously omitted ones such as
+ * PostgreSQL, Meta, StaticStorages, LogServices) never reach callers.
+ * Copy every missing key from the raw EnvBaseInfo. Values already present
+ * on the SDK result stay. Billing and runtime enrichers still run around
+ * this step and own their fields.
  */
 async function enrichEnvInfoWithMissingFields(
   manager: any,
@@ -1515,15 +1530,6 @@ async function enrichEnvInfoWithMissingFields(
 ): Promise<any> {
   const envInfo = result?.EnvInfo;
   if (!envInfo || typeof envInfo !== "object") {
-    return result;
-  }
-
-  // 如果 PostgreSQL 字段已存在且非空，说明 SDK 已经透传了，不需要补充
-  if (
-    Array.isArray(envInfo.PostgreSQL) &&
-    envInfo.PostgreSQL.length > 0 &&
-    Array.isArray(envInfo.Meta)
-  ) {
     return result;
   }
 
@@ -1537,7 +1543,22 @@ async function enrichEnvInfoWithMissingFields(
       capiResult?.EnvInfo?.EnvBaseInfo ||
       capiResult?.Response?.EnvInfo?.EnvBaseInfo;
 
-    if (!envBaseInfo || typeof envBaseInfo !== "object") {
+    if (!envBaseInfo || typeof envBaseInfo !== "object" || Array.isArray(envBaseInfo)) {
+      return result;
+    }
+
+    const filled: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(envBaseInfo)) {
+      if (ENV_INFO_OWNED_KEYS.has(key) || value === undefined) {
+        continue;
+      }
+      if ((envInfo as Record<string, unknown>)[key] !== undefined) {
+        continue;
+      }
+      filled[key] = value;
+    }
+
+    if (Object.keys(filled).length === 0) {
       return result;
     }
 
@@ -1545,22 +1566,11 @@ async function enrichEnvInfoWithMissingFields(
       ...result,
       EnvInfo: {
         ...envInfo,
-        // 补充 PostgreSQL 字段（SDK 白名单映射遗漏）
-        ...(Array.isArray(envBaseInfo.PostgreSQL) && {
-          PostgreSQL: envBaseInfo.PostgreSQL,
-        }),
-        // 补充 Meta 字段（SDK 白名单映射遗漏）
-        ...(Array.isArray(envBaseInfo.Meta) && {
-          Meta: envBaseInfo.Meta,
-        }),
-        // 补充 StaticStorages 字段（SDK 白名单映射遗漏）
-        ...(Array.isArray(envBaseInfo.StaticStorages) && {
-          StaticStorages: envBaseInfo.StaticStorages,
-        }),
+        ...filled,
       },
     };
   } catch {
-    // CAPI 调用失败不影响已有数据，静默忽略
+    // A failed DescribeEnvInfo leaves the SDK payload unchanged.
     return result;
   }
 }
@@ -3257,8 +3267,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               envId,
               logger: server.logger,
             });
-            // 补充 SDK getEnvInfo() 遗漏的字段（PostgreSQL、Meta 等）
-            // @cloudbase/manager-node 的 getEnvInfo() 手写白名单映射时漏掉了这些字段
+            // Fill EnvBaseInfo keys the SDK allowlist dropped. Runs before
+            // static-domain and runtime enrichers so those still own their fields.
             if (envId) {
               result = await enrichEnvInfoWithMissingFields(cloudbaseInfo, result, envId);
             }
