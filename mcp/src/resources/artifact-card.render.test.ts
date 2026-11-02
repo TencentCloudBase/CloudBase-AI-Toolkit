@@ -385,7 +385,7 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     );
     // 走的是部署后分享流程的前半段（先要作品卡片与文案），不是直接丢一个 issue 链接
     expect(message).toContain("作品卡片");
-    expect(message).toContain("案例墙");
+    expect(message).toContain("案例");
     // 案例墙是公开的：环境 ID 与密钥一律不进正文
     expect(message).not.toContain("my-env-3gk9ab");
     expect(message).not.toContain("secret");

@@ -28,7 +28,7 @@ export const mcpUiCredits = defineModule(
     title: "环境资源用量",
     "field.credits": "资源点",
     "field.plan": "套餐",
-    "field.place": "位置",
+    "field.place": "地域",
     "field.modules": "分模块用量",
     "field.balance": "账户余额",
     "fold.raw": "查看原始返回",
@@ -68,7 +68,7 @@ export const mcpUiCredits = defineModule(
     "action.renew": "立即续费",
     "action.guidedTopup": "去充值",
     "action.openConsole": "打开控制台",
-    "action.nearLimit": "看看怎么省",
+    "action.nearLimit": "查看优化建议",
     "message.nearLimit": "这个环境的资源点已经用到 {pct}% 了，帮我看看能怎么省，或者有没有更合适的套餐。",
     "copy.copied": "已复制",
     "copy.failed": "没能写入剪贴板，请手动选中复制。",
@@ -168,7 +168,7 @@ export const mcpUiCredits = defineModule(
 
     // 行动（一屏一个主行动）
     // 三态各自的动作（动作腔；noData 最接近流失，不许说"异常"）
-    "metric.action.data": "解释这段曲线",
+    "metric.action.data": "查看这段数据",
     "metric.action.noData": "去日志看这段时间有没有请求",
     "metric.action.failed": "重试这次查询",
     "metric.message.data": "帮我解释这段时间「{metric}」这条曲线的变化",
@@ -191,7 +191,7 @@ export const mcpUiCredits = defineModule(
     title: "Environment usage",
     "field.credits": "Credits",
     "field.plan": "Plan",
-    "field.place": "Location",
+    "field.place": "Region",
     "field.modules": "Usage by module",
     "field.balance": "Account balance",
     "fold.raw": "View raw response",
@@ -232,7 +232,7 @@ export const mcpUiCredits = defineModule(
     "action.renew": "Renew now",
     "action.guidedTopup": "Top up",
     "action.openConsole": "Open console",
-    "action.nearLimit": "How to cut usage",
+    "action.nearLimit": "Review savings",
     "message.nearLimit": "This environment is at {pct}% of its credits. Show me how to cut usage or which plan fits better.",
     "copy.copied": "Copied",
     "copy.failed": "Could not write to the clipboard; select and copy manually.",
@@ -317,7 +317,7 @@ export const mcpUiCredits = defineModule(
     "metric.field.avg": "Average",
     "metric.field.window": "Samples",
 
-    "metric.action.data": "Explain this curve",
+    "metric.action.data": "View this data",
     "metric.action.noData": "Check the logs for requests in this period",
     "metric.action.failed": "Retry this query",
     "metric.message.data": "Walk me through this curve for {metric} in the selected window",

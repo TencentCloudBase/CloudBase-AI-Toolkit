@@ -130,11 +130,13 @@ Set `TCB_SITE` (`domestic` / `intl`) to select the login/credential site, and `T
 
 In **remote mode** the site is determined by the endpoint host itself—`tcb-api.cloud.tencent.com` is the China site, `tcb-api.tencentcloud.com` is the international site—and there is no `site` query parameter to set. This holds for a China-site environment in `ap-singapore` too: keep using the China-site endpoint. Self-hosted Cloud Mode deployments can still use the `TCB_SITE` environment variable.
 
-### Experimental: MCP Apps panels (off by default)
+### MCP Apps panels (on by default)
 
-`auth`, `queryEnv` and the deploy tools can render MCP Apps panels (`ui://cloudbase/*`) in hosts that support them. This is experimental and **switched off by default**: with no environment variable set, no `ui://` resource is registered and no tool carries `_meta.ui`, so a host sees an ordinary MCP server and results stay plain JSON text.
+`auth`, `queryEnv` and the deploy tools can render MCP Apps panels (`ui://cloudbase/*`) in hosts that support them. **Panels are on by default**: the `ui://` resources are registered and those tools carry `_meta.ui`.
 
-Turn it on with `CLOUDBASE_MCP_UI=on` (also accepts `1` / `true` / `yes` / `enabled`). Anything else — `off`, `0`, `false`, `no`, `disabled`, or a typo — leaves it off. Tools behave identically either way; the flag only decides whether panels are offered.
+Hosts that cannot render them are unaffected in practice — `resources/list` stays empty (the panels are `ResourceTemplate`s without a list), so nothing new appears in a resource browser, and every tool keeps returning the same JSON text it did before. The flag only decides whether panels are offered.
+
+Turn it off with `CLOUDBASE_MCP_UI=off` (also accepts `0` / `false` / `no` / `disabled`). Leaving it unset means on; a typo such as `of` also leaves it off, so a misspelled value never silently enables something you meant to disable. Tools behave identically either way.
 
 ## Capabilities
 
@@ -199,15 +201,22 @@ guard declines, the result says "not executed" **without** being marked as an er
 | --- | --- |
 | `CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD` | Comma-separated. Accepts a tool name (`manageCloudRun`) or a single action (`manageCloudRun.updateConfig`), case-sensitive, no wildcard. Unknown entries are logged and ignored rather than failing the server |
 
-## Get-started panel (MCP Apps)
+## Environment panel (MCP Apps)
 
-Where the client declares the `io.modelcontextprotocol/ui` extension, `auth` also opens a small read-only panel
+The panel is on by default. Set `CLOUDBASE_MCP_UI=off` to hide it. Where the client declares the `io.modelcontextprotocol/ui` extension, `auth` also opens a panel
 (`ui://cloudbase/get-started`). It consumes the structured result that this `auth` call already returned and shows
-the connection status in plain words — location (site plus region, e.g. "Shanghai (China)"), access scope, and the
-environment ID — with a single primary action for the current state (sign in when signed out, pick an environment
-when not bound, wire up a sample project when ready). The only call the panel makes is the read-only `auth(status)`,
-fired by "Re-check"; every other action just hands a sentence to the conversation, and the raw response is folded
-into "View raw response".
+the connection status: region, scope, and the environment ID. Signed-out users get a sign-in action. When no environment is bound, clicking a row binds it.
+
+The panel does not touch cloud resources, but **it is not a read-only surface**. It makes two kinds of calls:
+
+- `auth(status)` — read-only, fired by "Re-check".
+- `auth(set_env)` — fired when you click an environment row. It only rebinds the **local** environment for this
+  session (an environment-scoped API key still cannot reach another environment), but it changes which environment
+  every subsequent tool call uses, so pick the row deliberately.
+
+Every other action just hands a sentence to the conversation. A result that carries a `credentials` block
+(for example `auth(get_temp_credentials)` with `reveal`) does not open "View raw response", so that fold
+never shows the key.
 
 Clients that do not render MCP Apps are unaffected: `auth` keeps the same title, description, arguments and
 output, and `resources/list` stays empty, so nothing new appears in a resource browser.

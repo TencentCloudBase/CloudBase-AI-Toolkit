@@ -1,16 +1,21 @@
 /**
  * MCP Apps（`ui://` 面板）总开关。
  *
- * **实验性，默认关闭**：不给环境变量就不注册 `ui://` 资源、工具也不带 `_meta.ui`，
- * 宿主看到的就是一个普通 MCP server（返回 JSON 文本）。要用面板得显式打开：
+ * **默认开启**，留一个显式关的出口用于回滚：
  *
- *   CLOUDBASE_MCP_UI=on      （也接受 1 / true / yes / enabled）
+ *   CLOUDBASE_MCP_UI=off     （也接受 0 / false / no / disabled）
  *
- * 反向值（off / 0 / false / no / disabled）和拼错的值一样，都按关闭处理——
- * 实验期宁可少开，也不要因为一个错字让宿主去拉一堆资源。
+ * **没设置或空串按开启处理**；其余值一律按白名单判定，只认显式开启的那几个
+ * （on / 1 / true / yes / enabled）。拼错的值（比如 `of`）仍然按关闭处理——
+ * 反过来用「不在关闭列表里就开」的写法，会让一个错字把开关打开，用户以为关了其实开着。
+ * 判定方向只能是「白名单放行」，不能是「黑名单拦截」。
  */
 export function isMcpUiEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = (env.CLOUDBASE_MCP_UI ?? "").trim().toLowerCase();
+  // 未配置 → 默认开。这正是这次要改的那一格。
+  if (raw === "") {
+    return true;
+  }
   return ["on", "1", "true", "yes", "enabled"].includes(raw);
 }
 
