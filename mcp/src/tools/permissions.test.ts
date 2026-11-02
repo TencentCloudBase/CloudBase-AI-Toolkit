@@ -298,6 +298,38 @@ describe("permission tools", () => {
     expect(payload).toMatchObject({ success: true, data: { resourceId: "shared-cos-1259548930" } });
   });
 
+  it("queryPermissions(action=listResourcePermissions) treats resources.empty as no-resource, not a failure", async () => {
+    // `[DescribeResourcePermission] resources.empty` 的意思是「这个环境没有该类资源」，
+    // 不是「没有权限」。原样透传时调用方分不清两者，只能反复重试
+    // （灯塔 168h：252 次 / 178 环境，其中 165 次是 noSqlDatabase）。
+    mockDescribeResourcePermission.mockRejectedValueOnce(
+      new Error("[DescribeResourcePermission] resources.empty"),
+    );
+
+    const result = await tools.queryPermissions.handler({
+      action: "listResourcePermissions",
+      resourceType: "noSqlDatabase",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: true,
+      data: {
+        action: "listResourcePermissions",
+        resourceType: "noSqlDatabase",
+        permissions: [],
+        total: 0,
+        emptyReason: "NO_RESOURCE",
+      },
+      nextActions: [
+        expect.objectContaining({
+          tool: "queryPgDatabase",
+          action: "sql",
+        }),
+      ],
+    });
+  });
+
   it("queryPermissions(action=listResourcePermissions) should include resource-level hints for risky custom rules", async () => {
     mockDescribeResourcePermission.mockResolvedValueOnce({
       Data: {

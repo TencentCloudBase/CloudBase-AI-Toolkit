@@ -173,4 +173,34 @@ describe("storage and hosting tool guidance", () => {
     expect(payload.data.note).toContain("temporaryUrl 是临时签名链接");
     expect(payload.data.note).toContain("公有读");
   });
+
+  it("manageStorage should point PG environments at queryPgStorage instead of suggesting an SDK upgrade", async () => {
+    // 服务端原文案让人「please upgrade your SDK to the latest version」，可撞到它的
+    // 恰恰是最新版本（2.36.x 占 81/131）。照做只会白跑一轮，必须换成真实可执行的建议。
+    mockUploadFile.mockRejectedValue(
+      new Error(
+        "manageStorage 操作失败: STORAGE_NOT_SUPPORTED: Storage is not supported in PostgreSQL environment, please upgrade your SDK to the latest version.",
+      ),
+    );
+    const tools = createMockServer();
+
+    const result = await tools.manageStorage.handler({
+      action: "upload",
+      localPath: "/tmp/layer-full.zip",
+      cloudPath: "tradingagents-layers/layer-full.zip",
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "STORAGE_NOT_SUPPORTED",
+      data: {
+        storageBackend: "postgres",
+        recommendedTool: "queryPgStorage",
+      },
+      nextActions: [{ tool: "queryPgStorage", action: "buckets" }],
+    });
+    expect(payload.message).not.toContain("upgrade your SDK");
+    expect(payload.message).toContain("queryPgStorage");
+  });
 });

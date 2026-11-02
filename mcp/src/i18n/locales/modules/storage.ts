@@ -40,6 +40,10 @@ export const storage = defineModule(
     deleteForceHint: "请设置 force: true 以确认删除。该操作不可撤销。",
     deleteSuccess: "成功删除{type} '{cloudPath}'",
     manageFailed: "manageStorage 操作失败: {message}",
+    notSupportedInPg:
+      "当前是 PostgreSQL 环境，没有对象存储 —— manageStorage / queryStorage 在这个环境里不可用，请改用 queryPgStorage。这不是 SDK 版本问题，升级 SDK 不会解决。",
+    notSupportedInPgNote:
+      "PostgreSQL 环境用 queryPgStorage 管理文件（action: buckets / config / uploadPlan / objectInfo / signUpload / signDownload）",
   },
   {
     queryTitle: "Query CloudBase storage info",
@@ -80,5 +84,9 @@ export const storage = defineModule(
     deleteForceHint: "Please set force: true to confirm deletion. This action cannot be undone.",
     deleteSuccess: "Successfully deleted {type} '{cloudPath}'",
     manageFailed: "manageStorage operation failed: {message}",
+    notSupportedInPg:
+      "This is a PostgreSQL environment and has no object storage — manageStorage / queryStorage are unavailable here. Use queryPgStorage instead. This is not an SDK version issue; upgrading will not help.",
+    notSupportedInPgNote:
+      "In PostgreSQL environments use queryPgStorage to manage files (actions: buckets / config / uploadPlan / objectInfo / signUpload / signDownload)",
   },
 );

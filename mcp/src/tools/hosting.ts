@@ -758,8 +758,41 @@ export function registerHostingTools(server: ExtendedMcpServer) {
           }
 
           case 'findFiles': {
+            // 不知道前缀时不要报错。报错只会让调用方再猜一次前缀，下一次照样可能猜错
+            // （截至 2026-11，灯塔 168h 内 `findFiles 需要提供 prefix` 498 次 / 338 环境，
+            // 平均 1.47 次/环境 —— 几乎每个环境都撞一次，说明描述里的「必填」没人读到）。
+            // 改为降级：按全量列出前 maxKeys 个文件，并在 message 里说明这是降级结果、
+            // 真实总数是多少。调用方从返回的真实路径里挑前缀，比凭空猜一次准得多。
+            // 取舍：这里用 listFiles 而不是 findFiles(空 prefix)，是为了拿到 totalCount
+            // （「共 1847 个」这种信息对决定下一步很关键）；代价是托管文件很多的站点上
+            // 这一次列举会慢一些。这是降级路径，不在正常调用链上，可以接受。
             if (!input.prefix) {
-              throw new Error(t('hosting.findFilesPrefixRequired'));
+              const all = await cloudbase.hosting.listFiles();
+              logCloudBaseResult(server.logger, all);
+              const normalizedAll = normalizeFileFields(all);
+              const maxKeys = input.maxKeys ?? 20;
+              const start = input.marker ? parseInt(input.marker, 10) || 0 : 0;
+              const page = normalizedAll.slice(start, start + maxKeys);
+              const nextMarker =
+                start + maxKeys < normalizedAll.length ? String(start + maxKeys) : undefined;
+              return buildJsonToolResult({
+                success: true,
+                data: {
+                  action: 'findFiles',
+                  prefix: '',
+                  prefixOmitted: true,
+                  files: page,
+                  totalCount: normalizedAll.length,
+                  marker: input.marker,
+                  maxKeys,
+                  nextMarker,
+                  isTruncated: nextMarker !== undefined,
+                },
+                message: t('hosting.findFilesPrefixOmitted', {
+                  count: normalizedAll.length,
+                  shown: page.length,
+                }),
+              });
             }
             // 读侧与 delete 侧同源：prefix 原样透传时，agent 按 URL 形态传的
             // `/assets/` 在 COS 侧严格前缀匹配命中 0 条，会被误读成「目录是空的」。

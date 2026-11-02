@@ -48,6 +48,12 @@ type ToolEnvelope = {
   success: boolean;
   data: Record<string, unknown>;
   message: string;
+  nextActions?: Array<{
+    tool: string;
+    action: string;
+    reason?: string;
+    suggested_args?: Record<string, unknown>;
+  }>;
 };
 
 function buildWriteVerificationHint(resourceId: string) {
@@ -98,11 +104,16 @@ type TemplateLiteralHint = {
   roleLookupNote?: string;
 };
 
-function buildEnvelope(data: Record<string, unknown>, message: string): ToolEnvelope {
+function buildEnvelope(
+  data: Record<string, unknown>,
+  message: string,
+  extras?: Pick<ToolEnvelope, "nextActions">,
+): ToolEnvelope {
   return {
     success: true,
     data,
     message,
+    ...extras,
   };
 }
 
@@ -713,12 +724,54 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
             if (resourceType === "storage" && resourceIds?.length) {
               await ensureStorageBucketsExist(cloudbase, resourceIds);
             }
-            const result = await describeResourcePermissionWithFunctionPgFallback({
-              cloudbase,
-              envId,
-              resourceType,
-              resources: resourceIds,
-            });
+            let result: Awaited<
+              ReturnType<typeof describeResourcePermissionWithFunctionPgFallback>
+            >;
+            try {
+              result = await describeResourcePermissionWithFunctionPgFallback({
+                cloudbase,
+                envId,
+                resourceType,
+                resources: resourceIds,
+              });
+            } catch (error) {
+              const raw = error instanceof Error ? error.message : String(error);
+              // `[DescribeResourcePermission] resources.empty` 的语义是「这个环境没有
+              // 该类资源」，不是「没有权限」。原样透传时调用方分不清两者，只能反复重试
+              // （灯塔 168h：252 次 / 178 环境，其中 165 次是 noSqlDatabase）。
+              // 最常见的一种：PG 环境本来就没有 NoSQL 集合。
+              if (!/resources\.empty/i.test(raw)) {
+                throw error;
+              }
+              return buildEnvelope(
+                {
+                  action,
+                  envId,
+                  resourceType,
+                  permissions: [],
+                  resourceHints: [],
+                  total: 0,
+                  emptyReason: "NO_RESOURCE",
+                  rawError: raw,
+                },
+                t("permissions.listResourcePermissionsEmpty", { resourceType }),
+                resourceType === "noSqlDatabase"
+                  ? {
+                      nextActions: [
+                        {
+                          tool: "queryPgDatabase",
+                          action: "sql",
+                          reason: t("permissions.emptyNoSqlOnPgHint"),
+                          suggested_args: {
+                            action: "sql",
+                            sql: "SELECT * FROM pg_policies",
+                          },
+                        },
+                      ],
+                    }
+                  : undefined,
+              );
+            }
             logCloudBaseResult(server.logger, result);
             const permissions = result.Data.PermissionList ?? [];
             const resourceHints = permissions

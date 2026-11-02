@@ -9,7 +9,7 @@ export const databasePG = defineModule(
     "roleError.inspectContext": "重试前请检查自动推导的 PG 上下文（含默认 role）。",
     "queryPgDatabase.title": "查询 PostgreSQL 上下文、对象、元数据或执行只读 SQL",
     "queryPgDatabase.description":
-      "查询 CloudBase PostgreSQL 数据库。支持获取当前 PG 上下文、列出带 schema 的数据库对象、读取轻量元数据、检查单个对象结构，以及执行只读 SQL。",
+      "⚠️ 只读工具：只接受 SELECT 等只读 SQL。CREATE / ALTER / DROP / INSERT / UPDATE / DELETE 会被直接拒绝（STATE 42703/42P01 也多半是表名或列名猜错，先 action=objects 看真实结构，不要凭惯例猜 schema_migrations 之类的表）。写入与 DDL 请改用 managePgDatabase：DML/GRANT/RLS 用 action=execute，建表/改 schema 用 action=applyMigration。\n\n查询 CloudBase PostgreSQL 数据库：获取当前 PG 上下文、列出带 schema 的数据库对象、读取轻量元数据、检查单个对象结构，以及执行只读 SQL。",
     "managePgDatabase.title": "管理 PostgreSQL 上下文或执行写入 SQL",
     "managePgDatabase.description":
       "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。",
@@ -266,7 +266,7 @@ export const databasePG = defineModule(
     "queryPgDatabase.title":
       "Query PostgreSQL context, objects, metadata, or run read-only SQL",
     "queryPgDatabase.description":
-      "Query the CloudBase PostgreSQL database. Supports getting the current PG context, listing schema-qualified database objects, reading lightweight metadata, inspecting a single object schema, and running read-only SQL.",
+      "⚠️ Read-only tool: only accepts read-only SQL such as SELECT. CREATE / ALTER / DROP / INSERT / UPDATE / DELETE are rejected outright (and a 42703/42P01 usually means a guessed table or column name — run action=objects to see the real structure instead of assuming names like schema_migrations). For writes and DDL use managePgDatabase: action=execute for DML/GRANT/RLS, action=applyMigration for schema changes.\n\nQuery the CloudBase PostgreSQL database: get the current PG context, list schema-qualified database objects, read lightweight metadata, inspect a single object schema, and run read-only SQL.",
     "managePgDatabase.title": "Manage PostgreSQL context or run write SQL",
     "managePgDatabase.description":
       "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, and manage migrations. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS.",

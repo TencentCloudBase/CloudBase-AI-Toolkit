@@ -25,6 +25,10 @@ export const logs = defineModule(
       "\n- 大模型 trace 日志：`module:llm AND logType:llm-tracelog`" +
       "\n\n如果需要查询特定云函数的执行日志，建议使用 `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")`。",
     searchSuccess: "日志检索成功",
+    serviceNotEnabledHint:
+      "当前环境还没有开通 CLS 日志服务，所以查不到任何日志 —— 这不是查询语句或参数的问题，开通后立刻可用。" +
+      "底层报的是 topic 不存在，那只是 CLS 的实现细节。",
+    createLogServiceReason: "开通 CLS 日志服务后重新执行本次查询",
     "schema.action":
       "操作类型：" +
       "\n- `checkLogService`: 检查 CLS 日志服务是否开通" +
@@ -103,6 +107,9 @@ export const logs = defineModule(
       "\n- LLM trace logs: `module:llm AND logType:llm-tracelog`" +
       "\n\nTo query execution logs of a specific cloud function, use `queryFunctions(action=\"listFunctionLogs\", functionName=\"xxx\")` instead.",
     searchSuccess: "Log search completed successfully",
+    serviceNotEnabledHint:
+      "The CLS log service is not enabled for this environment, so no logs can be found. This is not a query or parameter problem; it works as soon as the service is enabled. The underlying \"topic not exist\" is just a CLS implementation detail.",
+    createLogServiceReason: "Enable the CLS log service, then rerun this query",
     "schema.action":
       "Operation type:" +
       "\n- `checkLogService`: Check whether the CLS log service is enabled" +

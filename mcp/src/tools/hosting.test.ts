@@ -865,6 +865,29 @@ describe('hosting tools', () => {
     expect(payload.data.cloudPath).toBe('/dir');
   });
 
+  it('queryHosting(action=findFiles) should degrade to a full listing when prefix is omitted', async () => {
+    // 缺 prefix 时不要报错：报错只会让调用方再猜一次（灯塔 168h：498 次 / 338 环境，
+    // 平均 1.47 次/环境 —— 几乎每个环境都撞一次）。改为按全量列出前 N 个，让它从真实路径挑前缀。
+    const tools = createMockServer();
+    mockListFiles.mockResolvedValueOnce([
+      { Key: 'index.html', Size: 10 },
+      { Key: 'assets/app.js', Size: 20 },
+    ]);
+
+    const payload = JSON.parse((await tools.queryHosting.handler({
+      action: 'findFiles',
+      maxKeys: 20,
+    })).content[0].text);
+
+    expect(payload.success).toBe(true);
+    expect(payload.data.prefixOmitted).toBe(true);
+    expect(payload.data.prefix).toBe('');
+    expect(payload.data.totalCount).toBe(2);
+    expect(payload.data.files).toHaveLength(2);
+    expect(payload.message).toContain('prefix');
+    expect(mockFindFiles).not.toHaveBeenCalled();
+  });
+
   it('queryHosting(action=findFiles) should strip leading slashes from prefix', async () => {
     const tools = createMockServer();
     mockFindFiles.mockResolvedValueOnce({
