@@ -64,6 +64,10 @@ export const permissions = defineModule(
     getResourcePermissionFallbackSuccess: "资源权限查询成功（PostgreSQL 环境已回退到 describeEnvAuthzConfig / tcb policy get）",
     listResourcePermissionsSuccess: "资源权限列表查询成功",
     listResourcePermissionsFallbackSuccess: "资源权限列表查询成功（PostgreSQL 环境已回退到 describeEnvAuthzConfig / tcb policy get）",
+    listResourcePermissionsEmpty:
+      "这个环境里没有 {resourceType} 类型的资源，所以权限列表是空的 —— 这不是权限不足，也不是查询写错了。",
+    emptyNoSqlOnPgHint:
+      "PostgreSQL 环境没有 NoSQL 集合，权限用行级安全（RLS）管理：查询现有策略用 queryPgDatabase(action=\"sql\", sql=\"SELECT * FROM pg_policies\")，新增策略用 managePgDatabase(action=\"execute\") 执行 CREATE POLICY。",
     listRolesSuccess: "角色列表查询成功",
     getRoleSuccess: "角色详情查询成功",
     listUsersSuccess: "应用用户列表查询成功",
@@ -159,6 +163,10 @@ export const permissions = defineModule(
     getResourcePermissionFallbackSuccess: "Resource permission retrieved successfully (PostgreSQL environment fell back to describeEnvAuthzConfig / tcb policy get)",
     listResourcePermissionsSuccess: "Resource permission list retrieved successfully",
     listResourcePermissionsFallbackSuccess: "Resource permission list retrieved successfully (PostgreSQL environment fell back to describeEnvAuthzConfig / tcb policy get)",
+    listResourcePermissionsEmpty:
+      "This environment has no resources of type {resourceType}, so the permission list is empty. This is not insufficient permission and not a malformed query.",
+    emptyNoSqlOnPgHint:
+      "PostgreSQL environments have no NoSQL collections; manage permissions with row-level security (RLS): inspect existing policies with queryPgDatabase(action=\"sql\", sql=\"SELECT * FROM pg_policies\"), and add policies with managePgDatabase(action=\"execute\") running CREATE POLICY.",
     listRolesSuccess: "Role list retrieved successfully",
     getRoleSuccess: "Role details retrieved successfully",
     listUsersSuccess: "App user list retrieved successfully",

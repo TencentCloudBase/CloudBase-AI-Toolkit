@@ -9,6 +9,10 @@ import { ExtendedMcpServer } from "../server.js";
 import { isCloudMode } from "../utils/cloud-mode.js";
 import { resolveGatewayAccessUrls } from "../utils/gateway-access-urls.js";
 import { jsonContent } from "../utils/json-content.js";
+import {
+  FUNCTION_LOG_SERVICE_NOT_ENABLED_ERROR_CODE,
+  isLogServiceNotEnabledMessage,
+} from "../utils/log-service.js";
 import { debug } from "../utils/logger.js";
 import { isToolPayloadError, throwToolPayloadError } from "../utils/tool-result.js";
 import {
@@ -365,12 +369,14 @@ export function parseFunctionLogItem(item: ClsLogItem): FunctionLogEntry {
 }
 
 export const FUNCTION_LOG_QUERY_ERROR_CODE = "FUNCTION_LOG_QUERY_FAILED";
-export const FUNCTION_LOG_SERVICE_NOT_ENABLED_ERROR_CODE = "LOG_SERVICE_NOT_ENABLED";
-
-/** 未开通日志服务时 CLS 报的是 topic 不存在，按这个特征把它翻译成可执行的下一步。 */
-export function isLogServiceNotEnabledMessage(message: string): boolean {
-  return /TopicNotExist|TopicIsolated|topic[\s\S]{0,20}not\s*exist|日志服务未开通/i.test(message);
-}
+/**
+ * 「日志服务未开通」的判定与错误码已收口到 utils/log-service.ts，供 queryLogs 共用
+ * （2026-11-02）。这里保持导出，外部引用不用改。
+ */
+export {
+  FUNCTION_LOG_SERVICE_NOT_ENABLED_ERROR_CODE,
+  isLogServiceNotEnabledMessage,
+} from "../utils/log-service.js";
 
 type QueryFunctionsAction = (typeof QUERY_FUNCTION_ACTIONS)[number];
 type ManageFunctionsAction = (typeof MANAGE_FUNCTION_ACTIONS)[number];
@@ -2872,6 +2878,17 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         );
       }
 
+      // 代码来源校验（2026-11-02）。两个口子会在这里静默漏下去：
+      //   ① `contentPath` 在 schema 里对所有 action 可见，语义却是「层内容路径」
+      //      （见 schema.manage.contentPath），updateFunctionCode 从不读取它；
+      //   ② `functionRootPath` 本身可选。
+      // 两者都不在时 `updateParams.functionRootPath` 是 undefined 并直通
+      // manager-node，最终抛 Node fs 的 `The "paths[0]" argument must be of
+      // type string` —— 调用方完全看不出缺什么（灯塔 168h：200 次 / 123 环境）。
+      // 措辞与 manager-node FUNCTION_DEPLOY_ERROR.CODE_SOURCE_MISSING 对齐。
+      if (!input.zipFile && !input.functionRootPath) {
+        throw new Error(t("functions.codeSourceMissing", { action: "updateFunctionCode" }));
+      }
       const processedRootPath = processFunctionRootPath(
         input.functionRootPath,
         input.functionName,

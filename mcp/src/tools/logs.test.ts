@@ -102,6 +102,52 @@ describe("log tools", () => {
     });
   });
 
+  it("queryLogs(action=searchLogs) should translate topic-not-exist into log-service guidance", async () => {
+    // 未开通日志服务时 CLS 只回 topic 不存在。原样透传会让调用方以为查询写错了，
+    // 反复重试（灯塔 168h：196 次 / 115 环境）。这里必须翻成可执行的一步。
+    mockSearchClsLog.mockRejectedValue(
+      new Error("[SearchClsLog] topic not exist"),
+    );
+    const result = await tools.queryLogs.handler({
+      action: "searchLogs",
+      queryString: "level:error",
+      service: "tcb",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "LOG_SERVICE_NOT_ENABLED",
+      data: {
+        action: "searchLogs",
+        rawError: "[SearchClsLog] topic not exist",
+      },
+      nextActions: [
+        {
+          tool: "manageLogs",
+          action: "createLogService",
+          suggested_args: { action: "createLogService", confirm: true },
+        },
+      ],
+    });
+    expect(payload.message).toContain("CLS");
+  });
+
+  it("queryLogs(action=searchLogs) should keep other errors untouched", async () => {
+    mockSearchClsLog.mockRejectedValue(new Error("network unreachable"));
+    const result = await tools.queryLogs.handler({
+      action: "searchLogs",
+      queryString: "level:error",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      success: false,
+      message: "network unreachable",
+    });
+    expect(payload.errorCode).toBeUndefined();
+  });
+
   it("manageLogs(action=createLogService) requires confirm", async () => {
     const result = await tools.manageLogs.handler({ action: "createLogService" });
     const payload = JSON.parse(result.content[0].text);

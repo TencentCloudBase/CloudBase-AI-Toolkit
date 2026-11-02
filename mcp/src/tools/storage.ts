@@ -10,6 +10,41 @@ import { t } from "../i18n/index.js";
 const MAX_INLINE_TEXT_BYTES = 256 * 1024;
 const STORAGE_READ_TEMP_PREFIX = 'cloudbase-mcp-storage-read-';
 
+/**
+ * PG 环境没有对象存储。服务端会返回 STORAGE_NOT_SUPPORTED，但 message 里带着
+ * 「please upgrade your SDK to the latest version」——这是假建议：实测连最新版
+ * 都会撞到（截至 2026-11，灯塔 168h：131 次 / 86 环境，其中 2.36.2 占 81 次 / 64 环境），
+ * 照它说的升级不会解决任何问题。
+ *
+ * 真实语义是「这个环境该用 queryPgStorage」，必须把建议换掉，否则调用方会去升级
+ * SDK 白跑一轮，最后仍然回到同一个错误。
+ */
+const STORAGE_NOT_SUPPORTED_PATTERN = /STORAGE_NOT_SUPPORTED/i;
+
+function buildStorageNotSupportedResult(action: string, cloudPath?: string) {
+  return buildJsonToolResult({
+    success: false,
+    errorCode: "STORAGE_NOT_SUPPORTED",
+    message: t("storage.notSupportedInPg"),
+    action,
+    cloudPath,
+    data: {
+      storageBackend: "postgres",
+      recommendedTool: "queryPgStorage",
+      recommendedAction: "buckets",
+      note: t("storage.notSupportedInPgNote"),
+    },
+    nextActions: [
+      {
+        tool: "queryPgStorage",
+        action: "buckets",
+        reason: t("storage.notSupportedInPgNote"),
+        suggested_args: { action: "buckets" },
+      },
+    ],
+  });
+}
+
 // Input schema for queryStorage tool
 const queryStorageInputSchema = {
   action: z.enum(['list', 'info', 'url', 'read']).describe('storage.schema.query.action'),
@@ -326,6 +361,9 @@ export function registerStorageTools(server: ExtendedMcpServer) {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      if (STORAGE_NOT_SUPPORTED_PATTERN.test(message)) {
+        return buildStorageNotSupportedResult(input.action, input.cloudPath);
+      }
       return buildJsonToolResult({
         success: false,
         message: t("storage.queryFailed", { message }),
@@ -563,6 +601,9 @@ export function registerStorageTools(server: ExtendedMcpServer) {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      if (STORAGE_NOT_SUPPORTED_PATTERN.test(message)) {
+        return buildStorageNotSupportedResult(input.action, input.cloudPath);
+      }
       return buildJsonToolResult({
         success: false,
         message: t("storage.manageFailed", { message }),

@@ -82,7 +82,10 @@ export const hosting = defineModule(
     statusEnabled: "已获取静态托管服务状态。",
     statusNotEnabled: "静态托管服务当前未返回可用实例信息，可能尚未开通。",
     findFilesPrefixRequired:
-      "queryHosting(action=\"findFiles\") 需要提供 prefix，用于按前缀查找托管文件。",
+      "queryHosting(action=\"findFiles\") 必须提供 prefix，用于按前缀查找托管文件。" +
+      "不知道该填什么时，先用 queryHosting(action=\"listFiles\") 看目录结构，再按目录前缀查询（例如 app/ 或 assets/logo）；prefix 传空字符串会返回全部文件，通常不是你要的结果。",
+    findFilesPrefixOmitted:
+      "未指定 prefix，已按全量列出前 {shown} 个文件（共 {count} 个）。从返回的真实路径里挑一个目录前缀，再带上 prefix 查询会更快、更准。",
     findFilesSuccess: "已按前缀 `{prefix}` 查询静态托管文件，共 {count} 个。{more}",
     findFilesMore: " 还有更多文件，可使用 nextMarker 继续查询。",
     listFilesSuccess: "已列出静态托管中的文件（第 {start}-{end} 个，共 {count} 个）。{more}",
@@ -126,7 +129,7 @@ export const hosting = defineModule(
     "schema.query.action":
       "查询类型：websiteConfig=查询静态托管网站文档配置与站点域名信息，status=查询静态托管服务状态，findFiles=按前缀查找托管文件，listFiles=列出静态托管中的全部文件，domainStatus=查询自定义域名配置与生效状态。该工具严格只读，不会修改任何资源。",
     "schema.query.prefix":
-      "文件前缀过滤条件。仅 action=findFiles 时使用，例如 app/ 或 assets/logo。",
+      "文件前缀过滤条件，例如 app/ 或 assets/logo。action=findFiles 时建议带上以缩小范围；省略不会报错，会改为返回全量前 N 个文件，方便你从真实路径里挑前缀。",
     "schema.query.marker":
       "分页起始标记。仅 action=findFiles 时使用，用于续查上一页之后的结果。",
     "schema.query.maxKeys": "单次返回的最大文件条数。仅 action=findFiles 时使用。",
@@ -251,7 +254,10 @@ export const hosting = defineModule(
     statusNotEnabled:
       "The static hosting service returned no available instance info; it may not be enabled yet.",
     findFilesPrefixRequired:
-      "queryHosting(action=\"findFiles\") requires prefix to find hosted files by prefix.",
+      "queryHosting(action=\"findFiles\") requires prefix to find hosted files by prefix. " +
+      "If you do not know the prefix, call queryHosting(action=\"listFiles\") first to see the directory structure, then query by directory prefix (for example app/ or assets/logo). An empty prefix returns every file, which is usually not what you want.",
+    findFilesPrefixOmitted:
+      "No prefix was given, so the first {shown} of {count} files are listed. Pick a directory prefix from the real paths returned and pass prefix next time for a faster, narrower query.",
     findFilesSuccess:
       "Found {count} static hosting files under prefix `{prefix}`.{more}",
     findFilesMore: " More files are available; use nextMarker to continue.",
@@ -303,7 +309,7 @@ export const hosting = defineModule(
     "schema.query.action":
       "Query type: websiteConfig=query the static hosting website document config and site domain info, status=query the static hosting service status, findFiles=find hosted files by prefix, listFiles=list all files in static hosting, domainStatus=query custom domain config and effective status. This tool is strictly read-only and never modifies resources.",
     "schema.query.prefix":
-      "File prefix filter. Used only with action=findFiles, e.g. app/ or assets/logo.",
+      "File prefix filter, e.g. app/ or assets/logo. Recommended for action=findFiles to narrow the result; omitting it does not fail — it returns the first N files of the whole site so you can pick a real prefix.",
     "schema.query.marker":
       "Pagination start marker. Used only with action=findFiles to continue after the previous page.",
     "schema.query.maxKeys":

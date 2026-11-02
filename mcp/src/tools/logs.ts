@@ -2,6 +2,10 @@ import { z } from "zod";
 import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js";
 import type { ExtendedMcpServer } from "../server.js";
 import { jsonContent } from "../utils/json-content.js";
+import {
+  LOG_SERVICE_NOT_ENABLED_ERROR_CODE,
+  isLogServiceNotEnabledMessage,
+} from "../utils/log-service.js";
 import { t } from "../i18n/index.js";
 
 const QUERY_LOG_ACTIONS = ["checkLogService", "searchLogs"] as const;
@@ -150,6 +154,27 @@ export function registerLogTools(server: ExtendedMcpServer) {
           ),
         );
       } catch (error) {
+        const raw = error instanceof Error ? error.message : String(error);
+        // 未开通日志服务时 CLS 只回 topic 不存在（`[SearchClsLog] topic not exist`），
+        // 这是 CLS 的实现细节，调用方看不出「这个环境还没开通日志服务」，只能反复重试。
+        // 与 queryFunctions 走同一份判定，给一条可直接执行的动作（2026-11-02）。
+        if (isLogServiceNotEnabledMessage(raw)) {
+          return jsonContent(
+            buildErrorEnvelope(error, {
+              errorCode: LOG_SERVICE_NOT_ENABLED_ERROR_CODE,
+              message: t("logs.serviceNotEnabledHint"),
+              data: { action, queryString: queryString ?? null, rawError: raw },
+              nextActions: [
+                {
+                  tool: "manageLogs",
+                  action: "createLogService",
+                  suggested_args: { action: "createLogService", confirm: true },
+                  reason: t("logs.createLogServiceReason"),
+                },
+              ],
+            }),
+          );
+        }
         return jsonContent(buildErrorEnvelope(error));
       }
     },

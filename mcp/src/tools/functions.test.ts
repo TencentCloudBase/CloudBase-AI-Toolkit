@@ -1176,6 +1176,27 @@ describe("functions tool helpers", () => {
     );
   });
 
+  it("rejects updateFunctionCode without a usable code source instead of leaking a Node fs error", async () => {
+    // 之前这两种情况都会直通 manager-node，抛
+    // `The "paths[0]" argument must be of type string`——缺的是「代码来源」，
+    // 报的却是 fs 内部错误，调用方完全看不出要补什么（灯塔 168h：200 次 / 123 环境）。
+    // contentPath 在 schema 里对所有 action 可见，但它只服务 createLayerVersion。
+    for (const extra of [{}, { contentPath: "/tmp/dist" }]) {
+      const result = await tools.manageFunctions.handler({
+        action: "updateFunctionCode",
+        functionName: "webApi",
+        ...extra,
+      });
+
+      const payload = JSON.parse(result.content[0].text);
+      expect(payload.success).toBe(false);
+      expect(payload.message).toContain("缺少代码来源");
+      expect(payload.message).toContain("contentPath");
+      expect(payload.message).not.toContain("paths[0]");
+    }
+    expect(mockUpdateFunctionCode).not.toHaveBeenCalled();
+  });
+
   it("guides updateFunctionConfig when Status stays Updating instead of throwing raw SCF copy", async () => {
     mockGetFunctionDetail.mockResolvedValue({
       Status: "Updating",
