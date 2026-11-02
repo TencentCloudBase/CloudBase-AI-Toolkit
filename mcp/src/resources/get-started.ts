@@ -39,6 +39,7 @@ import { getInstanceLang, t, type Lang, type MessageKey } from "../i18n/index.js
 import { readDisplayedEnvId } from "../utils/env-binding.js";
 import { resolveSiteAndRegion } from "../utils/site-map.js";
 import { debug } from "../utils/logger.js";
+import { CREDENTIAL_GUARD_JS } from "./panel-raw-guard.js";
 import {
   readClientCapabilitiesFromServer,
   readMcpClientInfoFromServer,
@@ -138,12 +139,9 @@ export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): strin
     : siteText;
 
   const title = E(L("mcpUi.title"));
-  const statusTitle = E(L("mcpUi.status.title"));
   const rawLabel = E(L("mcpUi.status.raw"));
   const nextTitle = E(L("mcpUi.next.title"));
   const envTitle = E(L("mcpUi.env.title"));
-  const envHint = E(L("mcpUi.env.hint"));
-  const footnote = E(L("mcpUi.footnote"));
 
   const envIdText = status.envId ? E(status.envId) : E(L("mcpUi.status.unset"));
 
@@ -178,11 +176,14 @@ body {
 }
 /* Fill whatever the host gives us; 860px is where one column of rows still reads well. */
 .panel { width: 100%; max-width: 860px; margin: 0 auto; padding: 16px; }
-.head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+.brand { height: 44px; display: flex; align-items: center; margin: 0 0 12px; }
+.brand-l { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
 .logo { display: inline-flex; flex: 0 0 auto; }
-.logo svg { width: 22px; height: 22px; display: block; }
-.head h1 { font-size: 22px; font-weight: 600; margin: 0 0 2px; letter-spacing: -.01em; }
-.head .sub { margin: 0; font-size: 13px; color: var(--text-2); }
+.logo svg { width: 20px; height: 20px; display: block; }
+.t1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.t1 h1 { font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+.t1 .state { margin: 0; }
 .card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 12px; padding: 16px; margin: 0 0 12px; box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
@@ -209,9 +210,10 @@ body {
 .next .why { font-size: 13px; color: var(--text-2); margin: 8px 0 0; }
 .next .why:empty { display: none; }
 .hint { font-size: 12px; color: var(--text-2); margin: 6px 0 0; }
-.env-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 0; }
+.env-list { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; gap: 6px; margin: 10px 0 0; }
 .env-item {
-  display: flex; align-items: center; gap: 10px; width: 100%; height: auto; padding: 8px 10px;
+  display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center;
+  column-gap: 12px; width: 100%; height: auto; padding: 8px 10px;
   text-align: left; background: var(--bg); border: 1px solid var(--border-2); border-radius: 8px;
 }
 .env-item .n { font-weight: 600; overflow-wrap: anywhere; }
@@ -219,7 +221,7 @@ body {
   font-size: 12px; color: var(--text-2); overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.env-item .t { margin-left: auto; flex: 0 0 auto; font-size: 12px; color: var(--text-2); }
+.env-item .t { justify-self: end; flex: 0 0 auto; font-size: 12px; color: var(--text-2); }
 .env-item .t.off { opacity: .65; }
 /* Expanded, the list scrolls inside a capped box: the card must not push the conversation off the
    screen just because one project owns forty environments. */
@@ -294,24 +296,25 @@ pre {
 <symbol id="ico-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></symbol>
 </defs></svg>
 <main class="panel">
-<div class="head">
+<div class="brand">
+<span class="brand-l">
 <span class="logo" aria-hidden="true"><svg viewBox="0 0 36 36" fill="none" focusable="false">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.364C-0.0021879 13.0869 0.100481 12.8097 0.306053 12.5947L8.64438 4.25689C8.74869 4.15259 8.89015 4.09399 9.03766 4.09399H19.6942C20.1894 4.09399 20.4377 4.69236 20.088 5.04296L11.7889 13.364H-0.00195272Z" fill="#67E9E9"/>
 <path fill-rule="evenodd" clip-rule="evenodd" d="M-0.00195272 13.366C-0.00218796 13.6431 0.100474 13.9203 0.306033 14.1353L8.64438 22.4731C8.74869 22.5774 8.89015 22.636 9.03766 22.636H19.6942C20.1894 22.636 20.4377 22.0376 20.088 21.687L11.7889 13.366H-0.00195272Z" fill="#2BCCCC"/>
 <path fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2539C35.9993 21.9781 35.8977 21.7023 35.6942 21.4877L27.3527 13.1468C27.2484 13.0425 27.1069 12.9839 26.9594 12.9839H16.3029C15.8077 12.9839 15.5594 13.5823 15.9091 13.9328L24.2081 22.2539H35.999Z" fill="#4896FF"/>
 <path class="logo-strong" fill-rule="evenodd" clip-rule="evenodd" d="M35.999 22.2534C35.9994 22.526 35.9002 22.7987 35.7015 23.0123L27.3527 31.3605C27.2484 31.4648 27.1069 31.5234 26.9594 31.5234H16.3029C15.8077 31.5234 15.5594 30.9251 15.9091 30.5745L24.2081 22.2534H35.999Z" fill="#0052D9"/>
 </svg></span>
-<div>
-<h1>${title}</h1>
-<p class="sub" id="c-sub">${E(L("mcpUi.subtitle.unknown"))}</p>
-</div>
+<span class="brand-name">CloudBase</span>
+</span>
 </div>
 <section class="card">
-<h2>${statusTitle}</h2>
+<div class="t1">
+<h1>${title}</h1>
 <div class="state" id="state-row" role="status">
 <span class="dot idle" id="st-dot"></span>
 <span id="st-text">${E(L("mcpUi.status.unknown"))}</span>
 <span class="qual" id="st-qual">${E(L("mcpUi.status.unknownHint"))}</span>
+</div>
 </div>
 <div class="kv">
 <div class="row"><p class="k">${E(L("mcpUi.status.place"))}</p><p class="v${placeText ? "" : " idle"}" id="k-place">${placeText ? E(placeText) : E(L("mcpUi.status.placeUnknown"))}</p></div>
@@ -325,7 +328,6 @@ pre {
 </section>
 <section class="card" id="env-card" hidden>
 <h2>${envTitle}</h2>
-<p class="hint">${envHint}</p>
 <div class="env-list" id="env-list" role="group" aria-label="${envTitle}"></div>
 <div class="env-foot" id="env-foot" hidden>
 <p class="hint" id="env-more"></p>
@@ -346,7 +348,6 @@ pre {
 </div>
 </section>
 <div class="foot">
-<p class="foot-row"><span>${footnote}</span></p>
 <p class="foot-row">
 <button class="linklike" type="button" id="lnk-docs">${E(L("mcpUi.link.docs"))}</button>
 <span class="sep">&middot;</span>
@@ -436,7 +437,7 @@ pre {
     pending: { dot: "warn", text: T.statusPending, hint: T.statusPendingHint, label: T.nextLabelPending, why: T.nextWhyPending, main: "", msg: "", sub: T.subtitlePending },
     failed: { dot: "err", text: T.statusFailed, hint: T.statusFailedHint, label: T.nextLabelFailed, why: T.nextWhyFailed, main: T.actionLogin, msg: T.messageLogin, sub: T.subtitleFailed },
     unbound: { dot: "warn", text: T.statusLoggedIn, hint: T.statusUnboundHint, label: T.nextLabelUnbound, why: T.nextWhyUnbound, main: T.actionSelectEnv, msg: T.messageSelectEnv, sub: T.subtitleUnbound },
-    ready: { dot: "ok", text: T.statusConnected, hint: T.statusConnectedHint, label: T.nextLabelReady, why: T.nextWhyReady, main: T.actionDeploy, msg: T.messageDeploy, sub: T.subtitleReady }
+    ready: { dot: "ok", text: T.statusConnected, hint: T.statusConnectedHint, label: T.nextLabelReady, why: T.nextWhyReady, main: "", msg: "", sub: T.subtitleReady }
   };
   // Local config only fills the gaps until the live result arrives; it never overrides a live value.
   // Region and site are kept apart (not pre-joined) because a real auth(status) result always
@@ -554,6 +555,12 @@ pre {
   }
 
   // Raw payloads are shown as text only, inside the collapsed "view raw" area.
+  //
+  // This panel explains connection status; it is not a JSON viewer. Some auth actions
+  // answer with a credential block, so the folded area is skipped entirely for those
+  // instead of echoing it. The predicate is shared with the other two panels -
+  // see resources/panel-raw-guard.ts for why it keys off the container, not the fields.
+${CREDENTIAL_GUARD_JS}
   function rawTextOf(value) {
     if (typeof value === "string") { return value; }
     if (value && typeof value === "object") {
@@ -566,6 +573,10 @@ pre {
   }
   function showRaw(value) {
     if (!rawBox || !rawOut) { return; }
+    if (carriesCredentialBlock(value)) {
+      rawBox.hidden = true;
+      return;
+    }
     var text = rawTextOf(value);
     rawOut.textContent = typeof text === "string" ? text : String(text);
     rawBox.hidden = false;
@@ -719,9 +730,7 @@ pre {
     envList.className = "env-list" + (envExpanded && envAll.length > ENV_LIMIT ? " scroll" : "");
 
     var canExpand = envAll.length > ENV_LIMIT;
-    var truncated = envTotal > envAll.length;
-    // Nothing to expand and nothing missing: no footer at all.
-    if (!canExpand && !truncated) {
+    if (!canExpand) {
       if (envFoot) { envFoot.hidden = true; }
       return;
     }
@@ -735,21 +744,7 @@ pre {
       }
     }
     if (envMore) {
-      // Collapsed: how much of the account is on screen. Expanded: how much the result actually
-      // carried. Either way the remainder is named, not implied - a row of text that says "the
-      // first five" without saying where the rest are is the dead end this replaced.
-      var restored = envTotal - envReturned;
-      if (!canExpand) {
-        envMore.textContent = T.envRestHidden.replace("{n}", String(restored));
-      } else if (!envExpanded) {
-        // How many exist, and the button says how many of them this result can actually list:
-        // "first 5 of 37" next to "show all 12" made the reader compare three numbers.
-        envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
-      } else if (restored > 0) {
-        envMore.textContent = T.envRestHidden.replace("{n}", String(restored));
-      } else {
-        envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
-      }
+      envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
     }
   }
 
@@ -798,6 +793,7 @@ pre {
     if (stDot) { stDot.className = "dot" + (state.dot ? " " + state.dot : ""); }
     setText(stText, state.text);
     setText(stQual, state.hint);
+    if (stQual) { stQual.hidden = !state.hint; }
     // The title never changes; the subtitle is one fixed sentence per state, and the state before
     // any result is a plain welcome instead of a guess about what the panel is checking.
     var subNode = el("c-sub");

@@ -1140,7 +1140,7 @@ describe("env tools - auth", () => {
     }
   });
 
-  it("面板默认关闭：不设环境变量时 status 不带 _meta，工具照常工作", async () => {
+  it("面板默认开启：不设环境变量时 status 带 _meta，工具照常工作", async () => {
     mockPeekLoginState.mockResolvedValue({ secretId: "sid", secretKey: "skey" });
     mockListAvailableEnvCandidates.mockResolvedValue(
       Array.from({ length: 3 }, (_, index) => ({ envId: `env-${index + 1}`, alias: `alias-${index + 1}` })),
@@ -1148,6 +1148,28 @@ describe("env tools - auth", () => {
 
     const previous = process.env.CLOUDBASE_MCP_UI;
     delete process.env.CLOUDBASE_MCP_UI;
+    try {
+      const result = await tools.auth.handler({ action: "status" });
+      expect(result.content[0].type).toBe("text");
+      expect(JSON.parse(result.content[0].text).code).toBe("STATUS");
+      expect(result._meta?.["cloudbase/ui"]?.env_candidates).toHaveLength(3);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CLOUDBASE_MCP_UI;
+      } else {
+        process.env.CLOUDBASE_MCP_UI = previous;
+      }
+    }
+  });
+
+  it("显式关闭后 status 不带 _meta，工具照常工作", async () => {
+    mockPeekLoginState.mockResolvedValue({ secretId: "sid", secretKey: "skey" });
+    mockListAvailableEnvCandidates.mockResolvedValue(
+      Array.from({ length: 3 }, (_, index) => ({ envId: `env-${index + 1}`, alias: `alias-${index + 1}` })),
+    );
+
+    const previous = process.env.CLOUDBASE_MCP_UI;
+    process.env.CLOUDBASE_MCP_UI = "off";
     try {
       const result = await tools.auth.handler({ action: "status" });
       expect(result._meta).toBeUndefined();

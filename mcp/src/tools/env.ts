@@ -55,6 +55,7 @@ import {
 import {
   checkAndCreateFreeEnv,
   checkAndInitTcbService,
+  TCB_PURCHASE_URL,
   type EnvSetupContext,
 } from "./env-setup.js";
 import {
@@ -66,7 +67,7 @@ import {
 import type { EnvCreditsPayload, EnvMetricsPayload } from "../resources/env-credits.js";
 import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/tcb.interface.js";
 import { isMcpUiEnabled, mcpUiMeta } from "../utils/mcp-ui.js";
-import { TCB_PURCHASE_URL } from "./env-setup.js";
+import { extractClientCapabilities } from "../utils/telemetry.js";
 
 /**
  * Resources accepted by CreateEnv. Matches Cloud API / Manager SDK contract.
@@ -565,13 +566,32 @@ function buildEnvCandidatePayload(
  *
  * `env_candidates` in the text payload is capped at 20 so a 60-environment account does not burn
  * the model's context on ids it will never use. The panel still has to show all of them, so the
- * uncapped list rides in `_meta`, which hosts forward to the view and withhold from the model.
+ * uncapped list rides in `_meta`.
+ *
+ * **`_meta` 是否对模型隐藏取决于宿主实现，不是协议保证。** 所以除了看开关，还要看宿主有没有
+ * 在 `initialize` 里声明 MCP Apps 扩展：不声明的宿主根本不会渲染面板，这份不截断的列表放进去
+ * 唯一的下场是被整份交给模型——那还不如不给。
  */
 const UI_META_KEY = "cloudbase/ui";
 
-function buildEnvCandidateUiMeta(envCandidates?: EnvCandidate[]) {
+/** 宿主是否声明了 MCP Apps 扩展。读不到能力时放行，保持既有行为。 */
+function clientDeclaresMcpUi(server: { server?: { getClientCapabilities?: () => unknown } }): boolean {
+  const caps = extractClientCapabilities(server?.server?.getClientCapabilities?.());
+  // `undefined` 表示拿不到（未握手 / 旧 SDK），无法区分「不支持 UI」和「还没连上」，
+  // 这时按原来的行为继续附带，避免把面板在 Codex 里弄坏。
+  return caps ? caps.ui : true;
+}
+
+function buildEnvCandidateUiMeta(
+  server: { server?: { getClientCapabilities?: () => unknown } },
+  envCandidates?: EnvCandidate[],
+) {
   // 面板关掉时这份列表没人看，别往 `_meta` 里塞。
   if (!isMcpUiEnabled() || !envCandidates || envCandidates.length === 0) {
+    return undefined;
+  }
+  // 宿主不认面板，列表塞进去只会进模型上下文。
+  if (!clientDeclaresMcpUi(server)) {
     return undefined;
   }
   return { [UI_META_KEY]: { env_candidates: envCandidates } };
@@ -2496,7 +2516,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 : authStatus === "READY"
                   ? envPreparation?.nextStep
                   : buildAuthRequiredNextStep(server),
-          }, buildEnvCandidateUiMeta(envPreparation?.envCandidates));
+          }, buildEnvCandidateUiMeta(server, envPreparation?.envCandidates));
         }
 
         if (action === "start_auth") {
@@ -2721,7 +2741,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               next_step: buildAuthNextStep("status", {
                 suggestedArgs: { action: "status" },
               }),
-            }, buildEnvCandidateUiMeta(envCandidates));
+            }, buildEnvCandidateUiMeta(server, envCandidates));
           }
 
           // 3. 非 Device Flow（显式 web 模式）仍然使用 getLoginState 阻塞等待

@@ -302,9 +302,8 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
     expect(panel.element("k-env").textContent).toBe("tcb-demo-a1b2c3d4");
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
-    expect(panel.element("k-scope").textContent).toBe("Current environment only");
-    expect(panel.element("btn-main").hidden).toBe(false);
-    expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.deploy", undefined, "en"));
+    expect(panel.element("k-scope").textContent).toBe("Current environment");
+    expect(panel.element("btn-main").hidden).toBe(true);
     expect(panel.element("nx-label").textContent).toBe(t("mcpUi.next.label.ready", undefined, "en"));
   });
 
@@ -415,14 +414,9 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     );
     await flush();
 
-    // 没有可展开的 → 不给按钮；但不能只说"只显示了前 5 个"就没了下文
+    // 名单没送全、面板里也展不开时，不另写一句「还有几个没显示」。
     expect(panel.element("env-toggle").hidden).toBe(true);
-    expect(panel.element("env-foot").hidden).toBe(false);
-    expect(panel.element("env-more").textContent).toBe(
-      t("mcpUi.env.restHidden", { n: 32 }, "zh"),
-    );
-    // 出路给在会话里（说环境名就能切），不是把人赶去控制台
-    expect(panel.element("env-more").textContent).toContain("环境名");
+    expect(panel.element("env-foot").hidden).toBe(true);
   });
 
   it("只认宿主：别的窗口塞进来的结果不改状态卡，也不发任何消息", async () => {
@@ -532,7 +526,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
 
     // 正面：站点的 domestic 与地域的 ap-shanghai 被翻成人话（进正文的是「Shanghai (China)」）
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
-    expect(panel.element("k-scope").textContent).toBe("Current environment only");
+    expect(panel.element("k-scope").textContent).toBe("Current environment");
 
     // 反面：可见文本里一个原始枚举都不许出现
     for (const id of ["st-text", "st-qual", "k-place", "k-scope", "k-env", "nx-label", "nx-why"]) {
@@ -546,6 +540,26 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("raw-box").hidden).toBe(false);
     expect(panel.element("raw-out").textContent).toContain("ap-shanghai");
     expect(panel.element("raw-out").textContent).toContain("single_env");
+  });
+
+  it("带凭据的结果不往「查看原始返回」里放：折叠区直接不出现", async () => {
+    // auth(get_temp_credentials) 的结果里是明文凭据。面板挂在**整个 auth** 上，
+    // 每次渲染都会把 payload 写进折叠区，所以这条路径必须自己让开。
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: {
+          ok: true,
+          code: "TEMP_CREDENTIALS_READY",
+          credentials: { secretId: "AKID-EXAMPLE-PLAINTEXT" },
+        },
+      }),
+    );
+    await flush();
+
+    expect(panel.element("raw-box").hidden).toBe(true);
+    expect(panel.element("raw-out").textContent).not.toContain("AKID-EXAMPLE-PLAINTEXT");
   });
 
   it("点「重新检查」：发一次只读 auth(status)，pending 落在按钮自身，结果回填状态卡", async () => {

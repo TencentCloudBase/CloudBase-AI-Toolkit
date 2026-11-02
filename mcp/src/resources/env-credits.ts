@@ -11,6 +11,7 @@ import {
   type SiteId,
 } from "../utils/site-map.js";
 import { debug } from "../utils/logger.js";
+import { CREDENTIAL_GUARD_JS } from "./panel-raw-guard.js";
 import {
   readClientCapabilitiesFromServer,
   readMcpClientInfoFromServer,
@@ -495,6 +496,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
 <script>
 (function () {
   var host = window.parent;
+${CREDENTIAL_GUARD_JS}
   var pending = {};
   var nextId = 1;
   function post(message) { host.postMessage(message, "*"); }
@@ -1233,7 +1235,16 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       } else {
         render(null);
       }
-      setText(el("raw-out"), JSON.stringify(data.params, null, 2));
+      if (carriesCredentialBlock(data.params)) {
+        // Credentials never reach the fold: this card explains state, it is not a JSON viewer.
+        var rawPre = el("raw-out");
+        if (rawPre) {
+          setText(rawPre, "");
+          if (rawPre.parentNode) { rawPre.parentNode.hidden = true; }
+        }
+      } else {
+        setText(el("raw-out"), JSON.stringify(data.params, null, 2));
+      }
       reportSize();
       return;
     }
