@@ -143,6 +143,8 @@ export const databasePG = defineModule(
       "migrationVersion 必填（14 位 UTC 时间戳 YYYYMMDDHHMMSS）。请先确定版本，写入本地文件 cloudbase/migrations/<version>_<migrationName>.sql，然后用相同的 migrationVersion 与 migrationName 调用 planMigration/applyMigration。",
     "migration.versionRequired":
       "action={action} 时必须提供 migrationVersion。{rule}",
+    "migration.versionInvalid":
+      "migrationVersion={version} 不是一个真实的时间（{reason}）。14 位必须是 YYYYMMDDHHMMSS 并落在真实日历上：时 ≤23、分 ≤59、秒 ≤59、日不超过当月天数。例如 minute=64 就是把分字段写成了 64。请改用当前时间的 14 位，或直接沿用本地 cloudbase/migrations/<version>_<name>.sql 里已有的版本号。",
     "migration.taskIdRequired":
       "action=describeMigrationTask 时必须提供 taskId（来自 applyMigration Push / MIGRATION_TASK_PENDING / MIGRATION_TASK_TIMEOUT 的 data.taskResult.TaskId）。",
     "localFile.readFailed": "读取本地迁移文件 {path} 失败：{reason}",
@@ -429,6 +431,8 @@ export const databasePG = defineModule(
       "migrationVersion is required (14-digit UTC timestamp YYYYMMDDHHMMSS). Decide the version first, write local file cloudbase/migrations/<version>_<migrationName>.sql, then call planMigration/applyMigration with the same migrationVersion and migrationName.",
     "migration.versionRequired":
       "Provide migrationVersion when action={action}. {rule}",
+    "migration.versionInvalid":
+      "migrationVersion={version} is not a real timestamp ({reason}). The 14 digits must be YYYYMMDDHHMMSS on a real calendar: hour ≤23, minute ≤59, second ≤59, and day within that month. For example minute=64 means the minute field was written as 64. Use the current time in 14 digits, or reuse a version that already exists in cloudbase/migrations/<version>_<name>.sql.",
     "migration.taskIdRequired":
       "Provide taskId when action=describeMigrationTask (from applyMigration Push / MIGRATION_TASK_PENDING / MIGRATION_TASK_TIMEOUT data.taskResult.TaskId).",
     "localFile.readFailed":
