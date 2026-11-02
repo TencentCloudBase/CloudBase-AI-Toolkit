@@ -9,6 +9,7 @@ vi.mock("../cloudbase-manager.js", () => ({
   getCloudBaseManager: vi.fn(),
   getEnvId: vi.fn().mockResolvedValue("test-env"),
   logCloudBaseResult: vi.fn(),
+  extractRequestId: (value: any) => value?.RequestId ?? value?.requestId,
   envManager: { getCachedEnvId: vi.fn().mockReturnValue("test-env") },
   listAvailableEnvCandidates: vi.fn().mockResolvedValue([{ envId: "test-env" }]),
   createCloudBaseManagerWithOptions: vi.fn(),
