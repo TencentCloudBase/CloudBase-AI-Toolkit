@@ -26,6 +26,8 @@ export const confirmation = defineModule(
     "message.destroyMysql": "即将销毁 MySQL 实例 {resource}（环境 {envId}）。实例与数据都会删除，无法恢复。",
     "message.destroyMysqlEnv": "即将销毁当前环境的 MySQL 实例（环境 {envId}）。实例与数据都会删除，无法恢复。",
     "message.destroyEnv": "即将销毁环境 {resource}。环境本身以及其中的云函数、数据库和存储都会删除，无法恢复。",
+    "message.isolateCluster": "即将隔离 CynosDB 集群 {resource}（环境 {envId}）。隔离期间实例不可用，隔离期结束后会被销毁，数据拿不回来。",
+    "message.destroyCluster": "即将销毁 CynosDB 集群 {resource}（环境 {envId}）。集群与其中的数据都会删除，无法恢复。",
     "message.mysqlThisEnv": "当前环境的 MySQL 实例",
     // PostgreSQL：按**参数里的 SQL** 判定才拦，所以文案要把命中的语句点名出来（{resource}）
     "message.pgExecuteDestructiveSql":
@@ -47,6 +49,8 @@ export const confirmation = defineModule(
     "blocked.error": "未执行：确认流程出错（{reason}）。",
     "blocked.autoApprovedBlocked":
       "未执行：Agent 自动审批通过（{durationMs}ms，未询问你），但 CLOUDBASE_MCP_ELICIT_AUTO_APPROVE=block。",
+    "blocked.unsupported":
+      "未执行：当前客户端不支持执行前确认，这一类操作（删掉一整块数据、且没有回收站）在这里不会被执行。\n请到 CloudBase 控制台操作：控制台的删除会二次确认，并且有回收站/快照可回退。",
     "hint.release":
       "如需放行：把客户端权限改成会询问，或把它加入 CLOUDBASE_MCP_SKIP_ELICITATIONS（本次为 {action}）。",
   },
@@ -63,6 +67,8 @@ export const confirmation = defineModule(
     "message.destroyMysql": "About to destroy the MySQL instance {resource} (env {envId}). The instance and its data are deleted and cannot be recovered.",
     "message.destroyMysqlEnv": "About to destroy this environment's MySQL instance (env {envId}). The instance and its data are deleted and cannot be recovered.",
     "message.destroyEnv": "About to destroy the environment {resource}. The environment itself, and the functions, databases and storage inside it, are deleted and cannot be recovered.",
+    "message.isolateCluster": "About to isolate the CynosDB cluster {resource} (env {envId}). The instance is unavailable while isolated, and it is destroyed when the isolation period ends - the data does not come back.",
+    "message.destroyCluster": "About to destroy the CynosDB cluster {resource} (env {envId}). The cluster and its data are deleted and cannot be recovered.",
     "message.mysqlThisEnv": "this environment's MySQL instance",
     "message.pgExecuteDestructiveSql":
       "About to run data-changing SQL in env {envId}: {resource}. This statement drops data or schema and cannot be undone - confirm it is the one you meant to run.",
@@ -81,6 +87,8 @@ export const confirmation = defineModule(
     "blocked.error": "Not executed: the confirmation flow failed ({reason}).",
     "blocked.autoApprovedBlocked":
       "Not executed: the agent auto-approved it ({durationMs}ms, you were not asked) while CLOUDBASE_MCP_ELICIT_AUTO_APPROVE=block.",
+    "blocked.unsupported":
+      "Not executed: this client cannot ask you before running a tool, so operations that wipe a whole block of data - with no recycle bin - are not run here.\nUse the CloudBase console instead: its delete flow asks for confirmation and keeps a recycle bin / snapshot you can roll back to.",
     "hint.release":
       "To allow it: switch the client permission to ask, or add it to CLOUDBASE_MCP_SKIP_ELICITATIONS (this call was {action}).",
   },
