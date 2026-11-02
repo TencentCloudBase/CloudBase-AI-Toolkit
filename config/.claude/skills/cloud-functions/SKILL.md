@@ -81,6 +81,9 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - **Using a bare layer name (e.g. `common`) across environments.** SCF LayerName is an account-scoped shared namespace: same name → shared version sequence. Create new layers with fixed format `{layerName}_{当前envId}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Pass the full name as `layerName` — do not invent automatic suffixes. Treat MCP layer `warnings` as soft advisories (operation still succeeds). Details: `./references/operations-and-config.md`.
 - **Long-running MCP image deployments must complete the full workflow**: When using `manageFunctions` with `deployFunction` for a real `cloud` or `local` deployment, prefer `wait=false` to avoid blocking a single Tool Call for an extended period. If the tool returns a `taskId`, do not end the workflow, report success, or ask the user to wait while the status is `running`. Automatically call `queryFunctions(action="getFunctionDeployStatus", taskId="...")` and continue polling according to the reported progress until the status becomes `succeeded` or `failed`. Only after reaching a reasonable polling limit may you report that the deployment is still in progress; include the `taskId`, current stage, and latest progress. On success, report the image URI or build ID, function status, and Gateway URL. On failure, report the failed stage, error code, request ID, and diagnostic guidance. If the status is `expired`, explain that the local task record exceeded its retention window; the cloud deployment may still be running, so call `getFunctionDetail` to confirm the actual cloud-side status instead of treating it as a failure.
 
+- **Passing a self-managed CAM role as the execution role to "reduce the function's permissions".** A custom role does not make a function read less data — collection security rules do that (`managePermissions` action `updateResourcePermission`, with `permission="CUSTOM"` and a `securityRule`). It also commonly leaves the function **`Active` but with no logs**: delivery to the managed log topic stays empty, and widening the role's log-write resource to `*` does not change it. Always verify with `queryFunctions(action="listFunctionLogs")` after creating; if logs are missing, bind a user-owned CLS topic instead. Only integration / platform-tier multi-tenant isolation justifies a custom role — read `./references/custom-execution-role.md` before taking that path. Creating such a function does force you onto a raw API path that cannot report failure synchronously, but **updating** it does not: `manageFunctions(action="updateFunctionConfig")` reuses the function's existing role, so keep using it for config changes. What that call cannot do on 2.36.2 and earlier is keep the SDK from attaching the environment's log pair — a role without log-write access makes even a plain env-var change fail with the same `InvalidParameter.Cls`.
+- **Reading `InvalidParameter.Cls: ClsLogSetId & ClsTopicId not matched` as "the logset ID is wrong".** That code is a catch-all. It also fires when the execution role lacks CLS permissions, when the environment's stored log pair no longer resolves to live resources, and when the caller passed another environment's IDs. Read `StatusReasons` in full — it can hold several entries at once — and compare `DescribeEnvs` → `LogServices` to see whether `LogsetName` / `TopicName` carry **this** environment's ID. Do not fix only one direction: changing IDs does nothing when the real cause is role permissions, and adding permissions does nothing when the pair is genuinely mismatched.
+
 ### Minimal checklist
 
 - Read [Cloud Functions Execution Checklist](checklist.md) before deployment or runtime changes.
@@ -341,10 +344,18 @@ The `scf_bootstrap` binary path must match the runtime — see the full mapping 
 
 ### Function management
 
+Create and update functions through `manageFunctions`, not through `callCloudApi`:
+
 - `queryFunctions(action="listFunctions"|"getFunctionDetail")`
 - `manageFunctions(action="createFunction")`
 - `manageFunctions(action="updateFunctionCode")`
 - `manageFunctions(action="updateFunctionConfig")`
+
+**Why this is a rule and not a preference.** `manageFunctions` owns the execution role and the log binding, and it re-checks the resulting `Status` after a config or code change — a failure surfaces with its real `StatusReasons` instead of a bare success.
+
+Calling `tcb:CreateFunction` / `tcb:UpdateFunctionCode` / `tcb:UpdateFunctionConfig` directly is an **asynchronous** path: the SCF-level failure is carried in `SCFErrorCode`, and that field can be an empty string even when the function ends up in `CreateFailed`. The synchronous response then looks like success. Callers then "fix" parameters that were never wrong and end up in a delete-recreate loop.
+
+Exception: an integration / platform-tier environment that must give each tenant its own execution role. Only then use `callCloudApi`, and still poll `DescribeFunctions` for `Status` yourself. See `references/custom-execution-role.md` before going down that path — it has a price.
 
 ### Layers (SCF Layer)
 
@@ -417,6 +428,7 @@ If these are unavailable, read `./references/operations-and-config.md` before an
 
 All packaged reference files (required for skill lint reachability):
 
+- [custom-execution-role.md](references/custom-execution-role.md)
 - [event-functions.md](references/event-functions.md)
 - [http-function-credentials.md](references/http-function-credentials.md)
 - [http-functions-custom-image.md](references/http-functions-custom-image.md)

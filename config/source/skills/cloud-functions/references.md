@@ -60,6 +60,17 @@ Read this when the task is about:
 - legacy tool-name translation
 - `callCloudApi` fallback for Cloud Functions
 
+### `./references/custom-execution-role.md` (exception-only — do not read by default)
+
+Read this **only** when the user explicitly wants a self-managed CAM role as the function execution role — normally an integration / platform-tier multi-tenant isolation requirement:
+
+- deciding between the default `TCB_QcsRole` and a custom role
+- the custom role cannot write to the environment's managed CLS topic
+- `ResourceNotFound.Role` / `InvalidParameter.Cls` / `AuthFailure.UnauthorizedOperation` when creating
+- `tcb:BindCls` and `AssumerName` when a user-owned log topic is required
+
+**Do NOT read this to restrict what data a function can read.** That is a security-rule question (`managePermissions` + `securityRule`), not a role question.
+
 ### `./references/vpc-and-tcp-database.md` (exception-only — do not read by default)
 
 Read this **only** when the task is migrating an **existing** app that already uses classic TCP clients:
