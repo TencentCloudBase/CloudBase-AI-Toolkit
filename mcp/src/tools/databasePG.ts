@@ -1138,6 +1138,36 @@ function buildMigrationTaskPendingNextActions(version: string, taskId?: string):
   return actions;
 }
 
+/**
+ * 判断 14 位版本号是不是一个真实存在的时间（2026-11-02）。
+ *
+ * 只用于**新写入**：planMigration / applyMigration 是唯一的两个调用点。
+ * `detail` / `fetch` / `list` 不经过这里——远端历史里已经存在分钟=62 这类非法值，
+ * 查询侧加校验会把已有 history 锁死。
+ *
+ * 为什么需要它：MCP 的 JSON Schema 只有 `^\d{14}$`，AI 造出 `19:64:00` 这种
+ * 不可能的时间后会一路走到 pending（真环境实测）。CLI 那边同样不查 HH/MM/SS。
+ */
+function describeInvalidMigrationVersion(version: string): string | null {
+  if (!/^\d{14}$/.test(version)) {
+    return "not-14-digits";
+  }
+  const year = Number(version.slice(0, 4));
+  const month = Number(version.slice(4, 6));
+  const day = Number(version.slice(6, 8));
+  const hour = Number(version.slice(8, 10));
+  const minute = Number(version.slice(10, 12));
+  const second = Number(version.slice(12, 14));
+
+  if (month < 1 || month > 12) return `month=${month}`;
+  if (hour > 23) return `hour=${hour}`;
+  if (minute > 59) return `minute=${minute}`;
+  if (second > 59) return `second=${second}`;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day < 1 || day > daysInMonth) return `day=${day}`;
+  return null;
+}
+
 function requireExplicitMigrationVersion(
   args: ManagePgDatabaseArgs,
   actionLabel: string,
@@ -1151,6 +1181,18 @@ function requireExplicitMigrationVersion(
       action: actionLabel,
       rule: t("databasePG.migration.versionRule"),
     }),
+    });
+  }
+  const invalidReason = describeInvalidMigrationVersion(version);
+  if (invalidReason) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "MIGRATION_VERSION_INVALID",
+      message: t("databasePG.migration.versionInvalid", {
+        version,
+        reason: invalidReason,
+        action: actionLabel,
+      }),
     });
   }
   return version;
