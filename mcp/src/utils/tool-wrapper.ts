@@ -259,6 +259,9 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
         // 提到 try 外：finally 里要读 auth 的环境准备结果（env_setup_status / failure.reason）。
         // 护栏拦截的早退路径不会赋值，finally 里按 undefined 处理。
         let result: any;
+        // 破坏性确认的结果，随遥测一起上报（只有命中破坏性名单才有值）。
+        // 拦截路径直接 return，但 finally 仍会执行，所以这一列在「没执行」的行上也有。
+        let confirmStatus: string | undefined;
 
         try {
             debug(`开始执行工具: ${name}`, { args: sanitizeArgs(args) });
@@ -289,6 +292,11 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                 args,
                 extra: extra as { requestId?: any },
             });
+            // 不是 not_applicable 就说明命中了破坏性名单，把确认结果带上遥测：
+            // 事后要能区分「有人点过确认」和「客户端根本问不了人」。
+            if (guardDecision.status !== "not_applicable") {
+                confirmStatus = guardDecision.status;
+            }
             if (guardDecision.intercept) {
                 success = true;
                 return guardDecision.result;
@@ -410,6 +418,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
                     client: server.client || process.env.CLOUDBASE_MCP_CLIENT, // 传递 MCP client 来源标识
                     mcpClientInfo: readMcpClientInfoFromServer(server),
                     mcpClientCapabilities: readClientCapabilitiesFromServer(server),
+                    confirmStatus,
                 }).catch(err => {
                     // 静默处理上报错误，不影响主要功能
                     debug('遥测上报失败', { toolName: name, error: err instanceof Error ? err.message : String(err) });

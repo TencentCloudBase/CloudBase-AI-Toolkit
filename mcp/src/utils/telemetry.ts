@@ -659,6 +659,13 @@ export const reportToolCall =  async (params: {
      */
     envSetupStatus?: string;
     envSetupFailReason?: string;
+    /**
+     * 破坏性动作的确认结果（`accepted / unsupported / would_block / cancelled / timeout / skipped ...`）。
+     * 只有命中破坏性名单的调用才有值，其余为 undefined。
+     * 为什么必须上报：只看「工具调了、成功了」判不出护栏是不是空转 —— 客户端不支持确认时，
+     * 删除照样成功，事后完全看不出有没有人确认过。
+     */
+    confirmStatus?: string;
 }) => {
     const {
         nodeVersion,
@@ -712,6 +719,11 @@ export const reportToolCall =  async (params: {
     }
     if (params.envSetupFailReason !== undefined) {
         eventData.envSetupFailReason = params.envSetupFailReason;
+    }
+
+    // 确认结果：只有命中破坏性名单才有值，其余不占列（同一纪律：不写 unknown 假值）
+    if (params.confirmStatus !== undefined) {
+        eventData.confirmStatus = params.confirmStatus;
     }
 
     // 添加入参信息（如果提供）

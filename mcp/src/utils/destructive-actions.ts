@@ -353,6 +353,20 @@ export const CAPI_DESTRUCTIVE_CALLS: readonly CapiDestructiveCall[] = [
         when: (args) => capiParams(args).IsDeleteServer === true,
         target: (args) => ({ resource: capiCloudRunVersionServers(args) }),
     },
+    // CynosDB 集群：`IsolateCluster` 是「隔离」不是「删除」，但隔离期结束会被销毁 ——
+    // 从"数据还能不能拿回来"看等于延迟删除，所以同样要确认。
+    {
+        service: "cynosdb",
+        action: "IsolateCluster",
+        messageKey: "confirmation.message.isolateCluster",
+        target: (args) => ({ resource: asText(capiParams(args).ClusterId) }),
+    },
+    {
+        service: "cynosdb",
+        action: "DestroyCluster",
+        messageKey: "confirmation.message.destroyCluster",
+        target: (args) => ({ resource: asText(capiParams(args).ClusterId) }),
+    },
 ];
 
 export function capiDestructiveKey(service: string, action: string): string {
@@ -395,8 +409,13 @@ export const DESTRUCTIVE_EXEMPT_ACTIONS: Readonly<Record<string, string>> = {
     "managePermissions.deleteUsers": "同上（权限类，另立项处理）。",
 };
 
-/** 动作名是否"看起来会破坏东西"：守卫测试据此找出未登记项 */
-export const DESTRUCTIVE_NAME_PATTERN = /^(delete|destroy|drop|remove|truncate|clear)/i;
+/**
+ * 动作名是否"看起来会破坏东西"：守卫测试据此找出未登记项。
+ *
+ * `isolate` 也算：CynosDB 的 `IsolateCluster` 是「隔离」，隔离期结束就销毁 ——
+ * 名字里没有删除的字，效果却是延迟删除。漏掉它会让这类"改名逃生"的动作溜过守卫。
+ */
+export const DESTRUCTIVE_NAME_PATTERN = /^(delete|destroy|drop|remove|truncate|clear|isolate)/i;
 
 export type ResolvedDestructiveAction = {
     /** `工具名.action` */
@@ -452,4 +471,66 @@ export function resolveDestructiveAction(
         return undefined;
     }
     return { key, action, spec };
+}
+
+/**
+ * **问不了人就不能执行**的那一档 —— 上面两张名单只解决「弹不弹」，这里解决「弹不出来时怎么办」。
+ *
+ * 判据一句话：**一次调用就能让一整块数据消失、且平台没有回收站。**
+ * 「一整块」＝ 实例 / 环境 / 集合 / 目录 / 整张表。
+ *
+ * 为什么需要单独一张表而不是复用 `DESTRUCTIVE_ACTIONS`：那张表的口径是「执行前值得问一句」，
+ * 里面既有删整个实例，也有删一条文档。前者在客户端不支持表单确认时**不能放行**，后者放行了
+ * 才有人用（业务本来就在删数据）。用同一张表会让两道闸门互相拖累。
+ *
+ * 只有客户端声明了 form elicitation 时才有人可问；问不了的人在这张表上直接拒绝执行，
+ * 返回「去控制台操作」。`CLOUDBASE_MCP_DESTRUCTIVE_POLICY=observe|allow` 可降级（见 confirmation-guard）。
+ */
+export type FailClosedRule = {
+    /** `工具名.action` 或 `callCloudApi.<service>.<Action>` */
+    key: string;
+    /** 命中 key 之后再看参数：返回 false 表示这次调用不在这一档 */
+    when?: (args: Record<string, unknown>) => boolean;
+};
+
+/** 软删（进回收站）与硬删走不同的路。埋点与真实入参里 `DeleteDirectly` 有布尔与字符串两种形态。 */
+function isHardDeleteEnv(args: Record<string, unknown>): boolean {
+    const flag = capiParams(args).DeleteDirectly;
+    return flag === true || flag === "true";
+}
+
+/** 只认 DDL 类（DROP / TRUNCATE）—— DELETE 是业务 DML，不在这一档 */
+function hasDdlOnlyDestructive(args: Record<string, unknown>): boolean {
+    return pgDestructiveStatements(args, { allowDelete: false, allowDdl: true }).length > 0;
+}
+
+export const FAIL_CLOSED_RULES: ReadonlyArray<FailClosedRule> = [
+    { key: "manageMysqlDatabase.destroyMySQL" },
+    { key: "callCloudApi.tcb.DestroyMySQL" },
+    { key: "callCloudApi.tcb.DestroyPlatformEnv" },
+    { key: "callCloudApi.tcb.DestroyEnv", when: isHardDeleteEnv },
+    { key: "callCloudApi.cynosdb.IsolateCluster" },
+    { key: "callCloudApi.cynosdb.DestroyCluster" },
+    { key: "writeNoSqlDatabaseStructure.deleteCollection" },
+    {
+        key: "manageStorage.delete",
+        // 缺省按目录处理（拦），只有明确 isDirectory === false 才放行：
+        // 老版本客户端可能不带这个字段，宁可多拦一次也不要整目录被删掉。
+        when: (args) => args.isDirectory !== false,
+    },
+    { key: "managePgDatabase.execute", when: hasDdlOnlyDestructive },
+    { key: "managePgDatabase.applyMigration", when: hasDdlOnlyDestructive },
+];
+
+const FAIL_CLOSED_KEYS = new Set(FAIL_CLOSED_RULES.map((rule) => rule.key));
+
+/** 这次调用是不是「问不了人也不能做」的那一档 */
+export function isFailClosedAction(key: string, args: unknown): boolean {
+    if (!FAIL_CLOSED_KEYS.has(key)) {
+        return false;
+    }
+    const record = (args ?? {}) as Record<string, unknown>;
+    return FAIL_CLOSED_RULES.some(
+        (rule) => rule.key === key && (!rule.when || rule.when(record)),
+    );
 }

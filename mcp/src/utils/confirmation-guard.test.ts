@@ -6,6 +6,7 @@ import {
     AUTO_APPROVE_ENV_NAME,
     AUTO_ANSWER_THRESHOLD_MS,
     CONFIRMATION_TIMEOUT_MS,
+    DESTRUCTIVE_POLICY_ENV,
     guardDestructiveAction,
     SKIP_ENV_NAME,
     type ConfirmationServer,
@@ -265,5 +266,148 @@ describe("破坏性动作执行前确认", () => {
         expect(entries).toEqual(["noSuchTool", "somethingElse"]);
         expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("无法识别的条目"));
         errorSpy.mockRestore();
+    });
+});
+
+describe("客户端问不了人时：只拒绝「删掉一整块数据」那一档", () => {
+    /** 声明了 capabilities，但里面没有 elicitation —— 这是大多数客户端的真实形态 */
+    const NO_FORM = { roots: {} };
+
+    const destroyMysql = { action: "destroyMySQL", confirm: true };
+    const deleteFunction = { action: "deleteFunction", functionName: "hello" };
+
+    it("destroyMySQL 默认被拦下，返回「未执行」", async () => {
+        const { server, elicitInput } = makeServer({ action: "accept" }, { caps: NO_FORM });
+        const decision = await guardDestructiveAction(server, {
+            toolName: "manageMysqlDatabase",
+            args: destroyMysql,
+        });
+        expect(decision.intercept).toBe(true);
+        expect(decision.status).toBe("unsupported");
+        const text = (decision as { result: { content: Array<{ text: string }> } }).result.content[0].text;
+        expect(text).toContain("未执行");
+        expect(text).toContain("控制台");
+        expect(elicitInput).not.toHaveBeenCalled();
+    });
+
+    it("不在这一档的动作照旧放行（删函数不需要确认也能做）", async () => {
+        const { server } = makeServer({ action: "accept" }, { caps: NO_FORM });
+        const decision = await guardDestructiveAction(server, { toolName: "manageFunctions", args: deleteFunction });
+        expect(decision).toEqual({ intercept: false, status: "unsupported" });
+    });
+
+    it("策略设成 allow 时完全回到旧行为", async () => {
+        vi.stubEnv(DESTRUCTIVE_POLICY_ENV, "allow");
+        const { server } = makeServer({ action: "accept" }, { caps: NO_FORM });
+        const decision = await guardDestructiveAction(server, {
+            toolName: "manageMysqlDatabase",
+            args: destroyMysql,
+        });
+        expect(decision).toEqual({ intercept: false, status: "unsupported" });
+    });
+
+    it("策略设成 observe 时放行但标记 would_block", async () => {
+        vi.stubEnv(DESTRUCTIVE_POLICY_ENV, "observe");
+        const { server } = makeServer({ action: "accept" }, { caps: NO_FORM });
+        const decision = await guardDestructiveAction(server, {
+            toolName: "manageMysqlDatabase",
+            args: destroyMysql,
+        });
+        expect(decision).toEqual({ intercept: false, status: "would_block" });
+    });
+
+    it("删目录拦、删单文件放行、缺 isDirectory 时按目录拦", async () => {
+        const dir = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(dir.server, {
+                    toolName: "manageStorage",
+                    args: { action: "delete", cloudPath: "uploads/", isDirectory: true },
+                })
+            ).intercept,
+        ).toBe(true);
+
+        const file = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(file.server, {
+                    toolName: "manageStorage",
+                    args: { action: "delete", cloudPath: "a.png", isDirectory: false },
+                })
+            ).intercept,
+        ).toBe(false);
+
+        const missing = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(missing.server, {
+                    toolName: "manageStorage",
+                    args: { action: "delete", cloudPath: "uploads/" },
+                })
+            ).intercept,
+        ).toBe(true);
+    });
+
+    it("DestroyEnv 只在 DeleteDirectly 时拦（布尔与字符串两种写法都认）", async () => {
+        const hard = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(hard.server, {
+                    toolName: "callCloudApi",
+                    args: { service: "tcb", action: "DestroyEnv", params: { EnvId: "e1", DeleteDirectly: true } },
+                })
+            ).intercept,
+        ).toBe(true);
+
+        const hardString = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(hardString.server, {
+                    toolName: "callCloudApi",
+                    args: { service: "tcb", action: "DestroyEnv", params: { EnvId: "e1", DeleteDirectly: "true" } },
+                })
+            ).intercept,
+        ).toBe(true);
+
+        const soft = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(soft.server, {
+                    toolName: "callCloudApi",
+                    args: { service: "tcb", action: "DestroyEnv", params: { EnvId: "e1" } },
+                })
+            ).intercept,
+        ).toBe(false);
+    });
+
+    it("PostgreSQL 只拦 DROP / TRUNCATE，DELETE 是业务语句", async () => {
+        const drop = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(drop.server, {
+                    toolName: "managePgDatabase",
+                    args: { action: "execute", sql: "DROP TABLE users", allowDdlViaExecute: true },
+                })
+            ).intercept,
+        ).toBe(true);
+
+        const del = makeServer({ action: "accept" }, { caps: NO_FORM });
+        expect(
+            (
+                await guardDestructiveAction(del.server, {
+                    toolName: "managePgDatabase",
+                    args: { action: "execute", sql: "DELETE FROM users WHERE id = 1" },
+                })
+            ).intercept,
+        ).toBe(false);
+    });
+
+    it("cynosdb 的 IsolateCluster 也能被识别并拦下", async () => {
+        const { server } = makeServer({ action: "accept" }, { caps: NO_FORM });
+        const decision = await guardDestructiveAction(server, {
+            toolName: "callCloudApi",
+            args: { service: "cynosdb", action: "IsolateCluster", params: { ClusterId: "cynosdbmysql-x" } },
+        });
+        expect(decision.intercept).toBe(true);
     });
 });

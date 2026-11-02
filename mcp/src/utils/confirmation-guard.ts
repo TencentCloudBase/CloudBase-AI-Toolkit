@@ -2,22 +2,26 @@ import type { RequestId } from "@modelcontextprotocol/sdk/types.js";
 import { readDisplayedEnvId } from "./env-binding.js";
 import { t } from "../i18n/index.js";
 import { isFormElicitationSupported, requestChoiceElicitation } from "./elicitation.js";
-import { destructiveConfirmationKeys, resolveDestructiveAction } from "./destructive-actions.js";
+import { destructiveConfirmationKeys, isFailClosedAction, resolveDestructiveAction } from "./destructive-actions.js";
 import { debug } from "./logger.js";
 import { isSkippedByList, parseSkipList } from "./skip-list.js";
 
 /**
  * 破坏性动作的**执行前确认**（护栏，不是安全边界）。
  *
- * 定位：让一次不可逆的删除，在执行前变成一次看得见的选择。三条设计取舍：
+ * 定位：让一次不可逆的删除，在执行前变成一次看得见的选择。四条设计取舍：
  *
- *   1. **客户端没声明 form 能力 ⇒ 不弹、照常执行**（不阻塞、不降级成聊天里的二次询问）。
+ *   1. **客户端没声明 form 能力 ⇒ 分两种**：`FAIL_CLOSED_RULES` 上那一档（一次调用删掉一整块数据、
+ *      且平台没有回收站）**不执行**，返回「去控制台操作」；其余动作照常执行（不阻塞）。
+ *      判据与名单在 `destructive-actions.ts`，这里只管"问不了人时用哪个处置"。
  *   2. **客户端自行应答（< 500ms）不算「人的决定」**：用户把客户端设成完全访问/不询问，本身就是在说
  *      "别问我"，拦住他等于替他做决定。这类应答按"未询问"放行，可用
  *      `CLOUDBASE_MCP_ELICIT_AUTO_APPROVE=block` 反过来拦下。判据是耗时，不是 `action` 的值。
  *   3. **被拦下时返回正常结果**（`isError` 不置位、`structuredContent` 里不放 `success`）：
  *      标成失败会让客户端渲染成出错、模型可能自动重试同一个删除。注意包装层会把
  *      `structuredContent.success === false` 自动标成 MCP 错误（见 tool-result.ts），所以这里不能带 `success`。
+ *   4. **处置可由环境变量降级**：`CLOUDBASE_MCP_DESTRUCTIVE_POLICY=observe` 只记录不拦，
+ *      `=allow` 完全回到引入 fail-closed 之前的行为。用于排查"拦得对不对"，不作默认。
  *
  * 首次接线点：`tool-wrapper.ts` 的 `createWrappedHandler`（全部工具的唯一必经之路）。
  */
@@ -34,6 +38,16 @@ export const SKIP_ENV_NAME = "CLOUDBASE_MCP_SKIP_ELICITATIONS";
 /** 客户端自行应答时是否放行：`allow`（默认）/ `block` */
 export const AUTO_APPROVE_ENV_NAME = "CLOUDBASE_MCP_ELICIT_AUTO_APPROVE";
 
+/**
+ * 客户端问不了人时的处置：
+ *   `block`（默认）—— `FAIL_CLOSED_RULES` 那一档不执行；
+ *   `observe`       —— 只标记 `would_block`，照常执行（排查用）；
+ *   `allow`         —— 完全回到没接 fail-closed 之前的行为。
+ */
+export const DESTRUCTIVE_POLICY_ENV = "CLOUDBASE_MCP_DESTRUCTIVE_POLICY";
+
+export type DestructivePolicy = "block" | "observe" | "allow";
+
 export type ConfirmationStatus =
     | "not_applicable"
     | "accepted"
@@ -41,6 +55,7 @@ export type ConfirmationStatus =
     | "auto_approved_blocked"
     | "skipped"
     | "unsupported"
+    | "would_block"
     | "cancelled"
     | "timeout"
     | "error";
@@ -115,6 +130,20 @@ export function readAutoApprovePolicy(): "allow" | "block" {
     return "allow";
 }
 
+/** 无 elicitation 能力时的处置；取值非法时告警并回落默认（拦截） */
+export function readDestructivePolicy(): DestructivePolicy {
+    const raw = (process.env[DESTRUCTIVE_POLICY_ENV] || "").trim().toLowerCase();
+    if (raw === "observe" || raw === "allow") {
+        return raw;
+    }
+    if (raw && raw !== "block") {
+        console.error(
+            `[cloudbase-mcp] ${DESTRUCTIVE_POLICY_ENV} 只接受 block / observe / allow，收到 "${raw}"，按 block 处理。`,
+        );
+    }
+    return "block";
+}
+
 function resolveEnvId(server: ConfirmationServer): string {
     return readDisplayedEnvId(server.cloudBaseOptions?.envId) ?? t("confirmation.message.unknownEnv");
 }
@@ -130,6 +159,7 @@ function blockedText(
         timeout: "confirmation.blocked.timeout",
         error: "confirmation.blocked.error",
         auto_approved_blocked: "confirmation.blocked.autoApprovedBlocked",
+        unsupported: "confirmation.blocked.unsupported",
     } as const;
     const reasonKey = keyByStatus[status as keyof typeof keyByStatus] ?? "confirmation.blocked.error";
     return [
@@ -159,7 +189,8 @@ export async function guardDestructiveAction(
         return { intercept: false, status: "skipped" };
     }
 
-    // 客户端没声明 form 能力 ⇒ 不弹、照常执行（绝不阻塞）。
+    // 客户端没声明 form 能力 ⇒ 问不了人。只有「删掉一整块数据、且没有回收站」那一档不执行，
+    // 其余照常执行 —— 否则删一行、删一个文件的日常操作会被全部挡掉。
     // 能力读取本身异常时同样按"不支持"处理：这时候也没法弹，但绝不能因此让工具调用失败。
     let formCapable = false;
     try {
@@ -171,6 +202,31 @@ export async function guardDestructiveAction(
         });
     }
     if (!formCapable) {
+        const policy = readDestructivePolicy();
+        if (policy !== "allow" && isFailClosedAction(key, params.args)) {
+            const target = spec.target((params.args ?? {}) as Record<string, unknown>);
+            const targetInfo = {
+                resource: target.resource ?? t("confirmation.message.unknownResource"),
+                envId: resolveEnvId(server),
+            };
+            if (policy === "observe") {
+                debug("命中 fail-closed，但策略为 observe：记录后照常执行", {
+                    tool: params.toolName,
+                    action: key,
+                    wouldBlock: true,
+                });
+                return { intercept: false, status: "would_block" };
+            }
+            debug("命中 fail-closed 且客户端无法确认，拒绝执行", { tool: params.toolName, action: key });
+            return {
+                intercept: true,
+                status: "unsupported",
+                result: {
+                    content: [{ type: "text", text: blockedText("unsupported", key, targetInfo, {}) }],
+                    structuredContent: { status: "unsupported", executed: false, tool: params.toolName },
+                },
+            };
+        }
         return { intercept: false, status: "unsupported" };
     }
 
