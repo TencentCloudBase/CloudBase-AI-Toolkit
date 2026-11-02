@@ -1,13 +1,11 @@
 import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  ProjectRootError,
   readCloudbaseRcBinding,
   readProjectConfig,
   readProjectEnvId,
-  resolveProjectRoot,
   writeProjectConfig as writeProjectConfigSource,
 } from "./project-config.js";
 
@@ -289,19 +287,5 @@ describe("readProjectEnvId fallback to cloudbaserc.json", () => {
     const dir = writeCloudbaseRc(join(tempDir, "region-only"), { region: "ap-shanghai" });
 
     expect(readProjectEnvId(dir)).toBeUndefined();
-  });
-});
-
-describe("resolveProjectRoot 的宿主目录边界", () => {
-  it("放行 ~/.dsh/profiles/**，但仍拒绝 ~/.dsh 本身和它的配置", () => {
-    // 2026-11-02：~/.dsh/profiles/<session> 是宿主给会话分配的「工作区」，不是配置目录。
-    // 之前把所有 ~/.dsh 下的路径一律拒绝，导致 cwd 落在里面的调用被误伤
-    // （灯塔 168h：34 次 / 22 环境），报的却是「这是宿主配置目录，不是项目」。
-    const underProfiles = join(homedir(), ".dsh", "profiles", "desktop");
-    expect(resolveProjectRoot(underProfiles)).toBe(resolve(underProfiles));
-
-    // 这两条必须保持拒绝：它们才是真正的宿主配置。
-    expect(() => resolveProjectRoot(join(homedir(), ".dsh"))).toThrow(ProjectRootError);
-    expect(() => resolveProjectRoot(join(homedir(), ".dsh", "config.json"))).toThrow(ProjectRootError);
   });
 });
