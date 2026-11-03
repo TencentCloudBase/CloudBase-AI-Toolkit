@@ -214,13 +214,14 @@ describe("破坏性动作执行前确认", () => {
         }
     });
 
-    it("超时 ⇒ 不执行", async () => {
+    it("超时 ⇒ 不执行，并引导去控制台（宿主确认框可能未弹出）", async () => {
         const { server } = makeServer(new McpError(ErrorCode.RequestTimeout, "Request timed out"));
         const decision = await guardDestructiveAction(server, { toolName: "manageFunctions", args: DELETE_ARGS });
         expect(decision.intercept).toBe(true);
         if (decision.intercept) {
             expect(decision.status).toBe("timeout");
             expect(decision.result.content[0].text).toContain("未执行");
+            expect(decision.result.content[0].text).toContain("控制台");
         }
     });
 

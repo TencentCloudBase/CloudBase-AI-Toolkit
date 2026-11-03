@@ -96,7 +96,7 @@ describe("get-started 面板 HTML", () => {
     expect(html).not.toContain("location.");
   });
 
-  it("含 bridge 需要的全部消息名，且面板发起的调用只有 auth 的 status / set_env", () => {
+  it("含 bridge 需要的全部消息名，且面板发起的 tools/call 只有 auth status", () => {
     const html = buildGetStartedHtml("en", sampleStatus);
 
     for (const method of [
@@ -109,17 +109,18 @@ describe("get-started 面板 HTML", () => {
       expect(html).toContain(method);
     }
 
-    // Three call sites on purpose: 「重新检查」(status), and one click on an environment row
-    // (set_env followed by status so the card shows what the server actually bound). Every one of
-    // them targets the same tool, so the panel still has no other way to touch the server.
+    // Only 「重新检查」 still uses tools/call (auth status). Env-row bind goes through
+    // ui/message so hosts that do not forward app-initiated tools/call still work.
     const calls = html.match(/\{ name: "([^"]+)", arguments: \{ action: "([^"]+)"/g) ?? [];
-    expect(calls.length).toBe(3);
-    expect(calls.every((call) => call.startsWith('{ name: "auth"'))).toBe(true);
-    expect(html.split('"tools/call"').length - 1).toBe(3);
-    expect(html).toContain('action: "set_env"');
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toContain('name: "auth"');
+    expect(calls[0]).toContain('action: "status"');
+    expect(html.split('"tools/call"').length - 1).toBe(1);
+    expect(html).not.toContain('action: "set_env"');
+    expect(html).toContain("messageBindEnv");
   });
 
-  it("可选环境只画结果里真有的候选：卡片默认隐藏，行从 env_candidates 生成", () => {
+  it("环境列表只画结果里真有的候选：卡片默认隐藏，行从 env_candidates 生成", () => {
     const zhHtml = buildGetStartedHtml("zh", sampleStatus);
     const enHtml = buildGetStartedHtml("en", sampleStatus);
 
@@ -129,10 +130,12 @@ describe("get-started 面板 HTML", () => {
     // 行由 env_candidates 现场造，不预置任何环境名。
     expect(zhHtml).toContain("payload.env_candidates");
     expect(zhHtml).toContain('createElement("button")');
-    // 文案走词典，两种语言不同。
-    expect(zhHtml).toContain("可选环境");
-    expect(enHtml).toContain("Environments");
-    expect(enHtml).not.toContain("可选环境");
+    // 列表卡标题与主卡同为「环境」；勿再出现「接一个示例项目」类 CTA。
+    expect(zhHtml).toContain(">环境<");
+    expect(enHtml).toContain(">Environment<");
+    expect(zhHtml).not.toContain("接一个示例项目");
+    expect(enHtml).not.toContain("Wire up a sample project");
+    expect(zhHtml).not.toContain("可选环境");
   });
 
   it("正文不出现内部枚举（只允许在「查看原始返回」折叠区里）", () => {
@@ -312,6 +315,21 @@ describe("MCP Apps 资源声明的协议级行为（真实握手）", () => {
       expect(text).toContain(t("mcpUi.title", undefined, "en"));
       expect(text).not.toContain(t("mcpUi.title", undefined, "zh"));
       expect(text).toContain('lang="en"');
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("中文实例上 auth(lang=en) 后读资源得到英文面板", async () => {
+    const { server, client } = await handshake();
+    try {
+      await client.callTool({ name: "auth", arguments: { action: "status", lang: "en" } });
+      const result = await client.readResource({ uri: UI_RESOURCE_URI });
+      const text = (result.contents[0] as { text?: string }).text ?? "";
+      expect(text).toContain('lang="en"');
+      expect(text).toContain(t("mcpUi.title", undefined, "en"));
+      expect(text).not.toContain(t("mcpUi.title", undefined, "zh"));
     } finally {
       await client.close();
       await server.close();

@@ -99,11 +99,11 @@ function loadPanel(html: string): PanelHarness {
     attributes.set(tag[1], attrs);
   }
 
-  const elements = new Map<string, ShimmedElement>();
+  const elements = new Map<string, ShimmedElement & { querySelectorAll?: (sel: string) => unknown[] }>();
   for (const id of html.matchAll(/\bid="([^"]+)"/g)) {
     const elementId = id[1];
     const handlers: Record<string, Array<() => void>> = {};
-    const children: ShimmedElement[] = [];
+    const children: Array<ShimmedElement & { className?: string; click?: () => void }> = [];
     elements.set(elementId, {
       id: elementId,
       hidden: true,
@@ -130,6 +130,10 @@ function loadPanel(html: string): PanelHarness {
         const at = children.indexOf(child);
         if (at >= 0) { children.splice(at, 1); }
       },
+      querySelectorAll(sel: string) {
+        const cls = sel.startsWith(".") ? sel.slice(1) : sel;
+        return children.filter((child) => String(child.className || "").split(/\s+/).includes(cls));
+      },
     });
   }
 
@@ -147,16 +151,23 @@ function loadPanel(html: string): PanelHarness {
       querySelector: () => ({ getBoundingClientRect: () => ({ height: 120, width: 480 }) }),
       body: {},
       addEventListener() {},
-      // 面板用 createElement 造环境行；垫片只需要这几种属性，别假装是个完整 DOM。
+      // 面板用 createElement 造环境行；垫片要能点到 click（绑定走 ui/message）。
       createElement(tag: string) {
+        const handlers: Record<string, Array<() => void>> = {};
         const node: Record<string, unknown> = {
           tagName: tag.toUpperCase(),
           className: "",
           textContent: "",
           type: "",
+          disabled: false,
           children: [] as unknown[],
           setAttribute() {},
-          addEventListener() {},
+          addEventListener(type: string, fn: () => void) {
+            (handlers[type] ||= []).push(fn);
+          },
+          click() {
+            (handlers.click ?? []).forEach((fn) => fn());
+          },
           appendChild(child: { textContent?: string }) {
             (node.children as unknown[]).push(child);
           },
@@ -339,20 +350,21 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     );
     await flush();
 
-    // 收起态：说明还剩多少，并给出一个能按的入口（不是干写着"只显示了前 5 个"）
+    // 收起态：底部只留「显示全部」，不再附「共 N 个 / 还有几个没列」句子
     expect(panel.element("env-toggle").hidden).toBe(false);
     expect(panel.element("env-toggle-label").textContent).toBe(
       t("mcpUi.env.showAll", { n: 8 }, "zh"),
     );
-    expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
+    expect(panel.element("env-more").hidden).toBe(true);
+    expect(panel.element("env-more").textContent).toBe("");
 
     const before = panel.sent.length;
     panel.element("env-toggle").click();
     await flush();
 
-    // 展开态：按钮翻成「收起」，句子改成总数；展开前后都不该多出 tool 调用
+    // 展开态：按钮翻成「收起」；展开前后都不该多出 tool 调用
     expect(panel.element("env-toggle-label").textContent).toBe(t("mcpUi.env.collapse", undefined, "zh"));
-    expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
+    expect(panel.element("env-more").hidden).toBe(true);
     const after = panel.methodsFrom(before);
     expect(after).not.toContain("tools/call");
     expect(after.every((m) => m === "ui/notifications/size-changed")).toBe(true);
@@ -387,11 +399,11 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     );
     await flush();
 
-    // 列表按 8 个算：按钮说 8，摘要说 8，而不是 2 / 37
+    // 列表按 8 个算：按钮能展开，脚注句子不再出现
     expect(panel.element("env-toggle-label").textContent).toBe(
       t("mcpUi.env.showAll", { n: 8 }, "zh"),
     );
-    expect(panel.element("env-more").textContent).toBe(t("mcpUi.env.allShown", { total: 8 }, "zh"));
+    expect(panel.element("env-more").hidden).toBe(true);
   });
 
   it("接口只回了 5 个、但总共 37 个：没有可展开的，就直接说清其余的在哪", async () => {
@@ -607,6 +619,51 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(messages[0].message.params).toEqual({
       role: "user",
       content: { type: "text", text: t("mcpUi.message.login", undefined, "en") },
+    });
+    expect(
+      panel.sent.slice(before).some((entry) => entry.message.method === "tools/call"),
+    ).toBe(false);
+  });
+
+  it("点环境行：只发 ui/message 绑定提示，不发 tools/call set_env", async () => {
+    const panel = loadPanel(buildGetStartedHtml("en", sampleStatus));
+    panel.dispatch(
+      TOOL_RESULT({
+        structuredContent: {
+          ...UNBOUND_STATUS,
+          env_status: "MULTIPLE",
+          env_candidates: [
+            {
+              envId: "env-bind-1",
+              alias: "demo-alias",
+              region: "ap-shanghai",
+              status: "NORMAL",
+            },
+          ],
+          env_candidates_summary: { total: 1, returned: 1, truncated: false },
+        },
+      }),
+    );
+    await flush();
+
+    const envList = panel.element("env-list") as ShimmedElement & {
+      querySelectorAll: (sel: string) => Array<{ click: () => void }>;
+    };
+    const rows = envList.querySelectorAll(".env-item");
+    expect(rows).toHaveLength(1);
+
+    const before = panel.sent.length;
+    rows[0].click();
+    await flush();
+
+    const messages = panel.sent.slice(before).filter((entry) => entry.message.method === "ui/message");
+    expect(messages).toHaveLength(1);
+    expect(messages[0].message.params).toEqual({
+      role: "user",
+      content: {
+        type: "text",
+        text: t("mcpUi.message.bindEnv", { alias: "demo-alias", envId: "env-bind-1" }, "en"),
+      },
     });
     expect(
       panel.sent.slice(before).some((entry) => entry.message.method === "tools/call"),

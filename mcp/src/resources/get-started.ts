@@ -15,9 +15,9 @@
  *      注入分两路：HTML 文本走 `escapeHtml`，脚本里的字符串走 `jsLiteral`（JSON 转义 +
  *      转义 `<`，避免 `</script>` 截断）。
  *   3. **只读无密钥**：环境 ID 来自这次调用槽；槽是空的才用 `server.cloudBaseOptions.envId`。不读环境变量和缓存。站点仍走站点解析。
- *      读资源时不发网络请求；面板自己只会发两类调用——只读的
- *      `auth(action:"status")`（「重新检查」）和只改本地绑定的
- *      `auth(action:"set_env")`（点「可选环境」里的一行）。两者都不动云端资源，也不碰密钥。
+ *      读资源时不发网络请求；面板自己只会发只读的 `auth(action:"status")`（「重新检查」）。
+ *      点「可选环境」里的一行改为 `ui/message` 交给会话去做 `set_env`——许多宿主不转发
+ *      应用发起的 `tools/call`，不能依赖面板内直接绑环境。
  *   4. **状态吃实时结果，不吃本地猜测**：宿主会以 `ui/notifications/tool-result` 通知把
  *      「令本次面板被渲染的那次工具调用」的结果送来。面板挂在多用途的 `auth` 上，
  *      每一次 `auth` 调用都会渲染它，所以状态区**优先消费这条通知的 `structuredContent`**
@@ -35,7 +35,7 @@
  */
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtendedMcpServer } from "../server.js";
-import { getInstanceLang, t, type Lang, type MessageKey } from "../i18n/index.js";
+import { resolvePanelLang, t, type Lang, type MessageKey } from "../i18n/index.js";
 import { readDisplayedEnvId } from "../utils/env-binding.js";
 import { resolveSiteAndRegion } from "../utils/site-map.js";
 import { debug } from "../utils/logger.js";
@@ -413,12 +413,11 @@ pre {
     actionLogin: ${S("mcpUi.next.action.login")},
     actionConnect: ${S("mcpUi.next.action.connect")},
     actionSelectEnv: ${S("mcpUi.next.action.selectEnv")},
-    actionDeploy: ${S("mcpUi.next.action.deploy")},
     actionRefresh: ${S("mcpUi.next.action.refresh")},
     messageLogin: ${S("mcpUi.message.login")},
     messageConnect: ${S("mcpUi.message.connect")},
     messageSelectEnv: ${S("mcpUi.message.selectEnv")},
-    messageDeploy: ${S("mcpUi.message.deploy")},
+    messageBindEnv: ${S("mcpUi.message.bindEnv")},
     actionPending: ${S("mcpUi.action.pending")},
     actionSent: ${S("mcpUi.action.sent")},
     actionError: ${S("mcpUi.action.error")},
@@ -752,8 +751,10 @@ ${CREDENTIAL_GUARD_JS}
         envToggle.setAttribute("aria-expanded", envExpanded ? "true" : "false");
       }
     }
+    // Footer keeps only the expand/collapse control - no "N more not listed" sentence.
     if (envMore) {
-      envMore.textContent = T.envAllShown.replace("{total}", String(envTotal));
+      envMore.textContent = "";
+      envMore.hidden = true;
     }
   }
 
@@ -767,27 +768,23 @@ ${CREDENTIAL_GUARD_JS}
     });
   }
 
-  // One click, one path: the panel asks the host to run auth(set_env) itself, then re-reads the
-  // status so the card shows the bound environment instead of guessing. Hosts that do not forward
-  // app-initiated calls leave the deadline to fail the promise, and the row says so in one line
-  // instead of pretending the click worked.
+  // One click, one path: hand a bind prompt to the conversation via ui/message.
+  // Hosts often do not forward app-initiated tools/call (set_env), so the row must
+  // not depend on that path - same contract as the main CTA.
   function bindEnv(envId, name) {
     if (busy || !envId) { return; }
     busy = true;
     setEnvBusy(true);
     if (envErr) { envErr.hidden = true; envErr.textContent = ""; }
-    withTimeout(request("tools/call", { name: "auth", arguments: { action: "set_env", envId: envId } }), CHECK_TIMEOUT_MS)
-      .then(function (result) {
-        var payload = readPayload(result);
-        if (payload && payload.ok === false) { throw new Error(typeof payload.code === "string" ? payload.code : "SET_ENV_FAILED"); }
-        return withTimeout(request("tools/call", { name: "auth", arguments: { action: "status" } }), CHECK_TIMEOUT_MS);
-      })
-      .then(function (result) {
-        var payload = readPayload(result);
-        if (payload) { render(payload); } else { render(null); showRaw(result); }
+    var alias = name || envId;
+    var text = T.messageBindEnv.replace(/\{alias\}/g, alias).replace(/\{envId\}/g, envId);
+    request("ui/message", { role: "user", content: { type: "text", text: text } })
+      .then(function () {
+        // Prompt is in the conversation; the model will call set_env. Do not invent a bound state.
       })
       .catch(function () {
-        if (envErr) { envErr.hidden = false; envErr.textContent = T.envFailed.replace("{alias}", name || envId); }
+        copyText(text);
+        if (envErr) { envErr.hidden = false; envErr.textContent = T.envFailed; }
       })
       .then(function () {
         busy = false;
@@ -863,7 +860,7 @@ ${CREDENTIAL_GUARD_JS}
       if (refreshBtn) { refreshBtn.className = replacedByList ? "linklike" : "link"; }
       mainBtn.disabled = false;
       setText(el("btn-main-label"), state.main);
-      setIcon(el("ico-main"), state.main === T.actionSelectEnv ? "server" : (state.main === T.actionDeploy ? "rocket" : "login"));
+      setIcon(el("ico-main"), state.main === T.actionSelectEnv ? "server" : "login");
     }
     if (payload) { showRaw(JSON.stringify(payload, null, 2)); }
   }
@@ -1052,7 +1049,7 @@ export function registerGetStartedResource(server: ExtendedMcpServer): void {
     },
     async (uri) => {
       const startedAt = Date.now();
-      const lang = getInstanceLang();
+      const lang = resolvePanelLang();
       let success = true;
       let errorMessage: string | undefined;
       let html = "";

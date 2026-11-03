@@ -1,6 +1,6 @@
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtendedMcpServer } from "../server.js";
-import { getInstanceLang, t, type Lang, type MessageKey } from "../i18n/index.js";
+import { resolvePanelLang, t, type Lang, type MessageKey } from "../i18n/index.js";
 import { readDisplayedEnvId } from "../utils/env-binding.js";
 import {
   SITE_IDS,
@@ -556,6 +556,8 @@ ${CREDENTIAL_GUARD_JS}
     hintUnknown: ${S("mcpUiCredits.hint.unknown")},
     hintNotCredits: ${S("mcpUiCredits.hint.notCredits")},
     hintNormal: ${S("mcpUiCredits.hint.normal")},
+    actionSwitchEnv: ${S("mcpUiCredits.action.switchEnv")},
+    messageSwitchEnv: ${S("mcpUiCredits.message.switchEnv")},
     plan: {
       trial: ${S("mcpUiCredits.plan.trial")},
       personal: ${S("mcpUiCredits.plan.personal")},
@@ -1042,11 +1044,13 @@ ${CREDENTIAL_GUARD_JS}
     if (key === "unknown" && used !== null) {
       setHint(T.hintUnknownWithUsage);
     }
+    var notCredits = key === "unknown" && !hasCreditSignal(payload);
     // A list/info result, or an environment that is not billed by credits, has no credit figure.
-    // Status word only; no explanatory sentence under an unknown / non-credits reading.
-    if (key === "unknown" && !hasCreditSignal(payload)) {
+    // Name it as non-credit and offer a prompt CTA to switch / review plans.
+    if (notCredits) {
       setText(el("st-text"), T.stateNotCredits);
-      setHint("");
+      setHint(T.hintNotCredits);
+      current.mainMsg = T.messageSwitchEnv;
     }
     var ubarBox = el("ubar-box");
     ubarBox.hidden = pct === null;
@@ -1104,12 +1108,14 @@ ${CREDENTIAL_GUARD_JS}
     if (!expiredNote.hidden) { setText(expiredNote, T.expiredNote.replace("{days}", String(days))); }
 
     var mainBtn = el("btn-main");
-    mainBtn.hidden = !branch.main;
-    if (branch.main) {
+    var mainLabel = notCredits ? T.actionSwitchEnv : branch.main;
+    var mainIcon = notCredits ? "rocket" : (branch.icon || "rocket");
+    mainBtn.hidden = !mainLabel;
+    if (mainLabel) {
       // Label and glyph sit in their own nodes: writing textContent on the button would delete
       // the icon on the next render.
-      setText(el("btn-main-label"), branch.main);
-      setIcon(el("ico-main"), branch.icon || "rocket");
+      setText(el("btn-main-label"), mainLabel);
+      setIcon(el("ico-main"), mainIcon);
       mainBtn.disabled = false;
     }
     var linkBtn = el("btn-link");
@@ -1326,7 +1332,7 @@ export function registerEnvCreditsResource(server: ExtendedMcpServer): void {
     },
     async (uri) => {
       const startedAt = Date.now();
-      const lang = getInstanceLang();
+      const lang = resolvePanelLang();
       let success = true;
       let errorMessage: string | undefined;
       let bytes = 0;

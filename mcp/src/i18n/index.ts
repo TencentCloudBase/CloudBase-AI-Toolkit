@@ -29,6 +29,15 @@ export function normalizeLang(value: unknown): Lang | undefined {
 
 let instanceLang: Lang | undefined;
 
+/**
+ * Last tool-call lang for MCP Apps panels.
+ * `resources/read` for `ui://` HTML happens after the tool returns; the host does
+ * not re-bake the panel from the tool's `lang` arg, so we remember the call-time
+ * lang here and prefer it over the instance lang when rendering the panel.
+ * `undefined` means "no call override → fall back to instance lang".
+ */
+let panelLangOverride: Lang | undefined;
+
 /** server 创建时注入实例语言（createCloudBaseMcpServer options.lang 解析链的落点） */
 export function setInstanceLang(lang: Lang): void {
   instanceLang = lang;
@@ -36,6 +45,16 @@ export function setInstanceLang(lang: Lang): void {
 
 export function getInstanceLang(): Lang {
   return instanceLang ?? resolveInstanceLang();
+}
+
+/** Record the lang of the current tool call (or clear when the call omitted lang). */
+export function setPanelLang(lang: Lang | undefined): void {
+  panelLangOverride = lang;
+}
+
+/** Lang for baking MCP Apps HTML: call-time override > instance lang. */
+export function resolvePanelLang(): Lang {
+  return panelLangOverride ?? getInstanceLang();
 }
 
 /**

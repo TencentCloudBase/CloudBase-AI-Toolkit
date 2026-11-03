@@ -41,7 +41,7 @@ import {
 } from "../utils/site-map.js";
 import { readProjectEnvId, writeProjectConfig } from "../utils/project-config.js";
 import { buildDescribeEnvsFilter } from "../utils/describe-envs-query.js";
-import { normalizeLang, t, type Lang } from "../i18n/index.js";
+import { normalizeLang, setPanelLang, t, type Lang } from "../i18n/index.js";
 import {
   buildAuthNextStep,
   buildJsonToolResult,
@@ -781,20 +781,27 @@ function getCredentialScope(cloudBaseOptions?: {
   return isApiKeyCredentialMode() ? "single_env" : "account";
 }
 
-function buildCredentialBoundaryPayload(cloudBaseOptions?: {
-  region?: string;
-  envId?: string;
-  credentialScope?: string;
-}) {
+function buildCredentialBoundaryPayload(
+  cloudBaseOptions?: {
+    region?: string;
+    envId?: string;
+    credentialScope?: string;
+  },
+  lang?: Lang,
+) {
   const credentialScope = getCredentialScope(cloudBaseOptions);
   const currentRegion = resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
   const pinnedEnvId = process.env.CLOUDBASE_ENV_ID || cloudBaseOptions?.envId || null;
   const scopeNote =
     credentialScope === "single_env"
-      ? t("env.credential.singleEnvNote", {
-          pinnedEnvId: pinnedEnvId ? ` ${pinnedEnvId}` : "",
-        })
-      : t("env.credential.accountNote", { currentRegion });
+      ? t(
+          "env.credential.singleEnvNote",
+          {
+            pinnedEnvId: pinnedEnvId ? ` ${pinnedEnvId}` : "",
+          },
+          lang,
+        )
+      : t("env.credential.accountNote", { currentRegion }, lang);
 
   return {
     credential_scope: credentialScope,
@@ -2387,6 +2394,9 @@ export function registerEnvTools(server: ExtendedMcpServer) {
       const toolLang = normalizeLang(rawArgs.lang);
       // 输出语言：调用级 lang > 实例 lang（createCloudBaseMcpServer / TCB_LANG / project.json）
       const outLang: Lang = toolLang ?? server.lang ?? "zh";
+      // MCP Apps HTML is baked on resources/read after this call returns; remember
+      // call-time lang even when telemetry wrapping is off (enableTelemetry: false).
+      setPanelLang(toolLang);
       const oauthEndpoint = normalizeOptionalToolString(rawArgs.oauthEndpoint);
       const clientId = normalizeOptionalToolString(rawArgs.clientId);
       const oauthCustom = normalizeOptionalToolBoolean(rawArgs.oauthCustom);
@@ -2468,7 +2478,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           let envPreparation:
             | AuthEnvPreparationResult
             | undefined;
-          const credentialBoundary = buildCredentialBoundaryPayload(cloudBaseOptions);
+          const credentialBoundary = buildCredentialBoundaryPayload(
+            cloudBaseOptions,
+            outLang,
+          );
 
           if (authStatus === "READY" && loginState) {
             envPreparation = await prepareAuthEnvironment({
@@ -2892,7 +2905,10 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
           }
 
-          const credentialBoundary = buildCredentialBoundaryPayload(cloudBaseOptions);
+          const credentialBoundary = buildCredentialBoundaryPayload(
+            cloudBaseOptions,
+            outLang,
+          );
           const envCandidates = isApiKeyCredentialMode()
             ? await fetchAvailableEnvCandidates(cloudBaseOptions, server)
             : await fetchAccountEnvCandidates(cloudBaseOptions);

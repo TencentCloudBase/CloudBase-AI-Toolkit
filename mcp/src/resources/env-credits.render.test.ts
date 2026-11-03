@@ -740,14 +740,15 @@ describe("env-credits 面板脚本运行时", () => {
     }
   });
 
-  it("读不懂的返回：状态回「未确认」、正文不含原文、原文只进折叠区", () => {
+  it("读不懂的返回：标成非资源点、给出切换提示、原文只进折叠区", () => {
     const panel = loadPanel(HTML);
     panel.dispatch({ content: [{ type: "text", text: "<b>NOT-JSON-MARKER</b>" }] });
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.notCredits"));
-    expect(panel.el("c-hint").textContent).toBe("");
-    expect(panel.el("c-hint").hidden).toBe(true);
+    expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.notCredits"));
+    expect(panel.el("c-hint").hidden).toBe(false);
     expect(panel.el("brand-alias").textContent).toBe("my-env-3gk9ab");
-    expect(panel.el("btn-main").hidden).toBe(true);
+    expect(panel.el("btn-main").hidden).toBe(false);
+    expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiCredits.action.switchEnv"));
     expect(panel.el("raw-out").textContent).toContain("NOT-JSON-MARKER");
   });
 
