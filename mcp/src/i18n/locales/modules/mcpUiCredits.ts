@@ -40,8 +40,8 @@ export const mcpUiCredits = defineModule(
     "state.notCredits": "无资源点用量",
     "state.normal": "用量正常",
     "state.nearLimit": "用量接近上限",
-    "state.trialExhausted": "体验版资源点已用尽",
-    "state.stopped": "套餐资源点已用尽",
+    "state.trialExhausted": "体验版已用尽",
+    "state.stopped": "资源点已用尽",
     "state.expired": "套餐已到期",
     "state.arrears": "账户欠费",
 
@@ -51,39 +51,39 @@ export const mcpUiCredits = defineModule(
     "value.currency": "¥",
 
     // 说明句（四分支 + 未确认）
-    "hint.unknown": "当前数据无法确认资源点是否充足；完整配额请在控制台查看。",
-    "hint.notCredits": "当前结果未包含资源点用量。非资源点计费环境无此项数据。",
-    "hint.unknownWithUsage": "已获取用量，但未获取套餐状态，无法判断是否充足；完整配额请在控制台查看。",
+    "hint.unknown": "无法确认资源点是否充足；完整配额见控制台。",
+    "hint.notCredits": "无资源点用量；非资源点计费环境无此项。",
+    "hint.unknownWithUsage": "已有用量，缺少套餐状态，无法判断是否充足；完整配额见控制台。",
     "hint.normal": "本月资源点充足。",
-    "hint.nearLimit": "本月资源点已使用 {pct}%；建议升级套餐或购买资源包，以免服务中断。",
+    "hint.nearLimit": "本月资源点已使用 {pct}%；建议升级套餐或购买资源包。",
 
     // 说明句（四分支）
-    "hint.trialExhausted": "本月资源点已用尽；体验版不支持资源包与按量计费，升级付费套餐是唯一恢复途径。",
-    "hint.stopped": "套餐内资源点已用尽；若已购买资源包或已开启按量计费，服务可能仍在运行。是否停服以实际调用结果为准。",
-    "hint.expired": "套餐已过期，环境进入 15 天隔离期，逾期将被销毁；隔离期内续费可恢复。",
-    "hint.arrears": "账户余额为负，将影响套餐变更与续费；套餐内资源点仍充足时，业务不受影响。",
+    "hint.trialExhausted": "本月资源点已用尽；体验版仅可升级付费套餐恢复。",
+    "hint.stopped": "套餐资源点已用尽；若有资源包或按量计费，服务可能仍在运行。",
+    "hint.expired": "套餐已过期，进入 15 天隔离期；期内续费可恢复。",
+    "hint.arrears": "账户欠费，将影响套餐变更与续费；资源点充足时业务不受影响。",
     "expired.note": "隔离期剩余 {days} 天（第 15 天销毁）",
 
     // 行动（一屏一个主行动 + 一个复制链接的次行动）
-    "action.upgrade": "升级付费套餐（唯一恢复途径）",
-    "action.recommendRestore": "推荐恢复方案",
+    "action.upgrade": "升级付费套餐",
+    "action.recommendRestore": "查看恢复方案",
     "action.renew": "立即续费",
     "action.guidedTopup": "前往充值",
     "action.openConsole": "打开控制台",
     "action.nearLimit": "查看优化建议",
-    "message.nearLimit": "当前环境资源点已使用 {pct}%，请分析可优化项，并比较是否需要更换套餐。",
+    "message.nearLimit": "当前环境资源点已使用 {pct}%，请分析可优化项并比较套餐。",
     "copy.copied": "已复制",
     "copy.failed": "未能写入剪贴板，请手动复制。",
-    "message.failed": "面板无法直接发送到会话；文案已复制，请粘贴到输入框发送。",
+    "message.failed": "无法直接发送到会话；文案已复制，请粘贴发送。",
     "action.openExpense": "打开费用中心",
-    "action.copiedConsole": "未能直接打开，链接已复制；无计费权限时可转交主账号管理员",
-    "action.copiedExpense": "未能直接打开，链接已复制；无计费权限时可转交主账号管理员",
+    "action.copiedConsole": "未能打开，链接已复制；无计费权限时可转交主账号管理员",
+    "action.copiedExpense": "未能打开，链接已复制；无计费权限时可转交主账号管理员",
 
     // 交给会话的请求（按钮 → ui/message 的原文，技能按这些入口组织引导）
-    "message.upgrade": "请说明付费套餐选项，并将本环境从体验版升级。",
-    "message.restore": "本环境资源点已用尽，请比较升配套餐、购买资源包与开启按量计费的适用性。",
-    "message.renew": "本环境套餐已到期，请协助完成续费。",
-    "message.topup": "本环境账户欠费，请引导至费用中心完成充值。",
+    "message.upgrade": "请说明付费套餐，并将本环境从体验版升级。",
+    "message.restore": "本环境资源点已用尽，请比较升配、资源包与按量计费。",
+    "message.renew": "本环境套餐已到期，请协助续费。",
+    "message.topup": "本环境账户欠费，请引导至费用中心充值。",
 
     // 模块名（分模块用量）
     "module.functions": "云函数",
@@ -204,8 +204,8 @@ export const mcpUiCredits = defineModule(
     "state.notCredits": "No credit usage",
     "state.normal": "Usage is within plan",
     "state.nearLimit": "Usage near the limit",
-    "state.trialExhausted": "Trial credits exhausted",
-    "state.stopped": "Plan credits exhausted",
+    "state.trialExhausted": "Trial exhausted",
+    "state.stopped": "Credits exhausted",
     "state.expired": "Plan expired",
     "state.arrears": "Account in arrears",
 
@@ -213,48 +213,44 @@ export const mcpUiCredits = defineModule(
     "modules.sep": ", ",
     "value.currency": "CNY ",
 
-    "hint.unknown":
-      "Credit sufficiency cannot be confirmed from the current data. View the full quota in the console.",
-    "hint.notCredits":
-      "This result does not include credit usage. Environments not billed by credits have no such figure.",
+    "hint.unknown": "Credit sufficiency cannot be confirmed. Full quota is in the console.",
+    "hint.notCredits": "No credit usage. Non-credit environments have no such figure.",
     "hint.unknownWithUsage":
-      "Usage was retrieved, but the plan state was not, so sufficiency cannot be determined. View the full quota in the console.",
+      "Usage is available, but plan state is missing, so sufficiency cannot be determined. Full quota is in the console.",
     "hint.normal": "Credits for this month are sufficient.",
-    "hint.nearLimit":
-      "Credits for this month are {pct}% used. Consider upgrading the plan or purchasing a credit pack to avoid interruption.",
+    "hint.nearLimit": "Credits for this month are {pct}% used. Upgrade the plan or buy a credit pack.",
 
     "hint.trialExhausted":
-      "Credits for this month are exhausted. The trial plan supports neither credit packs nor pay-as-you-go; upgrading to a paid plan is the only recovery path.",
+      "Credits for this month are exhausted. The trial plan recovers only by upgrading to a paid plan.",
     "hint.stopped":
-      "Plan credits are exhausted. If a credit pack or pay-as-you-go is enabled, the service may still be running; confirm against the actual call result.",
+      "Plan credits are exhausted. With a credit pack or pay-as-you-go, the service may still run.",
     "hint.expired":
-      "The plan has expired. The environment enters a 15-day isolation period and is destroyed afterwards; renewing within the isolation period restores it.",
+      "The plan has expired and entered a 15-day isolation period. Renew within the period to restore.",
     "hint.arrears":
-      "The account balance is negative, which affects plan changes and renewal. Service is unaffected while plan credits remain sufficient.",
-    "expired.note": "{days} days left in the isolation period (destroyed on day 15)",
+      "Account arrears affect plan changes and renewal. Service is unaffected while credits remain.",
+    "expired.note": "{days} days left in isolation (destroyed on day 15)",
 
-    "action.upgrade": "Upgrade to a paid plan (only recovery path)",
-    "action.recommendRestore": "Recommend a recovery option",
+    "action.upgrade": "Upgrade plan",
+    "action.recommendRestore": "View recovery options",
     "action.renew": "Renew now",
     "action.guidedTopup": "Go to top-up",
     "action.openConsole": "Open console",
-    "action.nearLimit": "Review optimization options",
-    "message.nearLimit":
-      "Credits for this environment are {pct}% used. Analyze optimization options and whether a different plan is warranted.",
+    "action.nearLimit": "Review savings",
+    "message.nearLimit": "Credits for this environment are {pct}% used. Analyze savings and plan options.",
     "copy.copied": "Copied",
     "copy.failed": "Could not write to the clipboard; copy manually.",
-    "message.failed": "The panel cannot post to the conversation. The text is copied; paste it into the input to send.",
+    "message.failed": "Cannot post to the conversation. Text copied; paste to send.",
     "action.openExpense": "Open billing center",
     "action.copiedConsole":
-      "Could not open directly; the link is copied. Without billing permission, forward it to the primary account administrator.",
+      "Could not open; link copied. Without billing permission, forward to the account admin.",
     "action.copiedExpense":
-      "Could not open directly; the link is copied. Without billing permission, forward it to the primary account administrator.",
+      "Could not open; link copied. Without billing permission, forward to the account admin.",
 
-    "message.upgrade": "Explain the paid plan options and upgrade this environment from the trial plan.",
+    "message.upgrade": "Explain paid plans and upgrade this environment from trial.",
     "message.restore":
-      "Credits for this environment are exhausted. Compare upgrading the plan, purchasing a credit pack, and enabling pay-as-you-go.",
+      "Credits for this environment are exhausted. Compare plan upgrade, credit pack, and pay-as-you-go.",
     "message.renew": "The plan for this environment has expired. Assist with renewal.",
-    "message.topup": "This environment's account is in arrears. Guide me to the billing center to complete top-up.",
+    "message.topup": "This environment's account is in arrears. Guide me to billing for top-up.",
 
     "module.functions": "Cloud Functions",
     "module.database": "Database",
