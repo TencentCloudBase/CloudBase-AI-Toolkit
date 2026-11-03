@@ -460,3 +460,196 @@ describe('CloudBase Sites deployment metadata', () => {
     });
   });
 });
+
+describe('CloudBase Sites dev-server bind policy', () => {
+  const HOST_ENV_VARS = [
+    'CLOUDBASE_SITES_HOST',
+    'CLOUDBASE_SITES_REMOTE',
+    'REMOTE_CONTAINERS',
+    'CODESPACES',
+    'GITPOD_WORKSPACE_ID',
+    'CLAUDE_CODE_REMOTE',
+  ];
+
+  // The resolver reads process.env at call time; isolate each case.
+  function isolateHostEnv(overrides = {}) {
+    const saved = new Map();
+    for (const name of HOST_ENV_VARS) {
+      saved.set(name, process.env[name]);
+      delete process.env[name];
+    }
+    Object.assign(process.env, overrides);
+    return () => {
+      for (const name of HOST_ENV_VARS) {
+        const value = saved.get(name);
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    };
+  }
+
+  async function loadPreviewModule() {
+    return importPluginModule('lib/verbs/preview.mjs', makeTempDir());
+  }
+
+  test('binds loopback when nothing asks for exposure', async () => {
+    const restore = isolateHostEnv();
+    try {
+      const { resolveHost } = await loadPreviewModule();
+      expect(resolveHost({})).toEqual({ host: '127.0.0.1', source: 'default' });
+    } finally {
+      restore();
+    }
+  });
+
+  test('honours CLOUDBASE_SITES_HOST and lets --host win over it', async () => {
+    const restore = isolateHostEnv({ CLOUDBASE_SITES_HOST: '0.0.0.0' });
+    try {
+      const { resolveHost } = await loadPreviewModule();
+      expect(resolveHost({})).toEqual({ host: '0.0.0.0', source: 'env' });
+      expect(resolveHost({ host: '127.0.0.1' })).toEqual({ host: '127.0.0.1', source: 'flag' });
+    } finally {
+      restore();
+    }
+  });
+
+  test('opts into all interfaces on remote/container hosts', async () => {
+    const restore = isolateHostEnv({ CODESPACES: 'true' });
+    try {
+      const { resolveHost } = await loadPreviewModule();
+      expect(resolveHost({})).toEqual({ host: '0.0.0.0', source: 'remote:CODESPACES' });
+    } finally {
+      restore();
+    }
+  });
+
+  test('treats loopback aliases as local and skips network URLs for them', async () => {
+    const { isLoopbackHost, networkUrls } = await loadPreviewModule();
+
+    expect(isLoopbackHost('127.0.0.1')).toBe(true);
+    expect(isLoopbackHost('localhost')).toBe(true);
+    expect(isLoopbackHost('::1')).toBe(true);
+    expect(isLoopbackHost('0.0.0.0')).toBe(false);
+    expect(networkUrls(17173, '/', '127.0.0.1')).toEqual([]);
+  });
+
+  function writeFakeViteProject(cwd) {
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      name: 'fake-site',
+      dependencies: { vite: '5.0.0', react: '18.0.0' },
+    }, null, 2));
+    const viteDir = path.join(cwd, 'node_modules', 'vite');
+    fs.mkdirSync(path.join(viteDir, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(viteDir, 'package.json'), JSON.stringify({ name: 'vite', version: '5.0.0' }));
+    fs.writeFileSync(path.join(viteDir, 'bin', 'vite.js'), [
+      "const http = require('http');",
+      'const argv = process.argv.slice(2);',
+      "const val = (flag, fallback) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : fallback; };",
+      "const host = process.env.HOST || val('--host', '127.0.0.1');",
+      "const port = Number(process.env.PORT || val('--port', 5173));",
+      "http.createServer((req, res) => res.end('ok')).listen(port, host);",
+    ].join('\n'));
+  }
+
+  function runPreviewCli(cwd, args, extraEnv = {}) {
+    return spawnSync(process.execPath, [BIN, 'preview', ...args], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 20000,
+      env: {
+        ...process.env,
+        CLOUDBASE_SITES_PORT_START: '19011',
+        CLOUDBASE_SITES_PORT_END: '19040',
+        ...extraEnv,
+      },
+    });
+  }
+
+  test('starting the dev server keeps it on loopback and reports no exposure', () => {
+    const cwd = makeTempDir();
+    writeFakeViteProject(cwd);
+    try {
+      const result = runPreviewCli(cwd, []);
+      expect(result.status).toBe(0);
+
+      const state = JSON.parse(fs.readFileSync(path.join(cwd, '.cloudbase-sites', 'preview.json'), 'utf8'));
+      expect(state.host).toBe('127.0.0.1');
+      expect(state.exposed).toBe(false);
+      expect(state.networkUrls).toEqual([]);
+      expect(state.command).toContain('--host 127.0.0.1');
+      expect(state.command).not.toContain('0.0.0.0');
+      expect(state.internalUrl).toBe(`http://127.0.0.1:${state.port}/`);
+      expect(result.stderr).not.toContain('EXPOSED');
+    } finally {
+      runPreviewCli(cwd, ['--stop']);
+    }
+  });
+
+  test('exposing the dev server announces the reachable addresses', () => {
+    const cwd = makeTempDir();
+    writeFakeViteProject(cwd);
+    try {
+      const result = runPreviewCli(cwd, ['--host', '0.0.0.0']);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain('reachable from other hosts');
+      expect(result.stderr).toContain('EXPOSED');
+
+      const state = JSON.parse(fs.readFileSync(path.join(cwd, '.cloudbase-sites', 'preview.json'), 'utf8'));
+      expect(state.host).toBe('0.0.0.0');
+      expect(state.exposed).toBe(true);
+      expect(Array.isArray(state.networkUrls)).toBe(true);
+
+      const status = runPreviewCli(cwd, ['--status']);
+      const payload = JSON.parse(status.stdout.trim().split('\n')[0]);
+      expect(payload.host).toBe('0.0.0.0');
+      expect(payload.exposed).toBe(true);
+    } finally {
+      runPreviewCli(cwd, ['--stop']);
+    }
+  });
+
+  test('an exposed server left behind is restarted on loopback', () => {
+    const cwd = makeTempDir();
+    writeFakeViteProject(cwd);
+    try {
+      expect(runPreviewCli(cwd, ['--host', '0.0.0.0']).status).toBe(0);
+      const exposedPid = JSON.parse(fs.readFileSync(path.join(cwd, '.cloudbase-sites', 'preview.json'), 'utf8')).pid;
+
+      const result = runPreviewCli(cwd, []);
+      expect(result.status).toBe(0);
+      const state = JSON.parse(fs.readFileSync(path.join(cwd, '.cloudbase-sites', 'preview.json'), 'utf8'));
+      expect(state.host).toBe('127.0.0.1');
+      expect(state.pid).not.toBe(exposedPid);
+    } finally {
+      runPreviewCli(cwd, ['--stop']);
+    }
+  });
+});
+
+describe('CloudBase Sites plugin twins stay in sync', () => {
+  const TWIN_DIR = path.join(ROOT_DIR, 'plugin', 'cloudbase-sites-codex');
+  // plugin.json is the only intentional difference (Claude vs Codex manifest).
+  const ALLOWED_DIFFERENCES = new Set(['plugin.json', '.codex-plugin/plugin.json', '.claude-plugin/plugin.json']);
+
+  function listFiles(root, relative = '') {
+    const out = [];
+    const dir = relative ? path.join(root, relative) : root;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const rel = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) out.push(...listFiles(root, rel));
+      else out.push(rel);
+    }
+    return out.sort();
+  }
+
+  test('runtime files are byte-identical', () => {
+    const source = path.join(PLUGIN_DIR);
+    const sourceFiles = listFiles(source).filter((f) => !ALLOWED_DIFFERENCES.has(f));
+    const twinFiles = listFiles(TWIN_DIR).filter((f) => !ALLOWED_DIFFERENCES.has(f));
+
+    expect(twinFiles).toEqual(sourceFiles);
+    for (const rel of sourceFiles) {
+      expect(fs.readFileSync(path.join(TWIN_DIR, rel), 'utf8')).toBe(fs.readFileSync(path.join(source, rel), 'utf8'));
+    }
+  });
+});

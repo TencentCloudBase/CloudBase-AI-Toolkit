@@ -107,8 +107,14 @@ dev-server / version / deploy lifecycle:
 - `cloudbase-sites supervisor status|list|heal|reload|start|stop`
 
 Never invent `npm run dev` / `vite` / `vite build` invocations. The CLI
-handles host=0.0.0.0 forcing, port allocation (17173..17272), daemonization,
+handles the bind-address policy, port allocation (17173..17272), daemonization,
 base path injection, version metadata, and deploy history.
+
+The dev server has no authentication and binds `127.0.0.1` by default. Expose
+it to the network only when the user asks: `preview --host 0.0.0.0` (or
+`CLOUDBASE_SITES_HOST=0.0.0.0`). When it is exposed, `preview --status` reports
+`exposed: true` plus the reachable URLs — mention those URLs, and do not
+describe the preview as local-only.
 
 ### 3. Standard tools (Bash, git, Edit, Write)
 

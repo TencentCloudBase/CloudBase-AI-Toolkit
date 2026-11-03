@@ -72,10 +72,16 @@ export function isAlive(pid) {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
-export function healthOk(port, timeoutMs = 2_000) {
+export function healthOk(port, options = 2_000) {
+  const opts = typeof options === "number" ? { timeoutMs: options } : (options || {});
+  const timeoutMs = opts.timeoutMs ?? 2_000;
+  // A wildcard bind answers on loopback too; only an explicit non-loopback
+  // address needs the probe to target it.
+  const rawHost = typeof opts.host === "string" ? opts.host.trim().toLowerCase() : "";
+  const host = !rawHost || rawHost === "0.0.0.0" || rawHost === "::" ? "127.0.0.1" : opts.host;
   return new Promise((resolve) => {
     const req = http.get(
-      { host: "127.0.0.1", port, path: "/", timeout: timeoutMs },
+      { host, port, path: "/", timeout: timeoutMs },
       (res) => {
         res.resume();
         resolve(!!(res.statusCode && res.statusCode < 500));

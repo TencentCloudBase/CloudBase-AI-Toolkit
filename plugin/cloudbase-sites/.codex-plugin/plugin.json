@@ -1,6 +1,6 @@
 {
   "name": "cloudbase-sites",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "CloudBase Sites lets Codex create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
   "author": {
     "name": "Tencent CloudBase",

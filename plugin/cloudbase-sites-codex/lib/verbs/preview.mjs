@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import net from "node:net";
 import http from "node:http";
+import os from "node:os";
 import {
   STATE_DIR, LOG_DIR,
   readPreview, writePreview, clearPreview,
@@ -34,6 +35,21 @@ const DEFAULT_PORT_RANGE_START = Number(process.env.CLOUDBASE_SITES_PORT_START |
 const DEFAULT_PORT_RANGE_END = Number(process.env.CLOUDBASE_SITES_PORT_END || 17272);
 const HEALTH_TIMEOUT_MS = Number(process.env.CLOUDBASE_SITES_HEALTH_TIMEOUT_MS || 30_000);
 
+// Bind address policy: loopback by default. A dev server serves unauthenticated
+// project source, so binding every interface must be a decision the operator
+// made — never a silent default.
+const LOOPBACK_HOST = "127.0.0.1";
+const WILDCARD_HOST = "0.0.0.0";
+// Remote / container hosts where a loopback bind would be unreachable through
+// the port forward. Opt in automatically, but still announce the bind.
+const REMOTE_HOST_ENV_VARS = [
+  "CLOUDBASE_SITES_REMOTE",
+  "REMOTE_CONTAINERS",
+  "CODESPACES",
+  "GITPOD_WORKSPACE_ID",
+  "CLAUDE_CODE_REMOTE",
+];
+
 export const previewHelp = `cloudbase-sites preview — daemonize/inspect/stop/restart Vite dev server in cwd
 
 Modes (default = ensure running):
@@ -46,6 +62,13 @@ Modes (default = ensure running):
 Options for start/restart:
   --port <N>           request specific port (default: auto from 17173..17272)
   --base <P>           path-mount base, e.g. /s/<sid>/ (default: /)
+  --host <addr>        bind address (default: 127.0.0.1 — local only)
+                       use 0.0.0.0 to expose the dev server to your network
+
+The bind address defaults to ${LOOPBACK_HOST} (this machine only). Set
+CLOUDBASE_SITES_HOST to change the default without passing --host. Anything
+other than ${LOOPBACK_HOST}/localhost is announced on start: the dev server has no
+authentication, so any host that can reach the port can read the project.
 
 State file: <cwd>/.cloudbase-sites/preview.json
 Logs dir:   <cwd>/.cloudbase-sites/logs/`;
@@ -72,9 +95,12 @@ async function runStatus(args) {
     process.exit(ERR.NO_PREVIEW_RUNNING);
   }
   const alive = state.pid ? isAlive(state.pid) : false;
-  const healthy = alive && state.port ? await healthOk(state.port) : false;
+  const healthy = alive && state.port ? await healthOk(state.port, { host: probeHost(state.host) }) : false;
   const ok = alive && healthy;
   if (args.quiet) process.exit(ok ? 0 : ERR.NO_PREVIEW_RUNNING);
+  const bindHost = state.host || LOOPBACK_HOST;
+  const exposed = !isLoopbackHost(bindHost);
+  const urls = exposed ? networkUrls(state.port, state.base, bindHost) : [];
   emitOk(
     {
       running: ok,
@@ -82,6 +108,9 @@ async function runStatus(args) {
       healthy,
       pid: state.pid,
       port: state.port,
+      host: bindHost,
+      exposed,
+      networkUrls: urls,
       framework: state.framework,
       base: state.base,
       internalUrl: state.internalUrl,
@@ -89,7 +118,7 @@ async function runStatus(args) {
       startedAt: state.startedAt,
     },
     ok
-      ? `preview healthy: ${state.internalUrl}`
+      ? `preview healthy: ${state.internalUrl}` + (exposed ? exposureSuffix(urls, bindHost) : "")
       : `preview unhealthy (alive=${alive}, http=${healthy})`,
   );
   process.exit(ok ? 0 : ERR.NO_PREVIEW_RUNNING);
@@ -139,20 +168,27 @@ async function runStart(args) {
     throw withCode(ERR.NOT_VITE_PROJECT, `Not a Vite project: ${fingerprint.reason}`);
   }
 
-  // Idempotent reuse.
+  const { host: bindHost, source: hostSource } = resolveHost(args);
+
+  // Idempotent reuse — but a reused dev server must already listen on the
+  // address this run asked for. A server left exposed by an older version (or
+  // a supervisor heal) is restarted on the resolved host instead of inherited.
   const existing = readPreview();
-  if (existing && existing.pid && isAlive(existing.pid) && (await healthOk(existing.port))) {
-    if (args.force) {
-      try { process.kill(existing.pid, "SIGTERM"); } catch {}
-      clearPreview();
-    } else {
+  if (existing && existing.pid && isAlive(existing.pid) && (await healthOk(existing.port, { host: probeHost(existing.host) }))) {
+    const existingHost = existing.host || LOOPBACK_HOST;
+    if (!args.force && existingHost === bindHost) {
       registerInRegistry(existing, CWD);
-      emitOk({ ...existing, reused: true }, `preview ready: ${existing.internalUrl}`);
+      const urls = isLoopbackHost(existingHost) ? [] : networkUrls(existing.port, existing.base, existingHost);
+      emitOk(
+        { ...existing, reused: true, host: existingHost, exposed: !isLoopbackHost(existingHost), networkUrls: urls },
+        `preview ready: ${existing.internalUrl}` + (isLoopbackHost(existingHost) ? "" : exposureSuffix(urls, existingHost)),
+      );
       return;
     }
-  }
-  if (existing) {
-    try { if (existing.pid) process.kill(existing.pid, "SIGTERM"); } catch {}
+    await stopPid(existing.pid, { graceMs: 3_000 });
+    clearPreview();
+  } else if (existing) {
+    if (existing.pid) await stopPid(existing.pid, { graceMs: 3_000 });
     clearPreview();
   }
 
@@ -165,14 +201,14 @@ async function runStart(args) {
 
   const env = {
     ...process.env,
-    HOST: "0.0.0.0",
+    HOST: bindHost,
     PORT: String(port),
     VITE_BASE_URL: base,
   };
 
   const argv = [
     ...(fingerprint._viteEntry ? [fingerprint._viteEntry] : []),
-    "--host", "0.0.0.0",
+    "--host", bindHost,
     "--port", String(port),
     "--strictPort",
     "--base", base,
@@ -188,7 +224,7 @@ async function runStart(args) {
   child.unref();
 
   const outcome = await Promise.race([
-    waitForHealth(port, HEALTH_TIMEOUT_MS),
+    waitForHealth(port, HEALTH_TIMEOUT_MS, bindHost),
     waitForExit(child).then((code) => ({ exited: true, code })),
   ]);
   if (outcome && outcome.exited) {
@@ -200,10 +236,14 @@ async function runStart(args) {
   }
 
   const internalUrl = `http://127.0.0.1:${port}${base.endsWith("/") ? base : base + "/"}`;
+  const urls = isLoopbackHost(bindHost) ? [] : networkUrls(port, base, bindHost);
   const state = {
     pid: child.pid,
     port,
-    host: "0.0.0.0",
+    host: bindHost,
+    hostSource,
+    exposed: !isLoopbackHost(bindHost),
+    networkUrls: urls,
     base,
     framework: fingerprint.framework,
     command: [fingerprint.viteBin, ...argv].join(" "),
@@ -214,12 +254,80 @@ async function runStart(args) {
   };
   writePreview(state);
   registerInRegistry(state, CWD);
-  emitOk({ ...state, reused: false }, `preview ready: ${internalUrl}`);
+  if (state.exposed) {
+    process.stderr.write(
+      `[cloudbase-sites] warning: dev server bound to ${bindHost} — reachable from other hosts` +
+      (urls.length ? ` (${urls.join(", ")})` : "") +
+      `. It has no authentication: anyone who can reach the port can read this project.\n`,
+    );
+  }
+  emitOk({ ...state, reused: false }, `preview ready: ${internalUrl}` + (state.exposed ? exposureSuffix(urls, bindHost) : ""));
 }
 
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Decide which address the dev server binds to.
+ *
+ * Precedence: `--host` flag > CLOUDBASE_SITES_HOST > remote/container detection
+ * > 127.0.0.1. Remote hosts bind all interfaces because a loopback-only server
+ * would be unreachable through their port forward; everything else stays local.
+ */
+export function resolveHost(args = {}) {
+  const fromFlag = typeof args.host === "string" && args.host.trim() ? args.host.trim() : null;
+  if (fromFlag) return { host: fromFlag, source: "flag" };
+
+  const fromEnv = typeof process.env.CLOUDBASE_SITES_HOST === "string" ? process.env.CLOUDBASE_SITES_HOST.trim() : "";
+  if (fromEnv) return { host: fromEnv, source: "env" };
+
+  const remoteVar = REMOTE_HOST_ENV_VARS.find((name) => {
+    const value = process.env[name];
+    return Boolean(value) && value !== "0" && value !== "false";
+  });
+  if (remoteVar) return { host: WILDCARD_HOST, source: `remote:${remoteVar}` };
+
+  return { host: LOOPBACK_HOST, source: "default" };
+}
+
+export function isLoopbackHost(host) {
+  if (!host) return true;
+  const h = String(host).trim().toLowerCase();
+  return h === "localhost" || h === "::1" || h === "[::1]" || h === "127.0.0.1" || h.startsWith("127.");
+}
+
+/** Address a health probe should connect to for a given bind address. */
+function probeHost(host) {
+  if (!host || isLoopbackHost(host) || host === WILDCARD_HOST || host === "::") return LOOPBACK_HOST;
+  return host;
+}
+
+/** Reachable URLs for a non-loopback bind (LAN IPv4 addresses of this machine). */
+export function networkUrls(port, base = "/", host = WILDCARD_HOST) {
+  if (isLoopbackHost(host)) return [];
+  const suffix = base.endsWith("/") ? base : `${base}/`;
+  const hosts = [];
+  if (host !== WILDCARD_HOST && host !== "::") {
+    hosts.push(host);
+  } else {
+    for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+      if (name.startsWith("utun") || name.startsWith("llw") || name.startsWith("awdl")) continue;
+      for (const addr of addrs || []) {
+        if (addr.internal || addr.family !== "IPv4") continue;
+        if (addr.address.startsWith("169.254.")) continue;
+        hosts.push(addr.address);
+      }
+    }
+  }
+  return [...new Set(hosts)].map((h) => `http://${h}:${port}${suffix}`);
+}
+
+/** One-line suffix appended to the success message when the bind is not local. */
+function exposureSuffix(urls, host) {
+  const where = urls.length ? urls.join(", ") : `every interface (${host})`;
+  return ` — EXPOSED to other hosts: ${where} (no authentication)`;
+}
 
 function checkViteProject(dir) {
   const pkgPath = join(dir, "package.json");
@@ -272,11 +380,12 @@ function portFree(port) {
   });
 }
 
-function waitForHealth(port, timeoutMs) {
+function waitForHealth(port, timeoutMs, host = LOOPBACK_HOST) {
+  const connectHost = probeHost(host);
   return new Promise((resolve) => {
     const t0 = Date.now();
     const probe = () => {
-      const req = http.get({ host: "127.0.0.1", port, path: "/", timeout: 2000 }, (res) => {
+      const req = http.get({ host: connectHost, port, path: "/", timeout: 2000 }, (res) => {
         res.resume();
         if (res.statusCode && res.statusCode < 500) return resolve({ ready: true });
         retry();
