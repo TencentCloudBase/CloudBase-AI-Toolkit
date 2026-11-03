@@ -300,7 +300,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     await flush();
 
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
-    expect(panel.element("k-env").textContent).toBe("tcb-demo-a1b2c3d4");
+    expect(panel.element("brand-env").textContent).toBe("tcb-demo-a1b2c3d4");
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
     expect(panel.element("k-scope").textContent).toBe("Current environment");
     expect(panel.element("btn-main").hidden).toBe(true);
@@ -453,7 +453,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.login", undefined, "en"));
     // 这次结果没带位置/环境字段 → 本地兜底（实时值优先，但缺失的字段仍要有个值）
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
-    expect(panel.element("k-env").textContent).toBe("env-abc123");
+    expect(panel.element("brand-env").textContent).toBe("env-abc123");
     expect(panel.element("k-scope").textContent).toBe(
       t("mcpUi.status.scopeAfterLogin", undefined, "en"),
     );
@@ -463,7 +463,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.loggedIn", undefined, "en"));
     expect(panel.element("btn-main-label").textContent).toBe(t("mcpUi.next.action.selectEnv", undefined, "en"));
     // 实时结果里 current_env_id 显式为 null → 「未绑定」，不能被本地缓存的环境 ID 顶掉
-    expect(panel.element("k-env").textContent).toBe(t("mcpUi.status.unset", undefined, "en"));
+    expect(panel.element("brand-env").textContent).toBe(t("mcpUi.status.unset", undefined, "en"));
     expect(panel.element("k-scope").textContent).toBe(t("mcpUi.scope.account", undefined, "en"));
   });
 
@@ -478,7 +478,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     );
     await flush();
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
-    expect(panel.element("k-env").textContent).toBe("env-live");
+    expect(panel.element("brand-env").textContent).toBe("env-live");
 
     // 认不出来的 code 照原样显示，不猜（site 缺省时仍用本地兜底）
     panel.dispatch(
@@ -515,7 +515,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     );
     await flush();
 
-    expect(panel.element("k-env").textContent).toBe("env-structured");
+    expect(panel.element("brand-env").textContent).toBe("env-structured");
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.connected", undefined, "en"));
   });
 
@@ -529,7 +529,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     expect(panel.element("k-scope").textContent).toBe("Current environment");
 
     // 反面：可见文本里一个原始枚举都不许出现
-    for (const id of ["st-text", "st-qual", "k-place", "k-scope", "k-env", "nx-label", "nx-why"]) {
+    for (const id of ["st-text", "st-qual", "k-place", "k-scope", "brand-env", "nx-label", "nx-why"]) {
       const text = panel.element(id).textContent;
       for (const token of INTERNAL_ENUMS) {
         expect(text, `#${id} 不应出现内部枚举 ${token}`).not.toContain(token);
@@ -627,7 +627,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     // 状态卡：本地静态兜底 + 尚未确认（没有把"解析失败"当成一个状态）
     expect(panel.element("st-text").textContent).toBe(t("mcpUi.status.unknown", undefined, "en"));
     expect(panel.element("k-place").textContent).toBe("Shanghai (China)");
-    expect(panel.element("k-env").textContent).toBe("env-abc123");
+    expect(panel.element("brand-env").textContent).toBe("env-abc123");
     expect(panel.element("k-scope").textContent).toBe(
       t("mcpUi.status.scopeAfterLogin", undefined, "en"),
     );
@@ -639,7 +639,7 @@ describe("get-started 面板 bridge（vm 垫片驱动）", () => {
     // 原文只落在折叠区里（且原样保留、没有被解析成元素）
     expect(panel.element("raw-box").hidden).toBe(false);
     expect(panel.element("raw-out").textContent).toBe(junk);
-    for (const id of ["st-text", "st-qual", "k-place", "k-scope", "k-env", "nx-label", "nx-why"]) {
+    for (const id of ["st-text", "st-qual", "k-place", "k-scope", "brand-env", "nx-label", "nx-why"]) {
       expect(panel.element(id).textContent, `#${id} 不应出现原始返回`).not.toContain("not-json");
       expect(panel.element(id).textContent, `#${id} 不应出现原始返回`).not.toContain("<img");
     }

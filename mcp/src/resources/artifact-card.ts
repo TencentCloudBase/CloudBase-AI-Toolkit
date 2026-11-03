@@ -137,7 +137,9 @@ body {
 .logo { width: 20px; height: 20px; flex: 0 0 auto; display: block; }
 .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
 .brand-r { font-size: 12px; color: var(--text-2); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.brand-alias { max-width: 140px; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 500; }
+.brand-alias { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-2); font-weight: 500; font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .plan-tag { font-size: 12px; color: var(--text-2); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
 .brand-r .icon-btn { width: 24px; height: 24px; }
 @media (prefers-color-scheme: dark) { .logo .lp-brand { fill: #4896FF; } }
@@ -477,13 +479,15 @@ ${CREDENTIAL_GUARD_JS}
       }
     }
 
-    // Brand: alias (falling back to the site's human name), plan tag, copy the environment ID.
-    var alias = hasField(payload, "env_alias") && payload.env_alias ? String(payload.env_alias) : "";
+    // Brand: the environment ID sits next to the copy button on every panel. The plan tag stays.
     var envId = hasField(payload, "env_id") ? (payload.env_id ? String(payload.env_id) : "") : FALLBACK.envId;
     current.envId = envId;
     var aliasNode = el("brand-alias");
-    setText(aliasNode, alias || SITE_TEXT);
-    if (aliasNode) { aliasNode.title = envId ? T.envIdLabel + ": " + envId : ""; }
+    setText(aliasNode, envId);
+    if (aliasNode) {
+      aliasNode.hidden = !envId;
+      aliasNode.title = envId ? T.copyEnvId : "";
+    }
     var copyEnv = el("btn-copy-env");
     if (copyEnv) { copyEnv.hidden = !envId; }
     var planLabel = payload && payload.plan ? (T.plan[payload.plan] || "") : "";
