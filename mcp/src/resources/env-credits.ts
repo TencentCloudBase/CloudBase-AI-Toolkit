@@ -291,8 +291,9 @@ body {
 .brand-l .logo svg { width: 20px; height: 20px; display: block; }
 .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
 .brand-r { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.brand-alias { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 13px; font-weight: 500; color: var(--text); }
+.brand-alias { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 500; color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .plan-tag { font-size: 12px; color: var(--text-2); border: 1px solid var(--border);
   border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
 .icon-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
@@ -550,8 +551,10 @@ ${CREDENTIAL_GUARD_JS}
     openExpense: ${S("mcpUiCredits.action.openExpense")},
     expiredNote: ${S("mcpUiCredits.expired.note")},
     stateUnknown: ${S("mcpUiCredits.state.unknown")},
+    stateNotCredits: ${S("mcpUiCredits.state.notCredits")},
     stateNormal: ${S("mcpUiCredits.state.normal")},
     hintUnknown: ${S("mcpUiCredits.hint.unknown")},
+    hintNotCredits: ${S("mcpUiCredits.hint.notCredits")},
     hintNormal: ${S("mcpUiCredits.hint.normal")},
     plan: {
       trial: ${S("mcpUiCredits.plan.trial")},
@@ -851,8 +854,11 @@ ${CREDENTIAL_GUARD_JS}
     var envId = hasField(payload, "env_id") ? (payload.env_id ? String(payload.env_id) : "") : FALLBACK.envId;
     current.envId = envId;
     var brandAlias = el("brand-alias");
-    setText(brandAlias, alias || ${J(siteText)});
-    if (brandAlias) { brandAlias.title = envId ? T.copyEnvId + ": " + envId : ""; }
+    setText(brandAlias, envId);
+    if (brandAlias) {
+      brandAlias.hidden = !envId;
+      brandAlias.title = envId ? T.copyEnvId : "";
+    }
     var plan = payload ? planLabel(payload) : "";
     var brandPlan = el("brand-plan");
     brandPlan.hidden = !plan;
@@ -969,6 +975,21 @@ ${CREDENTIAL_GUARD_JS}
     if (copyNote) { copyNote.hidden = true; }
   }
 
+  /**
+   * True when this payload is actually a credit reading: a known credit plan, a non-zero used
+   * figure, module rows, or a sparkline. A zero used with none of those is an empty usage list,
+   * which old non-credit packages also return. Absence of a payload is the list/info case.
+   */
+  function hasCreditSignal(payload) {
+    if (!payload) { return false; }
+    if (payload.plan && T.plan[payload.plan]) { return true; }
+    var credits = payload.credits;
+    if (credits && typeof credits.used === "number" && credits.used > 0) { return true; }
+    if (payload.modules && payload.modules.length) { return true; }
+    if (payload.spark && payload.spark.length) { return true; }
+    return false;
+  }
+
   function render(payload) {
     if (payloadKind(payload) === "metrics") { renderMetrics(payload); return; }
     hideAll(METRICS_ONLY);
@@ -1012,6 +1033,12 @@ ${CREDENTIAL_GUARD_JS}
     // sentence names the one piece that is missing instead of denying the number on screen.
     if (key === "unknown" && used !== null) {
       setText(el("c-hint"), T.hintUnknownWithUsage);
+    }
+    // A list/info result, or an environment that is not billed by credits, has no credit figure.
+    // Do not describe that as an incomplete credit reading.
+    if (key === "unknown" && !hasCreditSignal(payload)) {
+      setText(el("st-text"), T.stateNotCredits);
+      setText(el("c-hint"), T.hintNotCredits);
     }
     var ubarBox = el("ubar-box");
     ubarBox.hidden = pct === null;

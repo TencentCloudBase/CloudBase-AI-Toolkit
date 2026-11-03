@@ -37,6 +37,7 @@ export const mcpUiCredits = defineModule(
 
     // 状态词（四分支 + 未确认）
     "state.unknown": "用量尚未确认",
+    "state.notCredits": "无资源点用量",
     "state.normal": "用量正常",
     "state.nearLimit": "用量接近上限",
     "state.trialExhausted": "体验版耗尽",
@@ -51,6 +52,7 @@ export const mcpUiCredits = defineModule(
 
     // 说明句（四分支 + 未确认）
     "hint.unknown": "这份数据不足以判断资源点是否充足；完整配额可在控制台查看。",
+    "hint.notCredits": "这次结果里没有资源点用量。不按资源点计费的环境不会有这项数据。",
     "hint.unknownWithUsage": "已读到用量，但套餐状态没拿到，判断不了是否够用；完整配额可在控制台查看。",
     "hint.normal": "本月资源点仍充足。",
     "hint.nearLimit": "本月资源点已用 {pct}%；升级套餐或购买资源包可避免中断。",
@@ -199,6 +201,7 @@ export const mcpUiCredits = defineModule(
     "value.unavailable": "-",
 
     "state.unknown": "Usage not confirmed",
+    "state.notCredits": "No credit usage",
     "state.normal": "Usage is within plan",
     "state.nearLimit": "Usage near the limit",
     "state.trialExhausted": "Trial credits used up",
@@ -212,6 +215,8 @@ export const mcpUiCredits = defineModule(
 
     "hint.unknown":
       "This data is not enough to tell whether credits are sufficient. The full quota is available in the console.",
+    "hint.notCredits":
+      "This result has no credit usage. An environment that is not billed by credits does not have this figure.",
     "hint.unknownWithUsage":
       "Usage is known, but the plan state is not, so sufficiency cannot be judged. The full quota is in the console.",
     "hint.normal": "This month's credits are still within the plan.",

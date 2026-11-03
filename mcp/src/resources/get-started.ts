@@ -143,8 +143,6 @@ export function buildGetStartedHtml(lang: Lang, status: GetStartedStatus): strin
   const nextTitle = E(L("mcpUi.next.title"));
   const envTitle = E(L("mcpUi.env.title"));
 
-  const envIdText = status.envId ? E(status.envId) : E(L("mcpUi.status.unset"));
-
   return `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -176,9 +174,15 @@ body {
 }
 /* Fill whatever the host gives us; 860px is where one column of rows still reads well. */
 .panel { width: 100%; max-width: 860px; margin: 0 auto; padding: 16px; }
-.brand { height: 44px; display: flex; align-items: center; margin: 0 0 12px; }
+.brand { height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
 .brand-l { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.brand-r { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.brand-env { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 500; color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+button.icon-btn { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+button.icon-btn svg { width: 14px; height: 14px; display: block; }
 .logo { display: inline-flex; flex: 0 0 auto; }
 .logo svg { width: 20px; height: 20px; display: block; }
 .t1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -306,6 +310,12 @@ pre {
 </svg></span>
 <span class="brand-name">CloudBase</span>
 </span>
+<span class="brand-r">
+<span class="brand-env" id="brand-env">${status.envId ? E(status.envId) : ""}</span>
+<button class="icon-btn" type="button" id="btn-copy-env"${status.envId ? "" : " hidden"} title="${E(L("mcpUiCredits.brand.copyEnvId"))}" aria-label="${E(L("mcpUiCredits.brand.copyEnvId"))}">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+</button>
+</span>
 </div>
 <section class="card">
 <div class="t1">
@@ -318,8 +328,7 @@ pre {
 </div>
 <div class="kv">
 <div class="row"><p class="k">${E(L("mcpUi.status.place"))}</p><p class="v${placeText ? "" : " idle"}" id="k-place">${placeText ? E(placeText) : E(L("mcpUi.status.placeUnknown"))}</p></div>
-<div class="row"><p class="k">${E(L("mcpUi.status.scope"))}</p><p class="v idle" id="k-scope">${E(L("mcpUi.status.scopeAfterLogin"))}</p></div>
-<div class="row wide"><p class="k">${E(L("mcpUi.status.envId"))}</p><p class="v mono${status.envId ? "" : " idle"}" id="k-env">${envIdText}</p></div>
+<div class="row wide"><p class="k">${E(L("mcpUi.status.scope"))}</p><p class="v idle" id="k-scope">${E(L("mcpUi.status.scopeAfterLogin"))}</p></div>
 </div>
 <details id="raw-box" hidden>
 <summary>${rawLabel}</summary>
@@ -450,7 +459,7 @@ pre {
   var stQual = document.getElementById("st-qual");
   var kPlace = document.getElementById("k-place");
   var kScope = document.getElementById("k-scope");
-  var kEnv = document.getElementById("k-env");
+  var currentEnvId = FALLBACK.env;
   var rawBox = document.getElementById("raw-box");
   var rawOut = document.getElementById("raw-out");
   var nxLabel = document.getElementById("nx-label");
@@ -786,6 +795,31 @@ ${CREDENTIAL_GUARD_JS}
         reportSize();
       });
   }
+  function paintEnvId(env) {
+    currentEnvId = env || "";
+    var node = el("brand-env");
+    setText(node, currentEnvId || T.statusUnset);
+    var btn = el("btn-copy-env");
+    if (btn) { btn.hidden = !currentEnvId; }
+  }
+  function copyText(text) {
+    if (!text) { return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+      return;
+    }
+    try {
+      var area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "readonly");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      document.body.removeChild(area);
+    } catch (error) { /* clipboard denied */ }
+  }
   function render(payload) {
     var state = STATES[stateKey(payload)];
     current = state;
@@ -813,10 +847,7 @@ ${CREDENTIAL_GUARD_JS}
     var env = hasField(payload, "current_env_id")
       ? (typeof payload.current_env_id === "string" ? payload.current_env_id : "")
       : FALLBACK.env;
-    if (kEnv) {
-      kEnv.className = env ? "v mono" : "v mono idle";
-      setText(kEnv, env || T.statusUnset);
-    }
+    paintEnvId(env);
     var envShown = renderEnvs(payload);
     setText(nxLabel, state === STATES.unbound && envShown ? T.nextLabelUnboundList : state.label);
     setText(nxWhy, state.why);
@@ -966,6 +997,12 @@ ${CREDENTIAL_GUARD_JS}
         showError(T.actionError);
         reportSize();
       });
+    });
+  }
+  var copyEnvBtn = el("btn-copy-env");
+  if (copyEnvBtn) {
+    copyEnvBtn.addEventListener("click", function () {
+      copyText(currentEnvId);
     });
   }
   if (mainBtn) {

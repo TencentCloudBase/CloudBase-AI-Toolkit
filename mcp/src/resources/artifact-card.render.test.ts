@@ -312,27 +312,25 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(panel.el("btn-redeploy").hidden).toBe(false);
   });
 
-  it("品牌条：别名 + 套餐 Tag + 复制环境 ID（ID 只在 title 里，不常驻正文）", () => {
+  it("品牌条：环境 ID 在复制按钮旁，套餐 Tag 仍在", () => {
     const panel = render(payloadDeploying());
 
-    expect(panel.el("brand-alias").textContent).toBe("生产环境");
-    expect(panel.el("brand-alias").title).toBe(`${L("mcpUiArtifact.brand.envIdLabel")}: my-env-3gk9ab`);
+    expect(panel.el("brand-alias").textContent).toBe("my-env-3gk9ab");
+    expect(panel.el("brand-alias").title).toBe(L("mcpUiCredits.brand.copyEnvId"));
     expect(panel.el("brand-plan").hidden).toBe(false);
     expect(panel.el("brand-plan").textContent).toBe(L("mcpUiCredits.plan.personal"));
     expect(panel.el("btn-copy-env").hidden).toBe(false);
-    // 环境 ID 不出现在正文的任何可见位置（只有品牌条 hover 的 title 与折叠区）
     for (const id of ["c-hint", "k-place", "k-url", "st-text"]) {
       expect(panel.el(id).textContent).not.toContain("my-env-3gk9ab");
     }
-    expect(panel.el("brand-alias").textContent).not.toContain("my-env-3gk9ab");
     expect(panel.el("brand-plan").textContent).not.toContain("my-env-3gk9ab");
   });
 
-  it("降级：别名拿不到时回退站点人话；环境 ID 拿不到时隐藏复制按钮", () => {
+  it("降级：载荷没有环境 ID 时用服务端兜底 ID，不回退成站点名", () => {
     const panel = render(buildArtifactCardPayload({ ...BASE, success: true, accessUrl: PUBLIC_URL, accessUrlSource: "hosting.staticDomain" }));
 
-    // 没有 env_id 的载荷 → 面板用服务端解析出的兜底环境 ID，别名回退站点人话
-    expect(panel.el("brand-alias").textContent).toBe(L("mcpUi.site.domestic"));
+    expect(panel.el("brand-alias").textContent).toBe("my-env-3gk9ab");
+    expect(panel.el("brand-alias").textContent).not.toBe(L("mcpUi.site.domestic"));
     expect(panel.el("brand-plan").hidden).toBe(true);
   });
 
@@ -530,7 +528,7 @@ describe("artifact-card 面板脚本运行时（载荷驱动）", () => {
     expect(panel.el("st-dot").className).toContain("err");
     // 身份保留（否则用户不知道"什么失败了"）：标题里的产物名 + 环境 ID 都还在
     expect(panel.el("c-title").textContent).toContain("my-blog");
-    expect(panel.el("brand-alias").title).toContain("my-env-3gk9ab");
+    expect(panel.el("brand-alias").textContent).toContain("my-env-3gk9ab");
     expect(panel.el("btn-copy-env").hidden).toBe(false);
     // 但不留旧地址（那属于上一次结果），也不给「打开」
     expect(panel.el("f-url").hidden).toBe(true);
