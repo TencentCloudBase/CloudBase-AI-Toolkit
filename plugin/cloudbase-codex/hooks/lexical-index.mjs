@@ -3,6 +3,7 @@
 // Supports Chinese + English synonyms. Adapted from Vercel plugin concept.
 import { join } from "path";
 import { pluginRoot, safeReadJson } from "./hook-env.mjs";
+import { hasPromptTerm, normalizePromptText } from "./prompt-patterns.mjs";
 
 // Load synonyms from generated/synonyms.json (external config)
 function loadSynonymMap() {
@@ -46,7 +47,7 @@ function expandTerms(terms) {
     expanded.add(lower);
     // Add synonyms
     for (const [key, synonyms] of Object.entries(SYNONYM_MAP)) {
-      if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
+      if (hasPromptTerm(lower, key) || hasPromptTerm(key, lower)) {
         for (const syn of synonyms) {
           expanded.add(syn.toLowerCase());
         }
@@ -85,8 +86,8 @@ export function searchSkills(query, index, options = {}) {
               break;
             }
           } else {
-            // Longer terms: substring match is OK
-            if (fieldTerm.includes(queryTerm) || queryTerm.includes(fieldTerm)) {
+            // Preserve English token boundaries in longer phrases too.
+            if (hasPromptTerm(fieldTerm, queryTerm) || hasPromptTerm(queryTerm, fieldTerm)) {
               score += FIELD_BOOSTS[field] || 1;
               break; // Only count once per field
             }
@@ -107,12 +108,12 @@ export function searchSkills(query, index, options = {}) {
 
 function normalizeQuery(query) {
   if (typeof query !== "string") return "";
-  let q = query.toLowerCase().trim();
+  let q = normalizePromptText(query);
   // Expand synonyms in query — add all matching synonym groups (not just first)
   for (const [key, synonyms] of Object.entries(SYNONYM_MAP)) {
-    if (q.includes(key.toLowerCase())) continue; // Key already in query
+    if (hasPromptTerm(q, key)) continue; // Key already in query
     for (const syn of synonyms) {
-      if (q.includes(syn.toLowerCase())) {
+      if (hasPromptTerm(q, syn)) {
         q = q + " " + key.toLowerCase();
         break; // This synonym group matched, move to next group
       }
@@ -125,14 +126,14 @@ function expandQueryTerms(terms) {
   const expanded = new Set(terms);
   for (const term of terms) {
     for (const [key, synonyms] of Object.entries(SYNONYM_MAP)) {
-      if (term.includes(key.toLowerCase()) || key.toLowerCase().includes(term)) {
+      if (hasPromptTerm(term, key) || hasPromptTerm(key, term)) {
         for (const syn of synonyms) {
           expanded.add(syn.toLowerCase());
         }
       }
       // Check if term matches a synonym
       for (const syn of synonyms) {
-        if (term.includes(syn.toLowerCase()) || syn.toLowerCase().includes(term)) {
+        if (hasPromptTerm(term, syn) || hasPromptTerm(syn, term)) {
           expanded.add(key.toLowerCase());
           for (const s of synonyms) {
             expanded.add(s.toLowerCase());

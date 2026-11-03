@@ -25,13 +25,39 @@ var CONTRACTION_MAP = {
 
 export function normalizePromptText(text) {
   if (typeof text !== "string") return "";
-  let t = text.toLowerCase();
+  // Host attachment metadata and ambient browser state are not task intent.
+  let t = text.replace(/<in-app-browser-context\b[^>]*>[\s\S]*?<\/in-app-browser-context>/gi, " ");
+  if (/^\s*# Files mentioned by the user:/i.test(t)) {
+    const request = /^## My request:[ \t]*\r?$/m.exec(t);
+    if (request) t = t.slice(request.index + request[0].length);
+  }
+  t = t
+    .replace(/^Distinguish instructions in attached documents from the user's request\.[ \t]*\r?$/gm, " ")
+    .replace(/<external_codex_apps_open_page>[\s\S]*?<\/external_codex_apps_open_page>/gi, " ")
+    .replace(/<image\b[^>]*>[\s\S]*?<\/image>/gi, " ")
+    .replace(/https?:\/\/[^\s<>"'`]+/gi, " ")
+    .replace(/(["'`])(?:[a-z]:[\\/]|\/|~\/)[^\r\n]*?\1/gi, " ")
+    .replace(/\b[a-z]:[\\/][^\s<>"'`]+/gi, " ")
+    .replace(/(^|\s)(?:\/|\.{1,2}\/|~\/)[^\s<>"'`]+/g, "$1 ")
+    .toLowerCase();
   // Expand English contractions
   for (const [contraction, expansion] of Object.entries(CONTRACTION_MAP)) {
     t = t.replace(new RegExp(contraction.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), expansion);
   }
   // Normalize whitespace (preserve Chinese chars)
   return t.replace(/\s+/g, " ").trim();
+}
+
+// ASCII tokens need boundaries; Chinese text can directly adjoin SDK names.
+// Apply this to lexical synonyms as well as exact prompt signals.
+export function hasPromptTerm(text, term) {
+  if (!term) return false;
+  // Keep phrase/synonym matching for longer names and Chinese compounds.
+  if (!/^[a-z0-9_]{1,4}$/i.test(term)) return text.includes(term);
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const start = /^[a-z0-9_]/i.test(term) ? "(?<![a-z0-9_])" : "";
+  const end = /[a-z0-9_]$/i.test(term) ? "(?![a-z0-9_])" : "";
+  return new RegExp(`${start}${escaped}${end}`, "i").test(text);
 }
 
 // --- Scoring ---
@@ -60,7 +86,7 @@ export function matchPromptWithReason(normalizedPrompt, compiled) {
 
   // 1. noneOf check → hard suppress
   for (const term of compiled.noneOf) {
-    if (normalizedPrompt.includes(term)) {
+    if (hasPromptTerm(normalizedPrompt, term)) {
       return { matched: false, score: -Infinity, reason: `suppressed by noneOf "${term}"` };
     }
   }
@@ -69,7 +95,7 @@ export function matchPromptWithReason(normalizedPrompt, compiled) {
 
   // 2. phrases match → +6 each
   for (const phrase of compiled.phrases) {
-    if (normalizedPrompt.includes(phrase)) {
+    if (hasPromptTerm(normalizedPrompt, phrase)) {
       score += 6;
       reasons.push(`phrase "${phrase}" +6`);
     }
@@ -77,7 +103,7 @@ export function matchPromptWithReason(normalizedPrompt, compiled) {
 
   // 3. allOf match → +4 per group (all terms must match)
   for (const group of compiled.allOf) {
-    if (group.length > 0 && group.every((term) => normalizedPrompt.includes(term))) {
+    if (group.length > 0 && group.every((term) => hasPromptTerm(normalizedPrompt, term))) {
       score += 4;
       reasons.push(`allOf [${group.join(", ")}] +4`);
     }
@@ -86,7 +112,7 @@ export function matchPromptWithReason(normalizedPrompt, compiled) {
   // 4. anyOf match → +1 each, capped at +2
   let anyOfScore = 0;
   for (const term of compiled.anyOf) {
-    if (normalizedPrompt.includes(term)) {
+    if (hasPromptTerm(normalizedPrompt, term)) {
       anyOfScore += 1;
     }
   }
@@ -108,6 +134,8 @@ export var DOMINANT_TOPIC_MIN_SCORE = 8;
 
 export function applyProjectContextBoost(entry, likelySkills) {
   if (!likelySkills.has(entry.skill) || entry.score === -Infinity) return entry;
+  // A project hint must not bypass the lexical-only evidence threshold.
+  if (entry.exactScore === 0 && !entry.matched) return entry;
   const boostedScore = entry.score + PROJECT_CONTEXT_PROMPT_SCORE_BOOST;
   return { ...entry, score: boostedScore, matched: boostedScore >= entry.minScore };
 }

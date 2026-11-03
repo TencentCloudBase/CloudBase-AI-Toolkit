@@ -21,6 +21,12 @@ var METRICS_ALARM_RE = /\b(?:peak\s+qps|qps\s+peak|cpu\s+alert|access_token_inva
 var CN_METRICS_ALARM_RE = /(峰值\s*qps|峰值qps|cpu\s*告警|告警是否正常|限频|被限流|调用量为\s*0|调用量是\s*0|调用量为0|调用量\s*为\s*零|access_token_invalid|\b429\b)/i;
 
 export function classifyTroubleshootingIntent(normalizedPrompt) {
+  // Conditional assistance instructions do not report an existing fault.
+  // Stop at the instruction so a subsequent actual fault remains visible.
+  normalizedPrompt = normalizedPrompt
+    .replace(/(?:如果|若|遇到|有问题)[^。！？!?；;]{0,160}?(?:问我|告诉我|联系我|提醒我)/g, " ")
+    .replace(/\bif\b[^.!?;]{0,160}?\b(?:ask me|let me know|tell me|contact me)\b/g, " ");
+
   // Suppress if test framework mentioned
   if (TEST_FRAMEWORK_RE.test(normalizedPrompt) || CN_TEST_RE.test(normalizedPrompt)) {
     return { intent: null, skills: [], reason: "suppressed by test framework mention" };
