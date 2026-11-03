@@ -152,6 +152,28 @@ describe("skill-manifest.json", () => {
       }
     }
   });
+
+  it("ships path and command patterns for the CloudBase-only file markers", () => {
+    const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+    const pathSources = (name) => manifest.skills[name]?.pathRegexSources || [];
+    const bashSources = (name) => manifest.skills[name]?.bashPatterns || [];
+
+    expect(pathSources("cloudbase-declarative-deploy")).toContain("^.*/cloudbaserc\\.json$");
+    expect(pathSources("cloudbase-declarative-deploy")).toContain("^cloudbaserc\\.json$");
+    expect(pathSources("cloud-functions")).toContain("^.*/cloudfunctions/.*$");
+    expect(pathSources("miniprogram-development")).toContain("^.*/project\\.config\\.json$");
+    expect(bashSources("cloudbase-cli").length).toBeGreaterThan(0);
+
+    // Precision guard: the generic web surface must not be a file trigger,
+    // otherwise every React repo the plugin is installed in starts injecting.
+    for (const [name, skill] of Object.entries(manifest.skills)) {
+      for (const source of skill.pathRegexSources || []) {
+        expect(source, `${name} must not trigger on generic source globs`).not.toMatch(
+          /\^\.\*\/\.\*\.[a-z]+\$/,
+        );
+      }
+    }
+  });
 });
 
 describe("skill-metadata.json", () => {
@@ -363,5 +385,36 @@ describe("build-skill-manifest.mjs script", () => {
     expect(manifest.skills["frontmatter-skill"].promptSignals.phrases).toEqual(["from-frontmatter"]);
     expect(manifest.skills["previous-skill"].promptSignals.phrases).toEqual(["from-previous"]);
     expect(manifest.skills["previous-skill"].metadata.priority).toBe(4);
+  });
+
+  it("reads tool-hook patterns from skill-metadata.json, not from synced frontmatter", () => {
+    const tmp = makeTempDir();
+    const skillsDir = join(tmp, "skills");
+    const metadataPath = join(tmp, "skill-metadata.json");
+    const outputPath = join(tmp, "generated", "skill-manifest.json");
+
+    // SKILL.md here stands in for a file the upstream skills sync just rewrote:
+    // it carries no metadata block at all.
+    writeSkill(skillsDir, "host-skill", ["name: host-skill", "description: synced body"].join("\n"));
+    writeMetadata(metadataPath, {
+      "host-skill": {
+        priority: 7,
+        pathPatterns: ["**/cloudbaserc.json"],
+        bashPatterns: ["\\btcb\\s+deploy\\b"],
+        promptSignals: { phrases: ["host"], minScore: 6 },
+        retrieval: { aliases: ["host"], intents: [], entities: [], examples: [] },
+      },
+    });
+
+    const manifest = buildManifest({
+      skillsDir,
+      metadataPath,
+      outputPath,
+      previousSkills: {},
+      quiet: true,
+    });
+
+    expect(manifest.skills["host-skill"].pathRegexSources).toEqual(["^.*/cloudbaserc\\.json$"]);
+    expect(manifest.skills["host-skill"].bashPatterns).toEqual(["\\btcb\\s+deploy\\b"]);
   });
 });

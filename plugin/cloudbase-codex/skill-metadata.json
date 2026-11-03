@@ -533,6 +533,13 @@
     },
     "cloud-functions": {
       "priority": 8,
+      "pathPatterns": [
+        "**/cloudfunctions/**"
+      ],
+      "bashPatterns": [
+        "\\btcb\\s+(fn|functions)\\s+(deploy|list|invoke)\\b",
+        "\\bcloudbase\\s+functions?\\s+(deploy|list)\\b"
+      ],
       "promptSignals": {
         "phrases": [
           "云函数",
@@ -753,6 +760,9 @@
     },
     "cloudbase-cli": {
       "priority": 6,
+      "bashPatterns": [
+        "\\btcb\\s+[a-z]"
+      ],
       "promptSignals": {
         "phrases": [
           "tcb 命令",
@@ -888,6 +898,13 @@
     },
     "cloudbase-declarative-deploy": {
       "priority": 6,
+      "pathPatterns": [
+        "**/cloudbaserc.json",
+        "cloudbaserc.json"
+      ],
+      "bashPatterns": [
+        "\\btcb\\s+(framework\\s+)?deploy\\b"
+      ],
       "promptSignals": {
         "phrases": [
           "声明式部署",
@@ -1402,6 +1419,11 @@
     },
     "miniprogram-development": {
       "priority": 8,
+      "pathPatterns": [
+        "**/project.config.json",
+        "project.config.json",
+        "**/miniprogram/**"
+      ],
       "promptSignals": {
         "phrases": [
           "小程序开发",
@@ -1589,7 +1611,8 @@
           "建表",
           "创建表",
           "mysql 存储",
-          "mysql 数据库"
+          "mysql 数据库",
+          "pgsql"
         ],
         "allOf": [
           [
@@ -1624,7 +1647,8 @@
         "aliases": [
           "postgresql",
           "postgres",
-          "cloudbase pg"
+          "cloudbase pg",
+          "pgsql"
         ],
         "intents": [
           "pg 数据库开发",
