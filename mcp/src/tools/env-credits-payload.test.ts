@@ -9,7 +9,6 @@ import {
   downsampleMetricIndices,
   formatCurveTime,
   isBillingExpired,
-  isCreditsSumComplete,
   mapCreditsModules,
   METRICS_SPARK_MAX_POINTS,
   moduleKeyOf,
@@ -17,6 +16,7 @@ import {
   resolveIsolatedDaysLeft,
   resolvePlanCode,
   sumCreditsValue,
+  sumDeductValue,
   PLAN_CREDITS_TOTAL,
   type CreditsUsageLike,
 } from "./env-credits-payload.js";
@@ -24,6 +24,7 @@ import {
 const SCF: CreditsUsageLike = {
   Module: "SCF",
   CreditsValue: 12,
+  DeductValue: 12,
   MetricUsageDetail: [
     {
       ValueDetailList: [
@@ -37,6 +38,7 @@ const SCF: CreditsUsageLike = {
 const COS: CreditsUsageLike = {
   Module: "COS",
   CreditsValue: 30,
+  DeductValue: 30,
   MetricUsageDetail: [
     {
       ValueDetailList: [
@@ -325,13 +327,14 @@ describe("用量换算", () => {
     ]);
   });
 
-  it("求和完整性：每个条目都有有限聚合值才算完整（空列表完整、拿不到列表不完整）", () => {
-    expect(isCreditsSumComplete([])).toBe(true);
-    expect(isCreditsSumComplete([SCF, COS])).toBe(true);
-    expect(isCreditsSumComplete(null)).toBe(false);
-    expect(isCreditsSumComplete(undefined)).toBe(false);
-    expect(isCreditsSumComplete([{ Module: "SCF" }])).toBe(false);
-    expect(isCreditsSumComplete([SCF, { Module: "COS" }])).toBe(false);
+  it("套餐内用量求和：任一条目缺 DeductValue 就整体不可用（不拿部分和凑）", () => {
+    expect(sumDeductValue([])).toBe(0);
+    expect(sumDeductValue([SCF, COS])).toBe(42);
+    expect(sumDeductValue(null)).toBeNull();
+    expect(sumDeductValue(undefined)).toBeNull();
+    expect(sumDeductValue([{ Module: "SCF" }])).toBeNull();
+    // 一条有、一条没有 ⇒ 不返回 12 这种部分和
+    expect(sumDeductValue([SCF, { Module: "COS", CreditsValue: 30 }])).toBeNull();
   });
 
   it("spark 按 CalcTime 汇总并只留最近 7 个点", () => {
@@ -513,6 +516,46 @@ describe("buildEnvCreditsPayload", () => {
     expect(payload.modules).toHaveLength(2);
     expect(payload.spark).toHaveLength(3);
     expect(payload.isolated_days_left).toBeUndefined();
+  });
+
+  it("分子取套餐内用量 DeductValue（不是总消耗 CreditsValue）：控制台 79% 不能被读成 88%", () => {
+    // 2026-11-04 线上报告的形状：PG 环境分模块总消耗 3.5 万点，套餐内只扣了 3.1 万点，
+    // 差额是被按量计费 / 免费额度吃掉的部分。拿总消耗除 40000 配额会把用量算多。
+    const payload = buildEnvCreditsPayload({
+      envId: "env-pg",
+      planRaw: "baas_personal",
+      usages: [
+        { Module: "PostgreSQL", CreditsValue: 16900, DeductValue: 15000 },
+        { Module: "SCF", CreditsValue: 59, DeductValue: 59 },
+        { Module: "Other", CreditsValue: 17540, DeductValue: 15000 },
+      ],
+      site: "domestic",
+      region: "ap-shanghai",
+      expired: false,
+    });
+
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.personal, used: 30059 });
+    // 分模块行仍是该模块的总消耗（与控制台「功能用量概览」同口径）→ 行之和不必等于 used
+    expect(payload.modules).toEqual([
+      { module: "database", credits_value: 16900 },
+      { module: "functions", credits_value: 59 },
+      { module: "other", credits_value: 17540 },
+    ]);
+  });
+
+  it("读不到套餐口径（没有 DeductValue）⇒ 退回总消耗展示，但不与配额相除", () => {
+    const payload = buildEnvCreditsPayload({
+      envId: "env-legacy",
+      planRaw: "baas_personal",
+      usages: [{ Module: "SCF", CreditsValue: 12 }],
+      site: "domestic",
+      region: "ap-shanghai",
+      expired: false,
+    });
+
+    expect(payload.credits).toEqual({ used: 12 });
+    expect(payload.credits).not.toHaveProperty("total");
+    expect(payload.branch).toBe("unknown");
   });
 
   it("付费套餐的 total 来自配额表（个人版 40000）；套餐码认不出才不传 credits", () => {

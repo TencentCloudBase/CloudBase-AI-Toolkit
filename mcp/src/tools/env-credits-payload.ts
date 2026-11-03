@@ -15,6 +15,9 @@ import type { CreditsBranch, EnvCreditsPayload, EnvMetricsPayload, MetricsState,
  *      因为那时的 `used` 是子集而 `total` 是全量，两个放一起会得出错误结论）；`CreditsValue` 缺失
  *      的条目**跳过**、绝不当 0；total 来自 `PLAN_CREDITS_TOTAL` 这张**有官方出处**的常量表，
  *      套餐码认不出就不传 total，不拿默认值兜底；余额没有只读来源就传 null，不为它新增调用。
+ *      **分子的口径必须和分母一致**：配额是"套餐内"点数，所以 `used` 取 `DeductValue`
+ *      （套餐内用量），不取 `CreditsValue`（总消耗，含按量计费与被免费额度抵扣掉的部分）——
+ *      两者实测能差 10% 以上，混用会把 79% 读成 46%（见 `sumDeductValue`）。
  *   3. **不新增依赖 / 不发请求**：这里只做纯换算。
  */
 
@@ -109,6 +112,11 @@ export function moduleKeyOf(raw: string): CreditsModuleKey {
  */
 function finiteCreditsValue(item: { CreditsValue?: unknown } | null | undefined): number | null {
   const value = item?.CreditsValue;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function finiteDeductValue(item: { DeductValue?: unknown } | null | undefined): number | null {
+  const value = item?.DeductValue;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
@@ -210,26 +218,13 @@ export function resolveCreditsBranch(input: CreditsBranchInput): CreditsBranch {
 /** SDK 用量条目里本模块真正读到的部分（`EnvPkgCreditsUsage` 的最小子集）。 */
 export interface CreditsUsageLike {
   Module?: string;
+  /** 本模块总消耗（含按量计费、含被免费额度抵扣的部分）。分模块展示用这个。 */
   CreditsValue?: number;
+  /** 本模块**套餐内**用量 —— 与 `PLAN_CREDITS_TOTAL` 同口径，进度条用这个。 */
+  DeductValue?: number;
   MetricUsageDetail?: Array<{
     ValueDetailList?: Array<{ CalcTime?: string; CreditsValue?: number }>;
   }> | null;
-}
-
-/**
- * 求和是否**完整**：数组存在、且**每个**条目都带有限数 `CreditsValue`。
- *
- * 空列表视为完整（没有条目缺失，和为真实的 0）；拿不到列表视为不完整。
- * 不完整的和不配拿去做结论——部分和配全量配额会得出错误的"用量正常"（与"按 type 过滤"
- * 是同一类问题），所以调用方要据此省略 `total` 并把结论压成 `unknown`。
- */
-export function isCreditsSumComplete(
-  usages?: ReadonlyArray<CreditsUsageLike> | null,
-): boolean {
-  if (!Array.isArray(usages)) {
-    return false;
-  }
-  return usages.every((item) => finiteCreditsValue(item) !== null);
 }
 
 /**
@@ -262,13 +257,47 @@ export function sumCreditsValue(
 }
 
 /**
+ * `Usages[].DeductValue` 求和 —— 资源点**套餐内**用量，与控制台「套餐资源点 X / Y」同口径，
+ * 也是唯一能拿去对 `PLAN_CREDITS_TOTAL` 做百分比的分母口径。
+ *
+ * 为什么不用 `CreditsValue`：它是**总消耗**，把按量计费与被免费额度/资源包抵扣掉的部分都算进来，
+ * 比套餐内用量大。实测同一个环境同一周期：总消耗 35,281 点、套餐内 31,7xx 点（控制台 79%），
+ * 混用会把 79% 读成 46%（2026-11-04 线上报告）。
+ *
+ * 三种情况严格区分（与 `sumCreditsValue` 一致，但**缺失即整体不可用**，不做部分求和）：
+ *   - 列表拿不到 → `null`；
+ *   - 空列表 → `0`（查询成功、这一周期确实没用量）；
+ *   - 任一条目缺有限数 `DeductValue` → `null`：部分和配全量配额正是要避免的错误结论。
+ */
+export function sumDeductValue(
+  usages?: ReadonlyArray<CreditsUsageLike> | null,
+): number | null {
+  if (!Array.isArray(usages)) {
+    return null;
+  }
+  if (usages.length === 0) {
+    return 0;
+  }
+  let sum = 0;
+  for (const item of usages) {
+    const value = finiteDeductValue(item);
+    if (value === null) {
+      return null;
+    }
+    sum += value;
+  }
+  return sum;
+}
+
+/**
  * 分模块用量：模块码一律映射成**规范键**（认不出的落 `other`，绝不透传原始码），
  * 并且**按规范键聚合**——同一键的多条累加。
  *
  * 为什么必须聚合：默认查询（不传 `type`）是全模块，而 `EKS` / `HOSTING` / `VM` / `Workflow`
  * 等多个码都会落 `other`；不聚合的话面板会渲染成「其它 5 · 其它 3 · 其它 1」这种重复行。
- * 聚合只影响**展示行**，不改变 `used` 的来源口径（`used` 仍是 `sumCreditsValue` 逐条求和，
- * 两者数值一致）。
+ * 聚合只影响**展示行**。注意展示行与 `used` 的**口径不同、因此不必相等**：
+ * 行用 `CreditsValue`（该模块总消耗，含按量计费与免费额度抵扣），`used` 用 `DeductValue`
+ * （套餐内用量，与配额同口径）。控制台同样把这两者分开展示（「功能用量概览」vs「套餐资源点」）。
  *
  * 缺 `CreditsValue` 的条目跳过（不按 0 计）；一个模块都出不来则不传。行的顺序 = 各规范键
  * 首次出现的顺序。
@@ -399,7 +428,7 @@ export function resolveIsolatedDaysLeft(
  * 因为拿一个不完整的用量去对全量配额，会得出错误的"用量正常"：
  *   1. **按 `type` 过滤过**（`modulesFiltered`，由调用方显式传入、不靠模块数量猜）：
  *      `used` 只是被选模块的子集；
- *   2. **求和本身不完整**（任一 `Usages[]` 条目缺有限数 `CreditsValue`，见 `isCreditsSumComplete`）：
+ *   2. **求和本身不完整**（任一 `Usages[]` 条目缺有限数 `DeductValue`，见 `sumDeductValue`）：
  *      部分和。
  * 两种情形下 `credits` 只带 `used`（面板 `pct === null` 时不画进度条），`modules` / `spark`
  * 照常如实展示——曲线尤其不该因为条目级聚合值缺失而整条消失。
@@ -417,11 +446,16 @@ export function buildEnvCreditsPayload(input: {
   modulesFiltered?: boolean;
 }): EnvCreditsPayload {
   const filtered = input.modulesFiltered === true;
-  const sumComplete = isCreditsSumComplete(input.usages);
+  // 分子必须和分母同口径：分母是"套餐"配额，所以分子取 `DeductValue`（套餐内用量）。
+  // 拿 `CreditsValue`（总消耗）去除，会把用量算多（实测 35,281 / 40,000 显示成 88%，
+  // 控制台同口径是 31,7xx / 40,000 = 79%）。见 `sumDeductValue` 的注释。
+  const packageUsed = sumDeductValue(input.usages);
   // 两种情形都"不可下结论"
-  const comparable = !filtered && sumComplete;
+  const comparable = !filtered && packageUsed !== null;
   const { plan, plan_raw } = resolvePlanCode(input.planRaw);
-  const used = sumCreditsValue(input.usages);
+  // 套餐口径一条都读不到（老响应 / 非套餐计费的环境）→ 退回总消耗如实展示，
+  // 但因为 comparable 已是 false，`credits` 只带 `used`、不与配额相除。
+  const used = packageUsed ?? sumCreditsValue(input.usages);
   // 配额查表；数字不可比时不给 total，套餐码认不出也不给（见 PLAN_CREDITS_TOTAL，不拿默认值兜底）。
   const total = comparable && plan ? PLAN_CREDITS_TOTAL[plan] : null;
   const credits =

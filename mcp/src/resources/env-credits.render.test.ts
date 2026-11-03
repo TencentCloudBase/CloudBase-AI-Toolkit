@@ -205,7 +205,7 @@ const L = (key: string, params?: Record<string, string | number>) =>
 const usage = (Module: string, CreditsValue?: number, detail?: Array<[string, number]>): CreditsUsageLike =>
   ({
     Module,
-    ...(CreditsValue === undefined ? {} : { CreditsValue }),
+    ...(CreditsValue === undefined ? {} : { CreditsValue, DeductValue: CreditsValue }),
     ...(detail
       ? {
           MetricUsageDetail: [
