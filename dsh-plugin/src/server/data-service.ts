@@ -935,7 +935,19 @@ export function createCloudBaseDataService(
         return items;
       }
       const entries: UsageItem[] = Object.entries(rec(payload))
-        .filter(([key]) => ["FLEXDB", "TDSQL", "SCF", "EKS", "COS", "HOSTING", "Auth"].includes(key))
+        .filter(([key]) =>
+          [
+            "FLEXDB",
+            "TDSQL",
+            "PostgreSQL",
+            "SCF",
+            "EKS",
+            "COS",
+            "HOSTING",
+            "Auth",
+            "Token",
+          ].includes(key),
+        )
         .map(([key, value]) => formatUsageItem(key, stringifyUsage(value)));
       resultCache.set(`usage:${envId}`, entries);
       return entries;

@@ -12,6 +12,9 @@ describe("term-map", () => {
     expect(mapUsageModule("FLEXDB")).toBe("文档型数据库");
     expect(mapUsageModule("SCF")).toBe("云函数");
     expect(mapUsageModule("TDSQL")).toBe("数据库");
+    // PostgreSQL / Token 是 2026-11 补上的两个模块码，缺映射会让面板直接显示原始码
+    expect(mapUsageModule("PostgreSQL")).toBe("PostgreSQL 数据库");
+    expect(mapUsageModule("Token")).toBe("AI Token");
   });
 
   it("maps regions without exposing a bare Region field", () => {

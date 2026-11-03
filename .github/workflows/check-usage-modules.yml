@@ -1,0 +1,67 @@
+name: Check Usage Modules
+
+# `DescribeCreditsUsageDetail.Modules` 是必传且没有「全部」取值：少一个模块，那个模块的用量就整块消失
+# （2026-11-03：清单缺 PostgreSQL，PG 环境的「数据库」用量一直显示 0）。官方文档是唯一真源，
+# 这里每天比一次；漂移就开 issue（已存在则追加评论），不阻塞任何 PR。
+
+on:
+  schedule:
+    - cron: "10 3 * * *" # 每天 UTC 03:10（北京时间 11:10），错开 api-reference / crawl-docs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Compare modules with official docs
+        id: check
+        run: |
+          set +e
+          node scripts/check-usage-modules.mjs --json > "$RUNNER_TEMP/usage-modules.json" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/usage-modules.json"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "2" ]; then
+            echo "::warning::用量模块巡检抓取失败（不是漂移），跳过建 issue"
+          fi
+
+      - name: Open or update drift issue
+        if: steps.check.outputs.exit_code == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="$RUNNER_TEMP/issue.md"
+          {
+            echo "每天的用量模块巡检发现 \`ENV_USAGE_MODULE_VALUES\` 与官方文档不一致。"
+            echo
+            echo "文档：https://cloud.tencent.com/document/product/876/132934"
+            echo
+            echo '```json'
+            cat "$RUNNER_TEMP/usage-modules.json"
+            echo '```'
+            echo
+            echo "改 \`mcp/src/tools/env.ts\` 的 \`ENV_USAGE_MODULE_VALUES\`，同步 \`env-credits-payload.ts\` 的归类、"
+            echo "\`config/source/skills/cloudbase-cli/references/env.md\` 与 dsh-plugin 的模块名映射，然后重生成产物。"
+          } > "$body"
+
+          existing=$(gh issue list --state open --search 'in:title 用量模块枚举与官方文档不一致' --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file "$body"
+          else
+            gh issue create --title "用量模块枚举与官方文档不一致" --body-file "$body"
+          fi

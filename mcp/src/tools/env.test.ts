@@ -2646,6 +2646,7 @@ describe("env tools - queryEnv", () => {
           EnvId: "test-env-0000000000000000",
           Module: "SCF",
           CreditsValue: 12,
+          DeductValue: 12,
           MetricUsageDetail: [{ MetricName: "Invocations", Value: 3 }],
         },
       ],
@@ -2690,6 +2691,7 @@ describe("env tools - queryEnv", () => {
         {
           Module: "SCF",
           CreditsValue: 12,
+          DeductValue: 12,
         },
       ],
     });
@@ -2750,6 +2752,7 @@ describe("env tools - queryEnv", () => {
           EnvId: "env-credits",
           Module: "SCF",
           CreditsValue: 12,
+          DeductValue: 12,
           MetricUsageDetail: [
             { ValueDetailList: [{ CalcTime: "2026-08-01", CreditsValue: 12 }] },
           ],
@@ -2778,7 +2781,7 @@ describe("env tools - queryEnv", () => {
     // 文本回执完全不变
     expect(JSON.parse(result.content[0].text)).toMatchObject({
       EnvId: "env-credits",
-      Usages: [{ Module: "SCF", CreditsValue: 12 }],
+      Usages: [{ Module: "SCF", CreditsValue: 12, DeductValue: 12 }],
     });
     expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-credits" });
 
@@ -2885,7 +2888,7 @@ describe("env tools - queryEnv", () => {
       EndTime: "2026-08-31 23:59:59",
     });
     const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
-      Usages: [{ EnvId: "env-paid", Module: "FLEXDB", CreditsValue: 7 }],
+      Usages: [{ EnvId: "env-paid", Module: "FLEXDB", CreditsValue: 7, DeductValue: 7 }],
     });
     const describeEnvInfo = vi.fn().mockResolvedValue({
       EnvInfo: {
@@ -2915,7 +2918,7 @@ describe("env tools - queryEnv", () => {
     });
     const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
       // 被 type 过滤后只回 SCF 一项，而配额是全套餐的 —— 两个数放一起会得出错误结论
-      Usages: [{ EnvId: "env-filtered", Module: "SCF", CreditsValue: 12 }],
+      Usages: [{ EnvId: "env-filtered", Module: "SCF", CreditsValue: 12, DeductValue: 12 }],
     });
     const describeEnvInfo = vi.fn().mockResolvedValue({
       EnvInfo: {
@@ -2953,7 +2956,7 @@ describe("env tools - queryEnv", () => {
       EndTime: "2026-08-31 23:59:59",
     });
     const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
-      Usages: [{ EnvId: "env-degraded", Module: "SCF", CreditsValue: 3 }],
+      Usages: [{ EnvId: "env-degraded", Module: "SCF", CreditsValue: 3, DeductValue: 3 }],
     });
     const describeEnvInfo = vi.fn().mockRejectedValue(new Error("DescribeEnvInfo denied"));
     mockGetCloudBaseManager.mockResolvedValue({

@@ -136,16 +136,23 @@ export const LISTABLE_PACKAGE_IDS = [
 const LISTABLE_PACKAGE_ID_SET: ReadonlySet<string> = new Set(LISTABLE_PACKAGE_IDS);
 
 /**
- * Resource-usage modules aligned with tcb CLI `USAGE_MODULES`
- * (`tcb env usage` / `tcb env info --type`).
+ * Resource-usage modules accepted by `DescribeCreditsUsageDetail.Modules`.
+ *
+ * 出处：云 API 文档《获取资源点用量明细》`product/876/132934` 的 Modules 枚举（15 项）。
+ * **不要照抄 tcb CLI 的 `USAGE_MODULES`**——CLI ≤ 3.8.x 只有 13 项，缺 `PostgreSQL` / `Token`，
+ * 照抄会导致按模块查询时**整块用量消失**（PG 环境里最典型：数据库一行永远为 0）。
+ * `Modules` 是必传参数且没有「全部」取值（实测省略报 MissingParameter），所以新增模块
+ * 只能靠这份清单跟上，官方文档是唯一真源。
  */
 export const ENV_USAGE_MODULE_VALUES = [
   "FLEXDB",
   "TDSQL",
+  "PostgreSQL",
   "SCF",
   "EKS",
   "COS",
   "AI",
+  "Token",
   "HOSTING",
   "Auth",
   "APIInvocation",
