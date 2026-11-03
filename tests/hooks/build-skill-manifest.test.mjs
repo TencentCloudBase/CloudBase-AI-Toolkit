@@ -418,3 +418,28 @@ describe("build-skill-manifest.mjs script", () => {
     expect(manifest.skills["host-skill"].bashPatterns).toEqual(["\\btcb\\s+deploy\\b"]);
   });
 });
+
+describe("manifest stability", () => {
+  it("keeps generatedAt when a rebuild produces the same content", () => {
+    const tmp = makeTempDir();
+    const skillsDir = join(tmp, "skills");
+    const metadataPath = join(tmp, "skill-metadata.json");
+    const outputPath = join(tmp, "generated", "skill-manifest.json");
+
+    writeSkill(skillsDir, "stable-skill", ["name: stable-skill", "description: stable"].join("\n"));
+    writeMetadata(metadataPath, {
+      "stable-skill": {
+        priority: 6,
+        promptSignals: { phrases: ["stable"], minScore: 6 },
+        retrieval: { aliases: ["stable"], intents: [], entities: [], examples: [] },
+      },
+    });
+
+    buildManifest({ skillsDir, metadataPath, outputPath, quiet: true });
+    const first = readFileSync(outputPath, "utf-8");
+    buildManifest({ skillsDir, metadataPath, outputPath, quiet: true });
+    const second = readFileSync(outputPath, "utf-8");
+
+    expect(second).toBe(first);
+  });
+});
