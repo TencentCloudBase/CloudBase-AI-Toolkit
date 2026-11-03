@@ -56,6 +56,7 @@ export const initHelp = `cloudbase-sites init — bootstrap CloudBase + React/Vu
 Options:
   --template <name>   react (default) | vue
   --start             also start dev server after install (call cloudbase-sites preview)
+  --host <addr>       dev-server bind address when --start is used (default 127.0.0.1)
   --skip-install      download + extract only, no npm/pnpm install
 
 Refuses to run in danger blacklist dirs ($HOME, /, /tmp, ~/Desktop, ...).
@@ -117,7 +118,7 @@ export async function runInit(args) {
   let preview = null;
   if (args.start) {
     process.stderr.write(`[cloudbase-sites] starting preview…\n`);
-    preview = await runPreviewSubprocess();
+    preview = await runPreviewSubprocess(args);
   }
 
   emitOk(
@@ -221,12 +222,14 @@ function runInstall(cwd) {
   return r.status === 0;
 }
 
-async function runPreviewSubprocess() {
+async function runPreviewSubprocess(args = {}) {
   // Re-invoke own binary to call the preview verb. We use the binary path
   // via PATH (since the plugin host adds bin/ to PATH); fall back to absolute.
   const sitesBin = which("cloudbase-sites") || join(__dirname, "..", "..", "bin", "cloudbase-sites");
   return new Promise((resolve) => {
-    const c = spawn(sitesBin, ["preview"], { stdio: ["ignore", "pipe", "inherit"] });
+    const previewArgs = ["preview"];
+    if (args.host) previewArgs.push("--host", String(args.host));
+    const c = spawn(sitesBin, previewArgs, { stdio: ["ignore", "pipe", "inherit"] });
     let buf = "";
     c.stdout.on("data", (b) => { buf += b.toString(); });
     c.on("exit", () => {

@@ -93,8 +93,9 @@ you must not bypass them.
 
 4. **Never spawn `npm run dev` / `vite` / `vite build` yourself.** Dev-server
    lifecycle is the SessionStart + PostToolUse hooks. Build/deploy is
-   `cloudbase-sites deploy`. Bypassing them loses host=0.0.0.0, port allocation,
-   daemonization, version metadata, and deploy history.
+   `cloudbase-sites deploy`. Bypassing them loses the bind-address policy
+   (127.0.0.1 by default — exposing it is an explicit opt-in the user must ask
+   for), port allocation, daemonization, version metadata, and deploy history.
 
 5. **Data persistence: BaaS-first via Web SDK + MCP-managed schema — detect the env type FIRST.** Before any
    data-layer work, call cloudbase-mcp `queryEnv(action="info")` and branch on
@@ -272,6 +273,26 @@ read_url() {
   fi
 }
 
+# Helper: describe the dev-server bind when it is not loopback-only.
+# An exposed dev server has no authentication, so the model must not describe
+# the preview as local-only.
+read_bind_line() {
+  if command -v node >/dev/null 2>&1 && [ -f .cloudbase-sites/preview.json ]; then
+    node -e '
+      try {
+        const p = JSON.parse(require("fs").readFileSync(".cloudbase-sites/preview.json","utf8"));
+        const h = String(p.host || "127.0.0.1").toLowerCase();
+        const local = h === "127.0.0.1" || h === "localhost" || h === "::1" || h.startsWith("127.");
+        if (local) process.exit(0);
+        const urls = Array.isArray(p.networkUrls) && p.networkUrls.length
+          ? p.networkUrls.join(", ")
+          : "every interface (" + h + ")";
+        process.stdout.write("- **preview bind:** " + h + " — reachable from other hosts at " + urls + " with no authentication. Say so the first time you mention the preview; never call it local-only.\n");
+      } catch {}
+    ' 2>/dev/null
+  fi
+}
+
 # Helper: build a deployment status block from app.json.
 read_deploy_block() {
   if command -v node >/dev/null 2>&1 && [ -f .cloudbase-sites/app.json ]; then
@@ -310,6 +331,7 @@ if [ "$is_vite_project" = "1" ]; then
   if "$SITES_BIN" preview --status --quiet 2>/dev/null; then
     log "preview already running and healthy — reuse"
     URL="$(read_url)"
+    BIND_LINE="$(read_bind_line)"
     DEPLOY_LINES="$(read_deploy_block)"
     STATE_BLOCK="### Current cwd state
 
@@ -317,6 +339,7 @@ if [ "$is_vite_project" = "1" ]; then
 - **template:** vite-react/vue (existing)
 - **preview status:** running and healthy
 - **preview URL:** $URL
+$BIND_LINE
 - **first action:** confirm the URL with \`$SITES_BIN preview --status\` once before showing it to the user, then offer to open it in the host Browser / in-app browser.
 $DEPLOY_LINES"
     emit_context "$RULES_BLOCK

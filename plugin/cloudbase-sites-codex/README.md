@@ -136,6 +136,36 @@ starts `init --start` only for empty-enough directories. Set
 intentionally want automatic empty-folder scaffolding without waiting for the
 first prompt.
 
+## Dev-server bind address
+
+The preview dev server serves your project source with no authentication, so it
+listens on `127.0.0.1` (this machine only) by default. Every URL the plugin
+prints is that loopback URL.
+
+To reach the preview from another device — a phone, another laptop, a container
+host — opt in explicitly:
+
+```bash
+cloudbase-sites preview --restart --host 0.0.0.0   # all interfaces
+CLOUDBASE_SITES_HOST=0.0.0.0 cloudbase-sites preview --restart   # change the default
+```
+
+Remote and container hosts (`REMOTE_CONTAINERS`, `CODESPACES`,
+`GITPOD_WORKSPACE_ID`, `CLAUDE_CODE_REMOTE`, `CLOUDBASE_SITES_REMOTE`) opt in
+automatically, because a loopback-only bind is unreachable through their port
+forward. In every exposed case the CLI prints a warning with the reachable
+URLs, `preview --status` reports `exposed: true` and `networkUrls`, and the
+SessionStart context tells the assistant to say so instead of calling the
+preview local-only.
+
+Exposure lasts for the current dev-server process: a restart or a new session
+goes back to loopback unless `CLOUDBASE_SITES_HOST` (or a remote-host env var)
+says otherwise. That keeps a forgotten `--host 0.0.0.0` from outliving the
+reason you passed it.
+
+Only bind beyond loopback on a network you trust: anyone who can reach the port
+can read the project.
+
 Run the focused regression tests:
 
 ```bash
