@@ -24,30 +24,19 @@
 
 ## 最近更新
 
+**v2.37.x**（2026-11）
+
+- 诊断：底层报错改写成可执行的下一步；函数 CLS 错误带 RequestId 与两条并行自查路径；代码更新会说明 Status 仍在跑
+- 安全 / 云托管：客户端无法确认时，整块删除不再静默放行；云托管目标路径必须落在项目内，不能指向主机凭据目录
+- PostgreSQL：migrationVersion 须是真实日历时间；migrationDetail 只要 version；若干会误伤正常调用的路径与 SQL 校验已放宽
+- 生态：新增 Codex 插件变体（Agent Plugins 格式）；通义千问技能市场上架包；国内站 WorkBuddy 连接器包
+
 **v2.36.x**（2026-10）
 
 - MCP Apps：三张面板（环境、环境用量、部署产物）默认开启，设 `CLOUDBASE_MCP_UI=off` 可以关掉
 - 安全：删除类操作、破坏性 SQL 与对应的 `callCloudApi` 删除动作会先停下来确认并点名目标；参数里出现疑似密钥时只核对长度与 sha256 指纹，不回显明文
 - 环境：用量面板新增指标视图（QPS、调用数、错误、超时、MySQL 与云托管负载），指标名一律用人话；工具面移除 MySQL 开通能力
 - 上手引导：`initialize` 响应带 `instructions`，第一步就是只读调用；远程接入文档改为 OAuth 优先
-
-**v2.35.x**（2026-10）
-
-- 托管 / 认证：托管 MCP 每个请求使用独立 transport，客户端元数据按凭据隔离缓存；项目级凭据优先于账号级登录态
-- 工具 / Skills：工具面移除 MySQL 开通能力；每个 skill 包在 `SKILL.md` 旁自带 `LICENSE.md`；新增 MCP 参考 skill，写明远程端点、插件开关与工具 schema
-- 反馈：`prepareFeedback` 改为返回仓库的新建 issue 页面，不再自动拼错误报告；托管服务器默认启用的插件集与本地一致
-- 上手引导 / 文档：`initialize` 响应现在带服务端 `instructions`（该先做的那个调用、首用顺序、可照抄的问法）；远程接入文档改为 OAuth 优先，只填地址即完成配置，密钥改为 CI 场景的写法
-
-**v2.34.x**（2026-09）
-
-- 多语言 / IDE：工具文案全量国际化，新增实例级 `lang` 与 `auth` 的 `site` / `region` 参数，国际站登录与地域路由更准确
-- 云 API：`callCloudApi` 服务白名单扩至 57 个并内置版本映射（`tke` / `mongodb` / `vod` 等多版本服务需显式传 `version`）
-- 部署 / 环境：新增 `appBuild` 工具与托管构建中和；`queryEnv` 如实回执 region 生效情况，`domains` 尊重传入的 envId
-- Skills / 文档：skill 兜底读取改指官方分发仓并返回 references 地址清单；cloudrun 增加 SDK-first 数据库访问决策闸门；官网文档链接改指站点当前 Markdown 寻址；专家包与部署 skill 在交付后可执行「部署分享」（脱敏、至多一次、可拒绝）
-- 部署 / 应用：云端上传通道可完整跑通（`deployApp` 接受 `getUploadUrl` 返回的时间戳，`getBuildLog` 接受部署返回的构建 ID）；网关路由创建前会校验上游资源是否存在
-- Skills / 上下文：新增 PostgreSQL 访问模式最佳实践 skill（批量读写、索引、RLS 角色门禁、上线容量）；`searchKnowledgeBase` 内联的 skill / OpenAPI 清单改为按需返回，43 个工具的常驻面在每次 `tools/list` 时缩小 9.1%
-- 运行态 / 托管：云托管 Function 模式不得监听 `PORT`（由函数框架绑定），并补上以 `CLOUDBASE_APIKEY` 为准的凭证决策门；静态托管的路径与前缀统一归一化，前导斜杠不再被误读成「目录为空」
-- 连接器：新增国际站 WorkBuddy 连接器 `cloudbase-intl`，与国内 `cloudbase` 共用 `config/source/**` 内容源（远程 `streamableHttp` + 标准 MCP OAuth，取代本地 stdio），构建时把中国站域名改写为国际站
 
 [Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 

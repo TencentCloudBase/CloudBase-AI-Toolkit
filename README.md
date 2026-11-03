@@ -24,30 +24,19 @@ The CloudBase integration layer for AI coding tools: Plugin installs the stack, 
 
 ## Recent updates
 
+**v2.37.x** (2026-11)
+
+- Diagnostics: opaque backend errors become next-step guidance; function CLS failures carry RequestId and two parallel self-check paths; code updates say when Status is still running
+- Safety / CloudRun: bulk deletes fail closed when the client cannot confirm; CloudRun target paths must stay inside the project and cannot point at host credential directories
+- PostgreSQL: migrationVersion must be a real calendar timestamp; migrationDetail only needs a version; several false-positive path and SQL guards are relaxed
+- Ecosystem: Codex plugin variant in Agent Plugins format; Qianwen skill-market packages; China-site WorkBuddy connector package
+
 **v2.36.x** (2026-10)
 
 - MCP Apps: three panels — environment, environment usage and deployment result — are on by default; set `CLOUDBASE_MCP_UI=off` to hide them
 - Safety: deletes, destructive SQL and the matching `callCloudApi` delete actions pause for a confirmation that names the target; a credential-shaped argument gets one delta check (length plus a sha256 fingerprint, never the value itself)
 - Environment: the usage panel gains a metrics view (QPS, invocations, errors, timeouts, MySQL and CloudRun load) with human names, and MySQL provisioning is retired from the tool surface
 - Onboarding: every `initialize` response carries `instructions` with the first read-only call to make; the remote setup docs now lead with OAuth
-
-**v2.35.x** (2026-10)
-
-- Hosted / Auth: each hosted MCP request runs on its own transport with client metadata cached per credential, and a project-level credential now takes precedence over the account login state
-- Tools / Skills: MySQL provisioning is retired from the tool surface; every skill package ships a `LICENSE.md` next to `SKILL.md`; a new MCP reference skill documents the remote endpoints, the plugin flags and the tool schemas
-- Feedback: `prepareFeedback` returns the repository's new-issue page instead of an auto-filled error report, and a hosted server now enables the same default plugin set as a local one
-- Onboarding / Docs: every `initialize` response now carries server `instructions` — the call to make first, the order a first run needs, and prompts that can be copied verbatim; the remote setup docs now lead with OAuth, so the URL alone is the configuration and a key pair is the CI path
-
-**v2.34.x** (2026-09)
-
-- i18n / IDE: full tool-copy localization with an instance-level `lang`, plus `auth` `site` / `region` params so international-site login and region routing resolve correctly
-- Cloud API: `callCloudApi` service allowlist widened to 57 with built-in version mapping (multi-version services such as `tke` / `mongodb` / `vod` require an explicit `version`)
-- Deploy / Env: new `appBuild` tool with hosting build neutralization; `queryEnv` reports the region actually applied and `domains` honors a passed envId
-- Skills / Docs: skill fallback reads now point at the official distribution repo with a references address list; SDK-first database decision gate for cloudrun; site doc links moved to the current Markdown addresses; post-deployment share offered after delivery in the expert packs and the deploy skills (opt-in, redacted, at most once)
-- Deploy / Apps: the cloud upload channel now completes end to end (`deployApp` accepts the timestamp `getUploadUrl` returns, `getBuildLog` accepts the build ID a deploy returns), and gateway route creation verifies the upstream exists before writing
-- Skills / Context: new PostgreSQL access-pattern best-practices skill (batching, indexes, RLS role gating, launch capacity); `searchKnowledgeBase`'s inline skill / OpenAPI catalogs now load on demand, cutting the 43-tool surface by 9.1% on every `tools/list`
-- Runtime / Hosting: CloudRun Function mode must not bind `PORT` (the function framework does) and gets a credential decision gate naming `CLOUDBASE_APIKEY`; hosting paths and prefixes are normalized so a leading slash can no longer read as an empty directory
-- Connectors: the international-site WorkBuddy connector (`cloudbase-intl`) is built from the same `config/source/**` corpus as the domestic one — remote `streamableHttp` with standard MCP OAuth instead of local stdio, with China-site hosts rewritten to their international equivalents
 
 [Releases][changelog] · [Star][github-stars-link] · Watch → Releases
 
