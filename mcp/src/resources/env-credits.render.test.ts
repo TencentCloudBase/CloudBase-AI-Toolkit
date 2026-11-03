@@ -745,7 +745,7 @@ describe("env-credits 面板脚本运行时", () => {
     panel.dispatch({ content: [{ type: "text", text: "<b>NOT-JSON-MARKER</b>" }] });
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.notCredits"));
     expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.notCredits"));
-    expect(panel.el("c-hint").textContent).not.toContain("资源点是否充足");
+    expect(panel.el("c-hint").textContent).not.toContain("无法确认资源点是否充足");
     expect(panel.el("brand-alias").textContent).toBe("my-env-3gk9ab");
     expect(panel.el("btn-main").hidden).toBe(true);
     expect(panel.el("c-hint").textContent).not.toContain("NOT-JSON-MARKER");
