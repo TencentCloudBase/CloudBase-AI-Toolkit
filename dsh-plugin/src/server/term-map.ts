@@ -17,10 +17,12 @@ const REGION_LABEL: Record<string, string> = {
 const USAGE_MODULE_LABEL: Record<string, string> = {
   FLEXDB: "文档型数据库",
   TDSQL: "数据库",
+  PostgreSQL: "PostgreSQL 数据库",
   SCF: "云函数",
   EKS: "云托管",
   COS: "对象存储",
   AI: "AI",
+  Token: "AI Token",
   HOSTING: "静态托管",
   Auth: "身份认证",
   APIInvocation: "API 调用",

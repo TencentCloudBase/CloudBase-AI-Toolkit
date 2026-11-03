@@ -51,6 +51,7 @@
     "prepare": "husky",
     "test:hosted-mcp:e2e": "vitest run tests/hosted-mcp-e2e/",
     "check:doc-en": "node scripts/check-doc-en-parity.mjs",
+    "check:usage-modules": "node scripts/check-usage-modules.mjs",
     "analyze:skill-usage": "node scripts/analyze-skill-usage.mjs"
   },
   "devDependencies": {

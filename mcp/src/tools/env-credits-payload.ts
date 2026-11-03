@@ -65,23 +65,27 @@ export const CREDITS_MODULE_KEYS: readonly CreditsModuleKey[] = [
 /**
  * 云 API 模块码 → 规范键。按 `ENV_USAGE_MODULE_VALUES`（`env.ts`）逐项映射，
  * **只有含义明确（有官方依据）的才给具体键**：
- *   FLEXDB(文档型数据库) / TDSQL(关系型数据库) → database；SCF(云函数) → functions
+ *   FLEXDB(文档型数据库) / TDSQL(关系型数据库) / PostgreSQL(云开发 PG) → database；SCF(云函数) → functions
  *   COS(对象存储) → storage；AI → ai；Auth(身份认证) → auth
+ *   Token：模块下的指标是 `InputToken./OutputToken.<model>`、单位 tokens（实测 2026-11-04），
+ *     即大模型 token 消耗 → ai
  *   APIInvocation(小程序 / 云开发 API 调用) → api
  *   HTTPInvocation(HTTP 网关，资源点计费文档里是独立计费项) → http
  *   HOSTING(托管) → hosting；Workflow(工作流，独立计费项) → workflow
  *   EKS（无对应类目）/ VM（找不到能确认它指什么的出处）/ Other → other
  *     —— 不是"没看懂"，而是没有把握，按口径落 `other`（"其它"）而不是编一个不准的名字。
  *
- * 默认查询（不传 `type`）是**全模块**，所以这张表必须覆盖全部 13 个模块码；漏掉任何一个都会被
+ * 默认查询（不传 `type`）是**全模块**，所以这张表必须覆盖全部 15 个模块码；漏掉任何一个都会被
  * `?? "other"` 兜底，不会再原样透传给用户。
  */
 const MODULE_KEY_MAP: Record<string, CreditsModuleKey> = {
   FLEXDB: "database",
   TDSQL: "database",
+  POSTGRESQL: "database",
   SCF: "functions",
   COS: "storage",
   AI: "ai",
+  TOKEN: "ai",
   AUTH: "auth",
   APIINVOCATION: "api",
   HTTPINVOCATION: "http",

@@ -185,14 +185,16 @@ describe("用量换算", () => {
     expect(mapCreditsModules(null)).toBeUndefined();
   });
 
-  // 镜像 ENV_USAGE_MODULE_VALUES（env.ts）的全部 13 个码
+  // 镜像 ENV_USAGE_MODULE_VALUES（env.ts）的全部 15 个码
   const codes = [
     "FLEXDB",
     "TDSQL",
+    "PostgreSQL",
     "SCF",
     "EKS",
     "COS",
     "AI",
+    "Token",
     "HOSTING",
     "Auth",
     "APIInvocation",
@@ -230,9 +232,13 @@ describe("用量换算", () => {
     // 只有含义明确的才给具体键
     expect(moduleKeyOf("FLEXDB")).toBe("database");
     expect(moduleKeyOf("TDSQL")).toBe("database");
+    // PostgreSQL 是自己的模块码，不能因为「TDSQL 已经落 database」就漏掉它（漏掉 = PG 环境用量显示 0）
+    expect(moduleKeyOf("PostgreSQL")).toBe("database");
     expect(moduleKeyOf("SCF")).toBe("functions");
     expect(moduleKeyOf("COS")).toBe("storage");
     expect(moduleKeyOf("AI")).toBe("ai");
+    // Token 模块的指标是 InputToken./OutputToken.<model>（单位 tokens）→ 同属大模型消耗
+    expect(moduleKeyOf("Token")).toBe("ai");
     expect(moduleKeyOf("Auth")).toBe("auth");
     expect(moduleKeyOf("APIInvocation")).toBe("api");
     // 有官方依据的三项
