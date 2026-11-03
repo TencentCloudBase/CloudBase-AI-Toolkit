@@ -53,6 +53,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "[Ss]kill|searchKnowledgeBase",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-skill-usage.mjs\""
+          }
+        ]
+      }
     ]
   }
 }

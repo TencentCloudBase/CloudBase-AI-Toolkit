@@ -60,6 +60,16 @@ function loadPreviousSkills(outputPath) {
   return loadJsonObject(outputPath, "skills");
 }
 
+function readGeneratedAt(outputPath) {
+  if (!existsSync(outputPath)) return "";
+  try {
+    const parsed = JSON.parse(readFileSync(outputPath, "utf-8"));
+    return typeof parsed?.generatedAt === "string" ? parsed.generatedAt : "";
+  } catch {
+    return "";
+  }
+}
+
 export function loadSkillMetadata(metadataPath = defaultMetadataPath) {
   return loadJsonObject(metadataPath, "skills");
 }
@@ -264,9 +274,17 @@ export function buildManifest(options = {}) {
     throw err;
   }
 
+  // Keep the previous timestamp when nothing actually changed. Besides avoiding churn,
+  // it keeps the codex variant byte-identical: that copy is compared verbatim by
+  // build-open-plugin-spec --check, so a fresh timestamp on an unchanged build would
+  // report the variant as outdated after any test run that rebuilds the manifest.
+  const previousGeneratedAt = readGeneratedAt(outputPath);
+  const unchanged =
+    previousGeneratedAt !== "" && JSON.stringify(previousSkills) === JSON.stringify(skills);
+
   const manifest = {
     version: 2,
-    generatedAt: new Date().toISOString(),
+    generatedAt: unchanged ? previousGeneratedAt : new Date().toISOString(),
     skills,
   };
 

@@ -50,7 +50,8 @@
     "internal:prune-evidence": "bash scripts/internal-sync.sh prune-evidence",
     "prepare": "husky",
     "test:hosted-mcp:e2e": "vitest run tests/hosted-mcp-e2e/",
-    "check:doc-en": "node scripts/check-doc-en-parity.mjs"
+    "check:doc-en": "node scripts/check-doc-en-parity.mjs",
+    "analyze:skill-usage": "node scripts/analyze-skill-usage.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

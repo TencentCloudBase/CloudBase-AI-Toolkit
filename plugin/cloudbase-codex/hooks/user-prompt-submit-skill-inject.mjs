@@ -157,6 +157,8 @@ function main() {
   // Persist to audit log for offline analysis (CLOUDBASE_PLUGIN_AUDIT_LOG_FILE=off to disable)
   appendAuditLog({
     event: "user-prompt-submit",
+    sessionId,
+    channel: "UserPromptSubmit",
     prompt: prompt.slice(0, 500),
     injectedSkills: dedupedInjected,
     matchedSkills: reranked.matchedSkills,

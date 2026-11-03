@@ -124,6 +124,8 @@ function main() {
   // Persist to audit log for offline analysis
   appendAuditLog({
     event: "pretooluse-skill-inject",
+    sessionId,
+    channel: "PreToolUse",
     toolName,
     filePath: filePath.slice(0, 500),
     command: command.slice(0, 500),
