@@ -162,6 +162,8 @@ describe("t() interpolation and fallback", () => {
       expect(t("mcpUi.next.why.loggedOut", undefined, lang), `${lang} loggedOut`).toBe("");
       expect(t("mcpUi.next.why.failed", undefined, lang), `${lang} failed`).toBe("");
       expect(t("mcpUi.next.why.unbound", undefined, lang), `${lang} unbound`).toBe("");
+      expect(t("mcpUiCredits.hint.unknown", undefined, lang), `${lang} credits unknown`).toBe("");
+      expect(t("mcpUiCredits.hint.notCredits", undefined, lang), `${lang} credits notCredits`).toBe("");
     }
     // 对照一：同一模块里仍有值的句子照常给出（否则上面可能因为"整组都没翻"而虚假通过）
     expect(t("mcpUi.next.action.login", undefined, "zh")).toBe("登录 CloudBase");

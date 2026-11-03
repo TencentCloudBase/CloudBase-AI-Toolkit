@@ -51,8 +51,9 @@ export const mcpUiCredits = defineModule(
     "value.currency": "¥",
 
     // 说明句（四分支 + 未确认）
-    "hint.unknown": "无法确认资源点是否充足；完整配额见控制台。",
-    "hint.notCredits": "无资源点用量；非资源点计费环境无此项。",
+    // Empty hint.unknown / hint.notCredits: the status word is enough; no sentence under it.
+    "hint.unknown": "",
+    "hint.notCredits": "",
     "hint.unknownWithUsage": "已有用量，缺少套餐状态，无法判断是否充足；完整配额见控制台。",
     "hint.normal": "本月资源点充足。",
     "hint.nearLimit": "本月资源点已使用 {pct}%；建议升级套餐或购买资源包。",
@@ -213,8 +214,8 @@ export const mcpUiCredits = defineModule(
     "modules.sep": ", ",
     "value.currency": "CNY ",
 
-    "hint.unknown": "Credit sufficiency cannot be confirmed. Full quota is in the console.",
-    "hint.notCredits": "No credit usage. Non-credit environments have no such figure.",
+    "hint.unknown": "",
+    "hint.notCredits": "",
     "hint.unknownWithUsage":
       "Usage is available, but plan state is missing, so sufficiency cannot be determined. Full quota is in the console.",
     "hint.normal": "Credits for this month are sufficient.",
