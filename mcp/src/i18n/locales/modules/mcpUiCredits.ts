@@ -37,7 +37,7 @@ export const mcpUiCredits = defineModule(
 
     // 状态词（四分支 + 未确认）
     "state.unknown": "用量尚未确认",
-    "state.notCredits": "无资源点用量",
+    "state.notCredits": "非资源点环境",
     "state.normal": "用量正常",
     "state.nearLimit": "用量接近上限",
     "state.trialExhausted": "体验版已用尽",
@@ -51,9 +51,9 @@ export const mcpUiCredits = defineModule(
     "value.currency": "¥",
 
     // 说明句（四分支 + 未确认）
-    // Empty hint.unknown / hint.notCredits: the status word is enough; no sentence under it.
+    // Empty hint.unknown: status word alone. notCredits keeps a short switch hint.
     "hint.unknown": "",
-    "hint.notCredits": "",
+    "hint.notCredits": "当前环境不按资源点计费；可切换到资源点环境，或去看套餐说明。",
     "hint.unknownWithUsage": "已有用量，缺少套餐状态，无法判断是否充足；完整配额见控制台。",
     "hint.normal": "本月资源点充足。",
     "hint.nearLimit": "本月资源点已使用 {pct}%；建议升级套餐或购买资源包。",
@@ -72,7 +72,9 @@ export const mcpUiCredits = defineModule(
     "action.guidedTopup": "前往充值",
     "action.openConsole": "打开控制台",
     "action.nearLimit": "查看优化建议",
+    "action.switchEnv": "如何切换",
     "message.nearLimit": "当前环境资源点已使用 {pct}%，请分析可优化项并比较套餐。",
+    "message.switchEnv": "当前环境不是资源点计费。请帮我切换到资源点环境，或说明如何查看/更换套餐。",
     "copy.copied": "已复制",
     "copy.failed": "未能写入剪贴板，请手动复制。",
     "message.failed": "无法直接发送到会话；文案已复制，请粘贴发送。",
@@ -202,7 +204,7 @@ export const mcpUiCredits = defineModule(
     "value.unavailable": "-",
 
     "state.unknown": "Usage not confirmed",
-    "state.notCredits": "No credit usage",
+    "state.notCredits": "Non-credit environment",
     "state.normal": "Usage is within plan",
     "state.nearLimit": "Usage near the limit",
     "state.trialExhausted": "Trial exhausted",
@@ -215,7 +217,8 @@ export const mcpUiCredits = defineModule(
     "value.currency": "CNY ",
 
     "hint.unknown": "",
-    "hint.notCredits": "",
+    "hint.notCredits":
+      "This environment is not billed by credits. Switch to a credit environment, or review plan options.",
     "hint.unknownWithUsage":
       "Usage is available, but plan state is missing, so sufficiency cannot be determined. Full quota is in the console.",
     "hint.normal": "Credits for this month are sufficient.",
@@ -237,7 +240,10 @@ export const mcpUiCredits = defineModule(
     "action.guidedTopup": "Go to top-up",
     "action.openConsole": "Open console",
     "action.nearLimit": "Review savings",
+    "action.switchEnv": "How to switch",
     "message.nearLimit": "Credits for this environment are {pct}% used. Analyze savings and plan options.",
+    "message.switchEnv":
+      "This environment is not billed by credits. Help me switch to a credit environment, or explain how to view or change the plan.",
     "copy.copied": "Copied",
     "copy.failed": "Could not write to the clipboard; copy manually.",
     "message.failed": "Cannot post to the conversation. Text copied; paste to send.",

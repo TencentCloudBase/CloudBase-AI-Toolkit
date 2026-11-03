@@ -1,6 +1,6 @@
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ExtendedMcpServer } from "../server.js";
-import { getInstanceLang, t, type Lang, type MessageKey } from "../i18n/index.js";
+import { resolvePanelLang, t, type Lang, type MessageKey } from "../i18n/index.js";
 import { resolveEnvCreditsFallback } from "./env-credits.js";
 import { debug } from "../utils/logger.js";
 import { CREDENTIAL_GUARD_JS } from "./panel-raw-guard.js";
@@ -861,7 +861,7 @@ export function registerArtifactCardResource(server: ExtendedMcpServer): void {
     },
     async (uri) => {
       const startedAt = Date.now();
-      const lang = getInstanceLang();
+      const lang = resolvePanelLang();
       let success = true;
       let errorMessage: string | undefined;
       let bytes = 0;

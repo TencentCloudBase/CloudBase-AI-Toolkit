@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations as SdkToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { ExtendedMcpServer } from "../server.js";
+import { normalizeLang, setPanelLang } from "../i18n/index.js";
 import { shouldRegisterTool } from './cloud-mode.js';
 import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer, readClientCapabilitiesFromServer } from './telemetry.js';
@@ -265,6 +266,10 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
 
         try {
             debug(`开始执行工具: ${name}`, { args: sanitizeArgs(args) });
+            // MCP Apps panels bake HTML on resources/read after the tool returns.
+            // Remember call-time `lang` so ui:// HTML follows this invocation, not
+            // only the process/instance lang (auth(lang=en) must not leave a zh panel).
+            setPanelLang(normalizeLang(args?.lang));
             // In test environment, skip logger to avoid potential blocking
             const isTestEnvironment =
               process.env.NODE_ENV === "test" || process.env.VITEST === "true";

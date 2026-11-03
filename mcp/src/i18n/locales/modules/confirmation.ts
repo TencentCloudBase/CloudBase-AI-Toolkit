@@ -45,7 +45,8 @@ export const confirmation = defineModule(
 
     "blocked.target": "目标：{resource}（环境 {envId}）",
     "blocked.cancelled": "未执行：你在确认框里点了取消（{durationMs}ms）。",
-    "blocked.timeout": "未执行：{seconds}s 内没有收到确认（超时）。",
+    "blocked.timeout":
+      "未执行：{seconds}s 内没有收到确认（超时）。宿主确认框可能未弹出或未转发；请到 CloudBase 控制台完成删除（控制台会二次确认，且有回收站/快照可回退）。",
     "blocked.error": "未执行：确认流程出错（{reason}）。",
     "blocked.autoApprovedBlocked":
       "未执行：Agent 自动审批通过（{durationMs}ms，未询问你），但 CLOUDBASE_MCP_ELICIT_AUTO_APPROVE=block。",
@@ -83,7 +84,8 @@ export const confirmation = defineModule(
 
     "blocked.target": "Target: {resource} (env {envId})",
     "blocked.cancelled": "Not executed: you cancelled in the confirmation dialog ({durationMs}ms).",
-    "blocked.timeout": "Not executed: no confirmation within {seconds}s (timed out).",
+    "blocked.timeout":
+      "Not executed: no confirmation within {seconds}s (timed out). The host dialog may not have opened or been forwarded. Delete it in the CloudBase console instead (it asks again and keeps a recycle bin / snapshot).",
     "blocked.error": "Not executed: the confirmation flow failed ({reason}).",
     "blocked.autoApprovedBlocked":
       "Not executed: the agent auto-approved it ({durationMs}ms, you were not asked) while CLOUDBASE_MCP_ELICIT_AUTO_APPROVE=block.",
