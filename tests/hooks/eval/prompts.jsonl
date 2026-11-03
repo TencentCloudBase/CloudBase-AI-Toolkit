@@ -80,3 +80,6 @@
 {"prompt": "MCP 工具报错，怎么提 issue", "expectedSkills": ["cloudbase-mcp"], "category": "mcp-feedback", "note": "正例：只说 MCP 不说 CloudBase 也要命中（cloudbase-mcp 的 allOf 覆盖 mcp+报错/issue）"}
 {"prompt": "帮我整理这次会话，我要给 cloudbase mcp 提个问题", "expectedSkills": ["cloudbase-mcp"], "category": "mcp-feedback", "note": "正例：整理会话反馈，应加载 cloudbase-mcp 并读 references/issue-report.md"}
 {"prompt": "我的云函数报错了", "expectedSkills": ["cloud-functions"], "category": "boundary", "note": "边界：含'报错'但主语是云函数，不应被 cloudbase-mcp 抢走"}
+{"prompt": "用 CloudBase 的 pgsql 连接串", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：pgsql 是 PG 的常见写法，短词边界不能把它一起排掉"}
+{"prompt": "检查 CloudBase 截图 screenshot.jpg 的文字排版", "expectedSkills": [], "category": "boundary", "note": "边界：screenshot.jpg 里的 pg 不应触发 PG skill"}
+{"prompt": "有问题造成卡住了随时问我", "expectedSkills": [], "category": "boundary", "note": "边界：条件句里的'卡住'不是故障排查，不应触发 ops-inspector"}

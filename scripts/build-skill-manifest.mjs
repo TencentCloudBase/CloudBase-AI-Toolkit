@@ -122,6 +122,12 @@ function pickRetrieval(metaEntry, frontmatter, previous) {
   return { aliases: [], intents: [], entities: [], examples: [] };
 }
 
+function pickStringArray(primary, fallback) {
+  if (Array.isArray(primary) && primary.length > 0) return primary;
+  if (Array.isArray(fallback)) return fallback;
+  return [];
+}
+
 function pickPriority(metaEntry, metadata, previous) {
   const raw = metaEntry?.priority ?? metadata.priority ?? previous?.metadata?.priority ?? 5;
   const priority = typeof raw === "number" ? raw : Number(raw);
@@ -214,11 +220,15 @@ export function buildManifest(options = {}) {
       skippedDeprecated++;
       continue;
     }
-    const pathPatterns = Array.isArray(metadata.pathPatterns) ? metadata.pathPatterns : [];
-    const bashPatterns = Array.isArray(metadata.bashPatterns) ? metadata.bashPatterns : [];
     const skillName = frontmatter.name || dir.name;
     const metaEntry = findNamedEntry(metadataTable, dir.name, skillName);
     const previous = findPreviousSkill(previousSkills, dir.name, skillName);
+
+    // tool-hook patterns live in skill-metadata.json because the skills sync replaces the
+    // whole skills directory from upstream and would drop any frontmatter copy. Frontmatter
+    // stays as the fallback for skills that still carry their own metadata block.
+    const pathPatterns = pickStringArray(metaEntry?.pathPatterns, metadata.pathPatterns);
+    const bashPatterns = pickStringArray(metaEntry?.bashPatterns, metadata.bashPatterns);
 
     if (!hasPromptPhrases(metaEntry?.promptSignals)) {
       missingMetadataDirs.push(dir.name);

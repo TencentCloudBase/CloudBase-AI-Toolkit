@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-11-03T09:18:31.788Z",
+  "generatedAt": "2026-11-03T12:20:04.193Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
@@ -651,8 +651,13 @@
           "更新函数代码"
         ]
       },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      "pathRegexSources": [
+        "^.*/cloudfunctions/.*$"
+      ],
+      "bashPatterns": [
+        "\\btcb\\s+(fn|functions)\\s+(deploy|list|invoke)\\b",
+        "\\bcloudbase\\s+functions?\\s+(deploy|list)\\b"
+      ]
     },
     "cloud-storage-web": {
       "name": "cloud-storage-web",
@@ -891,7 +896,9 @@
         ]
       },
       "pathRegexSources": [],
-      "bashPatterns": []
+      "bashPatterns": [
+        "\\btcb\\s+[a-z]"
+      ]
     },
     "cloudbase-code-review": {
       "name": "cloudbase-code-review",
@@ -1021,8 +1028,13 @@
           "deploy the whole project from cloudbaserc"
         ]
       },
-      "pathRegexSources": [],
-      "bashPatterns": []
+      "pathRegexSources": [
+        "^.*/cloudbaserc\\.json$",
+        "^cloudbaserc\\.json$"
+      ],
+      "bashPatterns": [
+        "\\btcb\\s+(framework\\s+)?deploy\\b"
+      ]
     },
     "cloudbase-document-database-in-wechat-miniprogram": {
       "name": "cloudbase-document-database-in-wechat-miniprogram",
@@ -1660,7 +1672,11 @@
           "小程序运营推广"
         ]
       },
-      "pathRegexSources": [],
+      "pathRegexSources": [
+        "^.*/project\\.config\\.json$",
+        "^project\\.config\\.json$",
+        "^.*/miniprogram/.*$"
+      ],
       "bashPatterns": []
     },
     "ops-inspector": {
@@ -1837,7 +1853,8 @@
           "建表",
           "创建表",
           "mysql 存储",
-          "mysql 数据库"
+          "mysql 数据库",
+          "pgsql"
         ],
         "allOf": [
           [
@@ -1872,7 +1889,8 @@
         "aliases": [
           "postgresql",
           "postgres",
-          "cloudbase pg"
+          "cloudbase pg",
+          "pgsql"
         ],
         "intents": [
           "pg 数据库开发",
