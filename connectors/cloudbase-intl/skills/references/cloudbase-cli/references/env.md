@@ -54,10 +54,15 @@ tcb env info --env-id <envId> --type FLEXDB,SCF,COS
 tcb env info --env-id <envId> --type SCF --start 2026-10-01 --end 2026-10-16
 ```
 
-`env info --type` modules: `FLEXDB` (文档型数据库), `TDSQL` (MySQL), `SCF` (云函数), `EKS` (云托管),
-`COS` (云存储), `AI`, `HOSTING` (静态托管), `Auth` (身份认证), `APIInvocation`, `HTTPInvocation`,
-`VM` (云主机), `Workflow`, `Other`.
+`env info --type` modules: `FLEXDB` (文档型数据库), `TDSQL` (MySQL), `PostgreSQL` (云开发 PG),
+`SCF` (云函数), `EKS` (云托管), `COS` (云存储), `AI`, `Token` (大模型 token), `HOSTING` (静态托管),
+`Auth` (身份认证), `APIInvocation`, `HTTPInvocation`, `VM` (云主机), `Workflow`, `Other`.
 
+> ⚠️ **CLI ≤ 3.8.x 的模块清单落后于云 API**：本地 `USAGE_MODULES` 只有 13 项，缺 `PostgreSQL` 与
+> `Token`。用这些版本查 PG 环境的用量，`数据库` 一行会显示 0（实际用量整块消失），
+> `--type PostgreSQL` 还会被判成非法值。官方文档 `product/876/132934` 的 Modules 枚举才是全集。
+> 需要这两个模块时，走 `tcb api tcb DescribeCreditsUsageDetail`（见下）而不是 `env info --type`。
+>
 > ⚠️ `tcb env list` may return incomplete results under sub-account permissions. Prefer asking the
 > user for the envId instead of auto-discovering it (see `core.md`).
 
@@ -81,6 +86,21 @@ tcb env usage --platform-id <platformId> \
 > ⚠️ `--type <modules>` is **NOT** a flag of `env usage` — it belongs to `tcb env info` (per-module metric
 > detail, using module ids like `FLEXDB,SCF,COS`). Passing `--type` to `env usage` fails as an unknown option.
 > The two commands answer different questions: `env info` = resource metrics per module, `env usage` = billing / consumption.
+
+Per-module resource points, **full module coverage** (works on every CLI version, incl. modules the CLI has
+not picked up yet):
+
+```bash
+tcb api tcb DescribeCreditsUsageDetail --api-version 2018-06-08 --body '{
+  "EnvId":"<envId>",
+  "Modules":["FLEXDB","TDSQL","PostgreSQL","SCF","EKS","COS","AI","Token",
+             "HOSTING","Auth","APIInvocation","HTTPInvocation","VM","Workflow","Other"],
+  "StartDate":"2026-11-01","EndDate":"2026-11-30","NeedUsageDetails":false
+}' --json
+```
+
+`Modules` is required and there is no "all" value — omitting it fails with `MissingParameter`. A module that
+is not in the list simply returns no row, so a short list reads as "this product consumed nothing".
 
 ---
 
