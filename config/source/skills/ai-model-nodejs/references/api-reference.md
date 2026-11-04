@@ -8,7 +8,7 @@
 const model = ai.createModel("cloudbase");
 
 const result = await model.generateText({
-  model: "deepseek-v4-flash",  // must already be enabled in this env (DescribeAIModels → UpdateAIModel)
+  model: "deepseek-v4.1-flash",  // must already be enabled in this env (DescribeAIModels → UpdateAIModel)
   messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
@@ -25,7 +25,7 @@ const model = ai.createModel("cloudbase");
 
 try {
   const result = await model.generateText({
-    model: "deepseek-v4-flash",
+    model: "deepseek-v4.1-flash",
     messages: [{ role: "user", content: "Summarize today's deployment logs." }],
   });
 
@@ -41,7 +41,7 @@ try {
 const model = ai.createModel("cloudbase");
 
 const res = await model.streamText({
-  model: "deepseek-v4-flash",
+  model: "deepseek-v4.1-flash",
   messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
