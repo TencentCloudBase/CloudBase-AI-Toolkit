@@ -39,7 +39,7 @@ Read this before writing any `createModel(...)` line. The single most common mis
 
 | ✅ Legal `ai.createModel(...)` argument | When to use it |
 |----------------------------------------|----------------|
-| `"cloudbase"` | **The main managed group for new projects** (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4-flash" }`. **No model is enabled by default — always check `DescribeAIModels` first and, if the target model is missing, enable it with `UpdateAIModel` before calling the SDK.** |
+| `"cloudbase"` | **The main managed group for new projects** (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4.1-flash" }`. **No model is enabled by default — always check `DescribeAIModels` first and, if the target model is missing, enable it with `UpdateAIModel` before calling the SDK.** |
 | `"hunyuan-v3"` | **Legacy plan group, being retired.** Only `hy3` is available and the platform adds no new models to it. Existing code keeps working — new code should use `cloudbase` + `{ model: "hy3" }`. |
 | `"hunyuan-exp"` | Only if `DescribeAIModels` explicitly returns this older legacy builtin group for the current env. Its original default model `hunyuan-2.0-instruct-20251111` is **offline** (2026-05-31) — never target that id. |
 | `"custom-<your-name>"` | A user-defined GroupName you onboarded via `CreateAIModel`. **Must** start with `custom-` (e.g. `custom-kimi`, `custom-openai-compat`). |
@@ -48,7 +48,7 @@ Read this before writing any `createModel(...)` line. The single most common mis
 
 ```js
 ai.createModel("deepseek")                 // wrong — that's a vendor, not a GroupName
-ai.createModel("deepseek-v4-flash")        // wrong — that's a model name, goes in the `model` field
+ai.createModel("deepseek-v4.1-flash")        // wrong — that's a model name, goes in the `model` field
 ai.createModel("hunyuan")                  // wrong — vendor family, not a GroupName
 ai.createModel("hunyuan-2.0-instruct-20251111")  // wrong — model name
 ai.createModel("glm") / ai.createModel("kimi") / ai.createModel("minimax")  // wrong — vendor names
@@ -62,7 +62,7 @@ ai.createModel(modelName)                  // wrong — do not reuse the variabl
 ```js
 const model = ai.createModel("cloudbase");          // ← GroupName
 await model.generateText({
-  model: "deepseek-v4-flash",                       // ← concrete model id
+  model: "deepseek-v4.1-flash",                     // ← concrete model id
   messages: [...]
 });
 ```
@@ -71,7 +71,7 @@ await model.generateText({
 
 1. The user says "use DeepSeek v3.2" / "use hunyuan instruct" / "use Kimi k2.6" / "use GLM-5" / …
 2. `createModel("cloudbase")` stays the same.
-3. Put the model id into the **`model` field**: `{ model: "deepseek-v3.2" }`, `{ model: "hy3" }`, `{ model: "kimi-k2.6" }`, `{ model: "glm-5" }`, …
+3. Put the model id into the **`model` field**: `{ model: "deepseek-v4.1-flash" }`, `{ model: "hy3" }`, `{ model: "kimi-k2.6" }`, `{ model: "glm-5.3" }`, …
 4. **Never assume the model is already enabled.** Before writing the SDK call, verify it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If missing, call `DescribeManagedAIModelList` to confirm the exact `Model` name the platform supports (case-sensitive — do **not** guess the spelling), then enable it via `UpdateAIModel` with `Status: 1` (remember `Models` is a full replacement, so resend everything already enabled + the new one).
 
 > If you are about to type `ai.createModel(` and the thing inside the parentheses is a vendor name, a model name, or a guess — **stop**. It is almost certainly one of the four legal values above.
@@ -125,9 +125,9 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
    Returns `AIModelGroups: AIModelGroup[]`, where each `AIModelGroup` includes `GroupName`, `Type` (`builtin` / `custom`), `Models: [{ Model, EnableMCP, Tags }]`, `Status` (1 = on / 2 = off), `BaseUrl`, `Secret`, `Remark`. The main managed `GroupName` is `cloudbase`.
 
-2. **Never assume a model is already enabled.** Inspect `AIModelGroups[?].Models[].Model` for the `cloudbase` group. If the target model (or, when the user did not specify one, the model you intend to default to such as `deepseek-v4-flash`) is missing, jump to step 4 and enable it — do not call `createModel("cloudbase")` yet. If the `cloudbase` group itself is missing or has `Status=2`, also jump to step 4.
+2. **Never assume a model is already enabled.** Inspect `AIModelGroups[?].Models[].Model` for the `cloudbase` group. If the target model (or, when the user did not specify one, the model you intend to default to such as `deepseek-v4.1-flash`) is missing, jump to step 4 and enable it — do not call `createModel("cloudbase")` yet. If the `cloudbase` group itself is missing or has `Status=2`, also jump to step 4.
 
-3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v3.2`, `hy3`, `glm-5`, `kimi-k2.6`, …): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4. **Do not guess the exact model id** — verify the canonical spelling in `DescribeManagedAIModelList` first (step 4 covers this).
+3. **User asked for a model that belongs to the managed catalog** (e.g. `deepseek-v4.1-flash`, `hy3`, `glm-5.3`, `kimi-k2.6`, …): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4. **Do not guess the exact model id** — verify the canonical spelling in `DescribeManagedAIModelList` first (step 4 covers this).
 
 4. **Enable / add a managed model** (always inspect the authoritative catalog + pricing first):
 
@@ -145,7 +145,7 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
      GroupName: "cloudbase",
      Models: [
        // resend every model that DescribeAIModels already showed as enabled
-       { Model: "<already-enabled model, e.g. deepseek-v4-flash>" },
+       { Model: "<already-enabled model, e.g. deepseek-v4.1-flash>" },
        // append the newly-requested one, using the exact spelling from DescribeManagedAIModelList
        { Model: "<target model>" }
      ],
@@ -271,13 +271,13 @@ const ai = app.ai();
 
 ## generateText() — non-streaming
 
-> **Prerequisite:** the two-step preflight (eligibility + group readiness) has passed, and the target model has been confirmed present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]` — if it was not, it should already have been enabled via `UpdateAIModel`. The example below uses `deepseek-v4-flash` only for illustration; substitute the actual model the user asked for.
+> **Prerequisite:** the two-step preflight (eligibility + group readiness) has passed, and the target model has been confirmed present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]` — if it was not, it should already have been enabled via `UpdateAIModel`. The example below uses `deepseek-v4.1-flash` only for illustration; substitute the actual model the user asked for.
 
 ```js
 const model = ai.createModel("cloudbase");
 
 const result = await model.generateText({
-  model: "deepseek-v4-flash",  // must already be enabled in this env (DescribeAIModels → UpdateAIModel)
+  model: "deepseek-v4.1-flash",  // must already be enabled in this env (DescribeAIModels → UpdateAIModel)
   messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
@@ -297,7 +297,7 @@ console.log(result.rawResponses);   // raw model responses
 const model = ai.createModel("cloudbase");
 
 const res = await model.streamText({
-  model: "deepseek-v4-flash",
+  model: "deepseek-v4.1-flash",
   messages: [{ role: "user", content: "Give me a one-paragraph intro to Li Bai." }],
 });
 
@@ -325,7 +325,7 @@ const model = ai.createModel("cloudbase");
 
 try {
   const result = await model.generateText({
-    model: "deepseek-v4-flash",
+    model: "deepseek-v4.1-flash",
     messages: [{ role: "user", content: "Generate a concise onboarding checklist." }],
   });
 
@@ -380,7 +380,7 @@ interface Usage {
 ## Best Practices
 
 1. **Run the two-step preflight first** — ① eligibility (Token Credits resource pack via `DescribeEnvPostpayPackage`) + ② group readiness (`DescribeAIModels` to inspect what is enabled, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` and `Status: 1` when the target model is missing). Skipping preflight leads straight to "model not found" / "model not enabled" errors at runtime.
-2. **Never assume any model is already enabled** — not `deepseek-v4-flash`, not `hunyuan-*`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling or invent vendor prefixes) and then `UpdateAIModel` to enable it.
+2. **Never assume any model is already enabled** — not `deepseek-v4.1-flash`, not `hunyuan-*`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling or invent vendor prefixes) and then `UpdateAIModel` to enable it.
 3. **`createModel` accepts exactly four kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-v3"` (legacy plan group, only `hy3`, being retired), `"hunyuan-exp"` (older legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")`.
 4. **Do not invent SDK method names or parameters.** This SKILL.md is the authoritative reference for `@cloudbase/js-sdk`'s AI surface — look up the method signature here (or in the Type Definitions section below) before writing code. If a method or field is not documented here, stop and ask, or check the live contract via the MCP tools. No guessing.
 5. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Surface the prices to the user before calling `UpdateAIModel`.
