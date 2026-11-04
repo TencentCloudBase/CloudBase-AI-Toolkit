@@ -32,6 +32,7 @@ vi.mock("../utils/cloud-mode.js", () => ({
 
 vi.mock("../utils/logger.js", () => ({
   debug: vi.fn(),
+  warn: vi.fn(),
 }));
 
 function createMockServer() {

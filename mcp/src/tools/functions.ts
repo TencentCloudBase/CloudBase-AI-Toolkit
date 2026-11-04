@@ -14,7 +14,7 @@ import {
   FUNCTION_LOG_SERVICE_NOT_ENABLED_ERROR_CODE,
   isLogServiceNotEnabledMessage,
 } from "../utils/log-service.js";
-import { debug } from "../utils/logger.js";
+import { debug, warn } from "../utils/logger.js";
 import { isToolPayloadError, throwToolPayloadError } from "../utils/tool-result.js";
 import {
   DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
@@ -999,9 +999,12 @@ export type FunctionConfigUpdateInput = {
 export function buildFunctionConfigUpdateParams(
   input: FunctionConfigUpdateInput,
 ): Record<string, unknown> {
+  // 只带 EnvId，不带 Namespace：两个端点的参数 schema 不同 —— TCB 端点
+  // （tcbService）只认 EnvId，传 Namespace 会报 `The parameter Namespace is not
+  // recognized`；SCF 端点反过来只认 Namespace。这里的目标端点是 TCB，与 SDK 的
+  // updateFunctionConfig 保持一致（`lib/function/index.ts` 的 params 只有 EnvId）。
   const params: Record<string, unknown> = {
     EnvId: input.envId,
-    Namespace: input.envId,
     FunctionName: input.functionName,
   };
 
@@ -1025,30 +1028,41 @@ export function buildFunctionConfigUpdateParams(
   return params;
 }
 
-type ScfRequestCapable = {
-  scfService?: {
+type CloudApiRequestCapable = {
+  /** TCB 定制端点（tcb.tencentcloudapi.com）。`UpdateFunctionConfiguration` 在这里。 */
+  tcbService?: {
     request?: (action: string, params: Record<string, unknown>) => Promise<unknown>;
   };
 };
 
 /**
- * 发送 `UpdateFunctionConfiguration`。优先直调底层 SCF service（请求体不含 CLS），
- * 拿不到 `scfService` 时退回 manager SDK —— 那条路会重新带上环境级 CLS 对，
+ * 发送 `UpdateFunctionConfiguration`，请求体不含 CLS。
+ *
+ * 走 `tcbService` 不走 `scfService`：manager-node 自己的 `updateFunctionConfig`
+ * 末尾就是 `this.tcbService.request('UpdateFunctionConfiguration', params)`
+ * （`lib/function/index.js`）。SCF 原生端点上是另一套同名 API，TCB 建的函数在那边
+ * 按 `Namespace` 查不到 —— 2.37.0 起走 scfService，现网 287 次调用 282 次失败。
+ *
+ * 拿不到 `tcbService` 时退回 manager SDK —— 那条路会重新带上环境级 CLS 对，
  * 属于降级路径，会打 debug 日志。
  */
 export async function applyFunctionConfigUpdate(
   manager: unknown,
   params: Record<string, unknown>,
 ): Promise<unknown> {
-  const fnService = (manager as { functions?: ScfRequestCapable & Record<string, unknown> })
-    ?.functions;
-  const scfService = fnService?.scfService;
-  if (typeof scfService?.request === "function") {
-    return scfService.request("UpdateFunctionConfiguration", params);
+  const fnService = (manager as {
+    functions?: CloudApiRequestCapable & Record<string, unknown>;
+  })?.functions;
+  const tcbService = fnService?.tcbService;
+  if (typeof tcbService?.request === "function") {
+    return tcbService.request("UpdateFunctionConfiguration", params);
   }
 
-  debug(
-    "[updateFunctionConfig] scfService 不可用，退回 manager SDK（会带上环境级 CLS 对）",
+  // 走到这里说明 manager 不是标准 SDK 实例，或 manager-node 改了内部形态。
+  // 用 warn 不用 debug：这条路会重新带上环境级 CLS 对，等于悄悄退回 #1274 之前
+  // 的失败面（函数角色无权用该日志目的地时，改环境变量会报 InvalidParameter.Cls）。
+  warn(
+    "[updateFunctionConfig] tcbService 不可用，退回 manager SDK（会带上环境级 CLS 对）",
   );
 
   const environment = params.Environment as { Variables?: IEnvVariable[] } | undefined;
