@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "generatedAt": "2026-11-04T00:46:28.159Z",
+  "generatedAt": "2026-11-04T04:35:05.365Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
-      "description": "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express/Koa/NestJS, serverless APIs, scheduled jobs, LLM proxies, agent orchestration. The only SDK supporting image generation (ai.createImageModel + generateImage). Text via ai.createModel with groups cloudbase, the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model ids (e.g. deepseek-v4-flash, glm-5, kimi-k2.6) go in the `model` field of generateText/streamText. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat).",
+      "description": "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express/Koa/NestJS, serverless APIs, scheduled jobs, LLM proxies, agent orchestration. The only SDK supporting image generation (ai.createImageModel + generateImage). Text via ai.createModel with groups cloudbase, the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model ids (e.g. deepseek-v4.1-flash, glm-5.3, kimi-k2.6) go in the `model` field of generateText/streamText. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat).",
       "version": "2.37.2",
       "metadata": {
         "priority": 5
@@ -167,7 +167,7 @@
     },
     "ai-model-wechat": {
       "name": "ai-model-wechat",
-      "description": "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, wx.cloud apps). Covers generateText and streamText with callbacks (onText, onEvent, onFinish); streamText needs a data wrapper, generateText returns the raw response. Models via wx.cloud.extend.AI.createModel with groups cloudbase (main managed, also 小程序成长计划 with `hy3`), the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model id goes in the data wrapper `model` field. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).",
+      "description": "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, wx.cloud apps). Covers generateText and streamText with callbacks (onText, onEvent, onFinish); streamText needs a data wrapper, generateText returns the raw response. Also covers multimodal image input (image_url content blocks, OCR and form extraction) — vision-capable models only. Models via wx.cloud.extend.AI.createModel with groups cloudbase (main managed, also 小程序成长计划 with `hy4-preview` / `hy3` / `deepseek-v4.1-flash`), the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model id goes in the `model` field. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs).",
       "version": "2.37.2",
       "metadata": {
         "priority": 5

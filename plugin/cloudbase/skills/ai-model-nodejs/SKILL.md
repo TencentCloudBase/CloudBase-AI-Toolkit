@@ -1,6 +1,6 @@
 ---
 name: ai-model-nodejs
-description: "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express/Koa/NestJS, serverless APIs, scheduled jobs, LLM proxies, agent orchestration. The only SDK supporting image generation (ai.createImageModel + generateImage). Text via ai.createModel with groups cloudbase, the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model ids (e.g. deepseek-v4-flash, glm-5, kimi-k2.6) go in the `model` field of generateText/streamText. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
+description: "Use this skill for Node.js backend AI via @cloudbase/node-sdk (>=3.16.0) — cloud functions, CloudRun, Express/Koa/NestJS, serverless APIs, scheduled jobs, LLM proxies, agent orchestration. The only SDK supporting image generation (ai.createImageModel + generateImage). Text via ai.createModel with groups cloudbase, the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model ids (e.g. deepseek-v4.1-flash, glm-5.3, kimi-k2.6) go in the `model` field of generateText/streamText. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web) or Mini Program (use ai-model-wechat)."
 version: 2.37.2
 license: MIT
 alwaysApply: false
@@ -39,7 +39,7 @@ Read this before writing any `createModel(...)` line. Agents frequently hallucin
 
 | ✅ Legal `ai.createModel(...)` argument | When to use it |
 |----------------------------------------|----------------|
-| `"cloudbase"` | **The main managed group for server-side projects** (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4-flash" }`. **No model is enabled by default — always check `DescribeAIModels` first and, if the target model is missing, enable it with `UpdateAIModel` before calling the SDK.** |
+| `"cloudbase"` | **The main managed group for server-side projects** (TokenHub-backed, multi-vendor pool). Vendor + concrete model go into the **`model` field** of `generateText` / `streamText`, e.g. `{ model: "deepseek-v4.1-flash" }`. **No model is enabled by default — always check `DescribeAIModels` first and, if the target model is missing, enable it with `UpdateAIModel` before calling the SDK.** |
 | `"hunyuan-v3"` | **Legacy plan group, being retired.** Only `hy3` is available and the platform adds no new models to it. Existing code that already uses it keeps working — new code should use `cloudbase` + `{ model: "hy3" }`. |
 | `"hunyuan-exp"` | Only if `DescribeAIModels` explicitly returns this older legacy builtin group for the current env. Its original default model `hunyuan-2.0-instruct-20251111` is **offline** (2026-05-31) — never target that id. |
 | `"custom-<your-name>"` | A user-defined GroupName you onboarded via `CreateAIModel`. **Must** start with `custom-` (e.g. `custom-kimi`, `custom-openai-compat`). |
@@ -48,14 +48,14 @@ Read this before writing any `createModel(...)` line. Agents frequently hallucin
 
 ### ❌ Wrong argument patterns
 
-Anything that is not one of the four legal values above: vendor names (`"deepseek"`, `"glm"`, `"kimi"`, `"openai"`, `"moonshot"`, …), concrete model ids (`"deepseek-v4-flash"`, `"hunyuan-2.0-instruct-20251111"`), the bare placeholder `"custom"`, or a variable holding the model id. All of these are bugs in `createModel(...)`.
+Anything that is not one of the four legal values above: vendor names (`"deepseek"`, `"glm"`, `"kimi"`, `"openai"`, `"moonshot"`, …), concrete model ids (`"deepseek-v4.1-flash"`, `"hunyuan-2.0-instruct-20251111"`), the bare placeholder `"custom"`, or a variable holding the model id. All of these are bugs in `createModel(...)`.
 
 ### ✅ Correct pattern — GroupName vs Model are two different fields
 
 ```js
 const model = ai.createModel("cloudbase");          // ← GroupName
 await model.generateText({
-  model: "deepseek-v4-flash",                       // ← concrete model id
+  model: "deepseek-v4.1-flash",                     // ← concrete model id
   messages: [...]
 });
 ```
@@ -64,7 +64,7 @@ await model.generateText({
 
 1. The user says "use DeepSeek v3.2" / "use hunyuan instruct" / "use Kimi k2.6" / "use GLM-5" / …
 2. `createModel("cloudbase")` stays the same.
-3. Put the model id into the **`model` field**: `{ model: "deepseek-v3.2" }`, `{ model: "hy3" }`, `{ model: "kimi-k2.6" }`, `{ model: "glm-5" }`, …
+3. Put the model id into the **`model` field**: `{ model: "deepseek-v4.1-flash" }`, `{ model: "hy3" }`, `{ model: "kimi-k2.6" }`, `{ model: "glm-5.3" }`, …
 4. **Never assume the model is already enabled.** Before calling the SDK, verify it is present in `DescribeAIModels({ GroupName: "cloudbase" }).Models[]`. If missing, call `DescribeManagedAIModelList` to confirm the exact `Model` name the platform supports (case-sensitive — do **not** guess the spelling) and then enable it via `UpdateAIModel` with `Status: 1` (remember `Models` is a full replacement).
 
 > If you are about to type `ai.createModel(` and the thing inside the parentheses is a vendor name, a model name, or a guess — **stop**. It is almost certainly one of the four legal values above.
@@ -118,9 +118,9 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
    Returns `AIModelGroups: AIModelGroup[]` with `GroupName`, `Type` (`builtin` / `custom`), `Models: [{ Model, EnableMCP, Tags }]`, `Status` (1 / 2), `BaseUrl`, `Secret`, `Remark`. The main managed `GroupName` is `cloudbase`.
 
-2. **Never assume a model is already enabled.** Inspect `AIModelGroups[?].Models[].Model` for the target group. If the text model you plan to use (e.g. `deepseek-v4-flash`, or whatever the user asked for) is missing from the `cloudbase` group's `Models[]`, jump to step 4 and enable it — do not call `createModel("cloudbase")` yet. Image generation uses `createImageModel("hunyuan-image")` + `model: "hunyuan-image"`; verify it is likewise enabled before the call.
+2. **Never assume a model is already enabled.** Inspect `AIModelGroups[?].Models[].Model` for the target group. If the text model you plan to use (e.g. `deepseek-v4.1-flash`, or whatever the user asked for) is missing from the `cloudbase` group's `Models[]`, jump to step 4 and enable it — do not call `createModel("cloudbase")` yet. Image generation uses `createImageModel("hunyuan-image")` + `model: "hunyuan-image"`; verify it is likewise enabled before the call.
 
-3. **User asked for a model from the managed catalog** (e.g. `deepseek-v3.2`, `hy3`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4. **Do not guess the exact model id** — confirm the canonical spelling in `DescribeManagedAIModelList` first.
+3. **User asked for a model from the managed catalog** (e.g. `deepseek-v4.1-flash`, `hy3`): check whether that `Model` is already in the `cloudbase` group's `Models[]`. If not, jump to step 4. **Do not guess the exact model id** — confirm the canonical spelling in `DescribeManagedAIModelList` first.
 
 4. **Enable / add a managed model** (always inspect the authoritative catalog + pricing first):
 
@@ -263,7 +263,7 @@ For full `generateText` / `streamText` / `generateImage` code examples, the erro
 ## Best Practices
 
 1. **Run the two-step preflight before writing business code** — ① eligibility: `queryEnv` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when the target model is missing. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` instead of emitting SDK code and letting the user debug runtime errors.
-2. **Never assume any model is already enabled** — not `deepseek-v4-flash`, not `hunyuan-image`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling) and then `UpdateAIModel` to enable it.
+2. **Never assume any model is already enabled** — not `deepseek-v4.1-flash`, not `hunyuan-image`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling) and then `UpdateAIModel` to enable it.
 3. **`createModel` accepts exactly four kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-v3"` (legacy plan group, only `hy3`, being retired), `"hunyuan-exp"` (older legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")` — the first two are vendor/model names, the last is a placeholder. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
 4. **Do not invent SDK method names or parameters.** This skill (SKILL.md + `references/api-reference.md`) is the authoritative reference for `@cloudbase/node-sdk`'s AI surface — look up the method signature there before writing code. If a method or field is not documented there, stop and ask, or check the live contract via the MCP tools. No guessing.
 5. **Show pricing before enabling a new managed model** — `DescribeManagedAIModelList` returns `ModelSpec` (context length, max input/output tokens) + `ModelChargingInfo` (input / output / cache prices, billing unit). Show the prices to the user before calling `UpdateAIModel`.
