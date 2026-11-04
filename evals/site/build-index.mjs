@@ -10,12 +10,7 @@ import { fileURLToPath } from 'node:url';
 const siteDir = path.dirname(fileURLToPath(import.meta.url));
 const benchmarkDir = path.resolve(siteDir, '../evals/benchmark');
 
-const UNSCORED_REASON = {
-  'build-dataapi-001-relational-report': {
-    zh: '匿名角色仍能 SELECT public.orders。',
-    en: 'anon can still SELECT public.orders.',
-  },
-};
+const UNSCORED_REASON = {};
 
 const DRAFTS = {
   'build-auth-001-username-signin': {
