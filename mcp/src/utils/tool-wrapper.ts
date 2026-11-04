@@ -102,12 +102,12 @@ function contributionHint(server: ExtendedMcpServer): string {
 /**
  * 从 `auth` 的返回里取出「环境准备」的结果，供遥测上报。
  *
- * 为什么要从返回体里抠：`env_setup_status` / `env_setup_failure.reason` 只存在于
+ * 为什么要从返回体里抠：`env_setup_status` / `env_setup_reason` 只存在于
  * `auth` 的 payload 里，不是 `reportToolCall` 的入参。而工具 wrapper 是唯一同时
  * 看得见 args 和 result 的地方。
  *
- * 现状（2026-10-27）：这两项只回给模型、没进埋点，于是「无环境的用户卡在购买页、
- * 实名、还是 CAM 授权」在数据里长得一模一样，加文案也无法验收。
+ * 现状（2026-11-04）：无环境不再自动创建，`auth` 只回 `ACTION_REQUIRED` +
+ * `reason=no_env`，所以这一列用来数「有多少人卡在没环境」。
  */
 function readEnvSetupOutcome(
     result: unknown,
@@ -134,17 +134,9 @@ function readEnvSetupOutcome(
         const p = payload as Record<string, unknown>;
         const status = typeof p?.env_setup_status === 'string' ? p.env_setup_status : undefined;
         if (!status) continue;
-        const failure = p?.env_setup_failure as Record<string, unknown> | undefined;
-        const reason = typeof failure?.reason === 'string' ? failure.reason : undefined;
-        // 把两个布尔压进 reason 的后缀：一列就能看清「卡在哪」，
-        // 单看 reason 只知道「建环境失败」，不知道是实名还是 CAM 授权拦住的
-        const gates: string[] = [];
-        if (failure?.need_real_name_auth === true) gates.push('realname');
-        if (failure?.need_cam_auth === true) gates.push('cam');
-        return {
-            status,
-            reason: reason ? (gates.length ? `${reason}+${gates.join('+')}` : reason) : undefined,
-        };
+        const reason =
+            typeof p?.env_setup_reason === 'string' ? p.env_setup_reason : undefined;
+        return { status, reason };
     }
     return undefined;
 }

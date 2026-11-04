@@ -364,6 +364,50 @@ export function resolveDeviceLoginSite(
 }
 
 /**
+ * 授权页的「没有环境也能完成授权」开关。
+ *
+ * web 与 device 是同一个授权页的两个入口，两边都要带这个参数，否则账号下没有环境时
+ * 授权走不完（device 不比 web 更容易，它同样要人点授权、同样要先有环境）。
+ *
+ * device 的 verification_uri 形如
+ * `https://tcb.cloud.tencent.com/dev#/cli-auth?user_code=..&from=cli&flow=device`，
+ * 页面入参都在 hash 路由的 query 里，所以参数挂在 hash 上；hash 里没有 query 时退回顶层 query。
+ * 只对 CloudBase 授权页生效——custom OAuth 端点返回的 verification_uri 原样透传。
+ */
+export function appendAllowNoEnvParam(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+
+  const authHosts = new Set([
+    SITE_REGION_MAP.domestic.authHost,
+    SITE_REGION_MAP.intl.authHost,
+  ]);
+  if (!authHosts.has(parsed.hostname)) {
+    return url;
+  }
+
+  const hash = parsed.hash.startsWith("#") ? parsed.hash.slice(1) : parsed.hash;
+  if (hash.includes("?")) {
+    const [hashPath, hashQuery = ""] = hash.split("?");
+    const hashParams = new URLSearchParams(hashQuery);
+    if (!hashParams.has("allowNoEnv")) {
+      hashParams.set("allowNoEnv", "true");
+    }
+    parsed.hash = `#${hashPath}?${hashParams.toString()}`;
+    return parsed.toString();
+  }
+
+  if (!parsed.searchParams.has("allowNoEnv")) {
+    parsed.searchParams.set("allowNoEnv", "true");
+  }
+  return parsed.toString();
+}
+
+/**
  * 构造 device flow 的 loginByWebAuth 基础参数（onDeviceCode 由调用方按需注入）。
  *
  * 所有 device 登录路径（ensureLogin 与 auth 工具 start_auth 的 device 分支）必须
@@ -388,17 +432,23 @@ export function buildDeviceLoginOptions(
     // 不覆写时 toolbox 默认打国内站端点，国际站账号无法完成授权
     loginOptions.getOAuthEndpoint = () => SITE_REGION_MAP.intl.oauthEndpoint!;
   }
-  if (resolvedSite === "intl") {
-    // device 模式的 verification_uri 标准模式下由客户端拼接，指向国内站授权页；
-    // 与 web 模式同款 host 改写，把授权页切到国际站
-    loginOptions.getAuthUrl = (url: string) =>
-      url
-        .replace(
-          `${SITE_REGION_MAP.domestic.authHost}/dev`,
-          `${SITE_REGION_MAP.intl.authHost}/dev`,
-        )
-        .replace(SITE_REGION_MAP.domestic.authHost, SITE_REGION_MAP.intl.authHost);
-  }
+  // device 模式的 verification_uri 标准模式下由客户端拼接，指向国内站授权页。
+  // 两个站点都要过一遍：国际站先把 host 切过去，再统一补 allowNoEnv。
+  loginOptions.getAuthUrl = (url: string) => {
+    const siteUrl =
+      resolvedSite === "intl"
+        ? url
+            .replace(
+              `${SITE_REGION_MAP.domestic.authHost}/dev`,
+              `${SITE_REGION_MAP.intl.authHost}/dev`,
+            )
+            .replace(
+              SITE_REGION_MAP.domestic.authHost,
+              SITE_REGION_MAP.intl.authHost,
+            )
+        : url;
+    return appendAllowNoEnvParam(siteUrl);
+  };
   if (resolvedAuthOptions.oauthCustom) {
     loginOptions.custom = true;
   }
@@ -860,8 +910,7 @@ export async function ensureLogin(options?: EnsureLoginOptions) {
       loginOptions.getAuthUrl =
         options?.fromCloudBaseLoginPage && resolvedSite === "domestic"
           ? (url: string) => {
-            const separator = url.includes("?") ? "&" : "?";
-            const urlWithParam = `${url}${separator}allowNoEnv=true`;
+            const urlWithParam = appendAllowNoEnvParam(url);
             return `https://${SITE_REGION_MAP.domestic.authHost}/login?_redirect_uri=${encodeURIComponent(urlWithParam)}`;
           }
           : (url: string) => {
@@ -875,8 +924,7 @@ export async function ensureLogin(options?: EnsureLoginOptions) {
                 finalUrl = url.replace("cloud.tencent.com", "tencentcloud.com");
               }
             }
-            const separator = finalUrl.includes("?") ? "&" : "?";
-            return `${finalUrl}${separator}allowNoEnv=true`;
+            return appendAllowNoEnvParam(finalUrl);
           };
     } else {
       // device 模式：与 auth 工具 start_auth device 分支共享 intl 端点覆写与授权页改写

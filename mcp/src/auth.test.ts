@@ -270,7 +270,7 @@ describe("auth config resolution", () => {
       "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
     );
     expect(rewritten).toBe(
-      "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device",
+      "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device&allowNoEnv=true",
     );
     expect(loginOptions.custom).toBeUndefined();
   });
@@ -294,7 +294,7 @@ describe("auth config resolution", () => {
     expect(loginOptions.custom).toBe(true);
   });
 
-  it("buildDeviceLoginOptions should not rewrite anything for domestic site", async () => {
+  it("buildDeviceLoginOptions should add allowNoEnv to the domestic auth URL", async () => {
     const { buildDeviceLoginOptions } = await import("./auth.js");
 
     const loginOptions = buildDeviceLoginOptions(
@@ -307,7 +307,31 @@ describe("auth config resolution", () => {
     );
 
     expect(loginOptions.getOAuthEndpoint).toBeUndefined();
-    expect(loginOptions.getAuthUrl).toBeUndefined();
+    const authUrl = (loginOptions.getAuthUrl as (u: string) => string)(
+      "https://tcb.cloud.tencent.com/dev#/cli-auth?user_code=WDJB-MJHT&from=cli&flow=device",
+    );
+    expect(authUrl).toBe(
+      "https://tcb.cloud.tencent.com/dev#/cli-auth?user_code=WDJB-MJHT&from=cli&flow=device&allowNoEnv=true",
+    );
+  });
+
+  it("buildDeviceLoginOptions should leave a custom verification_uri untouched", async () => {
+    const { buildDeviceLoginOptions } = await import("./auth.js");
+
+    const loginOptions = buildDeviceLoginOptions(
+      {
+        authMode: "device",
+        oauthEndpoint: "https://custom.example.com/oauth",
+        oauthCustom: true,
+        usesToolboxDefaults: false,
+      },
+      { site: "domestic" },
+    );
+
+    const authUrl = (loginOptions.getAuthUrl as (u: string) => string)(
+      "https://custom.example.com/device?user_code=WDJB-MJHT",
+    );
+    expect(authUrl).toBe("https://custom.example.com/device?user_code=WDJB-MJHT");
   });
 
   it("should reject device-only overrides when authMode is web", async () => {
@@ -823,7 +847,14 @@ describe("flat credential storage", () => {
 
     const loginOptions = mockAuthLoginByWebAuth.mock.calls.at(-1)![0];
     expect(loginOptions.getOAuthEndpoint).toBeUndefined();
-    expect(loginOptions.getAuthUrl).toBeUndefined();
+    // 国内站不改 host，但仍要带「没有环境也能完成授权」的开关
+    expect(
+      (loginOptions.getAuthUrl as (u: string) => string)(
+        "https://tcb.cloud.tencent.com/dev#/cli-auth?user_code=ABCD-1234&from=cli&flow=device",
+      ),
+    ).toBe(
+      "https://tcb.cloud.tencent.com/dev#/cli-auth?user_code=ABCD-1234&from=cli&flow=device&allowNoEnv=true",
+    );
   });
 
   it("should let explicit oauthEndpoint override the intl default in device mode", async () => {

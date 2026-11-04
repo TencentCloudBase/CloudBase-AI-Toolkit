@@ -40,8 +40,6 @@ const {
   mockResetCloudBaseManagerCache,
   mockProbeApiKeyCamCapability,
   mockResolveAuthOptions,
-  mockCheckAndInitTcbService,
-  mockCheckAndCreateFreeEnv,
   authStoreData,
 } = vi.hoisted(() => ({
   mockBuildAuthConfigSummary: vi.fn((options: any) => ({
@@ -99,8 +97,6 @@ const {
   mockGetCloudBaseManager: vi.fn(),
   mockResetCloudBaseManagerCache: vi.fn(),
   mockProbeApiKeyCamCapability: vi.fn().mockResolvedValue("capable"),
-  mockCheckAndInitTcbService: vi.fn(),
-  mockCheckAndCreateFreeEnv: vi.fn(),
   mockResolveAuthOptions: vi.fn((options: any = {}) => ({
     authMode: options.authMode ?? options.serverAuthOptions?.authMode ?? "device",
     clientId: options.clientId ?? options.serverAuthOptions?.clientId,
@@ -189,11 +185,6 @@ vi.mock("./rag.js", () => ({
   getClaudePrompt: vi.fn().mockResolvedValue(""),
 }));
 
-vi.mock("./env-setup.js", () => ({
-  checkAndInitTcbService: mockCheckAndInitTcbService,
-  checkAndCreateFreeEnv: mockCheckAndCreateFreeEnv,
-}));
-
 function createMockServer(
   ide = "TestIDE",
   authOptions?: any,
@@ -250,24 +241,6 @@ describe("env tools - auth", () => {
       status: "IDLE",
       updatedAt: Date.now(),
     });
-    mockCheckAndInitTcbService.mockImplementation(async (_manager: any, context: any) => ({
-      ...context,
-      checkTcbServiceAttempted: true,
-      tcbServiceChecked: true,
-      tcbServiceInitialized: true,
-    }));
-    mockCheckAndCreateFreeEnv.mockImplementation(async (_manager: any, context: any) => ({
-      success: false,
-      context: {
-        ...context,
-        promotionalActivitiesChecked: true,
-        createEnvError: {
-          code: "NoPromotionalActivity",
-          message: "当前账号不符合免费环境创建条件，请手动创建环境",
-          helpUrl: "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
-        },
-      },
-    }));
     mockPeekLoginState.mockResolvedValue(null);
     mockEnsureLogin.mockResolvedValue({
       secretId: "sid",
@@ -554,84 +527,7 @@ describe("env tools - auth", () => {
     });
   });
 
-  it("auth(action=status) should auto-create and bind env when possible", async () => {
-    mockPeekLoginState.mockResolvedValue({
-      secretId: "sid",
-      secretKey: "skey",
-    });
-    mockListAvailableEnvCandidates.mockResolvedValue([]);
-    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
-    mockCheckAndCreateFreeEnv.mockImplementation(async (_manager: any, context: any) => ({
-      success: true,
-      envId: "env-created",
-      context: {
-        ...context,
-        promotionalActivitiesChecked: true,
-        createFreeEnvAttempted: true,
-      },
-    }));
-
-    const result = await tools.auth.handler({ action: "status" });
-    const payload = JSON.parse(result.content[0].text);
-
-    expect(payload).toMatchObject({
-      auth_status: "READY",
-      env_status: "READY",
-      current_env_id: "env-created",
-      env_setup_status: "AUTO_CREATED",
-    });
-    expect(payload.env_setup_actions).toEqual(
-      expect.arrayContaining([
-        "list_envs",
-        "check_tcb_service",
-        "check_promotional_activity",
-        "create_free_env",
-      ]),
-    );
-    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-created");
-  });
-
-  it("auth(action=status) should expose real-name action_required state", async () => {
-    mockPeekLoginState.mockResolvedValue({
-      secretId: "sid",
-      secretKey: "skey",
-    });
-    mockListAvailableEnvCandidates.mockResolvedValue([]);
-    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
-    mockCheckAndInitTcbService.mockImplementation(async (_manager: any, context: any) => ({
-      ...context,
-      checkTcbServiceAttempted: true,
-      initTcbAttempted: true,
-      tcbServiceChecked: true,
-      tcbServiceInitialized: false,
-      initTcbError: {
-        code: "RealNameAuthRequired",
-        message: "当前账号需要先完成实名认证",
-        helpUrl: "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
-        needRealNameAuth: true,
-      },
-    }));
-
-    const result = await tools.auth.handler({ action: "status" });
-    const payload = JSON.parse(result.content[0].text);
-
-    expect(payload).toMatchObject({
-      auth_status: "READY",
-      env_status: "NONE",
-      env_setup_status: "ACTION_REQUIRED",
-      env_setup_failure: {
-        reason: "tcb_init_failed",
-        error_code: "RealNameAuthRequired",
-        need_real_name_auth: true,
-        help_url: "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
-      },
-    });
-    expect(payload.env_setup_actions).toEqual(
-      expect.arrayContaining(["list_envs", "check_tcb_service", "init_tcb"]),
-    );
-  });
-
-  it("auth(action=status) should expose manual creation guidance when free env is unavailable", async () => {
+  it("auth(action=status) should stop at console guidance when the account has no env", async () => {
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
@@ -645,13 +541,22 @@ describe("env tools - auth", () => {
     expect(payload).toMatchObject({
       auth_status: "READY",
       env_status: "NONE",
+      current_env_id: null,
       env_setup_status: "ACTION_REQUIRED",
-      env_setup_failure: {
-        reason: "env_creation_failed",
-        error_code: "NoPromotionalActivity",
-        help_url: "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
-      },
+      env_setup_reason: "no_env",
+      env_setup_help_url:
+        "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
     });
+    // 建环境是用户决策：status 只读，不创建、不绑定、不发起任何管理面调用
+    expect(payload.env_setup_actions).toEqual(["list_envs"]);
+    expect(payload.env_setup_failure).toBeUndefined();
+    expect(payload.message).toContain("已开通");
+    expect(payload.message).toContain(
+      "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
+    );
+    expect(payload.next_step).toMatchObject({ tool: "auth", action: "status" });
+    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
+    expect(mockGetCloudBaseManager).not.toHaveBeenCalled();
   });
 
   it("auth(action=start_auth, authMode=device) should return AUTH_PENDING immediately", async () => {
@@ -824,7 +729,7 @@ describe("env tools - auth", () => {
           "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
         ),
       ).toBe(
-        "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device",
+        "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device&allowNoEnv=true",
       );
     } finally {
       delete process.env.TCB_SITE;
@@ -862,7 +767,9 @@ describe("env tools - auth", () => {
       callArgs.getAuthUrl(
         "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
       ),
-    ).toBe("https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device");
+    ).toBe(
+      "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device&allowNoEnv=true",
+    );
     // 站点写入环境变量，供本次登录后续环节与后续工具调用按同一站点解析
     expect(process.env.TCB_SITE).toBe("intl");
   });
@@ -921,7 +828,7 @@ describe("env tools - auth", () => {
     expect(payload.message).toBe(t("env.auth.invalidSite", { site: "us-east" }));
   });
 
-  it("auth(action=start_auth, authMode=web) should continue environment preparation after login", async () => {
+  it("auth(action=start_auth, authMode=web) should hand off to console when the account has no env", async () => {
     mockPeekLoginState.mockResolvedValue(null);
     mockEnsureLogin.mockResolvedValue({
       secretId: "sid",
@@ -929,15 +836,6 @@ describe("env tools - auth", () => {
     });
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
-    mockCheckAndCreateFreeEnv.mockImplementation(async (_manager: any, context: any) => ({
-      success: true,
-      envId: "env-web-created",
-      context: {
-        ...context,
-        promotionalActivitiesChecked: true,
-        createFreeEnvAttempted: true,
-      },
-    }));
 
     const result = await tools.auth.handler({
       action: "start_auth",
@@ -947,10 +845,13 @@ describe("env tools - auth", () => {
 
     expect(payload).toMatchObject({
       code: "AUTH_READY",
-      current_env_id: "env-web-created",
-      env_setup_status: "AUTO_CREATED",
+      current_env_id: null,
+      env_status: "NONE",
+      env_setup_status: "ACTION_REQUIRED",
+      env_setup_reason: "no_env",
     });
-    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-web-created");
+    // 登录成功后不替用户建环境，只给开通入口
+    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
   });
 
   it("auth(action=set_env, envId) should accept direct env binding", async () => {

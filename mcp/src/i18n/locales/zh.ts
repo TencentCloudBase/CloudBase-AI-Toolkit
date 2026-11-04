@@ -25,7 +25,6 @@ import { logs } from "./modules/logs.js";
 import { agents } from "./modules/agents.js";
 import { msgPush } from "./modules/msgPush.js";
 import { setup } from "./modules/setup.js";
-import { envSetup } from "./modules/envSetup.js";
 import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
 import { confirmation } from "./modules/confirmation.js";
@@ -61,7 +60,6 @@ export const zh = {
   agents: agents.zh,
   msgPush: msgPush.zh,
   setup: setup.zh,
-  envSetup: envSetup.zh,
   interactive: interactive.zh,
   feedback: feedback.zh,
   confirmation: confirmation.zh,

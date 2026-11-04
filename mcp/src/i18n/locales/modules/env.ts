@@ -130,9 +130,8 @@ export const env = defineModule(
     "prepare.envReady": "当前已登录，环境: {envId}",
     "prepare.autoBound": "当前已登录，已自动绑定唯一环境: {envId}",
     "prepare.multipleEnvs": "当前已登录，但存在多个可用环境，请先选择环境。",
-    "prepare.tcbInitFailed": "CloudBase 服务初始化失败，请稍后重试。",
-    "prepare.autoCreated": "当前已登录，已自动创建并绑定环境: {envId}",
-    "prepare.envCreateFailed": "环境创建失败，请稍后重试或手动创建环境。",
+    "prepare.noEnv":
+      "当前账号还没有 CloudBase 环境。每个账号都可以免费开通 1 个体验环境，也可以按需创建多个。\n请在控制台开通：{helpUrl}\n开通完成后回来对我说一句「已开通」，我会重新检查并继续绑定。控制台若提示实名认证或开通 CloudBase 服务，按页面提示完成即可。",
 
     // ---- 环境列表 ----
     "list.currentEnvOnlyNote":
@@ -204,7 +203,7 @@ export const env = defineModule(
     "billingMode.free":
       "计费方式：\n- 免费体验版（每月赠送约 3000 资源点 ≈ 3 元，0 元开通）\n- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版",
     "billingMode.paid":
-      "计费方式：\n- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版\n- 免费体验版通过 auth 工具自动创建；本次 manageEnv(create) 不会创建免费版",
+      "计费方式：\n- 付费套餐：个人版 / 标准版 / 企业版 / 企业高级版\n- 免费体验版需在控制台自行开通；本次 manageEnv(create) 只创建付费套餐",
     "releaseDetail.header": "资源释放方式：\n- 可随时在控制台销毁环境、关闭按量、退订加购资源",
     "releaseDetail.free":
       "- 免费体验版：有效期 1 个月，到期可免费续期 1 个月；未续期则停服(保留数据)→1~7天回收站→释放(数据不可恢复)",
@@ -480,10 +479,8 @@ export const env = defineModule(
     "prepare.autoBound": "Logged in. Automatically bound the only environment: {envId}",
     "prepare.multipleEnvs":
       "Logged in, but multiple environments are available. Please select an environment first.",
-    "prepare.tcbInitFailed": "CloudBase service initialization failed. Please retry later.",
-    "prepare.autoCreated": "Logged in. Automatically created and bound the environment: {envId}",
-    "prepare.envCreateFailed":
-      "Environment creation failed. Please retry later or create an environment manually.",
+    "prepare.noEnv":
+      "This account has no CloudBase environment yet. Every account can activate one free trial environment, and you can create more on demand.\nActivate it in the console: {helpUrl}\nWhen it is ready, come back and say \"done\" — I will re-check and continue binding. If the console asks for real-name verification or CloudBase activation, follow the on-screen steps.",
 
     // ---- Environment list ----
     "list.currentEnvOnlyNote":
@@ -567,7 +564,7 @@ export const env = defineModule(
     "billingMode.free":
       "Billing mode:\n- Free trial edition (about 3000 resource points granted monthly ≈ CNY 3, activated for CNY 0)\n- Paid packages: Personal / Standard / Enterprise / Enterprise Premium",
     "billingMode.paid":
-      "Billing mode:\n- Paid packages: Personal / Standard / Enterprise / Enterprise Premium\n- The free trial edition is created automatically by the auth tool; this manageEnv(create) call will not create a free edition",
+      "Billing mode:\n- Paid packages: Personal / Standard / Enterprise / Enterprise Premium\n- The free trial edition must be activated in the console; this manageEnv(create) call only creates paid packages",
     "releaseDetail.header":
       "Resource release methods:\n- You can destroy the environment, disable pay-as-you-go and unsubscribe add-on resources in the console at any time",
     "releaseDetail.free":
