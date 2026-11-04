@@ -1,4 +1,5 @@
 import fs from 'fs';
+import net from 'node:net';
 import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
@@ -623,6 +624,129 @@ describe('CloudBase Sites dev-server bind policy', () => {
     } finally {
       runPreviewCli(cwd, ['--stop']);
     }
+  });
+});
+
+describe('CloudBase Sites dev-server port probe', () => {
+  function writeViteProject(cwd) {
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      name: 'probe-site',
+      dependencies: { vite: '5.0.0', react: '18.0.0' },
+    }, null, 2));
+    const viteDir = path.join(cwd, 'node_modules', 'vite');
+    fs.mkdirSync(path.join(viteDir, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(viteDir, 'package.json'), JSON.stringify({ name: 'vite', version: '5.0.0' }));
+    fs.writeFileSync(path.join(viteDir, 'bin', 'vite.js'), "require('http').createServer(() => {});\n");
+  }
+
+  test('detects a port already held on loopback', async () => {
+    const cwd = makeTempDir();
+    writeViteProject(cwd);
+
+    const holder = net.createServer();
+    await new Promise((resolve, reject) => {
+      holder.once('error', reject);
+      holder.listen(0, '127.0.0.1', resolve);
+    });
+    const { port } = holder.address();
+
+    try {
+      const result = spawnSync(process.execPath, [BIN, 'preview', '--port', String(port)], {
+        cwd,
+        encoding: 'utf8',
+        timeout: 20000,
+        env: { ...process.env, CLOUDBASE_SITES_HEALTH_TIMEOUT_MS: '2000' },
+      });
+      expect(result.status).not.toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain('occupied');
+    } finally {
+      await new Promise((resolve) => holder.close(resolve));
+    }
+  });
+
+  test('the readiness probe never widens to every interface', () => {
+    // The probe decides which port the dev server may use. Binding it to the
+    // wildcard briefly exposed the port to the network for no reason; it has to
+    // follow the address the caller asked for.
+    const source = fs.readFileSync(path.join(PLUGIN_DIR, 'lib', 'verbs', 'preview.mjs'), 'utf8');
+    expect(source).not.toMatch(/listen\(port,\s*["']0\.0\.0\.0["']\)/);
+    expect(source).toMatch(/\.listen\(port,\s*bindHost\)/);
+    expect(source).toContain('DEFAULT_PORT_RANGE_END, bindHost');
+  });
+});
+
+describe('CloudBase Sites dependency install policy', () => {
+  function writeViteProjectWithoutDeps(cwd) {
+    fs.writeFileSync(path.join(cwd, 'package.json'), JSON.stringify({
+      name: 'needs-install',
+      scripts: { dev: 'vite' },
+      dependencies: { vite: '5.0.0', react: '18.0.0' },
+    }, null, 2));
+  }
+
+  // A stand-in for pnpm/npm that records being run, so "no install happened"
+  // is observable instead of inferred.
+  function stubInstallers(cwd) {
+    const bin = path.join(cwd, '.stub-bin');
+    fs.mkdirSync(bin, { recursive: true });
+    for (const name of ['pnpm', 'npm']) {
+      const file = path.join(bin, name);
+      fs.writeFileSync(file, `#!/usr/bin/env bash\necho "${name}" >> "${path.join(cwd, 'install-ran.txt')}"\nexit 0\n`);
+      fs.chmodSync(file, 0o755);
+    }
+    return bin;
+  }
+
+  function runHook(cwd, env) {
+    return spawnSync('bash', [SESSION_HOOK], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 20000,
+      input: '',
+      env: { ...process.env, ...env },
+    });
+  }
+
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  test('does not install dependencies just because a session opened', async () => {
+    const cwd = makeTempDir();
+    const stubBin = stubInstallers(cwd);
+    writeViteProjectWithoutDeps(cwd);
+
+    const result = runHook(cwd, {
+      PATH: `${stubBin}:${process.env.PATH}`,
+      CLOUDBASE_SITES_AUTO_INSTALL: '',
+    });
+    expect(result.status).toBe(0);
+
+    const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+    expect(context).toContain('dependencies are not installed');
+    expect(context).toContain('CLOUDBASE_SITES_AUTO_INSTALL=1');
+    expect(context).not.toContain('installing dependencies in background');
+
+    await wait(600);
+    expect(fs.existsSync(path.join(cwd, 'install-ran.txt'))).toBe(false);
+  });
+
+  test('installs only when CLOUDBASE_SITES_AUTO_INSTALL=1 asks for it', async () => {
+    const cwd = makeTempDir();
+    const stubBin = stubInstallers(cwd);
+    writeViteProjectWithoutDeps(cwd);
+
+    const result = runHook(cwd, {
+      PATH: `${stubBin}:${process.env.PATH}`,
+      CLOUDBASE_SITES_AUTO_INSTALL: '1',
+    });
+    expect(result.status).toBe(0);
+
+    const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+    expect(context).toContain('installing dependencies in background');
+    expect(context).toContain('CLOUDBASE_SITES_AUTO_INSTALL=1');
+
+    const marker = path.join(cwd, 'install-ran.txt');
+    for (let i = 0; i < 20 && !fs.existsSync(marker); i += 1) await wait(100);
+    expect(fs.existsSync(marker)).toBe(true);
   });
 });
 

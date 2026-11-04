@@ -40,7 +40,7 @@
       "name": "cloudbase-sites",
       "source": "plugin/cloudbase-sites-codex",
       "description": "Create, preview, save, deploy, inspect, and roll back Vite web apps hosted on Tencent CloudBase.",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "author": {
         "name": "Tencent CloudBase"
       },

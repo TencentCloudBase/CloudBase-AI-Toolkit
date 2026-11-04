@@ -166,6 +166,17 @@ reason you passed it.
 Only bind beyond loopback on a network you trust: anyone who can reach the port
 can read the project.
 
+## Installing project dependencies
+
+Opening a session in a Vite project whose `node_modules` is missing does not
+install anything. Installing runs the dependency tree's own install scripts, so
+it waits for you: the hook reports that dependencies are missing, and the
+assistant asks before running `pnpm install` (falling back to `npm install`).
+
+Set `CLOUDBASE_SITES_AUTO_INSTALL=1` before starting the session if you want the
+hook to install and start the preview on its own, as it does for a template that
+`init --start` created itself.
+
 Run the focused regression tests:
 
 ```bash
