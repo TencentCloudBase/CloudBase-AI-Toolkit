@@ -1,7 +1,7 @@
 ---
 name: ai-model-wechat
 description: "Use this skill for WeChat Mini Program AI via wx.cloud.extend.AI (小程序, wx.cloud apps). Covers generateText and streamText with callbacks (onText, onEvent, onFinish); streamText needs a data wrapper, generateText returns the raw response. Models via wx.cloud.extend.AI.createModel with groups cloudbase (main managed, also 小程序成长计划 with `hy3`), the legacy hunyuan-v3 / hunyuan-exp, or custom-*; model id goes in the data wrapper `model` field. MUST run two-step preflight before code — see body. NOT for browser/Web (use ai-model-web), Node.js backend (use ai-model-nodejs), or image generation (use ai-model-nodejs)."
-version: 2.37.1
+version: 2.37.2
 license: MIT
 alwaysApply: false
 ---
