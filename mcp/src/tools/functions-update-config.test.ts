@@ -99,11 +99,15 @@ describe("buildFunctionConfigUpdateParams", () => {
 });
 
 describe("applyFunctionConfigUpdate", () => {
-  it("prefers the SCF service so the SDK cannot inject CLS ids", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("goes through the TCB service so the SDK cannot inject CLS ids", async () => {
     mockScfRequest.mockResolvedValue({ RequestId: "req-1" });
     const manager = {
       functions: {
-        scfService: { request: mockScfRequest },
+        tcbService: { request: mockScfRequest },
         updateFunctionConfig: mockSdkUpdateFunctionConfig,
       },
     };
@@ -119,7 +123,33 @@ describe("applyFunctionConfigUpdate", () => {
     expect(mockSdkUpdateFunctionConfig).not.toHaveBeenCalled();
   });
 
-  it("falls back to the manager SDK when scfService is unavailable", async () => {
+  it("never routes through the SCF service, even when it is present", async () => {
+    // 2.37.0 的回归：UpdateFunctionConfiguration 走 scfService 时，TCB 建的函数
+    // 在 SCF 原生命名空间里查不到，现网 287 次调用 282 次失败。
+    const scfRequest = vi.fn().mockResolvedValue({ RequestId: "wrong-service" });
+    const manager = {
+      functions: {
+        tcbService: { request: mockScfRequest },
+        scfService: { request: scfRequest },
+        updateFunctionConfig: mockSdkUpdateFunctionConfig,
+      },
+    };
+    mockScfRequest.mockResolvedValue({ RequestId: "req-tcb" });
+
+    await applyFunctionConfigUpdate(
+      manager,
+      buildFunctionConfigUpdateParams({
+        envId: "env-test",
+        functionName: "fn",
+        envVariables: { A: "1" },
+      }),
+    );
+
+    expect(mockScfRequest).toHaveBeenCalledTimes(1);
+    expect(scfRequest).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the manager SDK when tcbService is unavailable", async () => {
     mockSdkUpdateFunctionConfig.mockResolvedValue({ RequestId: "req-2" });
     const manager = {
       functions: { updateFunctionConfig: mockSdkUpdateFunctionConfig },
@@ -202,7 +232,7 @@ describe("manageFunctions updateFunctionConfig", () => {
     mockScfRequest.mockResolvedValue({ RequestId: "req-update" });
     mockGetCloudBaseManager.mockResolvedValue({
       functions: {
-        scfService: { request: mockScfRequest },
+        tcbService: { request: mockScfRequest },
         getFunctionDetail: mockGetFunctionDetail,
         updateFunctionConfig: mockSdkUpdateFunctionConfig,
         updateFunctionCode: mockUpdateFunctionCode,
