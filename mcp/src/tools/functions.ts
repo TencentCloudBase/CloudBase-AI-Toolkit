@@ -14,7 +14,7 @@ import {
   FUNCTION_LOG_SERVICE_NOT_ENABLED_ERROR_CODE,
   isLogServiceNotEnabledMessage,
 } from "../utils/log-service.js";
-import { debug } from "../utils/logger.js";
+import { debug, warn } from "../utils/logger.js";
 import { isToolPayloadError, throwToolPayloadError } from "../utils/tool-result.js";
 import {
   DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
@@ -1055,7 +1055,10 @@ export async function applyFunctionConfigUpdate(
     return tcbService.request("UpdateFunctionConfiguration", params);
   }
 
-  debug(
+  // 走到这里说明 manager 不是标准 SDK 实例，或 manager-node 改了内部形态。
+  // 用 warn 不用 debug：这条路会重新带上环境级 CLS 对，等于悄悄退回 #1274 之前
+  // 的失败面（函数角色无权用该日志目的地时，改环境变量会报 InvalidParameter.Cls）。
+  warn(
     "[updateFunctionConfig] tcbService 不可用，退回 manager SDK（会带上环境级 CLS 对）",
   );
 
