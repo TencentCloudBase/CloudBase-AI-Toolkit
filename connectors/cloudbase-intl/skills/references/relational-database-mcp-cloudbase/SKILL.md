@@ -1,7 +1,7 @@
 ---
 name: relational-database-mcp-cloudbase
 description: "[Deprecated] Existing CloudBase MySQL only. Do not recommend MySQL for new relational work — use postgresql-development. Read this when the environment already has a MySQL instance and the task is queryMysqlDatabase, manageMysqlDatabase, queryPermissions, or managePermissions (inspect, write SQL, schema, permissions, destroy). Do not provision MySQL."
-version: 2.37.1
+version: 2.37.2
 license: MIT
 alwaysApply: false
 metadata:
