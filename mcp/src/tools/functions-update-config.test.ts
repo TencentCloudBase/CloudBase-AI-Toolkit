@@ -66,9 +66,11 @@ describe("buildFunctionConfigUpdateParams", () => {
       vpc: { vpcId: "vpc-123", subnetId: "subnet-456" },
     });
 
+    // 不带 Namespace：TCB 端点只认 EnvId，多传会报
+    // `The parameter 'Namespace' is not recognized`（2026-11-04 实测）。
+    expect(params).not.toHaveProperty("Namespace");
     expect(params).toEqual({
       EnvId: "env-test",
-      Namespace: "env-test",
       FunctionName: "notification-get-list",
       Environment: {
         Variables: [

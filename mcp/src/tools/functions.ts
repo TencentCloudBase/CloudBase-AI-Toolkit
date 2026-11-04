@@ -999,9 +999,12 @@ export type FunctionConfigUpdateInput = {
 export function buildFunctionConfigUpdateParams(
   input: FunctionConfigUpdateInput,
 ): Record<string, unknown> {
+  // 只带 EnvId，不带 Namespace：两个端点的参数 schema 不同 —— TCB 端点
+  // （tcbService）只认 EnvId，传 Namespace 会报 `The parameter Namespace is not
+  // recognized`；SCF 端点反过来只认 Namespace。这里的目标端点是 TCB，与 SDK 的
+  // updateFunctionConfig 保持一致（`lib/function/index.ts` 的 params 只有 EnvId）。
   const params: Record<string, unknown> = {
     EnvId: input.envId,
-    Namespace: input.envId,
     FunctionName: input.functionName,
   };
 
