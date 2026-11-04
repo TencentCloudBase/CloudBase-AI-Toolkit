@@ -729,7 +729,7 @@ describe("env tools - auth", () => {
           "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
         ),
       ).toBe(
-        "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device",
+        "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device&allowNoEnv=true",
       );
     } finally {
       delete process.env.TCB_SITE;
@@ -767,7 +767,9 @@ describe("env tools - auth", () => {
       callArgs.getAuthUrl(
         "https://tcb.cloud.tencent.com/dev#/cli-auth?from=cli&flow=device",
       ),
-    ).toBe("https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device");
+    ).toBe(
+      "https://tcb.tencentcloud.com/dev#/cli-auth?from=cli&flow=device&allowNoEnv=true",
+    );
     // 站点写入环境变量，供本次登录后续环节与后续工具调用按同一站点解析
     expect(process.env.TCB_SITE).toBe("intl");
   });
