@@ -17,6 +17,7 @@ import {
   resolvePlanCode,
   sumCreditsValue,
   sumDeductValue,
+  pickCreditsBilling,
   PLAN_CREDITS_TOTAL,
   type CreditsUsageLike,
 } from "./env-credits-payload.js";
@@ -427,7 +428,7 @@ describe("按 type 过滤过的查询：used 是子集，不能配全量 total",
   it("对照组：同一条数据不过滤时给 total 与真实结论", () => {
     const payload = buildEnvCreditsPayload({ ...base });
 
-    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.trial, used: 12 });
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.trial, used: 12, source: "detail" });
     expect(payload.branch).toBe("normal");
   });
 
@@ -485,7 +486,7 @@ describe("求和不完整（部分和）保护：不配全量配额、不下结�
       expired: false,
     });
 
-    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.trial, used: 42 });
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.trial, used: 42, source: "detail" });
     expect(payload.branch).toBe("normal");
   });
 });
@@ -534,7 +535,7 @@ describe("buildEnvCreditsPayload", () => {
       expired: false,
     });
 
-    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.personal, used: 30059 });
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.personal, used: 30059, source: "detail" });
     // 分模块行仍是该模块的总消耗（与控制台「功能用量概览」同口径）→ 行之和不必等于 used
     expect(payload.modules).toEqual([
       { module: "database", credits_value: 16900 },
@@ -570,7 +571,7 @@ describe("buildEnvCreditsPayload", () => {
     });
 
     expect(payload.plan).toBe("personal");
-    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.personal, used: 12 });
+    expect(payload.credits).toEqual({ total: PLAN_CREDITS_TOTAL.personal, used: 12, source: "detail" });
     expect(payload.branch).toBe("normal");
     expect(payload.modules).toEqual([{ module: "functions", credits_value: 12 }]);
 
@@ -586,7 +587,7 @@ describe("buildEnvCreditsPayload", () => {
     });
     expect(unknownPlan.plan).toBeNull();
     expect(unknownPlan.plan_raw).toBe("baas_ultra");
-    expect(unknownPlan.credits).toEqual({ used: 12 });
+    expect(unknownPlan.credits).toEqual({ used: 12, source: "detail" });
     expect(unknownPlan.credits).not.toHaveProperty("total");
     expect(unknownPlan.branch).toBe("unknown");
   });
@@ -792,5 +793,87 @@ describe("buildEnvMetricsPayload（监控指标卡载荷）", () => {
     const credits = buildEnvCreditsPayload({ envId: "env-demo", usages: null, site: "domestic", region: "ap-shanghai" });
     expect(credits).not.toHaveProperty("kind");
     expect(buildEnvMetricsPayload({ ...METRICS_BASE, summary: summaryOf([]) }).kind).toBe("metrics");
+  });
+});
+
+describe("账单聚合优先于分项求和（DescribeCreditsUsage）", () => {
+  const base = {
+    envId: "env-billing",
+    planRaw: "baas_personal",
+    usages: [SCF, COS],
+    site: "domestic",
+    region: "ap-shanghai",
+    expired: false,
+  };
+
+  it("pickCreditsBilling：剥掉 Response、容忍扁平外形；三项都读不到才返回 null", () => {
+    expect(pickCreditsBilling({ Response: { DeductValue: 10, ReportValue: 2 } })).toEqual({
+      DeductValue: 10,
+      ReportValue: 2,
+    });
+    expect(pickCreditsBilling({ DeductValue: 10 })).toEqual({ DeductValue: 10 });
+    expect(pickCreditsBilling(null)).toBeNull();
+    expect(pickCreditsBilling({ DeductValue: "10" })).toBeNull();
+    expect(pickCreditsBilling({})).toBeNull();
+  });
+
+  it("账单给了套餐内用量就以它为准，不再拿分项凑（两者实测差 0.15%）", () => {
+    const payload = buildEnvCreditsPayload({
+      ...base,
+      billing: { DeductValue: 31_700 },
+    });
+
+    // 分项之和是 42；账单是 31700 —— 必须听账单的
+    expect(payload.credits).toEqual({ total: 40000, used: 31_700, source: "billing" });
+    expect(payload.branch).toBe("normal");
+  });
+
+  it("配额耗尽时账单封顶到配额 ⇒ 结论落在 stopped；分项求和做不到这件事", () => {
+    const summed = buildEnvCreditsPayload(base);
+    const billed = buildEnvCreditsPayload({ ...base, billing: { DeductValue: 40000 } });
+
+    expect(summed.credits?.used).toBe(42);
+    expect(summed.branch).toBe("normal");
+    expect(billed.credits).toEqual({ total: 40000, used: 40000, source: "billing" });
+    expect(billed.branch).toBe("stopped");
+  });
+
+  it("资源包与按量如实带上，为 0 就不带", () => {
+    const both = buildEnvCreditsPayload({
+      ...base,
+      billing: { DeductValue: 1000, ReportValue: 520.5, PackageDeductValue: 30 },
+    });
+    expect(both.credits).toEqual({
+      total: 40000,
+      used: 1000,
+      source: "billing",
+      payg: 520.5,
+      package: 30,
+    });
+
+    const zeros = buildEnvCreditsPayload({
+      ...base,
+      billing: { DeductValue: 1000, ReportValue: 0, PackageDeductValue: 0 },
+    });
+    expect(zeros.credits).not.toHaveProperty("payg");
+    expect(zeros.credits).not.toHaveProperty("package");
+  });
+
+  it("按 type 过滤过：账单是整周期全模块数，不能拿来当所选模块的用量", () => {
+    const payload = buildEnvCreditsPayload({
+      ...base,
+      modulesFiltered: true,
+      billing: { DeductValue: 40000, ReportValue: 900 },
+    });
+
+    // 子集查询不声称"套餐内用量"，所以连 source 都不标
+    expect(payload.credits).toEqual({ used: 42 });
+    expect(payload.branch).toBe("unknown");
+  });
+
+  it("账单读不到就退回分项求和，并标 source=detail", () => {
+    const payload = buildEnvCreditsPayload({ ...base, billing: null });
+
+    expect(payload.credits).toEqual({ total: 40000, used: 42, source: "detail" });
   });
 });

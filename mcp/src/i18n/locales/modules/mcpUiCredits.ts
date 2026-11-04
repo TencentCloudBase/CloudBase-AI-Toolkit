@@ -27,6 +27,8 @@ export const mcpUiCredits = defineModule(
     // 卡片
     title: "环境资源用量",
     "field.credits": "资源点",
+    "field.payg": "按量用量",
+    "field.package": "资源包抵扣",
     "field.plan": "套餐",
     "field.place": "地域",
     "field.modules": "分模块用量",
@@ -195,6 +197,8 @@ export const mcpUiCredits = defineModule(
 
     title: "Environment usage",
     "field.credits": "Credits",
+    "field.payg": "Pay-as-you-go",
+    "field.package": "Resource pack",
     "field.plan": "Plan",
     "field.place": "Region",
     "field.modules": "Usage by module",

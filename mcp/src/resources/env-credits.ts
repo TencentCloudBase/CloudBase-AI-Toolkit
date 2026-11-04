@@ -80,7 +80,21 @@ export interface EnvCreditsPayload {
   plan_raw?: string | null;
   current_region?: string;
   site?: string;
-  credits?: { total?: number; used?: number } | null;
+  /**
+   * 资源点用量。三个数各占一个去向，加起来才是总消耗：
+   *   `used`    套餐内用量（进度条分子，与 `total` 同口径）
+   *   `payg`    超套餐后的按量用量
+   *   `package` 资源包抵扣
+   * 只有 `used` 是必有的；`payg` / `package` 为零或读不到时整键缺省（面板不画空行）。
+   * `source` 说明 `used` 从哪来：`billing` = 账单聚合接口，`detail` = 分模块明细求和。
+   */
+  credits?: {
+    total?: number;
+    used?: number;
+    payg?: number;
+    package?: number;
+    source?: "billing" | "detail";
+  } | null;
   modules?: Array<{ module?: CreditsModuleCode | string; credits_value?: number }>;
   spark?: Array<{ calc_time?: string; credits_value?: number }>;
   balance?: number | null;
@@ -420,6 +434,14 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
           <p class="k">${E(L("mcpUiCredits.field.credits"))}</p>
           <p class="big"><span id="k-pct"></span><span class="v mono" id="k-credits"></span></p>
           <div class="ubar" id="ubar-box" hidden><i id="ubar"></i></div>
+        </div>
+        <div class="field" id="f-payg" hidden>
+          <p class="k">${E(L("mcpUiCredits.field.payg"))}</p>
+          <p class="v mono" id="k-payg"></p>
+        </div>
+        <div class="field" id="f-package" hidden>
+          <p class="k">${E(L("mcpUiCredits.field.package"))}</p>
+          <p class="v mono" id="k-package"></p>
         </div>
         <div class="field" id="f-mods" hidden>
           <p class="k">${E(L("mcpUiCredits.field.modules"))}</p>
@@ -880,7 +902,7 @@ ${CREDENTIAL_GUARD_JS}
     }
   }
   /** Credits-only blocks, hidden while the metrics view renders. */
-  var CREDITS_ONLY = ["col-a", "col-b", "f-credits", "f-mods", "f-plan", "f-balance", "k-expired", "ubar-box"];
+  var CREDITS_ONLY = ["col-a", "col-b", "f-credits", "f-payg", "f-package", "f-mods", "f-plan", "f-balance", "k-expired", "ubar-box"];
   /** Metrics-only blocks, hidden while the credits view renders. */
   var METRICS_ONLY = ["f-m-table", "f-m-latest", "f-m-peak", "f-m-avg", "f-m-window"];
 
@@ -1039,6 +1061,16 @@ ${CREDENTIAL_GUARD_JS}
       setText(el("k-pct"), pct === null ? "" : pct + "%");
       setText(el("k-credits"), pct === null ? fmtNumber(used) : fmtNumber(used) + " / " + fmtNumber(total));
     }
+    // The two other destinations of the same credit bill. Without them the module rows look like
+    // they add up to more than the plan figure for no reason. Zero means the row would be noise.
+    var payg = credits && typeof credits.payg === "number" && credits.payg > 0 ? credits.payg : null;
+    var packCredits = credits && typeof credits.package === "number" && credits.package > 0 ? credits.package : null;
+    var fPayg = el("f-payg");
+    fPayg.hidden = payg === null;
+    if (!fPayg.hidden) { setText(el("k-payg"), fmtNumber(payg)); }
+    var fPackage = el("f-package");
+    fPackage.hidden = packCredits === null;
+    if (!fPackage.hidden) { setText(el("k-package"), fmtNumber(packCredits)); }
     // "Not enough data" is only true when nothing was read. With a used figure in hand, the honest
     // sentence names the one piece that is missing instead of denying the number on screen.
     if (key === "unknown" && used !== null) {

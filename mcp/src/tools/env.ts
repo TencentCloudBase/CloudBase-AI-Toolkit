@@ -62,7 +62,9 @@ import {
   buildEnvCreditsPayload,
   buildEnvMetricsPayload,
   isBillingExpired,
+  pickCreditsBilling,
   resolveIsolatedDaysLeft,
+  type CreditsBillingLike,
 } from "./env-credits-payload.js";
 import type { EnvCreditsPayload, EnvMetricsPayload } from "../resources/env-credits.js";
 import type { CreateEnvParams } from "@cloudbase/manager-node/types/interfaces/tcb.interface.js";
@@ -3383,6 +3385,35 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               endDate,
               accountCircle,
             });
+            const modulesFiltered = Array.isArray(type) && type.length > 0;
+            // 账单聚合（`DescribeCreditsUsage`）只认"整周期 + 全模块"：它没有模块参数，
+            // 传入非周期范围实测会返回全零。所以这里先判能不能用，不能用就回退到分项求和。
+            const cycleStart = extractAccountCircleDate(accountCircle?.StartTime);
+            const cycleEnd = extractAccountCircleDate(accountCircle?.EndTime);
+            const cycleAligned =
+              dateRange.dateSource === "accountCircle" ||
+              (cycleStart === dateRange.startDate && cycleEnd === dateRange.endDate);
+            let billing: CreditsBillingLike | null = null;
+            if (!modulesFiltered && cycleAligned) {
+              try {
+                const billingRaw = await cloudbaseUsage.commonService("tcb", "2018-06-08").call({
+                  Action: "DescribeCreditsUsage",
+                  Param: {
+                    EnvId: usageEnvId,
+                    StartDate: dateRange.startDate,
+                    EndDate: dateRange.endDate,
+                  },
+                });
+                logCloudBaseResult(server.logger, billingRaw);
+                billing = pickCreditsBilling(billingRaw);
+              } catch (billingError) {
+                // 读不到账单不影响明细：头部退回分项求和，面板标 `source: "detail"`。
+                debug(
+                  "queryEnv(usage) DescribeCreditsUsage 失败，头部回退到分项求和:",
+                  billingError instanceof Error ? billingError : new Error(String(billingError)),
+                );
+              }
+            }
             const usageDetail = await cloudbaseUsage.env.describeCreditsUsageDetail({
               EnvId: usageEnvId,
               Modules: modules,
@@ -3391,7 +3422,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               NeedUsageDetails: includeDetails,
             });
             logCloudBaseResult(server.logger, usageDetail);
-            result = {
+            // Record 而非字面类型：`Credits` 要等面板载荷算完（套餐码在后面才取到）再挂上去。
+            const usageResult: Record<string, unknown> = {
               EnvId: usageEnvId,
               Modules: modules,
               StartDate: dateRange.startDate,
@@ -3407,6 +3439,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               Usages: usageDetail?.Usages ?? [],
               RequestId: usageDetail?.RequestId,
             };
+            result = usageResult;
 
             // 面板载荷：套餐码与环境别名只能从环境信息里取（DescribeEnvInfo），
             // 这是本 action 为面板多付的一次只读调用；失败就降级，不影响回执。
@@ -3448,8 +3481,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               balance: null,
               // 显式告知"本次查询被 type 过滤过"：此时 Usages 只是被选模块的子集，
               // 配全量配额会得出错误结论（详见 env-credits-payload.ts）。
-              modulesFiltered: Array.isArray(type) && type.length > 0,
+              modulesFiltered,
+              billing,
             });
+            // 同一份汇总也给到模型：分模块行是明细、加起来不等于总额（账单侧还有未归到
+            // 模块的部分，且配额耗尽时会封顶），所以头部数字直接给，别让调用方自己加。
+            if (creditsPayload?.credits) {
+              usageResult.Credits = creditsPayload.credits;
+            }
             break;
           }
 

@@ -1258,3 +1258,60 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
       expect(panel.el("btn-main-label").textContent).not.toBe("");
     });
   });
+
+describe("按量 / 资源包两行", () => {
+  const base = {
+    envId: "env-overage",
+    planRaw: "baas_personal",
+    usages: [{ Module: "FLEXDB", CreditsValue: 36000, DeductValue: 31700 }] as CreditsUsageLike[],
+    site: "domestic",
+    region: "ap-shanghai",
+    expired: false,
+  };
+
+  it("账单给了正数才出现；没有就整行隐藏（不画空行）", () => {
+    const withExtra = render(
+      buildEnvCreditsPayload({
+        ...base,
+        billing: { DeductValue: 31700, ReportValue: 520.5, PackageDeductValue: 30 },
+      }),
+    );
+    expect(withExtra.el("f-credits").hidden).toBe(false);
+    expect(withExtra.el("k-credits").textContent).toBe("31,700 / 40,000");
+    expect(withExtra.el("f-payg").hidden).toBe(false);
+    expect(withExtra.el("k-payg").textContent).toBe("521");
+    expect(withExtra.el("f-package").hidden).toBe(false);
+    expect(withExtra.el("k-package").textContent).toBe("30");
+
+    const withoutExtra = render(buildEnvCreditsPayload({ ...base, billing: { DeductValue: 31700 } }));
+    expect(withoutExtra.el("f-payg").hidden).toBe(true);
+    expect(withoutExtra.el("f-package").hidden).toBe(true);
+
+    // 只读明细（没有账单）时两行同样不出现
+    const detailOnly = render(buildEnvCreditsPayload(base));
+    expect(detailOnly.el("f-payg").hidden).toBe(true);
+    expect(detailOnly.el("f-package").hidden).toBe(true);
+  });
+
+  it("切换到监控视图时，这两行跟着用量视图一起收起来", () => {
+    const panel = render(
+      buildEnvCreditsPayload({
+        ...base,
+        billing: { DeductValue: 31700, ReportValue: 100, PackageDeductValue: 20 },
+      }),
+    );
+    expect(panel.el("f-payg").hidden).toBe(false);
+    panel.dispatch({
+      structuredContent: buildEnvMetricsPayload({
+        envId: "env-overage",
+        metricName: "EnvQPSAll",
+        site: "domestic",
+        region: "ap-shanghai",
+        summary: { sampleCount: 0 },
+        curve: { NewValues: [] },
+      }),
+    });
+    expect(panel.el("f-payg").hidden).toBe(true);
+    expect(panel.el("f-package").hidden).toBe(true);
+  });
+});

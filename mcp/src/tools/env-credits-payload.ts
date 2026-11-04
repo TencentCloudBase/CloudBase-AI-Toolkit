@@ -15,10 +15,12 @@ import type { CreditsBranch, EnvCreditsPayload, EnvMetricsPayload, MetricsState,
  *      因为那时的 `used` 是子集而 `total` 是全量，两个放一起会得出错误结论）；`CreditsValue` 缺失
  *      的条目**跳过**、绝不当 0；total 来自 `PLAN_CREDITS_TOTAL` 这张**有官方出处**的常量表，
  *      套餐码认不出就不传 total，不拿默认值兜底；余额没有只读来源就传 null，不为它新增调用。
- *      **分子的口径必须和分母一致**：配额是"套餐内"点数，所以 `used` 取 `DeductValue`
- *      （套餐内用量），不取 `CreditsValue`（总消耗，含按量计费与被免费额度抵扣掉的部分）——
- *      两者实测能差 10% 以上，混用会把 79% 读成 46%（见 `sumDeductValue`）。
- *   3. **不新增依赖 / 不发请求**：这里只做纯换算。
+ *      **分子的口径必须和分母一致**：配额是"套餐内"点数，所以 `used` 取"套餐内用量"，
+ *      不取 `CreditsValue`（总消耗，含按量计费与被免费额度抵扣掉的部分）——两者实测能差一个
+ *      量级。套餐内用量有两个来源，**优先账单**（`DescribeCreditsUsage.DeductValue`，一次取齐
+ *      套餐内 / 资源包 / 按量三项），读不到才退回分模块 `DeductValue` 求和；两者实测差 0.15%
+ *      左右，且配额耗尽时账单会封顶到配额（分项求和做不到），所以头部听账单的、分项只解释构成。
+ *   3. **不新增依赖 / 不发请求**：这里只做纯换算（账单那次调用在 env.ts 里，`billing` 传进来）。
  */
 
 /** 付费套餐码（`plan` 枚举里除体验版之外的全部）。 */
@@ -225,6 +227,56 @@ export interface CreditsUsageLike {
   MetricUsageDetail?: Array<{
     ValueDetailList?: Array<{ CalcTime?: string; CreditsValue?: number }>;
   }> | null;
+}
+
+/**
+ * 账单侧的用量汇总（`DescribeCreditsUsage` 出参里本模块读到的三项）。
+ *
+ * 这三项是同一份账单的三个去向，**加起来才是总消耗**：
+ *   `DeductValue`         套餐内用量 —— 与 `PLAN_CREDITS_TOTAL` 同口径，进度条分子取它
+ *   `PackageDeductValue` 资源包抵扣 —— 用完了才轮到按量
+ *   `ReportValue`        超套餐后的按量用量
+ *
+ * 分模块的 `Usages[]` 是明细链路，与账单不是同一套计算：实测同一周期两者差 0.15% 左右
+ * （账单侧还有未归到 15 个模块的部分），配额耗尽时账单会**封顶到配额**（实测 40,000 整，
+ * 而分项合计 39,938）。所以头部数字以账单为准，分项只用来解释构成。
+ */
+export interface CreditsBillingLike {
+  DeductValue?: unknown;
+  PackageDeductValue?: unknown;
+  ReportValue?: unknown;
+}
+
+/** 三个字段各自独立取：缺一个不影响另外两个。 */
+function finiteBillingValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * `DescribeCreditsUsage` 的原始返回 → `CreditsBillingLike`。
+ *
+ * 兼容两种外形（manager 的 `commonService().call()` 可能已剥掉 `Response` 这一层）。
+ * 三项一个都取不到就返回 null —— 调用方据此回退到分项求和，而不是把 0 当成"没用量"。
+ */
+export function pickCreditsBilling(raw: unknown): CreditsBillingLike | null {
+  const envelope =
+    raw && typeof raw === "object" && "Response" in (raw as Record<string, unknown>)
+      ? (raw as { Response?: unknown }).Response
+      : raw;
+  if (!envelope || typeof envelope !== "object") {
+    return null;
+  }
+  const source = envelope as Record<string, unknown>;
+  const out: CreditsBillingLike = {};
+  let found = false;
+  for (const key of ["DeductValue", "PackageDeductValue", "ReportValue"] as const) {
+    const value = finiteBillingValue(source[key]);
+    if (value !== null) {
+      out[key] = value;
+      found = true;
+    }
+  }
+  return found ? out : null;
 }
 
 /**
@@ -444,22 +496,41 @@ export function buildEnvCreditsPayload(input: {
   isolatedDaysLeft?: number | null;
   balance?: number | null;
   modulesFiltered?: boolean;
+  /**
+   * 账单聚合（`DescribeCreditsUsage`）的读数。**只有"整周期 + 未按模块过滤"才允许传**：
+   * 那个接口只认计费周期、没有模块参数，用在别的场合会返回 0 或错口径的数。
+   * 传了就优先于分项求和（见 `pickCreditsBilling` 的注释）。
+   */
+  billing?: CreditsBillingLike | null;
 }): EnvCreditsPayload {
   const filtered = input.modulesFiltered === true;
-  // 分子必须和分母同口径：分母是"套餐"配额，所以分子取 `DeductValue`（套餐内用量）。
-  // 拿 `CreditsValue`（总消耗）去除，会把用量算多（实测 35,281 / 40,000 显示成 88%，
-  // 控制台同口径是 31,7xx / 40,000 = 79%）。见 `sumDeductValue` 的注释。
-  const packageUsed = sumDeductValue(input.usages);
-  // 两种情形都"不可下结论"
-  const comparable = !filtered && packageUsed !== null;
+  // 头部数字的来源优先级：账单聚合 → 分项 `DeductValue` 求和 → 总消耗（不可比，只展示）。
+  // 被 type 过滤过时**不看账单**：账单是整周期的全模块数，拿它当"所选模块的用量"是另一种错。
+  const billedInPlan = filtered ? null : finiteBillingValue(input.billing?.DeductValue);
+  const detailInPlan = filtered ? null : sumDeductValue(input.usages);
+  const inPlan = billedInPlan ?? detailInPlan;
+  const used = inPlan ?? sumCreditsValue(input.usages);
+  const creditsSource: "billing" | "detail" | null =
+    billedInPlan !== null ? "billing" : detailInPlan !== null ? "detail" : null;
+  // 两种情形都"不可下结论"：被 type 过滤过（只是子集），或套餐口径一条都读不到。
+  const comparable = !filtered && inPlan !== null;
   const { plan, plan_raw } = resolvePlanCode(input.planRaw);
-  // 套餐口径一条都读不到（老响应 / 非套餐计费的环境）→ 退回总消耗如实展示，
-  // 但因为 comparable 已是 false，`credits` 只带 `used`、不与配额相除。
-  const used = packageUsed ?? sumCreditsValue(input.usages);
   // 配额查表；数字不可比时不给 total，套餐码认不出也不给（见 PLAN_CREDITS_TOTAL，不拿默认值兜底）。
   const total = comparable && plan ? PLAN_CREDITS_TOTAL[plan] : null;
+  // 资源包 / 按量来自同一次账单调用；为 0 或读不到就不带（面板不画空行）。
+  // 与 `used` 同理，被过滤过时这几项是整周期数，不能挂在子集查询下。
+  const payg = filtered ? null : finiteBillingValue(input.billing?.ReportValue);
+  const packageCredits = filtered ? null : finiteBillingValue(input.billing?.PackageDeductValue);
   const credits =
-    used === null ? null : comparable && total !== null ? { total, used } : { used };
+    used === null
+      ? null
+      : {
+          ...(comparable && total !== null ? { total } : {}),
+          used,
+          ...(creditsSource ? { source: creditsSource } : {}),
+          ...(payg !== null && payg > 0 ? { payg } : {}),
+          ...(packageCredits !== null && packageCredits > 0 ? { package: packageCredits } : {}),
+        };
   const modules = mapCreditsModules(input.usages);
   const spark = buildCreditsSpark(input.usages);
   // 余额没有只读来源（仓里没有对应调用路径）→ 如实传 null，面板隐藏该行；不为它新增请求。
