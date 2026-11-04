@@ -2911,6 +2911,49 @@ describe("env tools - queryEnv", () => {
     });
   });
 
+  it("queryEnv(usage) 整周期查询以账单聚合为准，同一份汇总也给到模型", async () => {
+    const describeEnvAccountCircle = vi.fn().mockResolvedValue({
+      StartTime: "2026-08-01 00:00:00",
+      EndTime: "2026-08-31 23:59:59",
+    });
+    // 分项合计 7，账单说 31,700 —— 差额来自按量与未归到模块的部分，头部必须听账单的
+    const describeCreditsUsageDetail = vi.fn().mockResolvedValue({
+      Usages: [{ EnvId: "env-billed", Module: "FLEXDB", CreditsValue: 7, DeductValue: 7 }],
+    });
+    const describeEnvInfo = vi.fn().mockResolvedValue({
+      EnvInfo: {
+        EnvBaseInfo: { EnvId: "env-billed", PackageId: "baas_personal", Region: "ap-shanghai" },
+        BillingInfo: { ExpireTime: "2099-01-01 00:00:00" },
+      },
+    });
+    const billingCall = vi.fn().mockResolvedValue({
+      Response: { DeductValue: 31_700, ReportValue: 520.5, PackageDeductValue: 0 },
+    });
+    mockGetCloudBaseManager.mockResolvedValue({
+      env: { describeEnvAccountCircle, describeCreditsUsageDetail, describeEnvInfo },
+      commonService: vi.fn(() => ({ call: billingCall })),
+    });
+
+    const { tools } = createMockServer();
+    const result = await tools.queryEnv.handler({ action: "usage", envId: "env-billed" });
+
+    expect(billingCall).toHaveBeenCalledWith({
+      Action: "DescribeCreditsUsage",
+      Param: { EnvId: "env-billed", StartDate: "2026-08-01", EndDate: "2026-08-31" },
+    });
+    expect(result.structuredContent).toMatchObject({
+      credits: { total: 40000, used: 31_700, source: "billing", payg: 520.5 },
+      branch: "normal",
+    });
+    // 分模块行仍是明细口径，不跟着头部变
+    expect(result.structuredContent).toMatchObject({
+      modules: [{ module: "database", credits_value: 7 }],
+    });
+    // 模型拿到的是同一份汇总，不必自己去加那 15 行
+    const json = JSON.parse(result.content[0].text);
+    expect(json.Credits).toEqual({ total: 40000, used: 31_700, source: "billing", payg: 520.5 });
+  });
+
   it("queryEnv(usage) 带 type 过滤时：只给 used、不给 total，结论压成 unknown", async () => {
     const describeEnvAccountCircle = vi.fn().mockResolvedValue({
       StartTime: "2026-08-01 00:00:00",
