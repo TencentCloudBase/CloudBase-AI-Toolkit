@@ -61,6 +61,46 @@ export const databasePG = defineModule(
       "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push，对齐 CLI tcb db pg migration up --include-all；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。",
     "schema.manageAllowDdlViaExecute":
       "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
+    "managePgRealtime.title": "管理 PostgreSQL Realtime",
+    "managePgRealtime.description":
+      "管理 CloudBase PostgreSQL 环境的 Realtime 能力（Broadcast / Presence / Postgres CDC）。action=describe 读取开通状态、挂起状态、频道策略与限流/连接池配置；action=enable 幂等开通；action=modify 按显式传入项增量修改，未传项保持服务端当前值，且必须带 confirm=true。\n\n⚠️ modify 修改 suspend 会立即断开全部在线连接并拒绝新连接，执行前先把「当前值 → 目标值」的变化告知用户。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。",
+    "schema.realtimeAction":
+      "操作类型：describe=读取当前 Realtime 配置；enable=幂等开通；modify=增量修改配置（必须同时传 confirm=true）。",
+    "schema.realtimeConfirm":
+      "action=modify 必填 true。未传时不会下发任何修改，只返回当前值与将要变更的项，供你向用户确认。",
+    "schema.realtimeSuspend":
+      "挂起服务：true 立即断开全部在线连接、拒绝新连接（HTTP 403）并禁用服务端广播；false 恢复。每次变化都会断连一次，客户端需重连。",
+    "schema.realtimePrivateOnly":
+      "true 时仅允许 private 频道，客户端无法 join 带 public: 前缀的频道。",
+    "schema.realtimePresenceEnabled":
+      "presence 总开关。false 时客户端对频道的 presence join 请求会被拒绝。",
+    "schema.realtimeMaxConcurrentUsers":
+      "最大并发用户数（同一用户多连接合并计数），超限时新连接被拒。服务端校验范围 0-15000。",
+    "schema.realtimeMaxEventsPerSecond":
+      "每秒最大事件数（所有客户端 broadcast 事件总和），超限返回限流错误。",
+    "schema.realtimeMaxJoinsPerSecond": "每秒最大 join 数，超限时新的 join 被限流。",
+    "schema.realtimeMaxBytesPerSecond":
+      "每秒最大消息字节数（所有广播负载流量），超限消息被拒。",
+    "schema.realtimeMaxChannelsPerClient":
+      "单客户端最大频道数，超限时该客户端无法 join 更多频道。",
+    "schema.realtimeMaxPresenceEventsPerSecond":
+      "每秒最大 presence 事件数（所有客户端 track/untrack 总和）。",
+    "schema.realtimeMaxPayloadSizeInKB": "单条消息最大负载（KB），超限消息被拒。",
+    "schema.realtimeConnectionPool": "数据库连接池大小，供 RLS 鉴权查询使用。",
+    "schema.realtimePostgresChangesPool":
+      "CDC（postgres_changes）专用数据库连接池大小，与广播/鉴权池隔离。",
+    "realtime.described": "已读取环境 {envId} 的 Realtime 配置。",
+    "realtime.describeHint":
+      "若尚未开通，先用 action=enable 开通；客户端接入请用 app.realtime()，private 频道需在 realtime.messages 上建 RLS 策略。",
+    "realtime.enableSuccess": "已开通环境 {envId} 的 Realtime。",
+    "realtime.enableFailed":
+      "开通接口返回成功，但 Enabled 不为 true，Realtime 可能未真正生效。请稍后重试或联系技术支持。",
+    "realtime.noChanges":
+      "未传入任何要修改的配置项，未做任何修改。先调用 action=describe 查看当前值。",
+    "realtime.confirmRequired":
+      "修改 Realtime 配置会立即影响在线连接，需要显式确认。已返回当前值与将要变更的项：请向用户说明后，带相同参数并加 confirm=true 重新调用。",
+    "realtime.modified": "已更新环境 {envId} 的 Realtime 配置。",
+    "realtime.failed": "PostgreSQL Realtime 操作失败：{reason}",
     "runtime.probeFailed": "PostgreSQL 在 {maxAttempts} 次探测后仍未就绪。最近错误：{reason}",
     "runtime.notReady": "CloudBase PostgreSQL 尚未就绪，实例可能仍在初始化，请稍后重试。{reason}",
     "runtime.queryEnvInfo": "检查当前环境 PostgreSQL 实例状态。",
@@ -72,6 +112,8 @@ export const databasePG = defineModule(
       "当前 @cloudbase/manager-node 运行时未暴露 database.executePGSql 或 commonService 回退。请升级到 @cloudbase/manager-node >= 5.4.0。",
     "runtime.noMigrationApi":
       "当前 @cloudbase/manager-node 运行时不支持迁移 API。请升级到 @cloudbase/manager-node >= 5.4.0。",
+    "runtime.noRealtimeApi":
+      "当前 @cloudbase/manager-node 运行时不支持 PG Realtime 管理 API。请升级到 @cloudbase/manager-node >= 5.10.0。",
     "queryContext.resolved": "已解析当前 CloudBase PostgreSQL 上下文（自动推导）。",
     "queryContext.listObjectsFirst": "检查单个表前，先列出带 schema 的数据库对象。",
     "listObjects.listed":
@@ -324,6 +366,49 @@ export const databasePG = defineModule(
       "Optional for planMigration / applyMigration, defaults to false. true=allow out-of-order versions (older than the remote LatestVersion) to still Preview/Push, matching CLI tcb db pg migration up --include-all; use it only when intentionally backfilling or applying out-of-order migrations — normally pick a larger migrationVersion instead.",
     "schema.manageAllowDdlViaExecute":
       "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
+    "managePgRealtime.title": "Manage PostgreSQL Realtime",
+    "managePgRealtime.description":
+      "Manage the Realtime capability of a CloudBase PostgreSQL environment (Broadcast / Presence / Postgres CDC). action=describe reads the provisioning state, suspend state, channel policy and rate-limit / connection-pool settings; action=enable provisions it idempotently; action=modify applies an incremental update that only sends the fields you pass explicitly and requires confirm=true.\n\n⚠️ Changing suspend through modify immediately drops every live connection and rejects new ones. Tell the user the current -> target change before you apply it. Client-side integration is documented in references/realtime.md of the postgresql-development-cloudbase skill.",
+    "schema.realtimeAction":
+      "Action: describe=read the current Realtime settings; enable=provision idempotently; modify=incremental update (requires confirm=true).",
+    "schema.realtimeConfirm":
+      "Required true for action=modify. When omitted nothing is sent: the tool returns the current values and the pending changes so you can confirm with the user first.",
+    "schema.realtimeSuspend":
+      "Suspend the service: true immediately drops all live connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores it. Every change disconnects clients once, so they must reconnect.",
+    "schema.realtimePrivateOnly":
+      "When true only private channels are allowed; clients cannot join channels prefixed with public:.",
+    "schema.realtimePresenceEnabled":
+      "Global presence switch. When false, client presence joins on a channel are rejected.",
+    "schema.realtimeMaxConcurrentUsers":
+      "Maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000.",
+    "schema.realtimeMaxEventsPerSecond":
+      "Maximum broadcast events per second across all clients; exceeding it returns a rate-limit error.",
+    "schema.realtimeMaxJoinsPerSecond":
+      "Maximum joins per second; new joins are throttled above it.",
+    "schema.realtimeMaxBytesPerSecond":
+      "Maximum broadcast payload bytes per second across all clients; exceeding it rejects messages.",
+    "schema.realtimeMaxChannelsPerClient":
+      "Maximum channels per client; a client above it cannot join more channels.",
+    "schema.realtimeMaxPresenceEventsPerSecond":
+      "Maximum presence events per second across all clients (track/untrack).",
+    "schema.realtimeMaxPayloadSizeInKB":
+      "Maximum payload size per message in KB; larger messages are rejected.",
+    "schema.realtimeConnectionPool":
+      "Database connection pool size used for RLS authorization queries.",
+    "schema.realtimePostgresChangesPool":
+      "Dedicated database connection pool size for CDC (postgres_changes), isolated from the broadcast/auth pool.",
+    "realtime.described": "Read the Realtime settings of environment {envId}.",
+    "realtime.describeHint":
+      "If it is not provisioned yet, call action=enable first. Client subscriptions use app.realtime(); private channels need RLS policies on realtime.messages.",
+    "realtime.enableSuccess": "Provisioned Realtime for environment {envId}.",
+    "realtime.enableFailed":
+      "The provisioning call succeeded but Enabled is not true, so Realtime may not be active yet. Retry later or contact support.",
+    "realtime.noChanges":
+      "No settings were passed, so nothing was changed. Call action=describe first to read the current values.",
+    "realtime.confirmRequired":
+      "Changing Realtime settings affects live connections immediately and needs explicit confirmation. The current values and pending changes were returned: explain them to the user, then re-call with the same arguments plus confirm=true.",
+    "realtime.modified": "Updated the Realtime settings of environment {envId}.",
+    "realtime.failed": "PostgreSQL Realtime operation failed: {reason}",
     "runtime.probeFailed":
       "PostgreSQL is not ready after {maxAttempts} attempts. Last error: {reason}",
     "runtime.notReady": "CloudBase PostgreSQL is not ready. The instance may still be initializing; retry later. {reason}",
@@ -337,6 +422,8 @@ export const databasePG = defineModule(
       "Current @cloudbase/manager-node runtime does not expose database.executePGSql or commonService fallback. Upgrade to @cloudbase/manager-node >= 5.4.0.",
     "runtime.noMigrationApi":
       "Current @cloudbase/manager-node runtime does not support migration APIs. Upgrade to @cloudbase/manager-node >= 5.4.0.",
+    "runtime.noRealtimeApi":
+      "Current @cloudbase/manager-node runtime does not support the PG Realtime management APIs. Upgrade to @cloudbase/manager-node >= 5.10.0.",
     "queryContext.resolved":
       "Resolved current CloudBase PostgreSQL context (auto-derived).",
     "queryContext.listObjectsFirst":

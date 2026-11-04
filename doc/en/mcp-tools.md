@@ -1,6 +1,6 @@
 # MCP Tools
 
-Currently includes 44 tools, grouped by function as follows.
+Currently includes 45 tools, grouped by function as follows.
 
 Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -43,6 +43,7 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 
 - [`queryPgDatabase`](#querypgdatabase)
 - [`managePgDatabase`](#managepgdatabase)
+- [`managePgRealtime`](#managepgrealtime)
 
 ### PostgreSQL Cloud Storage
 
@@ -382,6 +383,34 @@ Manage CloudBase PostgreSQL: execute confirmed write SQL, SQL risk preflight, an
 <tr><td><code>force</code></td><td>boolean</td><td></td><td>Optional for fetchMigration, default false. true=overwrite an existing local SQL file with the same name (aligned with CLI tcb db pg migration fetch --force); false=skip existing files. Used to realign Git checksums from remote history</td></tr>
 <tr><td><code>includeAll</code></td><td>boolean</td><td></td><td>Optional for planMigration / applyMigration, default false. true=allow out-of-order (version lower than remote LatestVersion) Preview/Push, aligned with CLI tcb db pg migration up --include-all; only use when intentionally backfilling history/out-of-order migrations, otherwise choose a larger migrationVersion</td></tr>
 <tr><td><code>allowDdlViaExecute</code></td><td>boolean</td><td></td><td>Optional, default false. Only set true when deliberately bypassing migration history to allow schema DDL via execute; normal CREATE/ALTER schema must use applyMigration</td></tr>
+</tbody>
+</table>
+
+---
+
+### `managePgRealtime`
+Manage the Realtime capability of a CloudBase PostgreSQL environment (Broadcast / Presence / Postgres CDC). action=describe reads the provisioning state, suspend state, channel policy and rate-limit / connection-pool settings; action=enable provisions it idempotently; action=modify sends an incremental update containing only the fields you pass explicitly and requires confirm=true. Changing suspend immediately drops every live connection and rejects new ones, so state the current -> target change to the user first. Client subscriptions use app.realtime() (not collection.watch()) — see references/realtime.md in the postgresql-development-cloudbase skill.
+
+#### Parameters
+
+<table>
+<thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Action: describe=read the current Realtime settings; enable=provision idempotently; modify=incremental update (requires confirm=true). Allowed values: "describe", "enable", "modify"</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Optional CloudBase environment ID; uses the current MCP environment when omitted</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Required true for action=modify. When omitted nothing is sent: the tool returns the current values and the pending changes so you can confirm with the user first</td></tr>
+<tr><td><code>suspend</code></td><td>boolean</td><td></td><td>Suspend the service: true immediately drops all live connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores it. Every change disconnects clients once, so they must reconnect</td></tr>
+<tr><td><code>privateOnly</code></td><td>boolean</td><td></td><td>When true only private channels are allowed; clients cannot join channels prefixed with public:</td></tr>
+<tr><td><code>presenceEnabled</code></td><td>boolean</td><td></td><td>Global presence switch. When false, client presence joins on a channel are rejected</td></tr>
+<tr><td><code>maxConcurrentUsers</code></td><td>integer</td><td></td><td>Maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000</td></tr>
+<tr><td><code>maxEventsPerSecond</code></td><td>integer</td><td></td><td>Maximum broadcast events per second across all clients; exceeding it returns a rate-limit error</td></tr>
+<tr><td><code>maxJoinsPerSecond</code></td><td>integer</td><td></td><td>Maximum joins per second; new joins are throttled above it</td></tr>
+<tr><td><code>maxBytesPerSecond</code></td><td>integer</td><td></td><td>Maximum broadcast payload bytes per second across all clients; exceeding it rejects messages</td></tr>
+<tr><td><code>maxChannelsPerClient</code></td><td>integer</td><td></td><td>Maximum channels per client; a client above it cannot join more channels</td></tr>
+<tr><td><code>maxPresenceEventsPerSecond</code></td><td>integer</td><td></td><td>Maximum presence events per second across all clients (track/untrack)</td></tr>
+<tr><td><code>maxPayloadSizeInKB</code></td><td>integer</td><td></td><td>Maximum payload size per message in KB; larger messages are rejected</td></tr>
+<tr><td><code>connectionPool</code></td><td>integer</td><td></td><td>Database connection pool size used for RLS authorization queries</td></tr>
+<tr><td><code>postgresChangesPool</code></td><td>integer</td><td></td><td>Dedicated database connection pool size for CDC (postgres_changes), isolated from the broadcast/auth pool</td></tr>
 </tbody>
 </table>
 

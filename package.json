@@ -64,7 +64,7 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
-    "@cloudbase/manager-node": "5.8.8"
+    "@cloudbase/manager-node": "5.10.0"
   },
   "pnpm": {
     "overrides": {

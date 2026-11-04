@@ -50,7 +50,7 @@ if (memberResult.error) throw memberResult.error;
 
 ## Make polling selective
 
-A status endpoint should read one job, room, or cursor range through an indexed equality/range predicate. Return an explicit retry interval or version marker. CloudBase PG has no NoSQL `.watch()` / Realtime subscription; do not copy that path onto `app.rdb()`.
+A status endpoint should read one job, room, or cursor range through an indexed equality/range predicate. Return an explicit retry interval or version marker. `app.rdb()` has no document-database `.watch()` — do not copy that path onto it. When the task genuinely needs push, use `app.realtime()` — see `realtime.md` in the `postgresql-development-cloudbase` skill — rather than a hand-rolled poll loop.
 
 Implement the poll with SDK filters, not raw `$1` SQL in application code:
 

@@ -2,7 +2,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 
 # MCP 工具
 
-当前包含 44 个工具，按功能分组如下。
+当前包含 45 个工具，按功能分组如下。
 
 源数据: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -22,6 +22,7 @@ import ParameterTable from '../../api-reference/components/ApiContainer';
 ### 其他
 
 - [`manageEnv`](#manageenv)
+- [`managePgRealtime`](#managepgrealtime)
 - [`deployBuild`](#deploybuild)
 - [`deployPlan`](#deployplan)
 - [`deployApply`](#deployapply)
@@ -904,6 +905,96 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 
 ---
 
+### `managePgRealtime`
+管理 CloudBase PostgreSQL 环境的 Realtime 能力（Broadcast / Presence / Postgres CDC）。action=describe 读取开通状态、挂起状态、频道策略与限流/连接池配置；action=enable 幂等开通；action=modify 按显式传入项增量修改，未传项保持服务端当前值，且必须带 confirm=true。
+
+⚠️ modify 修改 suspend 会立即断开全部在线连接并拒绝新连接，执行前先把「当前值 → 目标值」的变化告知用户。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。
+
+#### 参数
+
+<ParameterTable
+  parameters={[
+    {
+      name: "action",
+      type: "string",
+      required: true,
+      description: `操作类型：describe=读取当前 Realtime 配置；enable=幂等开通；modify=增量修改配置（必须同时传 confirm=true）。 可填写的值: "describe", "enable", "modify"`,
+    },
+    {
+      name: "envId",
+      type: "string",
+      description: `可选的 CloudBase 环境 ID，不传时使用当前 MCP 环境。`,
+    },
+    {
+      name: "confirm",
+      type: "boolean",
+      description: `action=modify 必填 true。未传时不会下发任何修改，只返回当前值与将要变更的项，供你向用户确认。`,
+    },
+    {
+      name: "suspend",
+      type: "boolean",
+      description: `挂起服务：true 立即断开全部在线连接、拒绝新连接（HTTP 403）并禁用服务端广播；false 恢复。每次变化都会断连一次，客户端需重连。`,
+    },
+    {
+      name: "privateOnly",
+      type: "boolean",
+      description: `true 时仅允许 private 频道，客户端无法 join 带 public: 前缀的频道。`,
+    },
+    {
+      name: "presenceEnabled",
+      type: "boolean",
+      description: `presence 总开关。false 时客户端对频道的 presence join 请求会被拒绝。`,
+    },
+    {
+      name: "maxConcurrentUsers",
+      type: "integer",
+      description: `最大并发用户数（同一用户多连接合并计数），超限时新连接被拒。服务端校验范围 0-15000。`,
+    },
+    {
+      name: "maxEventsPerSecond",
+      type: "integer",
+      description: `每秒最大事件数（所有客户端 broadcast 事件总和），超限返回限流错误。`,
+    },
+    {
+      name: "maxJoinsPerSecond",
+      type: "integer",
+      description: `每秒最大 join 数，超限时新的 join 被限流。`,
+    },
+    {
+      name: "maxBytesPerSecond",
+      type: "integer",
+      description: `每秒最大消息字节数（所有广播负载流量），超限消息被拒。`,
+    },
+    {
+      name: "maxChannelsPerClient",
+      type: "integer",
+      description: `单客户端最大频道数，超限时该客户端无法 join 更多频道。`,
+    },
+    {
+      name: "maxPresenceEventsPerSecond",
+      type: "integer",
+      description: `每秒最大 presence 事件数（所有客户端 track/untrack 总和）。`,
+    },
+    {
+      name: "maxPayloadSizeInKB",
+      type: "integer",
+      description: `单条消息最大负载（KB），超限消息被拒。`,
+    },
+    {
+      name: "connectionPool",
+      type: "integer",
+      description: `数据库连接池大小，供 RLS 鉴权查询使用。`,
+    },
+    {
+      name: "postgresChangesPool",
+      type: "integer",
+      description: `CDC（postgres_changes）专用数据库连接池大小，与广播/鉴权池隔离。`,
+    }
+  ]}
+/>
+
+---
+
 ### `queryPgStorage`
 查询 CloudBase PostgreSQL 环境下的云存储能力。返回 bucket/config 能力摘要、对象信息查询方案，以及基于 HTTP API 或 SDK 的上传实现方案；不会读取本地文件，也不会默认输出大量签名 URL。
 
@@ -1254,12 +1345,12 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
     {
       name: "order",
       type: "string",
-      description: `\`listVersionByFunction\` 排序方向，如 ASC / DESC`,
+      description: `\`listVersionByFunction\` 排序方向，仅支持 ASC / DESC 可填写的值: "ASC", "DESC"`,
     },
     {
       name: "orderBy",
       type: "string",
-      description: `\`listVersionByFunction\` 排序字段，如 AddTime / ModTime`,
+      description: `\`listVersionByFunction\` 排序字段，仅支持 AddTime / ModTime 可填写的值: "AddTime", "ModTime"`,
     },
     {
       name: "aliasName",
@@ -2244,7 +2335,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 32 个，API 共 8 个）。
 
       注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。
 
@@ -2261,7 +2352,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",

@@ -3023,3 +3023,96 @@ describe("PG database tools", () => {
     });
   });
 });
+
+describe("PG realtime tool", () => {
+  beforeEach(() => {
+    mockGetCloudBaseManager.mockReset();
+    mockCommonServiceCall.mockReset();
+    mockQueryEnvRuntimeBackends.mockReset();
+    mockQueryEnvRuntimeBackends.mockResolvedValue(provisionedSnapshot());
+  });
+
+  it("registers managePgRealtime", () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server);
+
+    expect(typeof tools.managePgRealtime?.handler).toBe("function");
+  });
+
+  it("modify without confirm reads settings but never writes", async () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server);
+    const describeSettings = vi.fn(async () => ({
+      Suspend: false,
+      MaxEventsPerSecond: 100,
+    }));
+    const modifySettings = vi.fn();
+    mockGetCloudBaseManager.mockResolvedValue({
+      database: {
+        describePGRealtimeSettings: describeSettings,
+        modifyPGRealtimeSettings: modifySettings,
+      },
+    });
+
+    const payload = buildToolPayload(
+      await tools.managePgRealtime.handler({
+        action: "modify",
+        maxEventsPerSecond: 200,
+      }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "REALTIME_CONFIRM_REQUIRED",
+    });
+    expect(modifySettings).not.toHaveBeenCalled();
+    expect(describeSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("modify sends explicit false and 0 instead of dropping them", async () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server);
+    const modifySettings = vi.fn(async () => ({ RequestId: "req-1" }));
+    mockGetCloudBaseManager.mockResolvedValue({
+      database: { modifyPGRealtimeSettings: modifySettings },
+    });
+
+    const payload = buildToolPayload(
+      await tools.managePgRealtime.handler({
+        action: "modify",
+        confirm: true,
+        suspend: false,
+        maxEventsPerSecond: 0,
+      }),
+    );
+
+    expect(payload).toMatchObject({ success: true });
+    expect(modifySettings).toHaveBeenCalledWith({
+      EnvId: "env-test",
+      Suspend: false,
+      MaxEventsPerSecond: 0,
+    });
+  });
+
+  it("enable reports failure when the API returns Enabled: false", async () => {
+    const { server, tools } = createMockServer();
+    registerPGDatabaseTools(server);
+    mockGetCloudBaseManager.mockResolvedValue({
+      database: {
+        enablePGRealtime: vi.fn(async () => ({
+          Enabled: false,
+          RequestId: "req-2",
+        })),
+      },
+    });
+
+    const payload = buildToolPayload(
+      await tools.managePgRealtime.handler({ action: "enable" }),
+    );
+
+    expect(payload).toMatchObject({
+      success: false,
+      errorCode: "PG_REALTIME_ENABLE_FAILED",
+    });
+  });
+});
