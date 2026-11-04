@@ -25,7 +25,6 @@ import { logs } from "./modules/logs.js";
 import { agents } from "./modules/agents.js";
 import { msgPush } from "./modules/msgPush.js";
 import { setup } from "./modules/setup.js";
-import { envSetup } from "./modules/envSetup.js";
 import { interactive } from "./modules/interactive.js";
 import { feedback } from "./modules/feedback.js";
 import { confirmation } from "./modules/confirmation.js";
@@ -61,7 +60,6 @@ export const en = {
   agents: agents.en,
   msgPush: msgPush.en,
   setup: setup.en,
-  envSetup: envSetup.en,
   interactive: interactive.en,
   feedback: feedback.en,
   confirmation: confirmation.en,

@@ -416,9 +416,9 @@ describe("wrapServerWithTelemetry", () => {
   });
 
   /*
-   * `auth` 的环境准备结果上报（2026-10-27 补）。
-   * 背景：`env_setup_status` / `env_setup_failure.reason` 只回给模型、没进埋点，
-   * 于是「卡在购买页 / 实名 / CAM 授权」三种情况在数据里长得一模一样。
+   * `auth` 的环境准备结果上报（2026-10-27 补，2026-11-04 改为 no_env）。
+   * 背景：`env_setup_status` / `env_setup_reason` 只回给模型、没进埋点，
+   * 于是「没环境 / 其他卡点」在数据里长得一模一样。
    */
   describe("auth 环境准备结果上报", () => {
     function makeServer(handler: (args: any) => Promise<any>) {
@@ -438,7 +438,7 @@ describe("wrapServerWithTelemetry", () => {
       return () => wrappedHandler;
     }
 
-    it("ACTION_REQUIRED + 建环境失败 + 需实名 → 两个字段都带上", async () => {
+    it("ACTION_REQUIRED + 无环境 → reason 原样进埋点", async () => {
       await withTelemetryEnabled(async () => {
         const getHandler = makeServer(async () => ({
           content: [
@@ -448,12 +448,9 @@ describe("wrapServerWithTelemetry", () => {
                 current_env_id: null,
                 env_status: "NONE",
                 env_setup_status: "ACTION_REQUIRED",
-                env_setup_failure: {
-                  reason: "env_creation_failed",
-                  error_code: "ENV_CREATION_FAILED",
-                  message: "需要先完成实名认证",
-                  need_real_name_auth: true,
-                },
+                env_setup_reason: "no_env",
+                env_setup_help_url:
+                  "https://buy.cloud.tencent.com/CloudBase?buyType=tcb&region=ap-shanghai&sqlType=pg",
               }),
             },
           ],
@@ -465,34 +462,8 @@ describe("wrapServerWithTelemetry", () => {
           expect.objectContaining({
             toolName: "auth",
             envSetupStatus: "ACTION_REQUIRED",
-            envSetupFailReason: "env_creation_failed+realname",
+            envSetupFailReason: "no_env",
           }),
-        );
-      });
-    });
-
-    it("两个 gate 同时命中时后缀靠 + 串起来，顺序稳定", async () => {
-      await withTelemetryEnabled(async () => {
-        const getHandler = makeServer(async () => ({
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                env_setup_status: "ACTION_REQUIRED",
-                env_setup_failure: {
-                  reason: "tcb_init_failed",
-                  need_real_name_auth: true,
-                  need_cam_auth: true,
-                },
-              }),
-            },
-          ],
-        }));
-
-        await getHandler()?.({ action: "status" });
-
-        expect(vi.mocked(reportToolCall)).toHaveBeenLastCalledWith(
-          expect.objectContaining({ envSetupFailReason: "tcb_init_failed+realname+cam" }),
         );
       });
     });

@@ -52,12 +52,7 @@ import {
   flattenHttpServiceRoutes,
   isDomainPathReachableViaGateway,
 } from "../utils/gateway-access-urls.js";
-import {
-  checkAndCreateFreeEnv,
-  checkAndInitTcbService,
-  TCB_PURCHASE_URL,
-  type EnvSetupContext,
-} from "./env-setup.js";
+import { TCB_PURCHASE_URL } from "../utils/console-links.js";
 import {
   buildEnvCreditsPayload,
   buildEnvMetricsPayload,
@@ -935,18 +930,8 @@ function buildSetEnvNextStep(envCandidates: EnvCandidate[]) {
 type AuthEnvSetupStatus =
   | "NOT_NEEDED"
   | "AUTO_BOUND"
-  | "AUTO_CREATED"
   | "SELECTION_REQUIRED"
   | "ACTION_REQUIRED";
-
-type AuthEnvSetupFailure = {
-  reason: string;
-  error_code: string;
-  message: string;
-  help_url?: string;
-  need_real_name_auth?: boolean;
-  need_cam_auth?: boolean;
-};
 
 type AuthEnvPreparationResult = {
   currentEnvId: string | null;
@@ -954,7 +939,11 @@ type AuthEnvPreparationResult = {
   envCandidates: EnvCandidate[];
   envSetupStatus: AuthEnvSetupStatus;
   envSetupActions: string[];
-  envSetupFailure?: AuthEnvSetupFailure;
+  /**
+   * 没有环境时为什么停下。只用于遥测归因，不改文案——文案由 message 承载。
+   */
+  envSetupReason?: string;
+  envSetupHelpUrl?: string;
   message: string;
   nextStep: ReturnType<typeof buildAuthNextStep>;
 };
@@ -963,34 +952,17 @@ function dedupeActions(actions: string[]) {
   return actions.filter((action, index) => actions.indexOf(action) === index);
 }
 
-function buildAuthEnvSetupFailure(params: {
-  reason: string;
-  errorCode: string;
-  message: string;
-  helpUrl?: string;
-  needRealNameAuth?: boolean;
-  needCamAuth?: boolean;
-}): AuthEnvSetupFailure {
-  return {
-    reason: params.reason,
-    error_code: params.errorCode,
-    message: params.message,
-    help_url: params.helpUrl,
-    need_real_name_auth: params.needRealNameAuth,
-    need_cam_auth: params.needCamAuth,
-  };
-}
-
 function buildAuthEnvSetupPayload(preparation: AuthEnvPreparationResult) {
   return {
     current_env_id: preparation.currentEnvId,
     env_status: preparation.envStatus,
     env_setup_status: preparation.envSetupStatus,
     env_setup_actions: preparation.envSetupActions,
-    ...(preparation.envSetupFailure
-      ? {
-          env_setup_failure: preparation.envSetupFailure,
-        }
+    ...(preparation.envSetupReason
+      ? { env_setup_reason: preparation.envSetupReason }
+      : {}),
+    ...(preparation.envSetupHelpUrl
+      ? { env_setup_help_url: preparation.envSetupHelpUrl }
       : {}),
     ...buildEnvCandidatePayload(preparation.envCandidates),
   };
@@ -1079,113 +1051,18 @@ async function prepareAuthEnvironment(params: {
     };
   }
 
-  let setupContext: EnvSetupContext = {};
-  const manager = await getCloudBaseManager({
-    requireEnvId: false,
-    cloudBaseOptions: cloudBaseOptions
-      ? {
-          ...cloudBaseOptions,
-          envId: undefined,
-        }
-      : undefined,
-    mcpServer: server,
-  });
-
-  setupContext = await checkAndInitTcbService(manager, setupContext);
-  if (setupContext.checkTcbServiceAttempted) {
-    envSetupActions.push("check_tcb_service");
-  }
-  if (setupContext.initTcbAttempted) {
-    envSetupActions.push("init_tcb");
-  }
-
-  if (setupContext.initTcbError || !setupContext.tcbServiceInitialized) {
-    const failure = setupContext.initTcbError
-      ? buildAuthEnvSetupFailure({
-          reason: "tcb_init_failed",
-          errorCode: setupContext.initTcbError.code || "TCB_INIT_FAILED",
-          message: setupContext.initTcbError.message,
-          helpUrl: setupContext.initTcbError.helpUrl,
-          needRealNameAuth: setupContext.initTcbError.needRealNameAuth,
-          needCamAuth: setupContext.initTcbError.needCamAuth,
-        })
-      : buildAuthEnvSetupFailure({
-          reason: "tcb_init_failed",
-          errorCode: "TCB_INIT_FAILED",
-          message: t("env.prepare.tcbInitFailed"),
-          helpUrl: TCB_PURCHASE_URL,
-        });
-
-    return {
-      currentEnvId: null,
-      envStatus: "NONE",
-      envCandidates: [],
-      envSetupStatus: "ACTION_REQUIRED",
-      envSetupActions: dedupeActions(envSetupActions),
-      envSetupFailure: failure,
-      message: failure.message,
-      nextStep: buildAuthNextStep("status", {
-        suggestedArgs: { action: "status" },
-      }),
-    };
-  }
-
-  const createResult = await checkAndCreateFreeEnv(manager, setupContext);
-  setupContext = createResult.context;
-  if (setupContext.promotionalActivitiesChecked) {
-    envSetupActions.push("check_promotional_activity");
-  }
-  if (setupContext.createFreeEnvAttempted) {
-    envSetupActions.push("create_free_env");
-  }
-
-  // Surface the user-facing notice emitted at checkAndCreateFreeEnv entry.
-  // Informational only — no confirm required. Prepend to the final message so
-  // the user knows an automatic free-env creation was attempted.
-  const userNotice = createResult.userNotice?.trim() || "";
-
-  if (createResult.success && createResult.envId) {
-    await envManager.setEnvId(createResult.envId);
-    const successMessage = t("env.prepare.autoCreated", { envId: createResult.envId });
-    return {
-      currentEnvId: createResult.envId,
-      envStatus: "READY",
-      envCandidates: [],
-      envSetupStatus: "AUTO_CREATED",
-      envSetupActions: dedupeActions(envSetupActions),
-      message: userNotice ? `${userNotice}\n${successMessage}` : successMessage,
-      nextStep: buildAuthNextStep("status", {
-        suggestedArgs: { action: "status" },
-      }),
-    };
-  }
-
-  const createFailure = setupContext.createEnvError
-    ? buildAuthEnvSetupFailure({
-        reason: "env_creation_failed",
-        errorCode: setupContext.createEnvError.code || "ENV_CREATION_FAILED",
-        message: setupContext.createEnvError.message,
-        helpUrl: setupContext.createEnvError.helpUrl,
-      })
-    : buildAuthEnvSetupFailure({
-        reason: "env_creation_failed",
-        errorCode: "ENV_CREATION_FAILED",
-        message: t("env.prepare.envCreateFailed"),
-        helpUrl: TCB_PURCHASE_URL,
-      });
-
-  const failureMessage = userNotice
-    ? `${userNotice}\n${createFailure.message}`
-    : createFailure.message;
-
+  // 没有环境时不再「顺手建一个」：创建环境是花钱/占额度的用户决策，
+  // 不能藏在 auth(status) 这种查看状态的调用里。这里只返回开通入口和下一步，
+  // 用户在控制台开通后回来说一句，再走一次 status 就能接上。
   return {
     currentEnvId: null,
     envStatus: "NONE",
     envCandidates: [],
     envSetupStatus: "ACTION_REQUIRED",
     envSetupActions: dedupeActions(envSetupActions),
-    envSetupFailure: createFailure,
-    message: failureMessage,
+    envSetupReason: "no_env",
+    envSetupHelpUrl: TCB_PURCHASE_URL,
+    message: t("env.prepare.noEnv", { helpUrl: TCB_PURCHASE_URL }),
     nextStep: buildAuthNextStep("status", {
       suggestedArgs: { action: "status" },
     }),
