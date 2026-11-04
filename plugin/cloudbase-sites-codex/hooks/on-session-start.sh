@@ -96,6 +96,9 @@ you must not bypass them.
    `cloudbase-sites deploy`. Bypassing them loses the bind-address policy
    (127.0.0.1 by default — exposing it is an explicit opt-in the user must ask
    for), port allocation, daemonization, version metadata, and deploy history.
+   Installing dependencies (`pnpm install` / `npm install`) is also the user'\''s
+   call: it runs the dependency tree'\''s own install scripts. Never run it merely
+   because a session opened, and never without the user agreeing first.
 
 5. **Data persistence: BaaS-first via Web SDK + MCP-managed schema — detect the env type FIRST.** Before any
    data-layer work, call cloudbase-mcp `queryEnv(action="info")` and branch on
@@ -349,21 +352,37 @@ $STATE_BLOCK"
   fi
 
   if [ ! -d node_modules ]; then
-    log "node_modules missing — install + start in background"
-    nohup bash -c "
-      pnpm install >/dev/null 2>&1 || npm install >/dev/null 2>&1
-      '$SITES_BIN' preview >/dev/null 2>&1
-    " </dev/null >>"$LOG_TARGET" 2>&1 &
-    disown 2>/dev/null || true
-    DEPLOY_LINES="$(read_deploy_block)"
-    STATE_BLOCK="### Current cwd state
+    if [ "${CLOUDBASE_SITES_AUTO_INSTALL:-0}" = "1" ]; then
+      log "node_modules missing — auto install enabled by CLOUDBASE_SITES_AUTO_INSTALL"
+      nohup bash -c "
+        pnpm install >/dev/null 2>&1 || npm install >/dev/null 2>&1
+        '$SITES_BIN' preview >/dev/null 2>&1
+      " </dev/null >>"$LOG_TARGET" 2>&1 &
+      disown 2>/dev/null || true
+      DEPLOY_LINES="$(read_deploy_block)"
+      STATE_BLOCK="### Current cwd state
 
 - **cwd:** $CWD
 - **template:** vite-react/vue (existing)
-- **preview status:** installing dependencies in background (~30s expected)
+- **preview status:** installing dependencies in background because \`CLOUDBASE_SITES_AUTO_INSTALL=1\` (~30s expected)
 - **preview URL:** (will be available after install — run \`$SITES_BIN preview --status\` to fetch it; wait 5–60s if it reports NO_PREVIEW)
 - **first action:** when the user is ready, confirm preview health by running \`$SITES_BIN preview --status\`, retrying once after 5s if needed, then offer to open the URL in the host Browser / in-app browser.
 $DEPLOY_LINES"
+    else
+      # An install runs the dependency tree's own install scripts, so it is a
+      # decision, not a default. Report the state and let the user opt in.
+      log "node_modules missing — not installing without the user asking"
+      DEPLOY_LINES="$(read_deploy_block)"
+      STATE_BLOCK="### Current cwd state
+
+- **cwd:** $CWD
+- **template:** vite-react/vue (existing)
+- **preview status:** not running — dependencies are not installed (\`node_modules\` is missing), and the hook does not install them on its own
+- **why it matters:** installing runs the project's dependency install scripts, so it happens only when the user asks for it
+- **first action:** tell the user the project needs its dependencies installed before the preview can start. On their go-ahead run \`pnpm install\` (fall back to \`npm install\`) in the cwd, then \`$SITES_BIN preview\`. Do not install silently, and do not install merely because the session opened.
+- **opt-in auto install:** set \`CLOUDBASE_SITES_AUTO_INSTALL=1\` before starting the session to install and start automatically.
+$DEPLOY_LINES"
+    fi
     emit_context "$RULES_BLOCK
 
 $STATE_BLOCK"

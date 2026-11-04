@@ -192,7 +192,7 @@ async function runStart(args) {
     clearPreview();
   }
 
-  const port = await allocPort(args.port ? Number(args.port) : null, DEFAULT_PORT_RANGE_START, DEFAULT_PORT_RANGE_END);
+  const port = await allocPort(args.port ? Number(args.port) : null, DEFAULT_PORT_RANGE_START, DEFAULT_PORT_RANGE_END, bindHost);
   const base = args.base || process.env.CLOUDBASE_SITES_BASE || "/";
 
   const ts = Date.now();
@@ -360,24 +360,38 @@ function checkViteProject(dir) {
   return { ok: false, reason: "local vite binary missing — run `pnpm install` (or `npm install`) first" };
 }
 
-async function allocPort(requested, start, end) {
+async function allocPort(requested, start, end, host = LOOPBACK_HOST) {
   if (requested) {
-    if (await portFree(requested)) return requested;
+    if (await portFree(requested, host)) return requested;
     throw withCode(ERR.PORT_POOL_EXHAUSTED, `Requested port ${requested} is occupied.`);
   }
   for (let p = start; p <= end; p++) {
-    if (await portFree(p)) return p;
+    if (await portFree(p, host)) return p;
   }
   throw withCode(ERR.PORT_POOL_EXHAUSTED, `No free port in [${start}..${end}].`);
 }
 
-function portFree(port) {
-  return new Promise((resolve) => {
-    const tester = net.createServer()
-      .once("error", () => resolve(false))
-      .once("listening", () => tester.close(() => resolve(true)))
-      .listen(port, "0.0.0.0");
-  });
+// Probe a port on the same address the dev server will use, so a port held on
+// that address is not reported free. Nothing is served: the listener closes as
+// soon as it binds, and it never widens to an address the caller did not ask for.
+function portFree(port, host = LOOPBACK_HOST) {
+  const attempt = (bindHost) =>
+    new Promise((resolve) => {
+      const tester = net.createServer()
+        .once("error", (err) => {
+          // An address this machine does not own cannot be probed. Fall back to
+          // the loopback check, which still catches anything bound to every
+          // interface; a genuine conflict then surfaces as a strictPort failure.
+          if (err && err.code === "EADDRNOTAVAIL" && bindHost !== LOOPBACK_HOST) {
+            resolve(attempt(LOOPBACK_HOST));
+            return;
+          }
+          resolve(false);
+        })
+        .once("listening", () => tester.close(() => resolve(true)))
+        .listen(port, bindHost);
+    });
+  return attempt(host);
 }
 
 function waitForHealth(port, timeoutMs, host = LOOPBACK_HOST) {
