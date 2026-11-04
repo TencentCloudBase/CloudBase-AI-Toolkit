@@ -177,10 +177,11 @@ jobs:
 
       - name: Publish server.json
         # The MCP Registry validates the npm package exists; right after a fresh
-        # publish it may not be propagated yet (v2.33.2 incident). Retry window
-        # ≈ 5 min.
+        # publish it may not be propagated yet (v2.33.2 incident, again on
+        # v2.37.1 / v2.37.2 where the new version appeared ~8 min later).
+        # Retry window ≈ 15 min.
         run: |
-          for i in 1 2 3 4 5; do
+          for i in $(seq 1 15); do
             if ./mcp-publisher publish mcp/server.json; then
               exit 0
             fi
