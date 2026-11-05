@@ -180,7 +180,7 @@
               ]
             },
             "maxItems": 19,
-            "description": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致；不要传 APIInvocation / HTTPInvocation——它们是 Gateway 的拆分子类，同传会让环境调用重复计费）。"
+            "description": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致）。"
           },
           "startDate": {
             "type": "string",

@@ -106,10 +106,6 @@ what the console shows. `Modules` is required and there is no "all" value — om
 "this product consumed nothing". Unopened modules return 0 instead of an error, so the list needs no
 per-environment trimming.
 
-> ⚠️ Do **not** add `APIInvocation` / `HTTPInvocation` next to `Gateway`: they are sub-modules of `Gateway`
-> (the console uses `Gateway` only) and passing both doubles the environment-call charge. Same for
-> `COS_SIA` / `COS_ARC` under `COS`. `EO` and `STORAGE_EO` are two separate items — those two are fine together.
-
 ---
 
 ## Workflow 2: Create
