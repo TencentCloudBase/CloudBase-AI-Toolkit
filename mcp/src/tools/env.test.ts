@@ -559,6 +559,24 @@ describe("env tools - auth", () => {
     expect(mockGetCloudBaseManager).not.toHaveBeenCalled();
   });
 
+  it("auth(action=status, site=intl) should point at the intl purchase page", async () => {
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
+
+    const result = await tools.auth.handler({ action: "status", site: "intl" });
+    const payload = JSON.parse(result.content[0].text);
+
+    // 国际站不能给 buy.cloud.tencent.com 的链接，地域也要用 ap-singapore
+    expect(payload.env_setup_help_url).toBe(
+      "https://buy.tencentcloud.com/CloudBase?buyType=tcb&region=ap-singapore&sqlType=pg",
+    );
+    expect(payload.message).toContain("https://buy.tencentcloud.com/CloudBase");
+  });
+
   it("auth(action=start_auth, authMode=device) should return AUTH_PENDING immediately", async () => {
     mockSupervisorLoginByWebAuth.mockImplementation(
       async ({ onDeviceCode }: { onDeviceCode: (info: any) => void }) => {

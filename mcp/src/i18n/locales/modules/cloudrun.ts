@@ -25,7 +25,7 @@ export const cloudrun = defineModule(
     "error.getProcessLogUnsupported":
       "当前 CloudBase Manager SDK 不支持 getProcessLog；请升级 @cloudbase/manager-node。",
     "error.envNotInitialized":
-      "当前环境（{envId}）尚未初始化云托管（CloudRun Env）。不能直接创建服务（CreateCloudRunServer 在无大租户记录时会默认创建到小租户，产生错误的小租户服务与版本）。\n请先开通云托管环境，再重试部署：\n- MCP：manageCloudRun(action=\"initEnv\", envId=\"{envId}\")（异步开通，幂等；开通完成后可用 queryCloudRun(action=\"envStatus\", envId=\"{envId}\") 查询 Status=normal）\n- 或控制台：环境 → 云托管 → 开通（https://tcb.cloud.tencent.com/dev?envId={envId}#/platform-run）\n初始化完成后重新调用 manageCloudRun(action=\"deploy\")。",
+      "当前环境（{envId}）尚未初始化云托管（CloudRun Env）。不能直接创建服务（CreateCloudRunServer 在无大租户记录时会默认创建到小租户，产生错误的小租户服务与版本）。\n请先开通云托管环境，再重试部署：\n- MCP：manageCloudRun(action=\"initEnv\", envId=\"{envId}\")（异步开通，幂等；开通完成后可用 queryCloudRun(action=\"envStatus\", envId=\"{envId}\") 查询 Status=normal）\n- 或控制台：环境 → 云托管 → 开通（{consoleUrl}）\n初始化完成后重新调用 manageCloudRun(action=\"deploy\")。",
     "error.actionFailed": "[{context}] {baseMessage}",
     "error.buildManage":
       "[manageCloudRun/{action}] {baseMessage}\n建议：{suggestions}",
@@ -383,7 +383,7 @@ export const cloudrun = defineModule(
     "error.getProcessLogUnsupported":
       "Current CloudBase Manager SDK does not support getProcessLog; please upgrade @cloudbase/manager-node.",
     "error.envNotInitialized":
-      "The current environment ({envId}) has not initialized CloudRun (CloudRun Env). You cannot create services directly (without a large-tenant record, CreateCloudRunServer defaults to the small tenant, producing wrong small-tenant services and versions).\nProvision the CloudRun env first, then retry the deploy:\n- MCP: manageCloudRun(action=\"initEnv\", envId=\"{envId}\") (async, idempotent; once done, query Status=normal via queryCloudRun(action=\"envStatus\", envId=\"{envId}\"))\n- Or console: Environment → CloudRun → Provision (https://tcb.cloud.tencent.com/dev?envId={envId}#/platform-run)\nAfter initialization, call manageCloudRun(action=\"deploy\") again.",
+      "The current environment ({envId}) has not initialized CloudRun (CloudRun Env). You cannot create services directly (without a large-tenant record, CreateCloudRunServer defaults to the small tenant, producing wrong small-tenant services and versions).\nProvision the CloudRun env first, then retry the deploy:\n- MCP: manageCloudRun(action=\"initEnv\", envId=\"{envId}\") (async, idempotent; once done, query Status=normal via queryCloudRun(action=\"envStatus\", envId=\"{envId}\"))\n- Or console: Environment → CloudRun → Provision ({consoleUrl})\nAfter initialization, call manageCloudRun(action=\"deploy\") again.",
     "error.actionFailed": "[{context}] {baseMessage}",
     "error.buildManage":
       "[manageCloudRun/{action}] {baseMessage}\nSuggestions: {suggestions}",
