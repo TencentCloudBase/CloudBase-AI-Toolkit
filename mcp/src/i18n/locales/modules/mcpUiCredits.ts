@@ -69,7 +69,7 @@ export const mcpUiCredits = defineModule(
     // 说明句（四分支 + 未确认）
     // Empty hint.unknown: status word alone. notCredits keeps a short switch hint.
     "hint.unknown": "",
-    "hint.notCredits": "",
+    "hint.notCredits": "当前环境不按资源点计费。",
     "hint.unknownWithUsage": "这份合计不完整，未与套餐比较。",
     "hint.filtered": "",
     "hint.normal": "",
@@ -243,7 +243,7 @@ export const mcpUiCredits = defineModule(
     "value.currency": "CNY ",
 
     "hint.unknown": "",
-    "hint.notCredits": "",
+    "hint.notCredits": "This environment is not billed by credits.",
     "hint.unknownWithUsage": "This total is incomplete, so it is not compared with the plan.",
     "hint.filtered": "",
     "hint.normal": "",

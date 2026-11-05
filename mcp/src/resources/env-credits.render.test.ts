@@ -867,8 +867,9 @@ describe("env-credits 面板脚本运行时", () => {
     const panel = loadPanel(HTML);
     panel.dispatch({ content: [{ type: "text", text: "<b>NOT-JSON-MARKER</b>" }] });
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.notCredits"));
-    // 状态词已说明"不按资源点计费"，切换入口由主按钮承担；再写一句解释就是复述。
-    expect(panel.el("c-hint").hidden).toBe(true);
+    // 状态词只说了"非资源点环境"，没说成因此没有点数用量；这一句补上，切换入口仍由主按钮承担。
+    expect(panel.el("c-hint").hidden).toBe(false);
+    expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.notCredits"));
     expect(panel.el("brand-alias").textContent).toBe("my-env-3gk9ab");
     expect(panel.el("btn-main").hidden).toBe(false);
     expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiCredits.action.switchEnv"));
