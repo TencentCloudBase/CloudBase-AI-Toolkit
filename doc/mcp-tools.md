@@ -277,7 +277,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "type",
       type: "array of string",
-      description: `用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值对齐云 API DescribeCreditsUsageDetail 的 Modules 枚举：FLEXDB、TDSQL、PostgreSQL、SCF、EKS、COS、AI、Token、HOSTING、Auth、APIInvocation、HTTPInvocation、VM、Workflow、Other（老版本 tcb CLI 缺 PostgreSQL / Token，别拿 CLI 列表当全集）。`,
+      description: `用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致；不要传 APIInvocation / HTTPInvocation——它们是 Gateway 的拆分子类，同传会让环境调用重复计费）。`,
     },
     {
       name: "startDate",
