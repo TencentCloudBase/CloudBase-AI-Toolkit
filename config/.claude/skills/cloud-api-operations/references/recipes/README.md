@@ -37,3 +37,4 @@
 - **MySQL / CVM 等依赖产品告警**：复用 Recipe 1 的框架，换 monitor namespace。
 - **CLS 日志告警（投递、索引、告警策略）**：不单独立 recipe，按文档《[日志告警指南](https://docs.cloudbase.net/logger/alert/log-alert-guide)》「CLI / API 配置」一节用 `callCloudApi` 逐接口调（开通日志资源走 `tcb` / `CreateEnvResource`，其余走 `cls` 产品接口）。硬前提：CLS 接口**不接受 CloudBase API Key 鉴权**，需要账号级密钥并具备 `QcloudCLSFullAccess`——环境级 API Key 登录的会话走不了这条路，先明确告知再动手。
 - **MySQL 备份回档、SCF 函数触发器**：暂无 recipe，从 `api-reference` 的依赖产品段起查。
+- **PG 文档插件（pgdoc）开通**：单个公开 Action，无编排、无回查、无清理义务，用 `callCloudApi` / `tcb api` 直调 `EnablePGDocumentExt`，不新建 recipe。产品语义（环境级接管、共存清空数据、安全规则不生效、数据不自动搬迁）见 `../../../postgresql-development-cloudbase/references/pgdoc.md`。
