@@ -29,14 +29,17 @@ type ShimmedElement = {
   hidden: boolean;
   disabled: boolean;
   className: string;
+  /** 有子节点时是子节点文字的拼接（真实 DOM 语义）；面板会用 createElement 造标签 */
   textContent: string;
   title: string;
   style: Record<string, string>;
+  readonly children: ShimmedElement[];
+  readonly firstChild: ShimmedElement | null;
   setAttribute(name: string, value: unknown): void;
   getAttribute(name: string): string | null;
   addEventListener(type: string, fn: () => void): void;
-  appendChild(): void;
-  removeChild(): void;
+  appendChild(child?: ShimmedElement): void;
+  removeChild(child?: ShimmedElement): void;
   click(): void;
 };
 
@@ -64,34 +67,64 @@ function loadPanel(html: string): PanelHarness {
     throw new Error("panel HTML has no <script> block");
   }
 
-  const elements = new Map<string, ShimmedElement>();
-  for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
-    const id = match[1];
+  /**
+   * 一块最小 DOM 节点：面板现在会用 `createElement("span")` 造模块标签，所以每个节点都要能装子节点，
+   * 且 `textContent` 要按真实 DOM 语义把子节点的文字拼起来 —— 否则标签内容断言无从下手。
+   */
+  function makeNode(id: string) {
     const handlers: Record<string, Array<() => void>> = {};
     const attrs: Record<string, string> = {};
-    elements.set(id, {
+    const children: ShimmedElement[] = [];
+    let ownText = "";
+    const node = {
       id,
       hidden: true,
       disabled: false,
       className: "",
-      textContent: "",
       title: "",
-      style: {},
-      setAttribute(name, value) {
-        attrs[name] = String(value);
+      style: {} as Record<string, string>,
+      get children() {
+        return children;
       },
-      getAttribute(name) {
+      get firstChild() {
+        return children[0] ?? null;
+      },
+      get textContent() {
+        return children.length ? children.map((child) => child.textContent).join("") : ownText;
+      },
+      set textContent(value: string) {
+        ownText = String(value);
+        children.length = 0;
+      },
+      setAttribute(name: string, value: unknown) {
+        attrs[name] = String(value);
+        if (name === "class") { node.className = String(value); }
+        // 动态造出来的模块标签要能按 id 被点到（真实 DOM 里 id 会自动进 document）
+        if (name === "id") { node.id = String(value); elements.set(String(value), node); }
+      },
+      getAttribute(name: string) {
         return attrs[name] ?? null;
       },
-      addEventListener(type, fn) {
+      addEventListener(type: string, fn: () => void) {
         (handlers[type] ||= []).push(fn);
       },
-      appendChild() {},
-      removeChild() {},
+      appendChild(child?: ShimmedElement) {
+        if (child) { children.push(child); }
+      },
+      removeChild(child?: ShimmedElement) {
+        const at = child ? children.indexOf(child) : -1;
+        if (at >= 0) { children.splice(at, 1); }
+      },
       click() {
         (handlers.click ?? []).forEach((fn) => fn());
       },
-    });
+    };
+    return node;
+  }
+
+  const elements = new Map<string, ShimmedElement>();
+  for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
+    elements.set(match[1], makeNode(match[1]));
   }
 
   const messageListeners: Array<(event: { data: unknown; source?: unknown }) => void> = [];
@@ -102,21 +135,24 @@ function loadPanel(html: string): PanelHarness {
       getElementById: (id: string) => elements.get(id) ?? null,
       documentElement: { scrollWidth: 480, scrollHeight: 320 },
       body: { appendChild() {}, removeChild() {} },
-      createElement: () => {
-        const area: {
-          value?: string;
-          setAttribute(): void;
-          style: Record<string, unknown>;
-          select(): void;
-        } = {
-          setAttribute() {},
-          style: {},
+      createElement: (tag?: string) => {
+        if (tag === "textarea") {
           // copyText 先写 .value 再 .select()，所以在 select 处读回就是要复制的内容
-          select() {
-            copied = String(area.value ?? "");
-          },
-        };
-        return area;
+          const area: {
+            value?: string;
+            setAttribute(): void;
+            style: Record<string, unknown>;
+            select(): void;
+          } = {
+            setAttribute() {},
+            style: {},
+            select() {
+              copied = String(area.value ?? "");
+            },
+          };
+          return area;
+        }
+        return makeNode("");
       },
       execCommand: () => true,
       addEventListener(type: string, fn: (event: unknown) => void) {
@@ -223,6 +259,10 @@ function render(payload: unknown): PanelHarness {
 }
 
 const BASE = { envId: "env-demo", site: "domestic", region: "ap-shanghai" };
+
+/** 某根柱子的填充块：有点数标签时它不是第一个孩子，所以按类名找而不是按下标。 */
+const barAt = (panel: PanelHarness, index: number) =>
+  panel.el("spark-bars").children[index].children.find((node) => node.className === "bfill");
 
 describe("env-credits 面板脚本运行时", () => {
   it("四分支：状态词 / 说明句 / 主行动 / 链接按钮都随真实载荷切换", () => {
@@ -382,7 +422,11 @@ describe("env-credits 面板脚本运行时", () => {
     ]);
 
     const panel = render(payload);
-    const row = panel.el("k-mods").textContent;
+    // 一个模块一块标签：「名字 + 数值」，拼起来读最接近屏幕上看到的东西
+    const row = panel
+      .el("k-mods")
+      .children.map((tag) => tag.children.map((part) => part.textContent).join(" "))
+      .join(" | ");
     expect(row).toContain(`${L("mcpUiCredits.module.database")} 5`);
     expect(row).toContain(`${L("mcpUiCredits.module.functions")} 12`);
     expect(row).toContain(`${L("mcpUiCredits.module.other")} 13`);
@@ -414,7 +458,10 @@ describe("env-credits 面板脚本运行时", () => {
     });
 
     const panel = render(payload);
-    const row = panel.el("k-mods").textContent;
+    // 每个标签是一块独立的 DOM 节点（面板用 createElement 造），所以数的是子节点本身
+    const entries = panel
+      .el("k-mods")
+      .children.map((tag) => tag.children.map((part) => part.textContent).join(" "));
     const keys = [
       "functions",
       "database",
@@ -427,10 +474,9 @@ describe("env-credits 面板脚本运行时", () => {
       "workflow",
       "other",
     ];
-    // 每个键都必须真的渲染出一段（客户端对没有标签的键会整条跳过 ⇒ 行数会少，这里会红）。
-    // 注意不能只断言 `row` 含 `t(key)`：词典缺键时 t() 与渲染同源退化，那种断言是自证的。
-    const entries = row.split(L("mcpUiCredits.modules.sep"));
-    expect(entries, "十个规范键应各占一段").toHaveLength(keys.length);
+    // 每个键都必须真的渲染出一个标签（客户端对没有标签的键会整条跳过 ⇒ 少一块，这里会红）。
+    // 注意不能只断言文字含 `t(key)`：词典缺键时 t() 与渲染同源退化，那种断言是自证的。
+    expect(entries, "十个规范键应各占一个标签").toHaveLength(keys.length);
     for (const key of keys) {
       const label = L(`mcpUiCredits.module.${key}`);
       expect(label.trim(), `${key} 应有非空标签`).not.toBe("");
@@ -477,7 +523,7 @@ describe("env-credits 面板脚本运行时", () => {
     expect(noBalance.balance).toBeNull();
     expect(render(noBalance).el("f-balance").hidden).toBe(true);
 
-    // 曲线 < 2 点 ⇒ 不画
+    // 只有一天：柱子照画（一根）。"两个点才成线"是曲线的规矩，柱子没有这条
     const onePoint = buildEnvCreditsPayload({
       ...BASE,
       planRaw: "baas_free",
@@ -485,7 +531,19 @@ describe("env-credits 面板脚本运行时", () => {
       expired: false,
     });
     expect(onePoint.spark).toHaveLength(1);
-    expect(render(onePoint).el("f-spark").hidden).toBe(true);
+    const oneBar = render(onePoint);
+    expect(oneBar.el("f-spark").hidden).toBe(false);
+    expect(oneBar.el("spark-bars").children).toHaveLength(1);
+
+    // 一天明细都没有 ⇒ 不画（空图会被读成"有数据"）
+    const noPoints = buildEnvCreditsPayload({
+      ...BASE,
+      planRaw: "baas_free",
+      usages: [usage("SCF", 1)],
+      expired: false,
+    });
+    expect(noPoints.spark).toBeUndefined();
+    expect(render(noPoints).el("f-spark").hidden).toBe(true);
 
     // ≥ 2 点 ⇒ 画
     const twoPoints = buildEnvCreditsPayload({
@@ -516,6 +574,69 @@ describe("env-credits 面板脚本运行时", () => {
     expect(panel.el("ubar-box").hidden).toBe(true);
   });
 
+  /**
+   * 柱状图取代曲线：每天的用量是一笔可对账的数，人看的是「哪天多少」；
+   * 曲线只能看出形状，七个数一个都读不到。所以每根柱子自带数值、柱下有日期。
+   */
+  it("用量按天画成柱子：一根柱子一天，柱上是数值、柱下是日期，零也留一根可见的底", () => {
+    const days: Array<[string, number]> = [
+      ["2026-10-29", 120],
+      ["2026-10-30", 118],
+      ["2026-10-31", 96],
+      ["2026-11-01", 0],
+      ["2026-11-02", 243],
+      ["2026-11-03", 152],
+      ["2026-11-04", 186],
+    ];
+    const payload = buildEnvCreditsPayload({
+      ...BASE,
+      planRaw: "baas_personal",
+      usages: [usage("SCF", 915, days)],
+      expired: false,
+    });
+    expect(payload.spark).toHaveLength(7);
+
+    const bars = render(payload).el("spark-bars").children;
+    expect(bars).toHaveLength(7);
+    // 每根柱：数值 / 柱 / 日期，从上到下
+    expect(bars[0].children.map((node) => node.className)).toEqual(["bval", "bfill", "bday"]);
+    expect(bars[0].children[0].textContent).toBe("120");
+    expect(bars[0].children[2].textContent).toBe("10-29");
+    // 柱高按当周最大值等比缩放，最高那根顶到画布上限
+    expect(bars[4].children[1].style.height).toBe("58px");
+    expect(Number.parseInt(bars[0].children[1].style.height, 10)).toBeGreaterThan(0);
+    expect(Number.parseInt(bars[0].children[1].style.height, 10)).toBeLessThan(58);
+    // 零不是"没有这一天"：标签照写 0，柱子留 2px 的底，日期照旧
+    expect(bars[3].children[0].textContent).toBe("0");
+    expect(bars[3].children[1].style.height).toBe("2px");
+    expect(bars[3].children[2].textContent).toBe("11-01");
+    // 悬停给完整读数：日期 + 数值
+    expect(bars[6].children[1].title).toBe("11-04: 186");
+  });
+
+  it("日期带时间戳时读得懂：零点写日期，真时刻写时分", () => {
+    // 云接口逐日数据的 CalcTime 是 `2026-11-05 00:00:00`。零点不代表"某个时刻"，代表这一整天，
+    // 早先按时间截取会在七根柱子下面印出一排一模一样的 00:00。
+    const payload = buildEnvCreditsPayload({
+      ...BASE,
+      planRaw: "baas_personal",
+      usages: [
+        usage("SCF", 300, [
+          ["2026-11-04 00:00:00", 100],
+          ["2026-11-05 00:00:00", 120],
+        ]),
+        usage("COS", 0, [["2026-11-05 14:30:00", 80]]),
+      ],
+      expired: false,
+    });
+
+    const bars = render(payload).el("spark-bars").children;
+    expect(bars[0].children[2].textContent).toBe("11-04");
+    expect(bars[1].children[2].textContent).toBe("11-05");
+    // 非零点的时间戳仍然按时分显示：那是真的"某个时刻"
+    expect(bars[2].children[2].textContent).toBe("14:30");
+  });
+
   it("用到 80% 以上：状态变成「接近上限」，并给一个可点的下一步", () => {
     const near = buildEnvCreditsPayload({
       ...BASE,
@@ -526,7 +647,9 @@ describe("env-credits 面板脚本运行时", () => {
     const panel = render(near);
 
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.nearLimit"));
-    expect(panel.el("c-hint").textContent).toContain("90%");
+    // 百分比在数字行（`used / total`）与进度条上已有，说明句不再复述；该说的是"下一步"，
+    // 而下一步是按钮，不是句子。
+    expect(panel.el("c-hint").hidden).toBe(true);
     // 警告不能只有文字：这里得有一步能点
     expect(panel.el("btn-tip").hidden).toBe(false);
 
@@ -744,8 +867,8 @@ describe("env-credits 面板脚本运行时", () => {
     const panel = loadPanel(HTML);
     panel.dispatch({ content: [{ type: "text", text: "<b>NOT-JSON-MARKER</b>" }] });
     expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.notCredits"));
-    expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.notCredits"));
-    expect(panel.el("c-hint").hidden).toBe(false);
+    // 状态词已说明"不按资源点计费"，切换入口由主按钮承担；再写一句解释就是复述。
+    expect(panel.el("c-hint").hidden).toBe(true);
     expect(panel.el("brand-alias").textContent).toBe("my-env-3gk9ab");
     expect(panel.el("btn-main").hidden).toBe(false);
     expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiCredits.action.switchEnv"));
@@ -776,6 +899,7 @@ describe("env-credits 面板脚本运行时", () => {
         "modules",
         "plan",
         "plan_raw",
+        "scope",
         "site",
         "spark",
       ].sort(),
@@ -867,17 +991,22 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(panel.el("f-m-table").hidden).toBe(false);
     expect(panel.el("k-m-latest-note").textContent).toBe("");
 
-    // 单线曲线：四个点足以成线
+    // 四个点 ⇒ 四根柱子（指标卡的点来自同一组样本，柱子形状随点数变化）
     expect(panel.el("f-spark").hidden).toBe(false);
-    expect(panel.el("spark-line").getAttribute("d")).toContain("M");
+    expect(panel.el("spark-bars").children).toHaveLength(4);
 
     // 一屏一个主行动：交给会话深挖（标签来自词典）
     expect(panel.el("btn-main").hidden).toBe(false);
     expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiCredits.metric.action.data"));
-    // ① 绿在这张卡上不携带健康含义：有数据也只是中性圆点 + 默认曲线样式
+    // ① 绿在这张卡上不携带健康含义：有数据也只是中性圆点 + 中性柱子
     expect(panel.el("st-dot").className).toBe("dot");
-    expect(panel.el("spark-line").getAttribute("stroke")).toBe("var(--text-2)");
+    expect(barAt(panel, 0)?.className).toBe("bfill");
     expect(panel.el("btn-link").hidden).toBe(true);
+
+    // 点数多了就不再逐根标字：柱高照画，读数退到 title 里
+    const dense = render(metricsOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]));
+    expect(dense.el("spark-bars").children).toHaveLength(10);
+    expect(dense.el("spark-bars").children[0].children).toHaveLength(1);
 
     // 用量卡专有块全部收起（同一块屏上不能两套字段并排）
     for (const id of ["f-credits", "f-mods", "f-plan", "f-balance"]) {
@@ -1102,7 +1231,12 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     // 有数据：中性（旧行为是 ok，等于把"有数据"说成"健康"——一万次函数错误也是绿的）
     const data = render(metricsOf([1, 3, 2, 5]));
     expect(data.el("st-dot").className).toBe("dot");
-    expect(data.el("spark-line").getAttribute("stroke")).toBe("var(--text-2)");
+    expect([0, 1, 2, 3].map((index) => barAt(data, index)?.className)).toEqual([
+      "bfill",
+      "bfill",
+      "bfill",
+      "bfill",
+    ]);
 
     // 无流量：中性
     const noData = render(metricsOf([0, 0, 0]));
@@ -1123,7 +1257,7 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
       buildEnvCreditsPayload({
         ...BASE,
         planRaw: "baas_personal",
-        // 带两点明细 ⇒ 曲线会真的画出来，才能同时断言"条红 + 曲线红 + 文案跟上"
+        // 带两点明细 ⇒ 柱子会真的画出来，才能同时断言"条红 + 文案跟上 + 柱子不染色"
         usages: [usage("SCF", 34000, [["2026-08-01", 17000], ["2026-08-02", 17000]])],
         expired: false,
       }),
@@ -1134,7 +1268,8 @@ describe("监控指标卡：同一资源按 kind 分派", () => {
     expect(near.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.nearLimit", { pct: 85 }));
     // 同一条用例里两头都断：红色（提前警告保住）与文案（跟上）同时出现
     expect(near.el("ubar-box").className).not.toContain(" ok");
-    expect(near.el("spark-line").getAttribute("stroke")).toBe("var(--err)");
+    // 柱子不跟着红：柱子画的是每天的读数，把"接近上限"染到七根柱子上等于说这些读数有问题
+    expect(barAt(near, 0)?.className).toBe("bfill");
     // 圆点也得跟着改：红条 + 绿点是同一屏上两个相反的结论
     expect(near.el("st-dot").className).toContain("warn");
     // 说明句里提到的「升级套餐」必须有去处：链接按钮在此刻出现（分支本身还是 normal）
@@ -1313,5 +1448,196 @@ describe("按量 / 资源包两行", () => {
     });
     expect(panel.el("f-payg").hidden).toBe(true);
     expect(panel.el("f-package").hidden).toBe(true);
+  });
+});
+
+describe("筛选视图：范围用模块标签说，清除入口就在同一行", () => {
+  const filtered = (usages: CreditsUsageLike[] = [{ Module: "SCF", CreditsValue: 12, DeductValue: 12 }]) =>
+    buildEnvCreditsPayload({
+      envId: "env-filtered",
+      planRaw: "baas_personal",
+      usages,
+      site: "domestic",
+      region: "ap-shanghai",
+      modulesFiltered: true,
+    });
+
+  // 一个标签是两块：模块名 + 数值。拼成「名字 数字」便于断言，也贴合屏幕上的样子。
+  const tags = (panel: ReturnType<typeof render>) =>
+    panel.el("k-mods").children.map((tag) =>
+      tag.children.map((part) => part.textContent).join(" "),
+    );
+
+  it("标签就是这次返回的模块，状态词只描述事实，说明句整条不渲染", () => {
+    const panel = render(filtered());
+
+    expect(tags(panel)).toEqual([`${L("mcpUiCredits.module.functions")} 12`]);
+    // 这一栏在别的分支里是结论；筛选视图给不出结论，就不假装给结论
+    expect(panel.el("st-text").textContent).toBe(L("mcpUiCredits.state.filtered"));
+    expect(panel.el("st-text").textContent).not.toContain("套餐");
+    expect(panel.el("c-hint").textContent).toBe("");
+    expect(panel.el("c-hint").hidden).toBe(true);
+    // 套餐本身照实展示——它一直都在，缺的只是可比较的总量
+    expect(panel.el("k-plan").textContent).toBe(L("mcpUiCredits.plan.personal"));
+  });
+
+  it("标签数的是界面上的行：请求 3 个模块、只回来 2 行，就是 2 个标签", () => {
+    const panel = render(
+      filtered([
+        { Module: "SCF", CreditsValue: 12, DeductValue: 12 },
+        { Module: "COS", CreditsValue: 8, DeductValue: 8 },
+      ]),
+    );
+
+    expect(tags(panel)).toHaveLength(2);
+    expect(panel.el("f-mods").hidden).toBe(false);
+  });
+
+  it("筛选视图在标签行末尾多一个「全部模块」，全量查询没有", () => {
+    const narrowed = render(filtered());
+    expect(narrowed.el("btn-all-mods").hidden).toBe(false);
+    expect(narrowed.el("btn-all-mods-label").textContent).toBe(L("mcpUiCredits.action.allModules"));
+
+    const full = render(
+      buildEnvCreditsPayload({
+        envId: "env-full",
+        planRaw: "baas_personal",
+        usages: [{ Module: "SCF", CreditsValue: 12, DeductValue: 12 }],
+        site: "domestic",
+        region: "ap-shanghai",
+      }),
+    );
+    expect(full.el("btn-all-mods").hidden).toBe(true);
+  });
+
+  it("筛选后一行都没返回：标签没了，清除入口还在", () => {
+    const panel = render(filtered([]));
+
+    expect(tags(panel)).toEqual([]);
+    expect(panel.el("f-mods").hidden).toBe(false);
+    expect(panel.el("btn-all-mods").hidden).toBe(false);
+  });
+
+  it("点「全部模块」交给会话重查全量（和「查看优化建议」同一条 ui/message 链路）", () => {
+    const panel = render(filtered());
+
+    panel.clickDocument("btn-all-mods");
+
+    const sent = panel.lastRequest("ui/message");
+    expect(sent).toBeTruthy();
+    expect((sent as { role?: string }).role).toBe("user");
+    const content = (sent as { content?: { type?: string; text?: string } }).content;
+    expect(content?.type).toBe("text");
+    expect(content?.text).toBe(L("mcpUiCredits.message.queryAllModules"));
+  });
+
+  it("宿主拒绝转发：把句子放进剪贴板，点击不会白点", async () => {
+    const panel = render(filtered());
+
+    panel.clickDocument("btn-all-mods");
+    panel.respond("ui/message", { error: { code: -32603, message: "no ui/message" } });
+    await Promise.resolve();
+
+    expect(panel.copiedText()).toBe(L("mcpUiCredits.message.queryAllModules"));
+    expect(panel.el("k-copynote").textContent).toBe(L("mcpUiCredits.message.failed"));
+  });
+
+  it("partial（有条目缺聚合值）：仍然说「这份数不能直接和总额比」，且没有清除入口", () => {
+    const panel = render(
+      buildEnvCreditsPayload({
+        envId: "env-partial",
+        planRaw: "baas_personal",
+        usages: [
+          { Module: "SCF", CreditsValue: 12, DeductValue: 12 },
+          { Module: "COS", MetricUsageDetail: [{ ValueDetailList: [{ CalcTime: "2026-11-01", CreditsValue: 7 }] }] },
+        ],
+        site: "domestic",
+        region: "ap-shanghai",
+      }),
+    );
+
+    expect(panel.el("c-hint").textContent).toBe(L("mcpUiCredits.hint.unknownWithUsage"));
+    expect(panel.el("btn-all-mods").hidden).toBe(true);
+  });
+});
+
+
+describe("卡片只到模块合计：指标层不进卡片", () => {
+  it("模块标签不可展开——没有 id、没有 tooltip，点它什么都不发生", () => {
+    const panel = render(
+      buildEnvCreditsPayload({
+        envId: "env-flat",
+        planRaw: "baas_personal",
+        // 指标明细照样传进来：卡片该忽略它，而不是把 Capacity / TDSQL 这类接口码印出来
+        usages: [
+          {
+            Module: "FLEXDB",
+            CreditsValue: 900,
+            DeductValue: 900,
+            MetricUsageDetail: [
+              { MetricName: "Capacity", CreditsValue: 600, ResourceType: "TDSQL" },
+              { MetricName: "CU", CreditsValue: 300 },
+            ],
+          },
+        ],
+        site: "domestic",
+        region: "ap-shanghai",
+      }),
+    );
+
+    const tags = panel.el("k-mods").children;
+    expect(tags).toHaveLength(1);
+    // 一个标签只有两块：模块名 + 数值
+    expect(tags[0].children.map((part) => part.textContent)).toEqual([
+      L("mcpUiCredits.module.database"),
+      "900",
+    ]);
+    // 不可展开：没有身份、没有提示语，样式里也没有展开态
+    expect(tags[0].id).toBe("");
+    expect(tags[0].title).toBe("");
+    expect(tags[0].className).toBe("mtag");
+
+    tags[0].click();
+    expect(panel.posted.filter((message) => message.method === "ui/message")).toHaveLength(0);
+  });
+
+  it("超量环境：合计同时给出套餐内用量，模块行和顶部两个数不再互相打架", () => {
+    // 实测 mcp-pg-ky5u9q：模块行按「消耗」算（含按量付费）共 80,962，顶部「已用」只算套餐内
+    // 39,552。控制台把这两个数分成「功能用量概览(消耗)」和「套餐资源点」两块，卡片只有一行，
+    // 所以得在这一行里把关系说清。
+    const panel = render(
+      buildEnvCreditsPayload({
+        envId: "env-over",
+        planRaw: "baas_personal",
+        usages: [
+          { Module: "PostgreSQL", CreditsValue: 76687, DeductValue: 37376 },
+          { Module: "APIInvocation", CreditsValue: 4274.7, DeductValue: 2175.5 },
+        ],
+        site: "domestic",
+        region: "ap-shanghai",
+      }),
+    );
+
+    expect(panel.el("k-mods-sum").hidden).toBe(false);
+    expect(panel.el("k-mods-sum").textContent).toBe(
+      L("mcpUiCredits.modules.inPlan", { n: "80,962", m: "39,552" }),
+    );
+  });
+
+  it("未超量环境：两个数一致，只写合计一句，不重复说「其中套餐内」", () => {
+    const panel = render(
+      buildEnvCreditsPayload({
+        envId: "env-fit",
+        planRaw: "baas_standard",
+        usages: [
+          { Module: "FLEXDB", CreditsValue: 1.3, DeductValue: 1.3 },
+          { Module: "COS", CreditsValue: 18.02, DeductValue: 18.02 },
+        ],
+        site: "domestic",
+        region: "ap-shanghai",
+      }),
+    );
+
+    expect(panel.el("k-mods-sum").textContent).toBe(L("mcpUiCredits.modules.total", { n: "19" }));
   });
 });

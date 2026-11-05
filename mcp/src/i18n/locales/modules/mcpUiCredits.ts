@@ -12,6 +12,16 @@ import { defineModule } from "../types.js";
  *      （`trial` / `single_env` / `CreditsValue` 等），套餐名、模块名一律走映射；
  *      认不出来的原始值照原样显示（宁可不译，不要译错）。
  *
+ * **说明句（`hint.*`）三条判据**——加任何一句之前，逐条对照：
+ *   A. **没有新信息就不写**。状态词已经说清的事，说明句不再重复。判据是"这句话里有没有
+ *      用户从别的部件读不到的内容"。典型违规：「本月资源点充足」（状态词就是"用量正常"）、
+ *      「本月资源点已使用 55%」（数字行和进度条都有）。**说明句只承担状态词之外的后果**，
+ *      例如"体验版为什么只能升级""耗尽后服务为什么还在跑"。
+ *   B. **界面已有的，文字不重复**。模块名在「分模块用量」那几行列着，说明句再列一遍
+ *      就是用文字复述界面结构；百分比、套餐名、剩余天数同理。
+ *   C. **要用户做的事，给控件不给祈使句**。"请去掉筛选重查"这类句子，卡片上没有对应入口，
+ *      写了等于没解决——该给按钮（`action.*` + `message.*`），或者干脆不说。
+ *
  * 四分支（体验版耗尽 / 付费版耗尽 / 套餐到期 / 账户欠费）的判别与结论话术
  * 以 `specs/credits-exhaustion-guidance/handoff-to-elicitation-confirmations.md` §5 为准，
  * 改动需两侧同步。
@@ -31,14 +41,18 @@ export const mcpUiCredits = defineModule(
     "field.package": "资源包抵扣",
     "field.plan": "套餐",
     "field.place": "地域",
-    "field.modules": "分模块用量",
+    "field.modules": "分模块消耗",
+    "modules.total": "合计 {n} 点",
+    "modules.inPlan": "合计 {n} 点 · 其中套餐内 {m}",
     "field.balance": "账户余额",
     "fold.raw": "查看原始返回",
-    "spark.cap": "近期",
     "value.unavailable": "—",
 
     // 状态词（四分支 + 未确认）
     "state.unknown": "用量尚未确认",
+    // 只描述事实、不下判断：这一栏在别的分支里是结论（"用量正常""已用尽"），
+    // 筛选视图给不出结论，就不假装给结论。范围由标题下的 chip 承担。
+    "state.filtered": "部分数据",
     "state.notCredits": "非资源点环境",
     "state.normal": "用量正常",
     "state.nearLimit": "用量接近上限",
@@ -55,16 +69,17 @@ export const mcpUiCredits = defineModule(
     // 说明句（四分支 + 未确认）
     // Empty hint.unknown: status word alone. notCredits keeps a short switch hint.
     "hint.unknown": "",
-    "hint.notCredits": "当前环境不按资源点计费；可切换到资源点环境，或去看套餐说明。",
-    "hint.unknownWithUsage": "已有用量，缺少套餐状态，无法判断是否充足；完整配额见控制台。",
-    "hint.normal": "本月资源点充足。",
-    "hint.nearLimit": "本月资源点已使用 {pct}%；建议升级套餐或购买资源包。",
+    "hint.notCredits": "",
+    "hint.unknownWithUsage": "这份合计不完整，未与套餐比较。",
+    "hint.filtered": "",
+    "hint.normal": "",
+    "hint.nearLimit": "",
 
     // 说明句（四分支）
-    "hint.trialExhausted": "本月资源点已用尽；体验版仅可升级付费套餐恢复。",
-    "hint.stopped": "套餐资源点已用尽；若有资源包或按量计费，服务可能仍在运行。",
-    "hint.expired": "套餐已过期，进入 15 天隔离期；期内续费可恢复。",
-    "hint.arrears": "账户欠费，将影响套餐变更与续费；资源点充足时业务不受影响。",
+    "hint.trialExhausted": "体验版不支持资源包与按量计费。",
+    "hint.stopped": "有资源包或按量计费时，服务可能仍在运行。",
+    "hint.expired": "期内续费可恢复。",
+    "hint.arrears": "将影响套餐变更与续费；资源点充足时业务不受影响。",
     "expired.note": "隔离期剩余 {days} 天（第 15 天销毁）",
 
     // 行动（一屏一个主行动 + 一个复制链接的次行动）
@@ -74,9 +89,13 @@ export const mcpUiCredits = defineModule(
     "action.guidedTopup": "前往充值",
     "action.openConsole": "打开控制台",
     "action.nearLimit": "查看优化建议",
+    // 标签行末尾的清除入口：它替换掉的就是同一行那几个模块标签，位置本身就是说明。
+    "action.allModules": "全部模块",
     "action.switchEnv": "如何切换",
     "message.nearLimit": "当前环境资源点已使用 {pct}%，请分析可优化项并比较套餐。",
     "message.switchEnv": "当前环境不是资源点计费。请帮我切换到资源点环境，或说明如何查看/更换套餐。",
+    // chip 点下去交给会话的那句话：动作由会话执行，面板只负责说出"要全量"。
+    "message.queryAllModules": "请重新查询这个环境的用量，这次不要按模块筛选，查全部模块。",
     "copy.copied": "已复制",
     "copy.failed": "未能写入剪贴板，请手动复制。",
     "message.failed": "无法直接发送到会话；文案已复制，请粘贴发送。",
@@ -101,6 +120,7 @@ export const mcpUiCredits = defineModule(
     "module.hosting": "托管",
     "module.workflow": "工作流",
     "module.other": "其它",
+    // 指标（模块下一层）：名字是云 API 原始码，不翻译；这两条只负责"还能展开/收起"和"还有几条"。
 
     // 套餐名（仅有这五种）
     "plan.trial": "免费体验版",
@@ -201,13 +221,15 @@ export const mcpUiCredits = defineModule(
     "field.package": "Resource pack",
     "field.plan": "Plan",
     "field.place": "Region",
-    "field.modules": "Usage by module",
+    "field.modules": "Spend by module",
+    "modules.total": "Total {n} points",
+    "modules.inPlan": "Total {n} points, {m} within plan",
     "field.balance": "Account balance",
     "fold.raw": "View raw response",
-    "spark.cap": "Recent",
     "value.unavailable": "-",
 
     "state.unknown": "Usage not confirmed",
+    "state.filtered": "Partial data",
     "state.notCredits": "Non-credit environment",
     "state.normal": "Usage is within plan",
     "state.nearLimit": "Usage near the limit",
@@ -221,21 +243,16 @@ export const mcpUiCredits = defineModule(
     "value.currency": "CNY ",
 
     "hint.unknown": "",
-    "hint.notCredits":
-      "This environment is not billed by credits. Switch to a credit environment, or review plan options.",
-    "hint.unknownWithUsage":
-      "Usage is available, but plan state is missing, so sufficiency cannot be determined. Full quota is in the console.",
-    "hint.normal": "Credits for this month are sufficient.",
-    "hint.nearLimit": "Credits for this month are {pct}% used. Upgrade the plan or buy a credit pack.",
+    "hint.notCredits": "",
+    "hint.unknownWithUsage": "This total is incomplete, so it is not compared with the plan.",
+    "hint.filtered": "",
+    "hint.normal": "",
+    "hint.nearLimit": "",
 
-    "hint.trialExhausted":
-      "Credits for this month are exhausted. The trial plan recovers only by upgrading to a paid plan.",
-    "hint.stopped":
-      "Plan credits are exhausted. With a credit pack or pay-as-you-go, the service may still run.",
-    "hint.expired":
-      "The plan has expired and entered a 15-day isolation period. Renew within the period to restore.",
-    "hint.arrears":
-      "Account arrears affect plan changes and renewal. Service is unaffected while credits remain.",
+    "hint.trialExhausted": "The trial plan does not support credit packs or pay-as-you-go.",
+    "hint.stopped": "With a credit pack or pay-as-you-go, the service may still run.",
+    "hint.expired": "Renew within the isolation period to restore.",
+    "hint.arrears": "Arrears block plan changes and renewal; service is unaffected while credits remain.",
     "expired.note": "{days} days left in isolation (destroyed on day 15)",
 
     "action.upgrade": "Upgrade plan",
@@ -244,10 +261,13 @@ export const mcpUiCredits = defineModule(
     "action.guidedTopup": "Go to top-up",
     "action.openConsole": "Open console",
     "action.nearLimit": "Review savings",
+    "action.allModules": "All modules",
     "action.switchEnv": "How to switch",
     "message.nearLimit": "Credits for this environment are {pct}% used. Analyze savings and plan options.",
     "message.switchEnv":
       "This environment is not billed by credits. Help me switch to a credit environment, or explain how to view or change the plan.",
+    "message.queryAllModules":
+      "Re-query this environment's usage, this time without a module filter (all modules).",
     "copy.copied": "Copied",
     "copy.failed": "Could not write to the clipboard; copy manually.",
     "message.failed": "Cannot post to the conversation. Text copied; paste to send.",
