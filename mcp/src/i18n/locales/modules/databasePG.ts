@@ -12,7 +12,7 @@ export const databasePG = defineModule(
       "⚠️ 只读工具：只接受 SELECT 等只读 SQL。CREATE / ALTER / DROP / INSERT / UPDATE / DELETE 会被直接拒绝（STATE 42703/42P01 也多半是表名或列名猜错，先 action=objects 看真实结构，不要凭惯例猜 schema_migrations 之类的表）。写入与 DDL 请改用 managePgDatabase：DML/GRANT/RLS 用 action=execute，建表/改 schema 用 action=applyMigration。\n\n查询 CloudBase PostgreSQL 数据库：获取当前 PG 上下文、列出带 schema 的数据库对象、读取轻量元数据、检查单个对象结构，以及执行只读 SQL。",
     "managePgDatabase.title": "管理 PostgreSQL 上下文或执行写入 SQL",
     "managePgDatabase.description":
-      "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。",
+      "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理，以及 Realtime 配置管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。Realtime 三个 action：describeRealtime 读取配置（响应没有开通态字段，成功不代表已开通）；enableRealtime 开通并解除挂起，等价把 Suspend 置为 false（未开通环境首次调用会自动完成开通，已开通且未挂起时无副作用）；modifyRealtime 按显式传入项增量修改（需 confirm=true，改 suspend 会立即断开该环境全部在线 WebSocket 连接，全局生效）。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。",
     "schema.queryAction":
       "操作类型：context=获取当前 PostgreSQL 上下文；objects=列出带 schema 的数据库对象；metadata=获取轻量表元数据；schema=检查单个带 schema 的对象结构；sql=执行只读 SQL",
     "schema.querySql": "action=sql 时使用的只读 SQL",
@@ -23,10 +23,11 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。",
     "schema.manageAction":
-      "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。",
+      "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用会自动完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。",
     "schema.manageSql":
       "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句",
-    "schema.manageConfirm": "执行任何写入 SQL 前都需要显式设置为 true。",
+    "schema.manageConfirm":
+      "执行任何写入 SQL（execute 等）与 action=modifyRealtime 前都需要显式设置为 true；modifyRealtime 未传时不会下发任何修改，只返回当前值与将要变更的项，供你向用户确认。",
     "schema.manageEnvId": "可选的 CloudBase 环境 ID，不传时使用当前 MCP 环境。",
     "schema.manageInstanceId":
       "可选的 PostgreSQL 逻辑实例标识，默认 cloudbase-pg。",
@@ -61,6 +62,41 @@ export const databasePG = defineModule(
       "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push，对齐 CLI tcb db pg migration up --include-all；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。",
     "schema.manageAllowDdlViaExecute":
       "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
+    "schema.realtimeSuspend":
+      "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403 Realtime was disabled for this tenant）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。",
+    "schema.realtimePrivateOnly":
+      "action=modifyRealtime 时生效：true 时仅允许 private 频道，客户端无法 join 带 public: 前缀的频道。",
+    "schema.realtimePresenceEnabled":
+      "action=modifyRealtime 时生效：presence 总开关。false 时客户端对频道的 presence join 请求会被拒绝。",
+    "schema.realtimeMaxConcurrentUsers":
+      "action=modifyRealtime 时生效：最大并发用户数（同一用户多连接合并计数），超限时新连接被拒。服务端校验范围 0-15000。",
+    "schema.realtimeMaxEventsPerSecond":
+      "action=modifyRealtime 时生效：每秒最大事件数（所有客户端 broadcast 事件总和），超限返回限流错误。",
+    "schema.realtimeMaxJoinsPerSecond":
+      "action=modifyRealtime 时生效：每秒最大 join 数，超限时新的 join 被限流。",
+    "schema.realtimeMaxBytesPerSecond":
+      "action=modifyRealtime 时生效：每秒最大消息字节数（所有广播负载流量），超限消息被拒。",
+    "schema.realtimeMaxChannelsPerClient":
+      "action=modifyRealtime 时生效：单客户端最大频道数，超限时该客户端无法 join 更多频道。",
+    "schema.realtimeMaxPresenceEventsPerSecond":
+      "action=modifyRealtime 时生效：每秒最大 presence 事件数（所有客户端 track/untrack 总和）。",
+    "schema.realtimeMaxPayloadSizeInKB":
+      "action=modifyRealtime 时生效：单条消息最大负载（KB），超限消息被拒。",
+    "schema.realtimeConnectionPool":
+      "action=modifyRealtime 时生效：Realtime 供 RLS 鉴权查询用的数据库连接池大小，不是 PG 实例的连接池。",
+    "schema.realtimePostgresChangesPool":
+      "action=modifyRealtime 时生效：Realtime CDC（postgres_changes）专用连接池，与广播/鉴权池隔离。",
+    "realtime.described": "已读取环境 {envId} 的 Realtime 配置。",
+    "realtime.verifyConfigHint":
+      "如需核对当前生效配置，可再次调用 action=describeRealtime 查看 Suspend 与各项限流值；该响应只含配置项。客户端接入请用 app.realtime()，private 频道需在 realtime.messages 上建 RLS 策略。",
+    "realtime.enableSubmitted":
+      "已提交环境 {envId} 的 Realtime 开通请求（等价 Suspend=false）。如需确认挂起状态，可调用 action=describeRealtime 核对 Suspend 配置。",
+    "realtime.noChanges":
+      "未传入任何要修改的配置项，未做任何修改。先调用 action=describeRealtime 查看当前值。",
+    "realtime.confirmRequired":
+      "修改 Realtime 配置会立即影响在线连接，需要显式确认。已返回当前值与将要变更的项：请向用户说明后，用 action=modifyRealtime 带相同参数并加 confirm=true 重新调用。",
+    "realtime.modified": "已更新环境 {envId} 的 Realtime 配置。",
+    "realtime.failed": "PostgreSQL Realtime 操作失败：{reason}",
     "runtime.probeFailed": "PostgreSQL 在 {maxAttempts} 次探测后仍未就绪。最近错误：{reason}",
     "runtime.notReady": "CloudBase PostgreSQL 尚未就绪，实例可能仍在初始化，请稍后重试。{reason}",
     "runtime.queryEnvInfo": "检查当前环境 PostgreSQL 实例状态。",
@@ -72,6 +108,8 @@ export const databasePG = defineModule(
       "当前 @cloudbase/manager-node 运行时未暴露 database.executePGSql 或 commonService 回退。请升级到 @cloudbase/manager-node >= 5.4.0。",
     "runtime.noMigrationApi":
       "当前 @cloudbase/manager-node 运行时不支持迁移 API。请升级到 @cloudbase/manager-node >= 5.4.0。",
+    "runtime.noRealtimeApi":
+      "当前 @cloudbase/manager-node 运行时不支持 PG Realtime 管理 API。请升级到 @cloudbase/manager-node >= 5.10.0。",
     "queryContext.resolved": "已解析当前 CloudBase PostgreSQL 上下文（自动推导）。",
     "queryContext.listObjectsFirst": "检查单个表前，先列出带 schema 的数据库对象。",
     "listObjects.listed":
@@ -271,7 +309,7 @@ export const databasePG = defineModule(
       "⚠️ Read-only tool: only accepts read-only SQL such as SELECT. CREATE / ALTER / DROP / INSERT / UPDATE / DELETE are rejected outright (and a 42703/42P01 usually means a guessed table or column name — run action=objects to see the real structure instead of assuming names like schema_migrations). For writes and DDL use managePgDatabase: action=execute for DML/GRANT/RLS, action=applyMigration for schema changes.\n\nQuery the CloudBase PostgreSQL database: get the current PG context, list schema-qualified database objects, read lightweight metadata, inspect a single object schema, and run read-only SQL.",
     "managePgDatabase.title": "Manage PostgreSQL context or run write SQL",
     "managePgDatabase.description":
-      "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, and manage migrations. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS.",
+      "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, manage migrations, and manage Realtime settings. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS. Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call on an unprovisioned environment provisions it automatically, and it is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops all live WebSocket connections of the environment, globally).",
     "schema.queryAction":
       "Action type: context=get the current PostgreSQL context; objects=list schema-qualified database objects; metadata=get lightweight table metadata; schema=inspect a single schema-qualified object structure; sql=run read-only SQL",
     "schema.querySql": "Read-only SQL used when action=sql",
@@ -282,11 +320,11 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "Optional cap on summary size, applied to objects, metadata, or SQL result rows. Defaults to 20, maximum 200.",
     "schema.manageAction":
-      "Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion.",
+      "Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion. Three Realtime actions: describeRealtime=read the Realtime settings (does not indicate provisioning), enableRealtime=provision and resume, equivalent to Suspend=false (the first call on an unprovisioned environment provisions it automatically and is a no-op when already provisioned and not suspended), modifyRealtime=incremental Realtime update (requires confirm=true).",
     "schema.manageSql":
       "SQL statement used when action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)",
     "schema.manageConfirm":
-      "Must be explicitly set to true before running any write SQL.",
+      "Must be explicitly set to true before running any write SQL (execute etc.) and for action=modifyRealtime; when modifyRealtime omits it nothing is sent and the tool returns the current values plus the pending changes so you can confirm with the user first.",
     "schema.manageEnvId":
       "Optional CloudBase environment ID; the current MCP environment is used when omitted.",
     "schema.manageInstanceId":
@@ -324,6 +362,41 @@ export const databasePG = defineModule(
       "Optional for planMigration / applyMigration, defaults to false. true=allow out-of-order versions (older than the remote LatestVersion) to still Preview/Push, matching CLI tcb db pg migration up --include-all; use it only when intentionally backfilling or applying out-of-order migrations — normally pick a larger migrationVersion instead.",
     "schema.manageAllowDdlViaExecute":
       "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
+    "schema.realtimeSuspend":
+      "Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false). Global, affects every node of the environment: true immediately drops all live WebSocket connections, rejects new ones (HTTP 403 Realtime was disabled for this tenant) and disables the server-side broadcast API; false restores the service. Any change of the suspend value triggers one disconnect, so clients must reconnect.",
+    "schema.realtimePrivateOnly":
+      "Applies to action=modifyRealtime: when true only private channels are allowed; clients cannot join channels prefixed with public:.",
+    "schema.realtimePresenceEnabled":
+      "Applies to action=modifyRealtime: global presence switch. When false, client presence joins on a channel are rejected.",
+    "schema.realtimeMaxConcurrentUsers":
+      "Applies to action=modifyRealtime: maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000.",
+    "schema.realtimeMaxEventsPerSecond":
+      "Applies to action=modifyRealtime: maximum broadcast events per second across all clients; exceeding it returns a rate-limit error.",
+    "schema.realtimeMaxJoinsPerSecond":
+      "Applies to action=modifyRealtime: maximum joins per second; new joins are throttled above it.",
+    "schema.realtimeMaxBytesPerSecond":
+      "Applies to action=modifyRealtime: maximum broadcast payload bytes per second across all clients; exceeding it rejects messages.",
+    "schema.realtimeMaxChannelsPerClient":
+      "Applies to action=modifyRealtime: maximum channels per client; a client above it cannot join more channels.",
+    "schema.realtimeMaxPresenceEventsPerSecond":
+      "Applies to action=modifyRealtime: maximum presence events per second across all clients (track/untrack).",
+    "schema.realtimeMaxPayloadSizeInKB":
+      "Applies to action=modifyRealtime: maximum payload size per message in KB; larger messages are rejected.",
+    "schema.realtimeConnectionPool":
+      "Applies to action=modifyRealtime: Realtime database connection pool size used for RLS authorization queries. This is not the PG instance connection pool.",
+    "schema.realtimePostgresChangesPool":
+      "Applies to action=modifyRealtime: Realtime dedicated connection pool for CDC (postgres_changes), isolated from the broadcast/auth pool.",
+    "realtime.described": "Read the Realtime settings of environment {envId}.",
+    "realtime.verifyConfigHint":
+      "To check the effective configuration, call action=describeRealtime again to read Suspend and the rate limits; the response only contains settings. Client subscriptions use app.realtime(); private channels need RLS policies on realtime.messages.",
+    "realtime.enableSubmitted":
+      "Submitted the Realtime provisioning request for environment {envId} (equivalent to Suspend=false). To confirm the suspend state, call action=describeRealtime and check Suspend.",
+    "realtime.noChanges":
+      "No settings were passed, so nothing was changed. Call action=describeRealtime first to read the current values.",
+    "realtime.confirmRequired":
+      "Changing Realtime settings affects live connections immediately and needs explicit confirmation. The current values and pending changes were returned: explain them to the user, then re-call action=modifyRealtime with the same arguments plus confirm=true.",
+    "realtime.modified": "Updated the Realtime settings of environment {envId}.",
+    "realtime.failed": "PostgreSQL Realtime operation failed: {reason}",
     "runtime.probeFailed":
       "PostgreSQL is not ready after {maxAttempts} attempts. Last error: {reason}",
     "runtime.notReady": "CloudBase PostgreSQL is not ready. The instance may still be initializing; retry later. {reason}",
@@ -337,6 +410,8 @@ export const databasePG = defineModule(
       "Current @cloudbase/manager-node runtime does not expose database.executePGSql or commonService fallback. Upgrade to @cloudbase/manager-node >= 5.4.0.",
     "runtime.noMigrationApi":
       "Current @cloudbase/manager-node runtime does not support migration APIs. Upgrade to @cloudbase/manager-node >= 5.4.0.",
+    "runtime.noRealtimeApi":
+      "Current @cloudbase/manager-node runtime does not support the PG Realtime management APIs. Upgrade to @cloudbase/manager-node >= 5.10.0.",
     "queryContext.resolved":
       "Resolved current CloudBase PostgreSQL context (auto-derived).",
     "queryContext.listObjectsFirst":

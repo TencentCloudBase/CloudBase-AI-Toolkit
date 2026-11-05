@@ -777,7 +777,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ---
 
 ### `managePgDatabase`
-管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。
+管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理，以及 Realtime 配置管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。Realtime 三个 action：describeRealtime 读取配置（响应没有开通态字段，成功不代表已开通）；enableRealtime 开通并解除挂起，等价把 Suspend 置为 false（未开通环境首次调用会自动完成开通，已开通且未挂起时无副作用）；modifyRealtime 按显式传入项增量修改（需 confirm=true，改 suspend 会立即断开该环境全部在线 WebSocket 连接，全局生效）。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。
 
 #### 参数
 
@@ -787,7 +787,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。 可填写的值: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration"`,
+      description: `操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用会自动完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。 可填写的值: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration", "describeRealtime", "enableRealtime", "modifyRealtime"`,
     },
     {
       name: "sql",
@@ -797,7 +797,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "confirm",
       type: "boolean",
-      description: `执行任何写入 SQL 前都需要显式设置为 true。`,
+      description: `执行任何写入 SQL（execute 等）与 action=modifyRealtime 前都需要显式设置为 true；modifyRealtime 未传时不会下发任何修改，只返回当前值与将要变更的项，供你向用户确认。`,
     },
     {
       name: "envId",
@@ -898,6 +898,66 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "allowDdlViaExecute",
       type: "boolean",
       description: `可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。`,
+    },
+    {
+      name: "suspend",
+      type: "boolean",
+      description: `action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403 Realtime was disabled for this tenant）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。`,
+    },
+    {
+      name: "privateOnly",
+      type: "boolean",
+      description: `action=modifyRealtime 时生效：true 时仅允许 private 频道，客户端无法 join 带 public: 前缀的频道。`,
+    },
+    {
+      name: "presenceEnabled",
+      type: "boolean",
+      description: `action=modifyRealtime 时生效：presence 总开关。false 时客户端对频道的 presence join 请求会被拒绝。`,
+    },
+    {
+      name: "maxConcurrentUsers",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：最大并发用户数（同一用户多连接合并计数），超限时新连接被拒。服务端校验范围 0-15000。`,
+    },
+    {
+      name: "maxEventsPerSecond",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：每秒最大事件数（所有客户端 broadcast 事件总和），超限返回限流错误。`,
+    },
+    {
+      name: "maxJoinsPerSecond",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：每秒最大 join 数，超限时新的 join 被限流。`,
+    },
+    {
+      name: "maxBytesPerSecond",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：每秒最大消息字节数（所有广播负载流量），超限消息被拒。`,
+    },
+    {
+      name: "maxChannelsPerClient",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：单客户端最大频道数，超限时该客户端无法 join 更多频道。`,
+    },
+    {
+      name: "maxPresenceEventsPerSecond",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：每秒最大 presence 事件数（所有客户端 track/untrack 总和）。`,
+    },
+    {
+      name: "maxPayloadSizeInKB",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：单条消息最大负载（KB），超限消息被拒。`,
+    },
+    {
+      name: "connectionPool",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：Realtime 供 RLS 鉴权查询用的数据库连接池大小，不是 PG 实例的连接池。`,
+    },
+    {
+      name: "postgresChangesPool",
+      type: "integer",
+      description: `action=modifyRealtime 时生效：Realtime CDC（postgres_changes）专用连接池，与广播/鉴权池隔离。`,
     }
   ]}
 />
@@ -1254,12 +1314,12 @@ CloudBase 云函数统一只读入口。通过更自解释的 action 查询 Clou
     {
       name: "order",
       type: "string",
-      description: `\`listVersionByFunction\` 排序方向，如 ASC / DESC`,
+      description: `\`listVersionByFunction\` 排序方向，仅支持 ASC / DESC 可填写的值: "ASC", "DESC"`,
     },
     {
       name: "orderBy",
       type: "string",
-      description: `\`listVersionByFunction\` 排序字段，如 AddTime / ModTime`,
+      description: `\`listVersionByFunction\` 排序字段，仅支持 AddTime / ModTime 可填写的值: "AddTime", "ModTime"`,
     },
     {
       name: "aliasName",
@@ -2244,7 +2304,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
       返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。
 
-      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。
+      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 32 个，API 共 8 个）。
 
       注意：OpenAPI 文档 (openapi) 查询只需要传 mode="openapi" 和 apiName，不要传 action；action 仅用于 mode="docs"。
 
@@ -2261,7 +2321,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",

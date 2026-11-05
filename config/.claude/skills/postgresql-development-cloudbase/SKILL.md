@@ -18,7 +18,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, or `managePgDatabase`.
+- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `app.realtime()`, `queryPgDatabase`, `managePgDatabase`, or a Realtime action (`describeRealtime` / `enableRealtime` / `modifyRealtime`).
 - A Web app or CMS must persist business data in CloudBase PostgreSQL.
 
 ### Then also read
@@ -34,6 +34,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Auth / GRANT / RLS details -> `references/auth-and-rls.md`
 - End-to-end PG app closure -> `references/app-workflow.md`
 - PG storage details — **MUST read before writing any bucket / upload / URL code** -> `references/storage-pg.md`
+- Realtime (broadcast / presence / live table changes) -> `references/realtime.md`
 - HTTP API fallback -> `references/http-api.md`
 - Troubleshooting -> `references/troubleshooting.md`
 
@@ -333,6 +334,7 @@ All packaged reference files (required for skill lint reachability):
 - [auth-and-rls.md](references/auth-and-rls.md)
 - [app-workflow.md](references/app-workflow.md)
 - [storage-pg.md](references/storage-pg.md)
+- [realtime.md](references/realtime.md)
 - [http-api.md](references/http-api.md)
 - [rls-patterns.md](references/rls-patterns.md)
 - [troubleshooting.md](references/troubleshooting.md)

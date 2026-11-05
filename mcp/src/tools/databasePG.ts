@@ -37,7 +37,13 @@ const MANAGE_ACTIONS = [
   "describeMigrationTask",
   "fetchMigration",
   "repairMigration",
+  "describeRealtime",
+  "enableRealtime",
+  "modifyRealtime",
 ] as const;
+
+/** Realtime 子动作：describe=读配置，enable=开通并解除挂起，modify=增量修改。 */
+type PgRealtimeAction = "describe" | "enable" | "modify";
 type QueryPgAction = (typeof QUERY_ACTIONS)[number];
 type ManagePgAction = (typeof MANAGE_ACTIONS)[number];
 type PgToolPayload = {
@@ -103,6 +109,29 @@ type ManagePgDatabaseArgs = {
   includeAll?: boolean;
   /** Escape hatch: allow schema DDL through execute instead of applyMigration. Default false. */
   allowDdlViaExecute?: boolean;
+  /**
+   * Realtime 配置项（describeRealtime / enableRealtime / modifyRealtime）。
+   * 均为「不传 = 保持服务端当前值」，因此显式 false / 0 必须能下发。
+   */
+  /** 挂起服务：true 立即断开全部在线连接、拒绝新连接；false 恢复。 */
+  suspend?: boolean;
+  /** 仅允许 private 频道。 */
+  privateOnly?: boolean;
+  /** presence 总开关。 */
+  presenceEnabled?: boolean;
+  /** 最大并发用户数（按用户去重），服务端范围 [0, 15000]。 */
+  maxConcurrentUsers?: number;
+  maxEventsPerSecond?: number;
+  maxJoinsPerSecond?: number;
+  maxBytesPerSecond?: number;
+  maxChannelsPerClient?: number;
+  maxPresenceEventsPerSecond?: number;
+  /** 单条消息最大负载（KB）。 */
+  maxPayloadSizeInKB?: number;
+  /** Realtime 用于 RLS 鉴权查询的数据库连接池大小。 */
+  connectionPool?: number;
+  /** Realtime CDC（postgres_changes）专用连接池大小。 */
+  postgresChangesPool?: number;
 };
 
 type PgQueryField = {
@@ -1836,6 +1865,95 @@ async function callPgMigrationApi(
     : (result as Record<string, unknown>);
 }
 
+/**
+ * PG Realtime 三个管理 Action 对应的 manager-node 方法名与云 API Action 名。
+ * enable 没有独立公开 Action，等价于 Modify(Suspend=false)：未开通环境首次调用即完成开通，
+ * 已开通且未挂起时无副作用。因此直接复用 modify 的方法，不依赖 enablePGRealtime 包装
+ * （其 Enabled 字段恒为 true，只是 SDK 常量，不代表服务端状态）。
+ */
+const PG_REALTIME_API: Record<
+  PgRealtimeAction,
+  { native: string; action: string; params?: Record<string, unknown> }
+> = {
+  describe: { native: "describePGRealtimeSettings", action: "DescribePGRealtimeSettings" },
+  enable: {
+    native: "modifyPGRealtimeSettings",
+    action: "ModifyPGRealtimeSettings",
+    params: { Suspend: false },
+  },
+  modify: { native: "modifyPGRealtimeSettings", action: "ModifyPGRealtimeSettings" },
+};
+
+/** managePgDatabase 的 Realtime action → 内部 Realtime 子动作。 */
+const REALTIME_ACTION_BY_MANAGE_ACTION = {
+  describeRealtime: "describe",
+  enableRealtime: "enable",
+  modifyRealtime: "modify",
+} as const satisfies Record<string, PgRealtimeAction>;
+
+/**
+ * 调用 PG Realtime 管理 API：优先 manager-node >= 5.10.0 的 native 方法，
+ * 运行时缺失时回退 commonService 的同名 Action。
+ */
+async function callPgRealtimeApi(
+  context: PgDbContext,
+  action: PgRealtimeAction,
+  params: Record<string, unknown>,
+  cloudBaseOptions?: ExtendedMcpServer["cloudBaseOptions"],
+): Promise<Record<string, unknown>> {
+  const manager = await getCloudBaseManager({
+    cloudBaseOptions: cloudBaseOptions
+      ? { ...cloudBaseOptions, envId: context.envId }
+      : { envId: context.envId },
+  });
+  const { native, action: apiAction, params: fixedParams } = PG_REALTIME_API[action];
+  // 固定参数在前、调用方参数在后：目前只有 enable 带固定参数（Suspend=false），modify 没有固定参数。
+  const payload = { EnvId: context.envId, ...fixedParams, ...params };
+  // 旧运行时可能没有 database 命名空间，缺省时直接走 commonService，不要先崩在读属性上。
+  const database = manager.database as unknown as Record<string, unknown> | undefined;
+  const invoke = database?.[native];
+
+  if (typeof invoke === "function") {
+    const call = invoke as (
+      options: Record<string, unknown>,
+    ) => Promise<Record<string, unknown>>;
+    return call.call(database, payload);
+  }
+
+  if (!isCloudBaseWithCommonService(manager)) {
+    throw new Error(t("databasePG.runtime.noRealtimeApi"));
+  }
+
+  const result = await manager.commonService("tcb", "2018-06-08").call({
+    Action: apiAction,
+    Param: payload,
+  });
+  return "Response" in result && result.Response
+    ? (result.Response as Record<string, unknown>)
+    : (result as Record<string, unknown>);
+}
+
+/**
+ * 只收集显式传入的配置项。manager-node 按 !== undefined 增量下发，
+ * 所以 false / 0 必须原样保留，不能用真值判断过滤。
+ */
+function buildPgRealtimeSettings(args: ManagePgDatabaseArgs): Record<string, unknown> {
+  const settings: Record<string, unknown> = {};
+  if (args.suspend !== undefined) settings.Suspend = args.suspend;
+  if (args.privateOnly !== undefined) settings.PrivateOnly = args.privateOnly;
+  if (args.presenceEnabled !== undefined) settings.PresenceEnabled = args.presenceEnabled;
+  if (args.maxConcurrentUsers !== undefined) settings.MaxConcurrentUsers = args.maxConcurrentUsers;
+  if (args.maxEventsPerSecond !== undefined) settings.MaxEventsPerSecond = args.maxEventsPerSecond;
+  if (args.maxJoinsPerSecond !== undefined) settings.MaxJoinsPerSecond = args.maxJoinsPerSecond;
+  if (args.maxBytesPerSecond !== undefined) settings.MaxBytesPerSecond = args.maxBytesPerSecond;
+  if (args.maxChannelsPerClient !== undefined) settings.MaxChannelsPerClient = args.maxChannelsPerClient;
+  if (args.maxPresenceEventsPerSecond !== undefined) settings.MaxPresenceEventsPerSecond = args.maxPresenceEventsPerSecond;
+  if (args.maxPayloadSizeInKB !== undefined) settings.MaxPayloadSizeInKB = args.maxPayloadSizeInKB;
+  if (args.connectionPool !== undefined) settings.ConnectionPool = args.connectionPool;
+  if (args.postgresChangesPool !== undefined) settings.PostgresChangesPool = args.postgresChangesPool;
+  return settings;
+}
+
 function parseManagerRows(result: ExecutePGSqlResult) {
   const columns = result.Columns ?? [];
   return (result.Rows ?? []).map((rowText) => {
@@ -2071,6 +2189,136 @@ async function handleQueryContext(context: PgDbContext) {
       ),
     ],
   });
+}
+
+async function handleRealtimeDescribe(
+  context: PgDbContext,
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"],
+) {
+  const settings = await callPgRealtimeApi(context, "describe", {}, cloudBaseOptions);
+
+  // 只读结果不带写引导：describe 只反映配置项，不能据此判断环境是否已开通，
+  // 是否需要 enable 由用户决定，不由这次读操作触发。
+  return buildPgToolResult({
+    success: true,
+    data: { envId: context.envId, settings },
+    message: t("databasePG.realtime.described", { envId: context.envId }),
+  });
+}
+
+async function handleRealtimeEnable(
+  context: PgDbContext,
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"],
+) {
+  // enable 等价于 Modify(Suspend=false)：未开通环境首次调用即完成开通，已开通且未挂起时无副作用。
+  // 服务端不返回开通态，只以调用成功为准。
+  const result = await callPgRealtimeApi(context, "enable", {}, cloudBaseOptions);
+
+  return buildPgToolResult({
+    success: true,
+    data: {
+      envId: context.envId,
+      requestId: result.RequestId ?? null,
+    },
+    message: t("databasePG.realtime.enableSubmitted", { envId: context.envId }),
+    nextActions: [
+      buildNextAction(
+        MANAGE_PG_DATABASE,
+        "describeRealtime",
+        t("databasePG.realtime.verifyConfigHint"),
+        { action: "describeRealtime", envId: context.envId },
+      ),
+    ],
+  });
+}
+
+async function handleRealtimeModify(
+  args: ManagePgDatabaseArgs,
+  context: PgDbContext,
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"],
+) {
+  const settings = buildPgRealtimeSettings(args);
+
+  if (Object.keys(settings).length === 0) {
+    return buildPgToolResult({
+      success: false,
+      errorCode: "REALTIME_NO_CHANGES",
+      message: t("databasePG.realtime.noChanges"),
+    });
+  }
+
+  // 未确认时只读回当前值，绝不下发任何修改。
+  if (args.confirm !== true) {
+    const current = await callPgRealtimeApi(context, "describe", {}, cloudBaseOptions);
+    return buildPgToolResult({
+      success: false,
+      errorCode: "REALTIME_CONFIRM_REQUIRED",
+      data: { envId: context.envId, current, changes: settings },
+      message: t("databasePG.realtime.confirmRequired"),
+      // 不带 confirm=true：确认必须由用户给出，不能让读回结果直接变成一次写调用。
+      nextActions: [
+        buildNextAction(
+          MANAGE_PG_DATABASE,
+          "modifyRealtime",
+          t("databasePG.realtime.confirmRequired"),
+          { ...args, action: "modifyRealtime", envId: context.envId },
+        ),
+      ],
+    });
+  }
+
+  const result = await callPgRealtimeApi(context, "modify", settings, cloudBaseOptions);
+  return buildPgToolResult({
+    success: true,
+    data: {
+      envId: context.envId,
+      changes: settings,
+      requestId: result.RequestId ?? null,
+    },
+    message: t("databasePG.realtime.modified", { envId: context.envId }),
+    nextActions: [
+      buildNextAction(
+        MANAGE_PG_DATABASE,
+        "describeRealtime",
+        t("databasePG.realtime.verifyConfigHint"),
+        { action: "describeRealtime", envId: context.envId },
+      ),
+    ],
+  });
+}
+
+/**
+ * Realtime 子动作分发：由 managePgDatabase 的三个 Realtime action 进入。
+ * 非 PG 环境用既有分类逻辑给出引导，其余失败带上原始原因。
+ */
+async function handlePgRealtime(
+  realtimeAction: PgRealtimeAction,
+  args: ManagePgDatabaseArgs,
+  cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"],
+) {
+  const context = await resolvePgDbContext(cloudBaseOptions, args);
+
+  try {
+    switch (realtimeAction) {
+      case "describe":
+        return await handleRealtimeDescribe(context, cloudBaseOptions);
+      case "enable":
+        return await handleRealtimeEnable(context, cloudBaseOptions);
+      case "modify":
+        return await handleRealtimeModify(args, context, cloudBaseOptions);
+    }
+  } catch (error) {
+    const infra = await classifyPgInfrastructureFailure(error, cloudBaseOptions, context);
+    if (infra.errorCode === "PG_NOT_PROVISIONED") {
+      return buildPgToolResult(infra);
+    }
+    const reason = error instanceof Error ? error.message : String(error);
+    return buildPgToolResult({
+      success: false,
+      errorCode: "PG_REALTIME_FAILED",
+      message: t("databasePG.realtime.failed", { reason }),
+    });
+  }
 }
 
 async function handleListObjects(
@@ -3572,6 +3820,68 @@ export function registerPGDatabaseTools(
           .boolean()
           .optional()
           .describe("databasePG.schema.manageAllowDdlViaExecute"),
+        // Realtime 配置项：仅 action=modifyRealtime 会下发，未传表示保持服务端当前值。
+        suspend: z.boolean().optional().describe("databasePG.schema.realtimeSuspend"),
+        privateOnly: z.boolean().optional().describe("databasePG.schema.realtimePrivateOnly"),
+        presenceEnabled: z
+          .boolean()
+          .optional()
+          .describe("databasePG.schema.realtimePresenceEnabled"),
+        maxConcurrentUsers: z
+          .number()
+          .int()
+          .min(0)
+          .max(15000)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxConcurrentUsers"),
+        maxEventsPerSecond: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxEventsPerSecond"),
+        maxJoinsPerSecond: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxJoinsPerSecond"),
+        maxBytesPerSecond: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxBytesPerSecond"),
+        maxChannelsPerClient: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxChannelsPerClient"),
+        maxPresenceEventsPerSecond: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxPresenceEventsPerSecond"),
+        maxPayloadSizeInKB: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeMaxPayloadSizeInKB"),
+        connectionPool: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimeConnectionPool"),
+        postgresChangesPool: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe("databasePG.schema.realtimePostgresChangesPool"),
       },
       annotations: {
         readOnlyHint: false,
@@ -3628,6 +3938,14 @@ export function registerPGDatabaseTools(
             default: return buildPgToolResult({ success: false, errorCode: "UNSUPPORTED_ACTION", message: t("databasePG.unsupportedAction", { action: args.action }) });
           }
         }
+        case "describeRealtime":
+        case "enableRealtime":
+        case "modifyRealtime":
+          return handlePgRealtime(
+            REALTIME_ACTION_BY_MANAGE_ACTION[args.action],
+            args,
+            cbOpts,
+          );
         default:
           return buildPgToolResult({
             success: false,
@@ -3637,4 +3955,5 @@ export function registerPGDatabaseTools(
       }
     },
   );
+
 }

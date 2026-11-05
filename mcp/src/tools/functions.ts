@@ -498,8 +498,8 @@ type QueryFunctionsInput = {
   layerName?: string;
   layerVersion?: number;
   taskId?: string;
-  order?: string;
-  orderBy?: string;
+  order?: "ASC" | "DESC";
+  orderBy?: "AddTime" | "ModTime";
   aliasName?: string;
 };
 
@@ -3687,8 +3687,8 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .string()
           .optional()
           .describe("functions.schema.query.taskId"),
-        order: z.string().optional().describe("functions.schema.query.order"),
-        orderBy: z.string().optional().describe("functions.schema.query.orderBy"),
+        order: z.enum(["ASC", "DESC"]).optional().describe("functions.schema.query.order"),
+        orderBy: z.enum(["AddTime", "ModTime"]).optional().describe("functions.schema.query.orderBy"),
         aliasName: z
           .string()
           .optional()

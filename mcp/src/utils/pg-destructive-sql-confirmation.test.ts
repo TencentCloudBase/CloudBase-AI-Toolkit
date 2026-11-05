@@ -119,6 +119,54 @@ describe("谓词触发面：只有参数里确实有破坏性 SQL 才命中", ()
     expect(resolveDestructiveAction("managePgDatabase", { action: "planMigration", sql: DDL_SQL })).toBeUndefined();
     expect(resolveDestructiveAction("queryPgDatabase", { action: "sql", sql: DELETE_SQL })).toBeUndefined();
   });
+
+  it("Realtime 改 Suspend ⇒ 命中，且按钮文案不是「删除」", () => {
+    for (const [suspend, textKey] of [
+      [true, "confirmation.message.realtimeSuspendOn"],
+      [false, "confirmation.message.realtimeSuspendOff"],
+    ] as const) {
+      const hit = resolveDestructiveAction("managePgDatabase", {
+        action: "modifyRealtime",
+        confirm: true,
+        suspend,
+      });
+
+      expect(hit?.key, `suspend=${suspend} 应命中`).toBe("managePgDatabase.modifyRealtime");
+      expect(hit?.spec.messageKey).toBe("confirmation.message.pgRealtimeSuspend");
+      // 只是断连、没删东西，不能沿用"确认删除"
+      expect(hit?.spec.confirmLabelKey).toBe("confirmation.option.confirmSetting");
+      expect(hit?.spec.target({ suspend }).resource).toBe(t(textKey));
+    }
+  });
+
+  it("Realtime 只改限流/频道策略（不传 suspend）不命中：那些变更不断连", () => {
+    expect(
+      resolveDestructiveAction("managePgDatabase", {
+        action: "modifyRealtime",
+        confirm: true,
+        maxEventsPerSecond: 200,
+        privateOnly: true,
+      }),
+    ).toBeUndefined();
+    expect(resolveDestructiveAction("managePgDatabase", { action: "describeRealtime" })).toBeUndefined();
+  });
+
+  it("enableRealtime 与 modifyRealtime({suspend:false}) 给同一道确认：两条入口下发的是同一个参数", () => {
+    const viaEnable = resolveDestructiveAction("managePgDatabase", { action: "enableRealtime" });
+    const viaModify = resolveDestructiveAction("managePgDatabase", {
+      action: "modifyRealtime",
+      suspend: false,
+    });
+
+    // 已挂起环境上两者都会恢复服务并断连，所以确认条件与按钮文案必须一致
+    expect(viaEnable?.key).toBe("managePgDatabase.enableRealtime");
+    expect(viaEnable?.spec.confirmLabelKey).toBe("confirmation.option.confirmSetting");
+    expect(viaEnable?.spec.confirmLabelKey).toBe(viaModify?.spec.confirmLabelKey);
+    expect(viaModify?.spec.target({ suspend: false }).resource).toBe(
+      t("confirmation.message.realtimeSuspendOff"),
+    );
+    expect(viaEnable?.spec.target({}).resource).toBe(t("confirmation.message.realtimeEnableAction"));
+  });
 });
 
 // ---- 真实 elicitation 通道：拒绝 ⇒ 绝不执行 ----
@@ -150,6 +198,7 @@ async function setupGuard(
         confirm: z.boolean().optional(),
         allowDdlViaExecute: z.boolean().optional(),
         migrationName: z.string().optional(),
+        suspend: z.boolean().optional(),
       },
     },
     handler,
@@ -254,6 +303,67 @@ describe("真实通道：人拒绝 ⇒ 不执行", () => {
     const result = await client.callTool({
       name: "managePgDatabase",
       arguments: { action: "execute", sql: 'INSERT INTO "orders" ("id") VALUES (1)', confirm: true },
+    });
+
+    expect(elicitations).toHaveLength(0);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain("handler 执行了");
+  });
+});
+
+describe("真实通道：Realtime 挂起变更", () => {
+  it("弹窗点名「挂起服务」，确认后才执行", async () => {
+    const { client, handler, elicitations } = await setupGuard({
+      reply: { action: "accept", content: { confirm: t("confirmation.option.confirmSetting") } },
+    });
+
+    const result = await client.callTool({
+      name: "managePgDatabase",
+      arguments: { action: "modifyRealtime", confirm: true, suspend: true },
+    });
+
+    expect(elicitations).toHaveLength(1);
+    // 文案要说清"会断开全部在线连接、全局生效"，且点名是挂起还是恢复
+    expect(String(elicitations[0].message)).toContain(t("confirmation.message.realtimeSuspendOn"));
+    expect(String(elicitations[0].message)).toContain("断开该环境全部在线 WebSocket 连接");
+    expect(String(elicitations[0].message)).toContain("全局生效");
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect((result.content as Array<{ text: string }>)[0].text).toContain("handler 执行了");
+  });
+
+  it("回填旧按钮文案（确认删除）不算同意：不执行", async () => {
+    const { client, handler } = await setupGuard({
+      reply: { action: "accept", content: { confirm: t("confirmation.option.confirm") } },
+    });
+
+    await client.callTool({
+      name: "managePgDatabase",
+      arguments: { action: "modifyRealtime", confirm: true, suspend: false },
+    });
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("enableRealtime 也先弹确认（已挂起环境上等同于恢复服务并断连）", async () => {
+    const { client, handler, elicitations } = await setupGuard({
+      reply: { action: "accept", content: { confirm: t("confirmation.option.confirmSetting") } },
+    });
+
+    await client.callTool({ name: "managePgDatabase", arguments: { action: "enableRealtime" } });
+
+    expect(elicitations).toHaveLength(1);
+    expect(String(elicitations[0].message)).toContain(
+      t("confirmation.message.realtimeEnableAction"),
+    );
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("只改限流（不传 suspend）⇒ 不弹确认，交给工具内的 confirm 门槛", async () => {
+    const { client, handler, elicitations } = await setupGuard();
+
+    const result = await client.callTool({
+      name: "managePgDatabase",
+      arguments: { action: "modifyRealtime", confirm: true, maxEventsPerSecond: 200 },
     });
 
     expect(elicitations).toHaveLength(0);
