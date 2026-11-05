@@ -56,9 +56,12 @@ import { resolveEnvConsoleUrl, resolveEnvPurchaseUrl } from "../utils/console-li
 import {
   buildEnvCreditsPayload,
   buildEnvMetricsPayload,
+  buildReceiptDailyTotals,
   isBillingExpired,
   pickCreditsBilling,
   resolveIsolatedDaysLeft,
+  summarizeUsageDetail,
+  trimUsageForReceipt,
   type CreditsBillingLike,
 } from "./env-credits-payload.js";
 import type { EnvCreditsPayload, EnvMetricsPayload } from "../resources/env-credits.js";
@@ -3104,6 +3107,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
     }) => {
       try {
         let result;
+        // `usage` 分支才有值：结构化载荷只放聚合，四层明细在文本回执里，这个信号给模型看。
+        let usageDetailSignal: ReturnType<typeof summarizeUsageDetail>;
         // MCP Apps：`ui://cloudbase/env-credits` 挂在整个 queryEnv 上（resourceUri 是工具级单值），
         // 所以两个视图靠载荷里的 `kind` 分派：usage → 用量卡（credits，缺省），metrics → 指标卡。
         // 面板按 `ui/notifications/tool-result` 收到的 structuredContent 渲染；不带载荷的 action
@@ -3304,8 +3309,11 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               throw new Error(t("env.usage.envIdRequired"));
             }
             const modules = resolveEnvUsageModules(type);
+            // 默认不展开四层明细：4 个环境实测，一次全模块查询的原始明细 4.5 万–5.4 万字符，
+            // 而默认该给的是「模块合计」+ 近 7 天合计（裁剪后 163–661 字符）。
+            // 要指标 / 资源类型 / 逐日传 needUsageDetails: true。
             const includeDetails =
-              typeof needUsageDetails === "boolean" ? needUsageDetails : true;
+              typeof needUsageDetails === "boolean" ? needUsageDetails : false;
             const cloudbaseUsage = await getManagerForEnvQuery(usageEnvId);
             const accountCircle = await cloudbaseUsage.env.describeEnvAccountCircle({
               EnvId: usageEnvId,
@@ -3345,14 +3353,22 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 );
               }
             }
+            // 上游**总是**要明细：面板的柱子、卡片的指标/资源类型两层、回执的 DailyTotals 都靠它。
+            // 「省 token」省的是回执（下面裁剪），不是这一次请求——多花的只是这次响应本身的字节。
             const usageDetail = await cloudbaseUsage.env.describeCreditsUsageDetail({
               EnvId: usageEnvId,
               Modules: modules,
               StartDate: dateRange.startDate,
               EndDate: dateRange.endDate,
-              NeedUsageDetails: includeDetails,
+              NeedUsageDetails: true,
             });
             logCloudBaseResult(server.logger, usageDetail);
+            // 回执裁剪与面板载荷分开做：面板要逐日数据画柱子、要指标与资源类型两层，回执只给模块合计。
+            // 两份数据同源，所以人和模型看到的是同一组数，不是一个多一个少。
+            const receiptUsages = includeDetails
+              ? (usageDetail?.Usages ?? [])
+              : (trimUsageForReceipt(usageDetail?.Usages) ?? []);
+            const receiptDaily = includeDetails ? undefined : buildReceiptDailyTotals(usageDetail?.Usages);
             // Record 而非字面类型：`Credits` 要等面板载荷算完（套餐码在后面才取到）再挂上去。
             const usageResult: Record<string, unknown> = {
               EnvId: usageEnvId,
@@ -3367,10 +3383,14 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                 HistoryTime: accountCircle?.HistoryTime ?? [],
                 RequestId: accountCircle?.RequestId,
               },
-              Usages: usageDetail?.Usages ?? [],
+              Usages: receiptUsages,
+              ...(receiptDaily && receiptDaily.length ? { DailyTotals: receiptDaily } : {}),
               RequestId: usageDetail?.RequestId,
             };
             result = usageResult;
+            // 深度信号按**上游**这次真拿到了几层来数，不按裁剪后的回执数：回执默认只到模块层，
+            // 用它数会得出「这工具最多给模块」，正是这条信号要防的误判。
+            usageDetailSignal = summarizeUsageDetail(usageDetail?.Usages);
 
             // 面板载荷：套餐码与环境别名只能从环境信息里取（DescribeEnvInfo），
             // 这是本 action 为面板多付的一次只读调用；失败就降级，不影响回执。
@@ -3536,8 +3556,19 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           // 面板契约（见 resources/env-credits.ts 的 EnvCreditsPayload / EnvMetricsPayload）：
           // usage 带用量载荷、metrics 带指标载荷（同一资源、按 kind 分派）；
           // 文本回执逐字不变，不支持 UI 的客户端拿到的是纯加法。
+          //
+          // `usage_detail` 是**给模型**的（面板不读，故不进 EnvCreditsPayload）：
+          // 结构化载荷只有模块聚合，而文本回执里有四层明细。只读结构化载荷的模型曾据此断言
+          // 「工具最多到模块级、只有平台版才有明细」（2026-11-04），这个键把"还能往下钻"说出来。
           ...(creditsPayload || metricsPayload
-            ? { structuredContent: creditsPayload ?? metricsPayload }
+            ? {
+                structuredContent: {
+                  ...(creditsPayload ?? metricsPayload),
+                  ...(creditsPayload && usageDetailSignal
+                    ? { usage_detail: usageDetailSignal }
+                    : {}),
+                },
+              }
             : {}),
         };
       } catch (error) {
