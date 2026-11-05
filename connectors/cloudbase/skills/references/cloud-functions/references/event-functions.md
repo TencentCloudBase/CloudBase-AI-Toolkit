@@ -110,6 +110,39 @@ https://{envId}.api.tcloudbasegateway.com/v1/functions/{functionName}
 
 This path requires authentication and belongs with the `http-api-cloudbase` skill, not browser-facing anonymous access.
 
+## Reading the return value
+
+`callFunction` resolves to a response object. What the cloud function returned is **not** that response — it sits one level down, in `result`.
+
+```text
+response               SDK layer
+├── result             the cloud function's return value
+│   └── data           only if the function chose that shape
+└── requestId          identifies the call in logs
+```
+
+On the Web SDK (`@cloudbase/js-sdk`) the response may also carry `code` and `message` for SDK-level failures; they are absent on success. The Node.js SDK (`@cloudbase/node-sdk`) resolves to `{ result, requestId }` and throws when the function fails. Fields such as `code`, `message`, and `data` inside `result` are defined by the function itself — the SDK does not interpret or validate them.
+
+`result` can be a JSON string instead of an object. Pass `parse: true` in the call options to have the Web SDK parse object return values, or normalize before reading:
+
+```javascript
+const res = await app.callFunction({
+  name: "myFunction",
+  data: { userId: "123" },
+  parse: true
+});
+
+const payload = typeof res.result === "string"
+  ? JSON.parse(res.result)
+  : res.result;
+
+if (payload.code === 0) {
+  // payload.data is the business data
+}
+```
+
+Keep the status check and the field reads on the same object. If a helper unwraps `result` into `data`, the object it returns has no status fields of its own.
+
 ## Common patterns
 
 ### Error handling
