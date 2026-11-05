@@ -2022,6 +2022,72 @@ describe("env tools - queryEnv", () => {
     ]);
   });
 
+  it("queryEnv(info) treats a pgdoc projection as PG, not a flexdb tenant", async () => {
+    const cases: Array<{
+      name: string;
+      envInfo: Record<string, unknown>;
+      nosql: boolean;
+      pgdocHint: boolean;
+    }> = [
+      {
+        name: "taken over: projection excluded from nosql, CUSTOM rules flagged",
+        envInfo: {
+          EnvId: "env-test",
+          PostgreSQL: [{ InstanceName: "pg-doc-1", DocumentExt: true }],
+          Databases: [{ InstanceId: "pg-doc-1", Status: "RUNNING" }],
+        },
+        nosql: false,
+        pgdocHint: true,
+      },
+      {
+        name: "flag without a matching projection is not taken over",
+        envInfo: {
+          EnvId: "env-test",
+          PostgreSQL: [{ InstanceName: "pg-doc-1", DocumentExt: true }],
+          Databases: [{ InstanceId: "tnt-1", Status: "RUNNING" }],
+        },
+        nosql: true,
+        pgdocHint: false,
+      },
+      {
+        name: "no flag keeps the classic shape",
+        envInfo: {
+          EnvId: "env-test",
+          PostgreSQL: [{ InstanceName: "pg-1" }],
+          Databases: [{ InstanceId: "tnt-1", Status: "RUNNING" }],
+        },
+        nosql: true,
+        pgdocHint: false,
+      },
+    ];
+
+    for (const testCase of cases) {
+      mockGetCloudBaseManager.mockResolvedValue({
+        env: {
+          getEnvInfo: vi.fn().mockResolvedValue({ EnvInfo: testCase.envInfo }),
+        },
+        commonService: vi.fn(() => ({
+          call: vi.fn().mockResolvedValue({}),
+        })),
+      });
+
+      const { tools } = createMockServer();
+      const payload = JSON.parse(
+        (await tools.queryEnv.handler({ action: "info" })).content[0].text,
+      );
+
+      expect(payload.EnvInfo.RuntimeBackends.nosql, testCase.name).toBe(
+        testCase.nosql,
+      );
+      const permissions = String(
+        payload.EnvInfo.RuntimeModeHints?.Permissions ?? "",
+      );
+      expect(permissions.includes("CUSTOM"), testCase.name).toBe(
+        testCase.pgdocHint,
+      );
+    }
+  });
+
   it("queryEnv(info) RuntimeBackends.nosql should require usable Databases InstanceId", async () => {
     const cases: Array<{
       name: string;

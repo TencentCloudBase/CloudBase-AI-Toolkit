@@ -1324,7 +1324,28 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
   const databasesList = Array.isArray(envInfo.Databases)
     ? envInfo.Databases
     : [];
-  const hasNoSql = databasesList.some(isUsableNoSqlDatabaseEntry);
+  // pgdoc carries the document-database API on PostgreSQL. A Databases[]
+  // entry pointing at a taken-over PG instance is that projection, not a
+  // flexdb tenant. Responses without the flag keep the classic shape.
+  const pgdocInstanceNames: string[] = pgList
+    .filter((pg: any) => pg && pg.DocumentExt === true)
+    .map((pg: any) => pg.InstanceName)
+    .filter(
+      (name: unknown): name is string =>
+        typeof name === "string" && name.length > 0,
+    );
+  const pgdocTakenOver =
+    pgdocInstanceNames.length > 0 &&
+    databasesList.some(
+      (db: any) =>
+        isUsableNoSqlDatabaseEntry(db) &&
+        pgdocInstanceNames.includes(String(db.InstanceId)),
+    );
+  const hasNoSql = databasesList.some(
+    (db: any) =>
+      isUsableNoSqlDatabaseEntry(db) &&
+      !(pgdocTakenOver && pgdocInstanceNames.includes(String(db.InstanceId))),
+  );
 
   // MySQL field name has been seen as MysqlInstances / MySQLInstances /
   // MySQL across API versions; check any of them.
@@ -1402,6 +1423,20 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
           "Read `cloudbase-document-database-web-sdk` (and `cloud-storage-web` for uploads). `postgresql-development-cloudbase` and `relational-database-mcp-cloudbase` are not applicable to this env.",
       };
 
+  // Only taken-over environments need different guidance. Classic responses
+  // keep their existing hints byte-for-byte.
+  const hintsWithPgdoc = pgdocTakenOver
+    ? {
+        ...hints,
+        BusinessDataAPI:
+          "pgdoc is active: the document-database API (Web `app.database()` / `db.collection(...)`, Mini Program `wx.cloud.database()`, and the nosql HTTP API) is carried by PostgreSQL. Keep those SDK calls and HTTP paths — do NOT rewrite them into `app.rdb()` unless the task asks for a NEW PG business table.",
+        Permissions:
+          "pgdoc is active: CUSTOM collection security rules do not take effect. Use the four basic permissions (owner checks via `_openid`) or move validation into a cloud function. `managePermissions(resourceType=\"noSqlDatabase\", securityRule=...)` will not govern pgdoc collections. Direct SQL reads on PG are governed by GRANT / RLS instead.",
+        CoexistingNoSQL:
+          "RuntimeBackends lists provisioned resources only — it does not say whether the document API has been taken over. Here pgdoc has taken over; a Databases[] entry equal to a taken-over PG instance is its projection, not a flexdb tenant. Any remaining flexdb tenant still holds the original data and must be migrated explicitly.",
+      }
+    : hints;
+
   return {
     ...result,
     EnvInfo: {
@@ -1412,7 +1447,7 @@ async function enrichEnvInfoWithRuntimeMode(result: any, manager?: any) {
         nosql: hasNoSql,
         mysql: hasMysql,
       },
-      RuntimeModeHints: hints,
+      RuntimeModeHints: hintsWithPgdoc,
     },
   };
 }

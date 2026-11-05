@@ -95,7 +95,7 @@ Stack priority for this path: **Web SDK CRUD > MCP schema > template warmup > cl
 ## Standard playbook
 
 1. **Warm template in parallel with credentials** (see partner notes below): `downloadTemplate` (`react` default, `vue` if requested) → `npm install` / `pnpm install`.
-2. `queryEnv(action="info")` → lock **one** DB plane (NoSQL **or** PG). New relational work uses PostgreSQL. Use MySQL only when the environment already has an instance. Do not thrash between them.
+2. `queryEnv(action="info")` → lock **one** DB plane (NoSQL **or** PG). New relational work uses PostgreSQL. Use MySQL only when the environment already has an instance. Do not thrash between them. **Exception**: pgdoc is the document API carried by PG, not a choice between the two — if the task moves an existing document app onto PG without changing SDK calls, read `../postgresql-development-cloudbase/references/pgdoc.md` instead of rewriting the client.
 3. MCP: create the collection/table + minimal permissions.
 4. Frontend: ensure session (`auth.signInAnonymously()` or equivalent), then wire list + create with `@cloudbase/js-sdk` (see Hard rule 6).
 5. Start / report preview URL; ask before deploy.
