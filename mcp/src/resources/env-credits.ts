@@ -370,6 +370,8 @@ body {
 /* Wide hosts get two real columns instead of one narrow strip in the middle: the credit total and
    what it is made of on the left, the plan facts on the right. A narrow host stacks them. */
 @media (min-width: 760px) { .t3 { grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); } }
+/* One surviving column takes the whole width instead of sitting in the right half. */
+@media (min-width: 760px) { .t3.one { grid-template-columns: minmax(0, 1fr); } }
 .t3 > table, .t3 > .note, .t3 > .spark, .t3 > details { grid-column: 1 / -1; }
 .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .field { margin-top: 0; }
@@ -474,7 +476,7 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
       <span class="st"><span class="dot" id="st-dot"></span><span id="st-text"></span></span>
     </div>
     <p class="t2" id="c-hint"></p>
-    <div class="t3">
+    <div class="t3" id="t3">
       <div class="col" id="col-a">
         <div class="field" id="f-credits" hidden>
           <p class="k">${E(L("mcpUiCredits.field.credits"))}</p>
@@ -1051,6 +1053,7 @@ ${CREDENTIAL_GUARD_JS}
     linkBtn.hidden = true;
     var copyNote = el("k-copynote");
     if (copyNote) { copyNote.hidden = true; }
+    fitColumns();
   }
 
   /** Empty hints leave no sentence under the status word; hide the node instead of a blank line. */
@@ -1074,6 +1077,34 @@ ${CREDENTIAL_GUARD_JS}
     if (payload.modules && payload.modules.length) { return true; }
     if (payload.spark && payload.spark.length) { return true; }
     return false;
+  }
+
+  /**
+   * A column that ends up with nothing in it must stop taking half the width. The two columns are
+   * declared in CSS, so hiding every field inside one still leaves its share of the grid reserved
+   * and pushes the survivor to one side - on an environment that is not billed by credits that
+   * means the region sits alone against a blank half. Collapse to a single column in that case.
+   */
+  function fitColumns() {
+    // The fields each column owns, in DOM order. Listed here rather than queried: the panel has
+    // no selector engine to lean on, and a new field has to be added to a column anyway.
+    var sides = [
+      ["col-a", ["f-credits", "f-payg", "f-package", "f-mods"]],
+      ["col-b", ["f-plan", "f-balance", "f-place"]]
+    ];
+    var filled = 0;
+    for (var i = 0; i < sides.length; i++) {
+      var hasField = false;
+      for (var j = 0; j < sides[i][1].length; j++) {
+        var field = el(sides[i][1][j]);
+        if (field && !field.hidden) { hasField = true; break; }
+      }
+      var col = el(sides[i][0]);
+      if (col) { col.hidden = !hasField; }
+      if (hasField) { filled++; }
+    }
+    var wrap = el("t3");
+    if (wrap) { wrap.className = filled <= 1 ? "t3 one" : "t3"; }
   }
 
   function render(payload) {
@@ -1272,6 +1303,7 @@ ${CREDENTIAL_GUARD_JS}
 
     var copyNote = el("k-copynote");
     if (copyNote) { copyNote.hidden = true; }
+    fitColumns();
   }
 
   /**

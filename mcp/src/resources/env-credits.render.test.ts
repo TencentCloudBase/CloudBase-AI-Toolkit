@@ -123,8 +123,12 @@ function loadPanel(html: string): PanelHarness {
   }
 
   const elements = new Map<string, ShimmedElement>();
-  for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
-    elements.set(match[1], makeNode(match[1]));
+  // 起始可见性与真实 DOM 一致：标签上没写 hidden 属性就是可见。垫片若一律从 hidden 起步，
+  // 页面上本来就在的字段（如地域）会被当成隐藏，列塌陷这类布局问题就测不出来。
+  for (const match of html.matchAll(/<[^>]*\bid="([^"]+)"[^>]*>/g)) {
+    const node = makeNode(match[1]);
+    node.hidden = /\shidden(?=[\s>=])/.test(match[0]);
+    elements.set(match[1], node);
   }
 
   const messageListeners: Array<(event: { data: unknown; source?: unknown }) => void> = [];
@@ -874,6 +878,25 @@ describe("env-credits 面板脚本运行时", () => {
     expect(panel.el("btn-main").hidden).toBe(false);
     expect(panel.el("btn-main-label").textContent).toBe(L("mcpUiCredits.action.switchEnv"));
     expect(panel.el("raw-out").textContent).toContain("NOT-JSON-MARKER");
+    // 左列（额度 / 按量 / 资源包 / 模块）整列没有内容时不能继续占半幅 —— 否则地域孤零零贴在
+    // 右半边，左边是一片留白。整列收起，剩下一列拿满宽度。
+    expect(panel.el("col-a").hidden).toBe(true);
+    expect(panel.el("col-b").hidden).toBe(false);
+    expect(panel.el("t3").className).toBe("t3 one");
+  });
+
+  it("两列都有内容时不塌陷：额度在左、套餐与地域在右", () => {
+    const panel = render(
+      buildEnvCreditsPayload({
+        ...BASE,
+        planRaw: "baas_personal",
+        usages: [usage("SCF", 120)],
+      }),
+    );
+    expect(panel.el("f-credits").hidden).toBe(false);
+    expect(panel.el("col-a").hidden).toBe(false);
+    expect(panel.el("col-b").hidden).toBe(false);
+    expect(panel.el("t3").className).toBe("t3");
   });
 
   it("契约绑定：客户端消费的键与载荷产出的键一致（不手写 fixture）", () => {
