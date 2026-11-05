@@ -15,6 +15,12 @@ describe("term-map", () => {
     // PostgreSQL / Token 是 2026-11 补上的两个模块码，缺映射会让面板直接显示原始码
     expect(mapUsageModule("PostgreSQL")).toBe("PostgreSQL 数据库");
     expect(mapUsageModule("Token")).toBe("AI Token");
+    // 与用量清单同步补齐的六项：缺映射同样会露出原始码
+    expect(mapUsageModule("Gateway")).toBe("环境调用");
+    expect(mapUsageModule("CLS")).toBe("日志");
+    expect(mapUsageModule("CI")).toBe("数据万象");
+    expect(mapUsageModule("STORAGE_EO")).toBe("边缘存储");
+    expect(mapUsageModule("CBF")).toBe("云函数");
   });
 
   it("maps regions without exposing a bare Region field", () => {

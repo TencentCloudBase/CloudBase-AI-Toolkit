@@ -188,24 +188,32 @@ describe("用量换算", () => {
     expect(mapCreditsModules(null)).toBeUndefined();
   });
 
-  // 镜像 ENV_USAGE_MODULE_VALUES（env.ts）的全部 15 个码
+  // 镜像 ENV_USAGE_MODULE_VALUES（env.ts）的全部 19 个码
   const codes = [
     "FLEXDB",
     "TDSQL",
     "PostgreSQL",
     "SCF",
+    "CBF",
     "EKS",
     "COS",
     "AI",
     "Token",
     "HOSTING",
     "Auth",
-    "APIInvocation",
-    "HTTPInvocation",
-    "VM",
+    "Gateway",
     "Workflow",
+    "CLS",
+    "EO",
+    "STORAGE_EO",
+    "CI",
+    "VM",
     "Other",
   ];
+
+  // 旧码：`Gateway` 的拆分子类，已不在清单里（同传会重复计费），
+  // 但映射表保留一份，免得历史响应带回旧码时落到 `other`。
+  const legacyCodes = ["APIInvocation", "HTTPInvocation"];
 
   it("规范键集合固定 10 个，且覆盖每个已知模块码", () => {
     expect([...CREDITS_MODULE_KEYS]).toEqual([
@@ -221,11 +229,11 @@ describe("用量换算", () => {
       "other",
     ]);
     // 每个成员都必须真的有码能映射过来（不留永不产出的死键，例如曾经留过的 cdn）
-    const reachable = new Set(codes.map((code) => moduleKeyOf(code)));
+    const reachable = new Set([...codes, ...legacyCodes].map((code) => moduleKeyOf(code)));
     for (const key of CREDITS_MODULE_KEYS) {
       expect(reachable, `${key} 应有模块码映射到它`).toContain(key);
     }
-    for (const code of codes) {
+    for (const code of [...codes, ...legacyCodes]) {
       const key = moduleKeyOf(code);
       expect(CREDITS_MODULE_KEYS, `${code} 应落在规范键集合内`).toContain(key);
       // 规范键一律小写，且不等于云 API 的原始码（原码都是大写/驼峰形式）
@@ -238,18 +246,26 @@ describe("用量换算", () => {
     // PostgreSQL 是自己的模块码，不能因为「TDSQL 已经落 database」就漏掉它（漏掉 = PG 环境用量显示 0）
     expect(moduleKeyOf("PostgreSQL")).toBe("database");
     expect(moduleKeyOf("SCF")).toBe("functions");
+    // CBF 是 CBF 后端环境的云函数，与 SCF 同类
+    expect(moduleKeyOf("CBF")).toBe("functions");
     expect(moduleKeyOf("COS")).toBe("storage");
+    // 数据万象、边缘存储都归存储
+    expect(moduleKeyOf("CI")).toBe("storage");
+    expect(moduleKeyOf("STORAGE_EO")).toBe("storage");
     expect(moduleKeyOf("AI")).toBe("ai");
     // Token 模块的指标是 InputToken./OutputToken.<model>（单位 tokens）→ 同属大模型消耗
     expect(moduleKeyOf("Token")).toBe("ai");
     expect(moduleKeyOf("Auth")).toBe("auth");
-    expect(moduleKeyOf("APIInvocation")).toBe("api");
+    // 环境调用（含 API 调用与 HTTP 网关）现在只有 Gateway 一个码
+    expect(moduleKeyOf("Gateway")).toBe("api");
     // 有官方依据的三项
     expect(moduleKeyOf("HTTPInvocation")).toBe("http");
     expect(moduleKeyOf("HOSTING")).toBe("hosting");
     expect(moduleKeyOf("Workflow")).toBe("workflow");
     // 没有把握的一律落 other（宁可少说，不编不准的名字）
     expect(moduleKeyOf("EKS")).toBe("other");
+    expect(moduleKeyOf("CLS")).toBe("other");
+    expect(moduleKeyOf("EO")).toBe("other");
     expect(moduleKeyOf("VM")).toBe("other");
     expect(moduleKeyOf("Other")).toBe("other");
   });

@@ -7,13 +7,19 @@
  * PG 环境「数据库」一行永远显示 0，MCP 与 tcb CLI 都中招）。所以这份清单必须跟官方文档同步。
  *
  * 真源：云 API 文档《获取资源点用量明细》 `product/876/132934` 的 Modules 枚举
- *      （不是 tcb CLI 的 `USAGE_MODULES`——CLI 落后于文档，照抄就会漏）。
+ *      —— 但**它是子集**：接口另外接受 6 个文档没收录的码（见 `DOC_NOT_LISTED_YET`），
+ *      控制台用量页请求的就是含这 6 项的全量清单。
+ *
+ * 判据：文档里的码**必须全部包含**（漏一个 = 那个模块的用量静默消失）；
+ *      代码里比文档多的，只有在 `DOC_NOT_LISTED_YET` 之内才放过（文档还没收录），
+ *      其余一律当真漂移（多半是文档删了某项，请求会报参数错误）。
  *
  * 用法：
  *   node scripts/check-usage-modules.mjs            # 比对，漂移则 exit 1
  *   node scripts/check-usage-modules.mjs --json     # 机器可读输出
  *
- * 退出码：0 = 一致；1 = 漂移（需要更新 `ENV_USAGE_MODULE_VALUES`）；2 = 抓取/解析失败（不是漂移）。
+ * 退出码：0 = 一致（含「文档未收录的已知项」）；1 = 漂移（需要更新 `ENV_USAGE_MODULE_VALUES`）；
+ *         2 = 抓取/解析失败（不是漂移）。
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -21,6 +27,21 @@ import { dirname, join } from "node:path";
 const ROOT = dirname(dirname(new URL(import.meta.url).pathname));
 const DOC_URL = "https://cloud.tencent.com/document/product/876/132934";
 const SOURCE_FILE = join(ROOT, "mcp/src/tools/env.ts");
+
+/**
+ * 文档枚举是**子集**：下面这 6 项接口接受、控制台用量页也在请求，但云 API 文档的 Modules 枚举没有收录。
+ * 它们出现在代码清单里不算漂移；哪天文档补上了，这里留着也不影响（只影响 --json 里的 extraExplained）。
+ * 反过来，文档**删掉**某个码会让它变成「多」，那是真问题（请求会报参数错误），所以仍要报。
+ */
+const DOC_NOT_LISTED_YET = new Set(["CBF", "Gateway", "CLS", "EO", "STORAGE_EO", "CI"]);
+
+/**
+ * 文档里仍然列着、但我们**有意不请求**的码：`Gateway` 的拆分子类。
+ * 文档把它们当正式枚举，实际口径已经统一到 `Gateway`（控制台只传 `Gateway`），
+ * 两个子类和父项一起传会让「环境调用」翻倍，所以清单里不放它们。
+ * 这两个码不会出现在请求里，因此「文档有、代码没有」不算漂移。
+ */
+const DOC_MERGED_SUBMODULES = new Set(["APIInvocation", "HTTPInvocation"]);
 
 /** 官方文档 Modules 枚举 → 模块码数组。文档页把枚举渲染成 `<li>CODE： 说明</li>`。 */
 export function parseDocModules(html) {
@@ -80,18 +101,42 @@ async function main() {
   }
 
   const { missing, extra } = diffModules(docModules, localModules);
-  const drift = missing.length > 0 || extra.length > 0;
+  // 文档是**子集**：它只收录了 15 项，另有 6 项控制台在用、接口也接受，但文档没写。
+  // 这 6 项不算漂移；除此之外的「多」都当真漂移（很可能是文档删了某项，请求会报参数错误）。
+  const unexplainedExtra = extra.filter((code) => !DOC_NOT_LISTED_YET.has(code));
+  // 反过来，文档里 `Gateway` 的两个拆分子类我们有意不请求（同传会翻倍），也不算缺。
+  const unexplainedMissing = missing.filter((code) => !DOC_MERGED_SUBMODULES.has(code));
+  const drift = unexplainedMissing.length > 0 || unexplainedExtra.length > 0;
 
   if (json) {
-    console.log(JSON.stringify({ status: drift ? "drift" : "ok", docModules, localModules, ...{ missing, extra } }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          status: drift ? "drift" : "ok",
+          docModules,
+          localModules,
+          missing,
+          extra,
+          missingExplained: missing.filter((code) => DOC_MERGED_SUBMODULES.has(code)),
+          missingUnexplained: unexplainedMissing,
+          extraExplained: extra.filter((code) => DOC_NOT_LISTED_YET.has(code)),
+          extraUnexplained: unexplainedExtra,
+        },
+        null,
+        2,
+      ),
+    );
   } else if (drift) {
     console.log(`[usage-modules] 与官方文档不一致（${DOC_URL}）`);
-    if (missing.length) console.log(`  缺：${missing.join(", ")}  ← 这些模块的用量当前查不出来`);
-    if (extra.length) console.log(`  多：${extra.join(", ")}  ← 文档已删除，请求会报参数错误`);
+    if (unexplainedMissing.length)
+      console.log(`  缺：${unexplainedMissing.join(", ")}  ← 这些模块的用量当前查不出来`);
+    if (unexplainedExtra.length)
+      console.log(`  多：${unexplainedExtra.join(", ")}  ← 文档已删除，请求会报参数错误`);
     console.log(`  文档共 ${docModules.length} 项，代码里 ${localModules.length} 项`);
     console.log("  改 mcp/src/tools/env.ts 的 ENV_USAGE_MODULE_VALUES，并同步 payload 归类与 skill 文档。");
   } else {
-    console.log(`[usage-modules] OK：${localModules.length} 个模块与官方文档一致`);
+    const listed = extra.length ? `（另有 ${extra.length} 项文档未收录：${extra.join(", ")}）` : "";
+    console.log(`[usage-modules] OK：${localModules.length} 个模块，官方文档的 ${docModules.length} 项全部覆盖${listed}`);
   }
   process.exit(drift ? 1 : 0);
 }
