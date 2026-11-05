@@ -10,22 +10,26 @@
 
 It is **not** the document-database `collection.watch()` path. See "Not the same as `watch()`" below.
 
-## Step 0 — Probe the environment before writing any code
+## Step 0 — Do not provision by default
 
-Realtime is not enabled on every environment yet. Run this **first**, via `queryPgDatabase` with `action=sql`:
+Realtime is provisioned per environment, and provisioning is a **write** call. Do not run it as a fixed step before writing realtime code.
 
-```sql
-SELECT
-  (SELECT count(*) FROM pg_namespace WHERE nspname = 'realtime') AS has_realtime_schema,
-  (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'realtime') AS realtime_table_cnt;
-```
+- `managePgDatabase({ action: "describeRealtime" })` reads the current configuration (suspend state, channel policy, rate limits, pool sizes, timestamps). It is a read, and **a successful call does not prove the environment is provisioned** — the response has no provisioning flag, so never use it as a provisioning check.
+- `managePgDatabase({ action: "enableRealtime" })` is the provisioning call. It sends `Modify(Suspend: false)`: the first call on an unprovisioned environment provisions Realtime automatically, a call on an already provisioned, non-suspended environment is a no-op (no reconnect), and on a suspended environment it resumes the service and drops every live connection. (Provisioning-on-first-call is confirmed by the backend; it is not yet spelled out in the public API docs.)
 
-- `has_realtime_schema >= 1` → enabled. Continue.
-- `has_realtime_schema = 0` → **not enabled**. Stop here. Do not write realtime code, do not try to enable it yourself, and do not substitute a hand-rolled polling loop. Tell the user the current environment has no realtime schema (the capability is not generally available yet) and let them file a capability request at the CloudBase developer community: <https://cnb.cool/tencent/cloud/cloudbase/community/-/issues>
+Call `enableRealtime` only when the user asks you to provision, or when a realtime call fails in a way that clearly indicates the capability is not available — and confirm with the user first (it triggers a confirmation gate). Never substitute a hand-rolled polling loop.
+
+`PG_NOT_PROVISIONED` is **not** a Realtime signal: it means the environment has no CloudBase PostgreSQL instance at all, so neither `queryPgDatabase` nor `managePgDatabase` applies.
+
+There is no documented way to query the provisioning state yet. Do not infer it from `pg_namespace` / `pg_publication` counts, and do not report an environment as "provisioned" because `describeRealtime` succeeded.
+
+Suspend state, channel policy and rate limits are changed through `managePgDatabase({ action: "modifyRealtime", confirm: true, ... })`.
+
+`suspend` is **global (all nodes)**: `true` immediately drops every live WebSocket connection of the environment, rejects new connections with HTTP 403 (`Realtime was disabled for this tenant`) and disables the server-side broadcast API; `false` restores the service. Any change of the value disconnects clients once, so state the current → target change to the user before sending it.
 
 Do **not** gate on `pg_publication LIKE 'cloudbase_realtime%'`. A publication count of `0` is normal — it only means no table has CDC enabled yet.
 
-Once the schema exists, confirm the shape you will rely on:
+Confirm the schema shape you will rely on (independent of provisioning):
 
 ```sql
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'realtime';
@@ -202,11 +206,11 @@ Choose the integration shape from the game's synchronization model, not from the
 - **Low-frequency state sync** (grid movement, simple arena): workable at modest rates with client-side interpolation, but loss and latency handling must be written by hand — see the delivery-guarantee rules above.
 - **High-frequency deterministic combat** (fighting, MOBA, FPS, frame-precise platformers): not this. Broadcast is a fire-and-forget hint channel; authoritative loop, frame sync and rollback need a dedicated game server. Do not promise this shape.
 
-Published rate limits, per-channel message rates and payload ceilings are **not** documented. Measure them in the target environment before committing to a design; do not assume a number.
+Rate limits, per-channel message rates and payload ceilings are readable per environment through `managePgDatabase({ action: "describeRealtime" })`. Read the actual values before committing to a design; do not assume a number, and do not hard-code them in client code.
 
 ## Verification checklist
 
-1. Step 0 probe returns `has_realtime_schema >= 1`.
+1. The environment is provisioned (the user said so, or a realtime call works), and `describeRealtime` returns the configuration the design assumes.
 2. Correct module registered; `watch()` code not mixed in.
 3. `presence` / `postgres_changes` bound before `subscribe()`, and the client actually reaches `SUBSCRIBED`.
 4. A round-trip message is observed by a second client (remember `self: false`).

@@ -44,7 +44,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Document database -> `../cloudbase-document-database-web-sdk/SKILL.md` or `../cloudbase-document-database-in-wechat-miniprogram/SKILL.md`
 - CloudBase PostgreSQL / PG -> `../postgresql-development-cloudbase/SKILL.md`
 - Realtime / live push / channels / live table change subscriptions / multiplayer sync -> `../postgresql-development-cloudbase/references/realtime.md`
-  - **PG mode only.** Run its Step 0 environment probe before writing any realtime code; if the environment has no `realtime` schema, stop and report rather than working around it.
+  - **PG mode only.** Read its Step 0 before writing realtime code: `describeRealtime` only reads settings, so do not call `enableRealtime` as a routine step — ask the user before provisioning.
   - `app.realtime()` (Broadcast / Presence / Postgres CDC) is **not** document-database `collection.watch()`. Do not answer a realtime request with `watch()` code, or the reverse.
 - PostgreSQL schema and data modeling -> `../postgresql-development-cloudbase/SKILL.md`; existing MySQL only -> `../relational-database-mcp-cloudbase/SKILL.md`
 - Cloud storage -> `../cloud-storage-web/SKILL.md`

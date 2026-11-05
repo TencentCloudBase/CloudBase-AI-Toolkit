@@ -18,7 +18,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `queryPgDatabase`, or `managePgDatabase`.
+- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `app.realtime()`, `queryPgDatabase`, `managePgDatabase`, or a Realtime action (`describeRealtime` / `enableRealtime` / `modifyRealtime`).
 - A Web app or CMS must persist business data in CloudBase PostgreSQL.
 
 ### Then also read
@@ -30,10 +30,12 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Browser storage upload -> `../cloud-storage-web/SKILL.md`
 - Raw HTTP API details only when SDK coverage is blocked -> `../http-api-cloudbase/SKILL.md`
 - PG reference index -> `references/index.md`
+- pgdoc (document API carried by PostgreSQL) -> `references/pgdoc.md`
 - PG mode overview -> `references/pg-mode-overview.md`
 - Auth / GRANT / RLS details -> `references/auth-and-rls.md`
 - End-to-end PG app closure -> `references/app-workflow.md`
 - PG storage details — **MUST read before writing any bucket / upload / URL code** -> `references/storage-pg.md`
+- Realtime (broadcast / presence / live table changes) -> `references/realtime.md`
 - HTTP API fallback -> `references/http-api.md`
 - Troubleshooting -> `references/troubleshooting.md`
 
@@ -41,6 +43,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 - `relational-database-mcp-cloudbase` / `queryMysqlDatabase` / `manageMysqlDatabase` for new relational work. Those skills are only for an environment that already has MySQL.
 - `cloudbase-document-database-web-sdk` / collection APIs for business data that must live in CloudBase PG.
+  - **Exception**: moving an existing document-database app onto PG while keeping its SDK calls is pgdoc, not a PG rewrite — read `references/pgdoc.md`. The ban above covers NEW business tables only.
 
 ## Required Flow
 
@@ -61,10 +64,12 @@ CloudBase PG (`app.rdb()`, `app.storage.from('bucket')`) uses **different API me
 
 **If you find yourself typing `.where()` or `.orderBy()` or `.count()` — stop and use the correct method from the right column.**
 
+> **pgdoc exception**: when the task moves an existing document-database app onto PG **without changing its SDK calls**, the client keeps `app.database()` / `db.collection(...)`. That is pgdoc, not a PG-mode rewrite — read `references/pgdoc.md` before reacting to those method names. This section's ban applies to NEW PG business tables that use `app.rdb()`.
+
 0. **First, confirm this environment actually has PostgreSQL provisioned.** Call `queryEnv(action="info", envId=...)` and read the derived `EnvInfo.RuntimeBackends` block (`{ postgresql, nosql, mysql }`) along with `EnvInfo.RuntimeMode`. It is only safe to apply this skill's PG-specific guidance when `RuntimeBackends.postgresql === true` (equivalently, `EnvInfo.PostgreSQL` is non-empty AND/OR `EnvInfo.Meta` contains `postgresql=enable`).
    - PG mode is a **new-environment mode** selected when creating a CloudBase environment with PostgreSQL. Do not try to "upgrade" a legacy environment in place; create/select a PG-mode environment instead.
    - If `RuntimeBackends.postgresql === false`, STOP — this is a legacy NoSQL-only env: switch to `cloudbase-document-database-web-sdk` for browser data and `cloud-storage-web` (with `app.uploadFile()`) for uploads. Do not write `app.rdb()` code, do not enable RLS, do not create a pgstore bucket here.
-   - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks.
+   - If both `postgresql` and `nosql` are `true` (the common case in a PG environment), they coexist. Apply this skill to NEW business data the task asks you to put in PG (e.g. articles / role tables explicitly described as PG). Existing NoSQL collections, the bucket reported in `EnvInfo.Storages[]`, and any `managePermissions(resourceType="noSqlDatabase")` rules continue to govern the legacy NoSQL data — do NOT migrate or rewrite them unless the task explicitly asks. Once pgdoc has taken over the document API, CUSTOM security rules on those collections no longer apply — see `references/pgdoc.md`.
    - Note: in a PG env, `EnvInfo.Storages[]` is the legacy NoSQL bucket. It still works for legacy `app.uploadFile()` flows but is NOT a usable pgstore bucket — never reuse it as the `<bucket>` segment in `app.storage.from('<bucket>').upload('<key>', file)`.
 
 > **Creating a PG-mode environment**
@@ -333,6 +338,7 @@ All packaged reference files (required for skill lint reachability):
 - [auth-and-rls.md](references/auth-and-rls.md)
 - [app-workflow.md](references/app-workflow.md)
 - [storage-pg.md](references/storage-pg.md)
+- [realtime.md](references/realtime.md)
 - [http-api.md](references/http-api.md)
 - [rls-patterns.md](references/rls-patterns.md)
 - [troubleshooting.md](references/troubleshooting.md)

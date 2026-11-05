@@ -2,6 +2,8 @@
 
 Execute MongoDB-style commands against CloudBase document database — CRUD, aggregation, backup, and restore.
 
+> **Path convention**: relative paths in this file resolve from `cloudbase-cli/references/` (for example `mysql.md`). A sibling skill uses `../../<skill-name>/...`.
+
 ⚠️ **Always run `tcb db nosql execute --help` first** — this is the most error-prone command family due to nested JSON encoding.
 
 ## When to Use
@@ -14,10 +16,11 @@ Execute MongoDB-style commands against CloudBase document database — CRUD, agg
 
 ## Do NOT use for
 
-- MySQL/SQL database operations → use `references/mysql.md` (commands are `tcb db ...` without `nosql`)
+- MySQL/SQL database operations → use `mysql.md` (commands are `tcb db ...` without `nosql`)
 - In-app database queries via Web/Mini-Program SDK → use `cloudbase-document-database-web-sdk` skill
 - Cloud function database access via server SDK → use `cloud-functions` skill
-- Storage file management → use `references/storage.md`
+- Storage file management → use `storage.md`
+- Moving the exported collections onto CloudBase PG → use `../../postgresql-development-cloudbase/references/pgdoc.md` (dump is step 1; import, validation and enablement follow there)
 
 ## Command Quick Reference
 
@@ -55,6 +58,12 @@ tcb db nosql dump orders --fields "_id,status,createdAt" -e <envId>   # CSV requ
 ```
 
 `--fields` is a comma-separated field list and is **required for CSV output**.
+
+**Migrating to pgdoc**: this dump is only the export step. Import into the `pgdoc_data` schema, validate, then enable pgdoc — the CLI does not migrate data for you. Read `../../postgresql-development-cloudbase/references/pgdoc.md`. Enablement goes through the generic cloud API channel:
+
+```bash
+tcb api tcb EnablePGDocumentExt --api-version 2018-06-08 --body '{"EnvId":"<envId>"}'
+```
 
 ---
 
