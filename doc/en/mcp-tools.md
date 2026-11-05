@@ -119,9 +119,26 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 
 ## Remote MCP Configuration
 
-### Environment Variable Configuration
+For cloud MCP, connect directly to the **official hosted endpoint with OAuth** — no keys to configure:
 
-Using Remote Mode requires configuring the following environment variables:
+```json
+{
+  "mcpServers": {
+    "cloudbase": {
+      "type": "http",
+      "url": "https://tcb-api.cloud.tencent.com/mcp/v1"
+    }
+  }
+}
+```
+
+On first connect, the client opens a browser for OAuth authorization (sign in to Tencent Cloud, pick an environment) — no keys in config files. For the international site, use `https://tcb-api.tencentcloud.com/mcp/v1`. See [Connection Modes — Remote Mode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes#remote-mode).
+
+Clients without OAuth support (and CI/CD or other non-interactive scenarios) pass Tencent Cloud API keys as static credentials in request headers — the environment variables below are not needed there either.
+
+### Environment Variable Configuration (self-hosted remote services only)
+
+The following variables are for **self-hosting** the MCP service on your own server (with Cloud Mode enabled) to inject credentials; the hosted endpoint above needs none of them:
 
 | Environment Variable | Description | How to Obtain |
 |---------|------|---------|
