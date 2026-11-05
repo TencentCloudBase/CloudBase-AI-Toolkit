@@ -2671,12 +2671,15 @@ describe("env tools - queryEnv", () => {
       StartDate: "2026-08-01",
       EndDate: "2026-08-31",
       DateSource: "accountCircle",
-      NeedUsageDetails: true,
+      // 回执默认不展开四层明细（上游照取，回执裁剪）
+      NeedUsageDetails: false,
       Usages: [
         {
           Module: "SCF",
           CreditsValue: 12,
           DeductValue: 12,
+          // 默认只到模块层：指标键保留但为空数组
+          MetricUsageDetail: [],
         },
       ],
     });
@@ -2716,8 +2719,11 @@ describe("env tools - queryEnv", () => {
       Modules: [...ENV_USAGE_MODULE_VALUES],
       StartDate: "2026-07-01",
       EndDate: "2026-07-15",
-      NeedUsageDetails: false,
+      // 上游总要明细：面板柱子和回执 DailyTotals 都靠它
+      NeedUsageDetails: true,
     });
+    // 回执这一侧仍按参数来（false ⇒ 不展开）
+    expect(payload.NeedUsageDetails).toBe(false);
     expect(payload.DateSource).toBe("params");
     expect(payload.Modules).toEqual([...ENV_USAGE_MODULE_VALUES]);
   });

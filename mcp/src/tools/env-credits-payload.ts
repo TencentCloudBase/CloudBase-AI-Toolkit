@@ -233,6 +233,15 @@ export interface CreditsUsageLike {
   /** 本模块**套餐内**用量 —— 与 `PLAN_CREDITS_TOTAL` 同口径，进度条用这个。 */
   DeductValue?: number;
   MetricUsageDetail?: Array<{
+    /** 云 API 的**原始**指标码（`Flux` / `Capacity` / `InputToken.<model>`…），没有官方中文名可查。 */
+    MetricName?: string;
+    ResourceType?: string;
+    Unit?: string;
+    /** 原始用量（单位见 `Unit`），与资源点不是一套数。 */
+    Value?: number;
+    /** 本指标消耗的资源点，与模块 `CreditsValue` 同口径。 */
+    CreditsValue?: number;
+    DeductValue?: number;
     ValueDetailList?: Array<{ CalcTime?: string; CreditsValue?: number }>;
   }> | null;
 }
@@ -349,6 +358,11 @@ export function sumDeductValue(
   return sum;
 }
 
+type ModuleRow = {
+  module: CreditsModuleKey;
+  credits_value: number;
+};
+
 /**
  * 分模块用量：模块码一律映射成**规范键**（认不出的落 `other`，绝不透传原始码），
  * 并且**按规范键聚合**——同一键的多条累加。
@@ -361,10 +375,15 @@ export function sumDeductValue(
  *
  * 缺 `CreditsValue` 的条目跳过（不按 0 计）；一个模块都出不来则不传。行的顺序 = 各规范键
  * 首次出现的顺序。
+ *
+ * **只到模块合计一层，不往指标钻**。指标名是云 API 的原始码（`Capacity` / `Flux` /
+ * `CU` / `InputToken.<model>`），资源类型是产品缩写（`TDSQL` / `PG` / `NAT`），官方没有
+ * 中文名表。卡片是给人一眼看的：印一串读不懂的码，读者要多花力气才知道「数据库 1,680」
+ * 才是重点，等于负信息。指标明细交给 Agent 用中文说（需要数据就传 `needUsageDetails`）。
  */
 export function mapCreditsModules(
   usages?: ReadonlyArray<CreditsUsageLike> | null,
-): Array<{ module: CreditsModuleKey; credits_value: number }> | undefined {
+): ModuleRow[] | undefined {
   if (!Array.isArray(usages)) {
     return undefined;
   }
@@ -372,7 +391,9 @@ export function mapCreditsModules(
   for (const item of usages) {
     const raw = typeof item?.Module === "string" ? item.Module.trim() : "";
     const value = finiteCreditsValue(item);
-    if (!raw || value === null) {
+    // 0 的模块不占一行：实测一个 15 模块的环境里有 10 个是 0，全画出来就是
+    // 「数据库 0 · 云函数 0 · AI 0 …」，把真正花钱的那两三个挤成了噪声。
+    if (!raw || value === null || value === 0) {
       continue;
     }
     const key = moduleKeyOf(raw);
@@ -381,7 +402,117 @@ export function mapCreditsModules(
   if (totals.size === 0) {
     return undefined;
   }
-  return [...totals.entries()].map(([module, credits_value]) => ({ module, credits_value }));
+  const rows = [...totals.entries()].map(([module, credits_value]) => ({ module, credits_value }));
+  // 不到半点的模块不占一行：卡片上没有小数位，0.13 会印成「云函数 0」，看着像根本没用量。
+  // 但如果这个环境本来就只用了零点几，全滤掉就成了一片空白 —— 那时保留原样，宁可显示 0。
+  const worthShowing = rows.filter((row) => row.credits_value >= 0.5);
+  return worthShowing.length > 0 ? worthShowing : rows;
+}
+
+/** 回执里要保留的天数（与面板柱子的点数同一个数）。 */
+export const RECEIPT_DAILY_DAYS = 7;
+
+/**
+ * 默认回执裁剪：**只到模块合计一层**。
+ *
+ * 为什么（4 个环境实测，2026-11-05）：一次全模块查询的四层原始明细 4.5 万–5.4 万字符，
+ * 其中绝大部分是「指标 × 资源类型 × 天」的行；而"哪个模块花得多"这一层裁剪后只剩几百字符
+ * （163–661）。同一批数据里 178 行指标只有 3–13 行非零，其余全是 0。
+ * 默认回执只回答这一层，指标 / 资源类型 / 逐日三层都不带 —— 要它们传 `needUsageDetails: true`。
+ *
+ * 逐日这一层例外：`DailyTotals`（近 7 天合计）仍然给一次。它是模块层的聚合（7 个数），
+ * 不是明细；砍掉它，卡片上明明画着柱子，模型却答不了"最近几天怎么样"。
+ *
+ * 三条规矩：
+ *   1. **全 0 模块整条不要**（这次周期确实没用量）；`CreditsValue` 读不到的同样不留 —— 没有数就没有可说的；
+ *   2. `MetricUsageDetail` 置为**空数组而不是删键**：按 `Module` / `MetricUsageDetail` 读的地方不会缺键，
+ *      而空数组本身就是"这层没给你"的信号，比悄悄消失好；
+ *   3. 其余键一律原样保留（键名与云 API 同形），不做重命名。
+ */
+export function trimUsageForReceipt(
+  usages?: ReadonlyArray<CreditsUsageLike> | null,
+): CreditsUsageLike[] | undefined {
+  if (!Array.isArray(usages)) {
+    return undefined;
+  }
+  const out: CreditsUsageLike[] = [];
+  for (const item of usages) {
+    const module = typeof item?.Module === "string" ? item.Module.trim() : "";
+    if (!module) {
+      continue;
+    }
+    const moduleCredits = finiteCreditsValue(item);
+    const moduleDeduct = finiteDeductValue(item);
+    const noCredits = moduleCredits === null || moduleCredits === 0;
+    const noDeduct = moduleDeduct === null || moduleDeduct === 0;
+    if (noCredits && noDeduct) {
+      continue;
+    }
+    out.push({
+      Module: module,
+      ...(moduleCredits !== null ? { CreditsValue: moduleCredits } : {}),
+      ...(moduleDeduct !== null ? { DeductValue: moduleDeduct } : {}),
+      MetricUsageDetail: [],
+    });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+/**
+ * 回执里的逐日合计（近 `RECEIPT_DAILY_DAYS` 天）：与面板柱子的数据同源，一份数据两个读者。
+ * 逐日这一层只到"那天一共用了多少"，不再按指标 / 资源类型展开 —— 那个粒度请传 `needUsageDetails: true`。
+ */
+export function buildReceiptDailyTotals(
+  usages?: ReadonlyArray<CreditsUsageLike> | null,
+): Array<{ CalcTime: string; CreditsValue: number }> | undefined {
+  const spark = buildCreditsSpark(usages, RECEIPT_DAILY_DAYS);
+  if (!spark) {
+    return undefined;
+  }
+  return spark.map((point) => ({ CalcTime: point.calc_time, CreditsValue: point.credits_value }));
+}
+
+/**
+ * 四层明细的可钻取信号（**给模型，不给面板**）。
+ *
+ * 存在的理由：结构化载荷只放聚合（`modules` / `spark`），只看结构化载荷的模型会据此推断
+ * "工具最多给到模块级"，进而编出「只有平台版环境才有明细」这类结论（2026-11-04 实际发生）。
+ * 数出真实层数比写在文档里更硬：`day_rows > 0` 说明这次回执里确实有逐日数据。
+ *
+ * 放在工具结果的 `usage_detail` 键上，**不进 `EnvCreditsPayload`** —— 面板契约只收它真正消费的
+ * 键（`resources/env-credits.render.test.ts` 的契约绑定用例守着这一条）。
+ */
+export function summarizeUsageDetail(
+  usages?: ReadonlyArray<CreditsUsageLike> | null,
+): {
+  levels: Array<"module" | "metric" | "resource_type" | "day">;
+  metric_rows: number;
+  day_rows: number;
+} | undefined {
+  if (!Array.isArray(usages) || usages.length === 0) {
+    return undefined;
+  }
+  let metricRows = 0;
+  let dayRows = 0;
+  for (const item of usages) {
+    const metrics = Array.isArray(item?.MetricUsageDetail) ? item.MetricUsageDetail : [];
+    metricRows += metrics.length;
+    for (const metric of metrics) {
+      const days = Array.isArray(metric?.ValueDetailList) ? metric.ValueDetailList : [];
+      dayRows += days.length;
+    }
+  }
+  if (metricRows === 0) {
+    return undefined;
+  }
+  return {
+    levels:
+      dayRows > 0
+        ? ["module", "metric", "resource_type", "day"]
+        : ["module", "metric", "resource_type"],
+    metric_rows: metricRows,
+    day_rows: dayRows,
+  };
 }
 
 /**
@@ -543,6 +674,15 @@ export function buildEnvCreditsPayload(input: {
   const spark = buildCreditsSpark(input.usages);
   // 余额没有只读来源（仓里没有对应调用路径）→ 如实传 null，面板隐藏该行；不为它新增请求。
   const balance = typeof input.balance === "number" ? input.balance : null;
+  // `unknown` 的成因必须分开报：被 `type` 过滤过的子集 ≠ 读不到数据。两者都被压成 unknown 时，
+  // 面板只能说"缺少套餐状态"，而套餐（`plan`）其实一直都在——文案与排障路径都指错了地方。
+  const scope: EnvCreditsPayload["scope"] = comparable
+    ? "full"
+    : filtered
+      ? "filtered"
+      : used === null
+        ? "none"
+        : "partial";
 
   return {
     branch: comparable
@@ -554,6 +694,7 @@ export function buildEnvCreditsPayload(input: {
           balance,
         })
       : "unknown",
+    scope,
     env_alias: typeof input.envAlias === "string" && input.envAlias !== "" ? input.envAlias : null,
     env_id: input.envId,
     plan,
@@ -573,8 +714,8 @@ export function buildEnvCreditsPayload(input: {
 /**
  * 指标曲线的抽样上限。
  *
- * 为什么是 48：面板曲线画布宽 280px（`resources/env-credits.ts` 的 `spark-svg`），48 点约合
- * 每 5.8px 一个点——再密在视觉上没有区别。
+ * 为什么是 48：面板柱状图最宽约 640px（`resources/env-credits.ts` 的 `.spark-bars`），48 根柱子
+ * 约合每 13px 一根——再密柱子就挤成一片灰，读不出哪根高哪根低。
  *
  * 真机实测（2026-10-16，单环境凭证只读 `queryEnv(action="metrics")`，`metricName=EnvQPSAll`，
  * **不传 startTime/endTime/period**）：`TimeSource=defaultLast24h`、**`Period=3600`（1 小时）**、

@@ -95,10 +95,30 @@ export interface EnvCreditsPayload {
     package?: number;
     source?: "billing" | "detail";
   } | null;
-  modules?: Array<{ module?: CreditsModuleCode | string; credits_value?: number }>;
+  /**
+   * 分模块用量，**只到模块合计一层**（与控制台「功能用量概览」的模块行同层级）。
+   *
+   * 为什么不再往下钻：往下一层是指标名（`Capacity` / `Flux` / `CU`）和资源类型名
+   * （`TDSQL` / `PG`），都是云 API 的英文代码，官方没有中文名表。卡片是给人一眼看的，
+   * 印一串读不懂的码等于没有信息，还会把模块合计挤成次要信息。指标明细由 Agent 在对话里
+   * 用中文讲（需要数据就传 `needUsageDetails: true`）。
+   */
+  modules?: Array<{
+    module?: CreditsModuleCode | string;
+    credits_value?: number;
+  }>;
   spark?: Array<{ calc_time?: string; credits_value?: number }>;
   balance?: number | null;
   isolated_days_left?: number | null;
+  /**
+   * 这次查询的数字覆盖到哪一层 —— **`branch: "unknown"` 的三种成因要靠它分开**：
+   *   `full`     整周期、全模块，`total` 与 `used` 同口径，能下结论；
+   *   `filtered` 调用方按 `type` 选了模块，`used` 只是子集，故不与套餐总额比较（套餐本身仍照实给）；
+   *   `partial`  某条 `Usages[]` 缺 `DeductValue`，求和是部分和，同样不比较；
+   *   `none`     一条用量都没拿到（`credits` 整键缺省）。
+   * 旧载荷没有这个键；面板只在选文案时读它，其余按 `full` 处理。
+   */
+  scope?: "full" | "filtered" | "partial" | "none";
 }
 
 /** 监控指标卡的三态（其余情况一律不硬凑成某一态）。 */
@@ -323,6 +343,29 @@ body {
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: 0 0 auto; }
 .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.err { background: var(--err); }
 .t2 { margin: 8px 0 0; font-size: 13px; color: var(--text-2); }
+/* Module tags: which modules this reading covers, in the same tag language as the plan tag above.
+   A narrowed query gets one extra tag that reads "all modules" - the way back is visible, so no
+   sentence has to explain the scope. */
+.mods-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.mods { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mtag { display: inline-flex; align-items: baseline; gap: 5px; font: inherit; font-size: 12px; line-height: 1.7;
+  color: var(--text-2); background: none; border: 1px solid var(--border); border-radius: 6px; padding: 0 7px;
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* The figure is what the eye looks for; the module name is the label next to it.
+   Tags stay plain spans: the card answers "which module costs the most" and stops there.
+   Metric codes from the API (Capacity / Flux / CU) mean nothing to a reader, so they are
+   not printed here at all - naming them is the agent's job, in words, when asked. */
+.mtag b { font-weight: 600; color: var(--text); }
+/* The module rows are "what was consumed", the headline is "what the plan covered". On a
+   pay-as-you-go environment the first is larger than the second, so the sum is spelled out
+   here instead of leaving the reader to reconcile two numbers on their own. */
+.mods-sum { margin: 5px 0 0; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.tagbtn { display: inline-flex; align-items: center; gap: 1px; font: inherit; font-size: 12px;
+  line-height: 1.7; color: var(--primary); background: var(--tint); border: 0; border-radius: 6px;
+  padding: 0 5px 0 8px; cursor: pointer; white-space: nowrap; }
+.tagbtn:hover { text-decoration: underline; }
+.tagbtn:disabled { cursor: default; opacity: .6; }
+.tagbtn svg { width: 12px; height: 12px; display: block; }
 .t3 { margin-top: 12px; display: grid; gap: 12px 28px; align-items: start; }
 /* Wide hosts get two real columns instead of one narrow strip in the middle: the credit total and
    what it is made of on the left, the plan facts on the right. A narrow host stacks them. */
@@ -342,18 +385,21 @@ body {
 .ubar { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
 .ubar i { display: block; height: 100%; background: var(--err); }
 .ubar.ok i { background: var(--ok); }
-.mods { margin-top: 6px; font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
-.spark { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.spark-cap { font-size: 12px; color: var(--text-3); flex: 0 0 auto; }
-.spark-box { position: relative; flex: 1; height: 44px; min-width: 0; margin-bottom: 14px; }
-.spark-box::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--line); }
-.spark-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.spark-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.spark-area { stroke: none; }
-.spark-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--surface);
-  transform: translate(-50%,-50%); background: var(--text-3); }
-.spark-dot.ok { background: var(--ok); }
-.spark-dot.err { background: var(--err); }
+/* Daily usage as bars, not a curve: the figure for each day is what people act on, so every bar
+   carries its own number and its day sits under the baseline. A curve shows the shape and hides
+   all seven figures; the caption it needed ("last 7 days") is now written by the dates themselves.
+   One neutral colour for every bar: the bars are readings, and health is already said once by the
+   status dot and the quota bar above. A green or red bar would claim a judgement about the data. */
+.spark { margin-top: 10px; }
+.spark-bars { display: flex; align-items: flex-end; gap: 6px; height: 96px; }
+.spark-bars.tight { gap: 2px; }
+.bcol { flex: 1 1 0; min-width: 0; max-width: 132px; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; gap: 5px; }
+.bval { font-size: 11px; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bday { font-size: 11px; line-height: 1; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* A bar keeps a visible stub at zero: the day exists and reads as zero, it is not missing. */
+.bfill { width: 60%; max-width: 48px; height: 2px; border-radius: 3px 3px 0 0; background: var(--text-3); }
+@media (max-width: 460px) { .bval, .bday { font-size: 10px; } }
 .acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 button { font: inherit; font-size: 14px; height: 32px; padding: 0 14px; border-radius: 8px;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -445,7 +491,11 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
         </div>
         <div class="field" id="f-mods" hidden>
           <p class="k">${E(L("mcpUiCredits.field.modules"))}</p>
-          <div class="mods" id="k-mods"></div>
+          <div class="mods-row">
+            <div class="mods" id="k-mods"></div>
+            <button class="tagbtn" type="button" id="btn-all-mods" hidden><span id="btn-all-mods-label"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <p class="mods-sum" id="k-mods-sum" hidden></p>
         </div>
       </div>
       <div class="col" id="col-b">
@@ -462,27 +512,8 @@ pre { margin: 8px 0 0; padding: 10px; border-radius: 8px; background: var(--bg);
           <p class="v" id="k-place">${E(placeText)}</p>
         </div>
       </div>
-        <div class="spark" id="f-spark" hidden>
-        <span class="spark-cap">${E(L("mcpUiCredits.spark.cap"))}</span>
-        <div class="spark-box">
-          <svg class="spark-svg" viewBox="0 0 280 56" preserveAspectRatio="none" aria-hidden="true" id="spark-svg">
-            <defs>
-              <linearGradient id="g-err" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" style="stop-color:var(--err);stop-opacity:.14"/>
-                <stop offset="1" style="stop-color:var(--err);stop-opacity:0"/>
-              </linearGradient>
-              <linearGradient id="g-ok" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" style="stop-color:var(--ok);stop-opacity:.14"/>
-                <stop offset="1" style="stop-color:var(--ok);stop-opacity:0"/>
-              </linearGradient>
-            </defs>
-            <!-- Neutral initial styling on purpose: renderSpark sets both attributes in the same
-                 call, so a red initial value would only mislead whoever reads this template. -->
-            <path class="spark-area" id="spark-area" d="" fill="none"/>
-            <path class="spark-line" id="spark-line" d="" stroke="var(--text-2)"/>
-          </svg>
-          <i class="spark-dot" id="spark-dot" hidden></i>
-        </div>
+      <div class="spark" id="f-spark" hidden>
+        <div class="spark-bars" id="spark-bars"></div>
       </div>
       <table class="mtable" id="f-m-table" hidden>
         <thead>
@@ -559,7 +590,6 @@ ${CREDENTIAL_GUARD_JS}
     region: { ${dirTable(REGION_LABEL_DIR)} },
     site: { ${dirTable(SITE_LABEL_DIR)} },
     titleSep: ${S("mcpUiCredits.title.sep")},
-    modulesSep: ${S("mcpUiCredits.modules.sep")},
     currency: ${S("mcpUiCredits.value.currency")},
     unavailable: ${S("mcpUiCredits.value.unavailable")},
     copiedConsole: ${S("mcpUiCredits.action.copiedConsole")},
@@ -573,6 +603,7 @@ ${CREDENTIAL_GUARD_JS}
     openExpense: ${S("mcpUiCredits.action.openExpense")},
     expiredNote: ${S("mcpUiCredits.expired.note")},
     stateUnknown: ${S("mcpUiCredits.state.unknown")},
+    stateFiltered: ${S("mcpUiCredits.state.filtered")},
     stateNotCredits: ${S("mcpUiCredits.state.notCredits")},
     stateNormal: ${S("mcpUiCredits.state.normal")},
     hintUnknown: ${S("mcpUiCredits.hint.unknown")},
@@ -636,6 +667,11 @@ ${CREDENTIAL_GUARD_JS}
     stateNearLimit: ${S("mcpUiCredits.state.nearLimit")},
     hintNearLimit: ${S("mcpUiCredits.hint.nearLimit")},
     hintUnknownWithUsage: ${S("mcpUiCredits.hint.unknownWithUsage")},
+    hintFiltered: ${S("mcpUiCredits.hint.filtered")},
+    actionAllModules: ${S("mcpUiCredits.action.allModules")},
+    modulesTotal: ${S("mcpUiCredits.modules.total")},
+    modulesInPlan: ${S("mcpUiCredits.modules.inPlan")},
+    messageQueryAllModules: ${S("mcpUiCredits.message.queryAllModules")},
     metricSamples: ${S("mcpUiCredits.metric.samples")},
     metricEvery: ${S("mcpUiCredits.metric.every")},
     // Interval (seconds -> words). An unnameable interval shows samples only, never an invented unit.
@@ -717,47 +753,59 @@ ${CREDENTIAL_GUARD_JS}
     if (payload && payload.plan && T.plan[payload.plan]) { return T.plan[payload.plan]; }
     return "";
   }
-  function sparkPath(pts) {
-    var d = "M" + pts[0][0] + "," + pts[0][1];
-    for (var i = 0; i < pts.length - 1; i++) {
-      var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
-      var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-      var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-      d += " C" + c1x.toFixed(1) + "," + c1y.toFixed(1) + " " + c2x.toFixed(1) + "," + c2y.toFixed(1) + " " + p2[0].toFixed(1) + "," + p2[1].toFixed(1);
-    }
-    return d;
+  // The axis label is the smallest unit the data actually carries: a clock time when the point is
+  // stamped with one, a month-day otherwise. A stamp we cannot parse prints nothing, never a guess.
+  // Daily usage is always stamped 00:00:00 - that is not "some moment", it is "this whole day", so
+  // midnight falls back to the date instead of printing a column of identical 00:00 labels.
+  function shortStamp(calcTime) {
+    var text = typeof calcTime === "string" ? calcTime.trim() : "";
+    if (!text) { return ""; }
+    var halves = text.split(" ");
+    var clock = halves.length > 1 ? halves[1].slice(0, 5) : "";
+    if (clock && clock !== "00:00") { return clock; }
+    var parts = halves[0].split("-");
+    return parts.length === 3 ? parts[1] + "-" + parts[2] : "";
   }
-  function renderSpark(values, tone) {
-    var area = el("spark-area");
-    var line = el("spark-line");
-    var dot = el("spark-dot");
-    if (!area || !line) { return; }
-    if (!values || values.length < 2) {
-      area.setAttribute("d", "");
-      line.setAttribute("d", "");
-      if (dot) { dot.hidden = true; }
-      return;
-    }
-    var max = Math.max.apply(null, values);
-    if (!max) { max = 1; }
-    var pts = [];
+  var SPARK_BAR_MAX = 58;
+  // Past a handful of bars a number over each one becomes noise, so the text steps aside and the
+  // bar heights carry the reading; the per-bar tooltip still has the figure.
+  var SPARK_TEXT_MAX_POINTS = 8;
+
+  function renderSpark(values, stamps) {
+    var box = el("spark-bars");
+    if (!box) { return; }
+    box.textContent = "";
+    if (!values || !values.length) { return; }
+    var max = 0;
     for (var i = 0; i < values.length; i++) {
-      var x = (i / (values.length - 1)) * 278;
-      var y = 52 - (values[i] / max) * 48;
-      pts.push([Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
+      if (values[i] > max) { max = values[i]; }
     }
-    var d = sparkPath(pts);
-    var color = tone === "ok" || tone === "err" ? tone : "";
-    area.setAttribute("d", d + " L278,56 L0,56 Z");
-    area.setAttribute("fill", color ? "url(#g-" + color + ")" : "none");
-    line.setAttribute("d", d);
-    line.setAttribute("stroke", color ? "var(--" + color + ")" : "var(--text-2)");
-    if (dot) {
-      var last = pts[pts.length - 1];
-      dot.style.left = (last[0] / 280 * 100) + "%";
-      dot.style.top = (last[1] / 56 * 100) + "%";
-      dot.className = "spark-dot" + (color ? " " + color : "");
-      dot.hidden = false;
+    if (max <= 0) { max = 1; }
+    var withText = values.length <= SPARK_TEXT_MAX_POINTS;
+    box.className = "spark-bars" + (values.length > 16 ? " tight" : "");
+    for (var j = 0; j < values.length; j++) {
+      var value = Number(values[j]) || 0;
+      var stamp = stamps && stamps[j] ? stamps[j] : "";
+      var col = document.createElement("div");
+      col.className = "bcol";
+      if (withText) {
+        var num = document.createElement("span");
+        num.className = "bval";
+        num.textContent = fmtNumber(value);
+        col.appendChild(num);
+      }
+      var bar = document.createElement("i");
+      bar.className = "bfill";
+      bar.style.height = Math.max(2, Math.round((value / max) * SPARK_BAR_MAX)) + "px";
+      bar.title = (stamp ? stamp + ": " : "") + fmtNumber(value);
+      col.appendChild(bar);
+      if (withText && stamp) {
+        var day = document.createElement("span");
+        day.className = "bday";
+        day.textContent = stamp;
+        col.appendChild(day);
+      }
+      box.appendChild(col);
     }
   }
   // Live values win per field; local config only fills a field the result does not carry.
@@ -976,15 +1024,21 @@ ${CREDENTIAL_GUARD_JS}
       setText(el("k-m-window-note"), period ? T.metricEvery.replace("{period}", period) : "");
     }
 
-    // single line reusing spark: under 2 points is not a line, noData stays neutral
+    // One bar per sample in the space the curve used to take. A single sample is one honest bar -
+    // the "needs two points" rule belonged to the line - and noData stays undrawn.
     var values = [];
+    var stamps = [];
     if (payload && payload.spark && payload.spark.length) {
-      for (var i = 0; i < payload.spark.length; i++) { values.push(Number(payload.spark[i].credits_value || 0)); }
+      for (var i = 0; i < payload.spark.length; i++) {
+        values.push(Number(payload.spark[i].credits_value || 0));
+        stamps.push(shortStamp(payload.spark[i].calc_time));
+      }
     }
     var fSpark = el("f-spark");
-    // All-zero means no traffic; a flat baseline would read as "there is data", so we do not draw it.
-    fSpark.hidden = values.length < 2 || state === "noData";
-    renderSpark(values.length < 2 || state === "noData" ? [] : values, "");
+    // All-zero means no traffic; a drawn chart would read as "there is data", so we do not draw it.
+    var sparkDrawn = values.length >= 1 && state !== "noData";
+    fSpark.hidden = !sparkDrawn;
+    renderSpark(sparkDrawn ? values : [], sparkDrawn ? stamps : []);
 
     // The single primary action hands the follow-up to the session; the panel calls no tools itself.
     var mainBtn = el("btn-main");
@@ -1074,7 +1128,11 @@ ${CREDENTIAL_GUARD_JS}
     // "Not enough data" is only true when nothing was read. With a used figure in hand, the honest
     // sentence names the one piece that is missing instead of denying the number on screen.
     if (key === "unknown" && used !== null) {
-      setHint(T.hintUnknownWithUsage);
+      // "Plan state is missing" only holds for the partial scope: when the caller filtered by
+      // module the plan is right there, what is missing is a total on the same footing.
+      var filteredScope = !!(payload && payload.scope === "filtered");
+      if (filteredScope) { setText(el("st-text"), T.stateFiltered); }
+      setHint(filteredScope ? T.hintFiltered : T.hintUnknownWithUsage);
     }
     var notCredits = key === "unknown" && !hasCreditSignal(payload);
     // A list/info result, or an environment that is not billed by credits, has no credit figure.
@@ -1111,20 +1169,78 @@ ${CREDENTIAL_GUARD_JS}
       for (var i = 0; i < payload.modules.length; i++) {
         var m = payload.modules[i];
         var name = T.module[m.module] || "";
-        if (name) { mods.push(name + " " + fmtNumber(m.credits_value || 0)); }
+        if (!name) { continue; }
+        mods.push({ key: m.module, name: name, value: fmtNumber(m.credits_value || 0), raw: Number(m.credits_value) || 0 });
       }
     }
     var fMods = el("f-mods");
-    fMods.hidden = mods.length === 0;
-    if (mods.length) { setText(el("k-mods"), mods.join(T.modulesSep)); }
+
+    // Module tags. The tags are the rows that actually came back, not what the caller asked for:
+    // a request for five modules that returns three rows shows three tags, each carrying its own
+    // figure, so the scope statement and the breakdown are the same widget instead of two.
+    var modsBox = el("k-mods");
+    if (modsBox) {
+      while (modsBox.firstChild) { modsBox.removeChild(modsBox.firstChild); }
+      for (var t = 0; t < mods.length; t++) {
+        var row = mods[t];
+        var tag = document.createElement("span");
+        tag.className = "mtag";
+        var tagName = document.createElement("span");
+        tagName.textContent = row.name;
+        var tagValue = document.createElement("b");
+        tagValue.textContent = row.value;
+        tag.appendChild(tagName);
+        tag.appendChild(tagValue);
+        modsBox.appendChild(tag);
+      }
+    }
+    // Narrowed query: one more tag offers the way back. It sits in the same row as the modules it
+    // would replace, which is where a reader looks for it - not next to the title.
+    var narrowed = !!(payload && payload.scope === "filtered");
+    var allBtn = el("btn-all-mods");
+    if (allBtn) {
+      allBtn.hidden = !narrowed;
+      setText(el("btn-all-mods-label"), T.actionAllModules);
+      // The visible tag says what the row becomes; the tooltip says what the click does.
+      allBtn.title = T.messageQueryAllModules;
+    }
+    fMods.hidden = mods.length === 0 && !narrowed;
+
+    // What the rows add up to, said out loud. The headline counts plan-included usage; the rows
+    // count everything consumed, including pay-as-you-go - on an over-quota environment the second
+    // is much larger, and without this line the two numbers look like a contradiction.
+    var sumBox = el("k-mods-sum");
+    if (sumBox) {
+      if (mods.length === 0) {
+        sumBox.hidden = true;
+      } else {
+        var modSum = 0;
+        for (var q = 0; q < mods.length; q++) { modSum += mods[q].raw; }
+        var planUsed = payload && payload.credits && typeof payload.credits.used === "number" ? payload.credits.used : null;
+        // Compare what actually gets printed: once both round to the same number, saying
+        // "of which X in plan" just repeats itself.
+        var differs = planUsed !== null && Math.round(modSum) !== Math.round(planUsed);
+        setText(
+          sumBox,
+          differs
+            ? T.modulesInPlan.replace("{n}", fmtNumber(modSum)).replace("{m}", fmtNumber(planUsed))
+            : T.modulesTotal.replace("{n}", fmtNumber(modSum)),
+        );
+        sumBox.hidden = false;
+      }
+    }
 
     var values = [];
+    var stamps = [];
     if (payload && payload.spark && payload.spark.length) {
-      for (var j = 0; j < payload.spark.length; j++) { values.push(Number(payload.spark[j].credits_value || 0)); }
+      for (var j = 0; j < payload.spark.length; j++) {
+        values.push(Number(payload.spark[j].credits_value || 0));
+        stamps.push(shortStamp(payload.spark[j].calc_time));
+      }
     }
     var fSpark = el("f-spark");
-    fSpark.hidden = values.length < 2;
-    renderSpark(values, pct === null ? "" : (pct < 80 ? "ok" : "err"));
+    fSpark.hidden = values.length === 0;
+    renderSpark(fSpark.hidden ? [] : values, fSpark.hidden ? [] : stamps);
 
     var fBalance = el("f-balance");
     var balance = payload && typeof payload.balance === "number" ? payload.balance : null;
@@ -1234,6 +1350,20 @@ ${CREDENTIAL_GUARD_JS}
     var node = event.target && event.target.closest ? event.target.closest("button") : null;
     if (!node) { return; }
     if (node.id === "btn-copy-env") { copyWithFeedback(current.envId); return; }
+    if (node.id === "btn-all-mods") {
+      // Same relay as the near-limit tip: the panel cannot re-query, it can only ask the
+      // conversation to. Refusing to relay falls back to the clipboard, never to a dead click.
+      var allMsg = T.messageQueryAllModules;
+      node.disabled = true;
+      request("ui/message", { role: "user", content: { type: "text", text: allMsg } })
+        .then(function () { node.disabled = false; }, function () {
+          copyText(allMsg);
+          node.disabled = false;
+          var chipNote = el("k-copynote");
+          if (chipNote) { setText(chipNote, T.messageFailed); chipNote.hidden = false; }
+        });
+      return;
+    }
     if (node.id === "btn-tip") {
       var tipMsg = T.messageNearLimit.replace("{pct}", String(current.pct === null ? "" : current.pct)).replace("  ", " ");
       node.disabled = true;

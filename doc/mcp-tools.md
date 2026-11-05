@@ -293,7 +293,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "type",
       type: "array of string",
-      description: `用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致）。`,
+      description: `用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。⚠️ 传入后只统计所选模块：\`credits.total\` 不下发，面板不再判断是否充足；套餐仍照实返回。要对比全量配额就别传本参数。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致）。`,
     },
     {
       name: "startDate",
@@ -308,7 +308,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "needUsageDetails",
       type: "boolean",
-      description: `是否返回每日用量明细。仅 action=usage 时有效；默认 true。`,
+      description: `是否返回四层用量明细。仅 action=usage 时有效；默认 false。默认返回只到模块一层：每个模块一条（Module、CreditsValue 为总消耗、DeductValue 为套餐内用量），另附 DailyTotals（近 7 天逐日合计，与卡片柱子同源）。传 true 才拿全四层：模块 → 指标 → 资源类型（ResourceType，如 NAT / Gateway）→ 天（ValueDetailList[].CalcTime）。默认关掉，是因为全模块查询在这个深度下 4.5 万–5.4 万字符（4 个环境实测，2026-11-05），只在需要逐日对账时才值这个代价；默认这一份只有几百字符。指标名是接口原始码（Capacity / Flux / CU / InputToken.<model>），官方没有中文名表：跟用户讲的时候按模块语境翻成人话（容量、流量、调用次数、模型输入 Token），不要直接把码念给用户；拿不准就说这是接口字段名，不要猜。卡片上只有模块合计，所以「卡片上简单、返回里有明细」是正常的——指标与资源类型这两层只在传 true 时出现。普通版与平台版环境都返回这个深度（本 API 不收 PlatformId，收它的是另一个 action DescribePlatformCreditsUsageDetail）。最细粒度是「指标 × 天」：没有单次请求或单条记录流水，也没有金额与单价。`,
     },
     {
       name: "metricName",

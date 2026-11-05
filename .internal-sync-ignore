@@ -14,3 +14,7 @@
 #
 # 示例（取消注释即生效）：
 # specs/cb-ide-mcp-upgrade/README.html
+
+# 2026-11-05：历史日志里的长代码串（isEnvCredentialRemovableByLogout / 客户端清单 /
+# await-pending 文案）被「32 位以上字母数字」规则误判成密钥，人工确认三处均非凭证。
+.workbuddy/memory/2026-10-20.md
