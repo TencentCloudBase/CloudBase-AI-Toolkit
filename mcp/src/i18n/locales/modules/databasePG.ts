@@ -12,7 +12,7 @@ export const databasePG = defineModule(
       "⚠️ 只读工具：只接受 SELECT 等只读 SQL。CREATE / ALTER / DROP / INSERT / UPDATE / DELETE 会被直接拒绝（STATE 42703/42P01 也多半是表名或列名猜错，先 action=objects 看真实结构，不要凭惯例猜 schema_migrations 之类的表）。写入与 DDL 请改用 managePgDatabase：DML/GRANT/RLS 用 action=execute，建表/改 schema 用 action=applyMigration。\n\n查询 CloudBase PostgreSQL 数据库：获取当前 PG 上下文、列出带 schema 的数据库对象、读取轻量元数据、检查单个对象结构，以及执行只读 SQL。",
     "managePgDatabase.title": "管理 PostgreSQL 上下文或执行写入 SQL",
     "managePgDatabase.description":
-      "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理，以及 Realtime 配置管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。Realtime 三个 action：describeRealtime 读取配置（响应没有开通态字段，成功不代表已开通）；enableRealtime 开通并解除挂起，等价把 Suspend 置为 false（未开通环境首次调用即完成开通，已开通且未挂起时无副作用）；modifyRealtime 按显式传入项增量修改（需 confirm=true，改 suspend 会立即断开全部在线连接）。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。",
+      "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理，以及 Realtime 配置管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。Realtime 三个 action：describeRealtime 读取配置（响应没有开通态字段，成功不代表已开通）；enableRealtime 开通并解除挂起，等价把 Suspend 置为 false（未开通环境首次调用会自动完成开通，已开通且未挂起时无副作用）；modifyRealtime 按显式传入项增量修改（需 confirm=true，改 suspend 会立即断开该环境全部在线 WebSocket 连接，全局生效）。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。",
     "schema.queryAction":
       "操作类型：context=获取当前 PostgreSQL 上下文；objects=列出带 schema 的数据库对象；metadata=获取轻量表元数据；schema=检查单个带 schema 的对象结构；sql=执行只读 SQL",
     "schema.querySql": "action=sql 时使用的只读 SQL",
@@ -23,7 +23,7 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。",
     "schema.manageAction":
-      "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用即完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。",
+      "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用会自动完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。",
     "schema.manageSql":
       "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句",
     "schema.manageConfirm":
@@ -63,7 +63,7 @@ export const databasePG = defineModule(
     "schema.manageAllowDdlViaExecute":
       "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
     "schema.realtimeSuspend":
-      "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）：true 立即断开全部在线连接、拒绝新连接（HTTP 403）并禁用服务端广播；false 恢复。每次变化都会断连一次，客户端需重连。",
+      "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403 Realtime was disabled for this tenant）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。",
     "schema.realtimePrivateOnly":
       "action=modifyRealtime 时生效：true 时仅允许 private 频道，客户端无法 join 带 public: 前缀的频道。",
     "schema.realtimePresenceEnabled":
@@ -88,9 +88,9 @@ export const databasePG = defineModule(
       "action=modifyRealtime 时生效：Realtime CDC（postgres_changes）专用连接池，与广播/鉴权池隔离。",
     "realtime.described": "已读取环境 {envId} 的 Realtime 配置。",
     "realtime.verifyConfigHint":
-      "如需核对当前生效配置，可再次调用 action=describeRealtime；它只返回配置项，不代表开通状态。客户端接入请用 app.realtime()，private 频道需在 realtime.messages 上建 RLS 策略。",
+      "如需核对当前生效配置，可再次调用 action=describeRealtime 查看 Suspend 与各项限流值；该响应只含配置项。客户端接入请用 app.realtime()，private 频道需在 realtime.messages 上建 RLS 策略。",
     "realtime.enableSubmitted":
-      "已提交环境 {envId} 的 Realtime 开通请求（等价 Suspend=false）。服务端不返回开通态，请按下一步读取配置核对。",
+      "已提交环境 {envId} 的 Realtime 开通请求（等价 Suspend=false）。如需确认挂起状态，可调用 action=describeRealtime 核对 Suspend 配置。",
     "realtime.noChanges":
       "未传入任何要修改的配置项，未做任何修改。先调用 action=describeRealtime 查看当前值。",
     "realtime.confirmRequired":
@@ -309,7 +309,7 @@ export const databasePG = defineModule(
       "⚠️ Read-only tool: only accepts read-only SQL such as SELECT. CREATE / ALTER / DROP / INSERT / UPDATE / DELETE are rejected outright (and a 42703/42P01 usually means a guessed table or column name — run action=objects to see the real structure instead of assuming names like schema_migrations). For writes and DDL use managePgDatabase: action=execute for DML/GRANT/RLS, action=applyMigration for schema changes.\n\nQuery the CloudBase PostgreSQL database: get the current PG context, list schema-qualified database objects, read lightweight metadata, inspect a single object schema, and run read-only SQL.",
     "managePgDatabase.title": "Manage PostgreSQL context or run write SQL",
     "managePgDatabase.description":
-      "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, manage migrations, and manage Realtime settings. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS. Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call provisions an unprovisioned environment, and it is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops every live connection).",
+      "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, manage migrations, and manage Realtime settings. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS. Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call on an unprovisioned environment provisions it automatically, and it is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops all live WebSocket connections of the environment, globally).",
     "schema.queryAction":
       "Action type: context=get the current PostgreSQL context; objects=list schema-qualified database objects; metadata=get lightweight table metadata; schema=inspect a single schema-qualified object structure; sql=run read-only SQL",
     "schema.querySql": "Read-only SQL used when action=sql",
@@ -320,7 +320,7 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "Optional cap on summary size, applied to objects, metadata, or SQL result rows. Defaults to 20, maximum 200.",
     "schema.manageAction":
-      "Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion. Three Realtime actions: describeRealtime=read the Realtime settings (does not indicate provisioning), enableRealtime=provision and resume, equivalent to Suspend=false (the first call provisions an unprovisioned environment and is a no-op when already provisioned and not suspended), modifyRealtime=incremental Realtime update (requires confirm=true).",
+      "Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion. Three Realtime actions: describeRealtime=read the Realtime settings (does not indicate provisioning), enableRealtime=provision and resume, equivalent to Suspend=false (the first call on an unprovisioned environment provisions it automatically and is a no-op when already provisioned and not suspended), modifyRealtime=incremental Realtime update (requires confirm=true).",
     "schema.manageSql":
       "SQL statement used when action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)",
     "schema.manageConfirm":
@@ -363,7 +363,7 @@ export const databasePG = defineModule(
     "schema.manageAllowDdlViaExecute":
       "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
     "schema.realtimeSuspend":
-      "Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false): true immediately drops all live connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores it. Every change disconnects clients once, so they must reconnect.",
+      "Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false). Global, affects every node of the environment: true immediately drops all live WebSocket connections, rejects new ones (HTTP 403 Realtime was disabled for this tenant) and disables the server-side broadcast API; false restores the service. Any change of the suspend value triggers one disconnect, so clients must reconnect.",
     "schema.realtimePrivateOnly":
       "Applies to action=modifyRealtime: when true only private channels are allowed; clients cannot join channels prefixed with public:.",
     "schema.realtimePresenceEnabled":
@@ -388,9 +388,9 @@ export const databasePG = defineModule(
       "Applies to action=modifyRealtime: Realtime dedicated connection pool for CDC (postgres_changes), isolated from the broadcast/auth pool.",
     "realtime.described": "Read the Realtime settings of environment {envId}.",
     "realtime.verifyConfigHint":
-      "To check the effective configuration, call action=describeRealtime again; it only returns settings and does not indicate whether Realtime is provisioned. Client subscriptions use app.realtime(); private channels need RLS policies on realtime.messages.",
+      "To check the effective configuration, call action=describeRealtime again to read Suspend and the rate limits; the response only contains settings. Client subscriptions use app.realtime(); private channels need RLS policies on realtime.messages.",
     "realtime.enableSubmitted":
-      "Submitted the Realtime provisioning request for environment {envId} (equivalent to Suspend=false). The server does not return a provisioning state, so read the settings back in the next step.",
+      "Submitted the Realtime provisioning request for environment {envId} (equivalent to Suspend=false). To confirm the suspend state, call action=describeRealtime and check Suspend.",
     "realtime.noChanges":
       "No settings were passed, so nothing was changed. Call action=describeRealtime first to read the current values.",
     "realtime.confirmRequired":

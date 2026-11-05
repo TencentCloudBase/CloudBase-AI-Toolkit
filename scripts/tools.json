@@ -822,7 +822,7 @@
     },
     {
       "name": "managePgDatabase",
-      "description": "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理，以及 Realtime 配置管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。Realtime 三个 action：describeRealtime 读取配置（响应没有开通态字段，成功不代表已开通）；enableRealtime 开通并解除挂起，等价把 Suspend 置为 false（未开通环境首次调用即完成开通，已开通且未挂起时无副作用）；modifyRealtime 按显式传入项增量修改（需 confirm=true，改 suspend 会立即断开全部在线连接）。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。",
+      "description": "管理 CloudBase PostgreSQL：执行已确认的写入 SQL、SQL 风险预检、迁移管理，以及 Realtime 配置管理。建表/ALTER/DROP 等 schema 变更必须使用 applyMigration（显式 migrationVersion；成功前自动写入或校验本地 cloudbase/migrations/<version>_<name>.sql，与 CLI tcb db pg migration 一致），不要默认用 execute。execute 主要用于 DML 与 GRANT/RLS 等运维 SQL。Realtime 三个 action：describeRealtime 读取配置（响应没有开通态字段，成功不代表已开通）；enableRealtime 开通并解除挂起，等价把 Suspend 置为 false（未开通环境首次调用会自动完成开通，已开通且未挂起时无副作用）；modifyRealtime 按显式传入项增量修改（需 confirm=true，改 suspend 会立即断开该环境全部在线 WebSocket 连接，全局生效）。客户端接入写法见 postgresql-development-cloudbase skill 的 references/realtime.md。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -842,7 +842,7 @@
               "enableRealtime",
               "modifyRealtime"
             ],
-            "description": "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用即完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。"
+            "description": "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用会自动完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。"
           },
           "sql": {
             "type": "string",
@@ -945,7 +945,7 @@
           },
           "suspend": {
             "type": "boolean",
-            "description": "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）：true 立即断开全部在线连接、拒绝新连接（HTTP 403）并禁用服务端广播；false 恢复。每次变化都会断连一次，客户端需重连。"
+            "description": "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403 Realtime was disabled for this tenant）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。"
           },
           "privateOnly": {
             "type": "boolean",

@@ -10,30 +10,26 @@
 
 It is **not** the document-database `collection.watch()` path. See "Not the same as `watch()`" below.
 
-## Step 0 — Provision Realtime before writing any code
+## Step 0 — Do not provision by default
 
-Realtime is provisioned per environment. Two facts decide this step:
+Realtime is provisioned per environment, and provisioning is a **write** call. Do not run it as a fixed step before writing realtime code.
 
-- `managePgDatabase({ action: "describeRealtime" })` returns the current configuration (suspend state, channel policy, rate limits, pool sizes, timestamps). **A successful describe does not prove the environment is provisioned** — the response has no provisioning flag, so never gate on it.
-- `managePgDatabase({ action: "enableRealtime" })` is the provisioning call. It is equivalent to `Modify(Suspend: false)`: the first call on an unprovisioned environment provisions Realtime, a call on an already provisioned, non-suspended environment is a no-op (no reconnect), and on a suspended environment it resumes the service and drops every live connection.
+- `managePgDatabase({ action: "describeRealtime" })` reads the current configuration (suspend state, channel policy, rate limits, pool sizes, timestamps). It is a read, and **a successful call does not prove the environment is provisioned** — the response has no provisioning flag, so never use it as a provisioning check.
+- `managePgDatabase({ action: "enableRealtime" })` is the provisioning call. It sends `Modify(Suspend: false)`: the first call on an unprovisioned environment provisions Realtime automatically, a call on an already provisioned, non-suspended environment is a no-op (no reconnect), and on a suspended environment it resumes the service and drops every live connection. (Provisioning-on-first-call is confirmed by the backend; it is not yet spelled out in the public API docs.)
 
-So: use `describe` when you need the current values, then **ask the user** and call `enable` once before writing any realtime code. Never write realtime code against an environment you have not provisioned this way, and never substitute a hand-rolled polling loop.
+Call `enableRealtime` only when the user asks you to provision, or when a realtime call fails in a way that clearly indicates the capability is not available — and confirm with the user first (it triggers a confirmation gate). Never substitute a hand-rolled polling loop.
 
 `PG_NOT_PROVISIONED` is **not** a Realtime signal: it means the environment has no CloudBase PostgreSQL instance at all, so neither `queryPgDatabase` nor `managePgDatabase` applies.
 
-Older MCP builds without the Realtime actions can fall back to `queryPgDatabase` with `action=sql`:
+There is no documented way to query the provisioning state yet. Do not infer it from `pg_namespace` / `pg_publication` counts, and do not report an environment as "provisioned" because `describeRealtime` succeeded.
 
-```sql
-SELECT count(*) FROM pg_namespace WHERE nspname = 'realtime';
-```
+Suspend state, channel policy and rate limits are changed through `managePgDatabase({ action: "modifyRealtime", confirm: true, ... })`.
 
-`>= 1` means provisioned; `0` means it needs `enable` — still ask the user first.
-
-Suspend state, channel policy and rate limits are changed through `managePgDatabase({ action: "modifyRealtime", confirm: true, ... })`. Changing `suspend` immediately drops every live connection, so state the current → target change to the user before sending it.
+`suspend` is **global (all nodes)**: `true` immediately drops every live WebSocket connection of the environment, rejects new connections with HTTP 403 (`Realtime was disabled for this tenant`) and disables the server-side broadcast API; `false` restores the service. Any change of the value disconnects clients once, so state the current → target change to the user before sending it.
 
 Do **not** gate on `pg_publication LIKE 'cloudbase_realtime%'`. A publication count of `0` is normal — it only means no table has CDC enabled yet.
 
-Once provisioned, confirm the shape you will rely on:
+Confirm the schema shape you will rely on (independent of provisioning):
 
 ```sql
 SELECT table_name FROM information_schema.tables WHERE table_schema = 'realtime';
@@ -214,7 +210,7 @@ Rate limits, per-channel message rates and payload ceilings are readable per env
 
 ## Verification checklist
 
-1. Step 0 done: `enable` has been called once (or the environment was already provisioned), and `describe` returns the configuration the design assumes.
+1. The environment is provisioned (the user said so, or a realtime call works), and `describeRealtime` returns the configuration the design assumes.
 2. Correct module registered; `watch()` code not mixed in.
 3. `presence` / `postgres_changes` bound before `subscribe()`, and the client actually reaches `SUBSCRIBED`.
 4. A round-trip message is observed by a second client (remember `self: false`).

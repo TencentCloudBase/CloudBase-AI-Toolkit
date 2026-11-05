@@ -46,6 +46,14 @@ export type DestructiveActionSpec = {
      * 只是断连，并没有删任何东西。
      */
     confirmLabelKey?: MessageKey;
+    /**
+     * 可选：声明"这个 action 的副作用与参数无关，恒需执行前确认"，值是**理由**（守卫测试会检查非空）。
+     *
+     * 正常条目靠 `when` 按参数收窄范围；但有些 action 固定下发某个值（例如 enableRealtime 恒发
+     * `Suspend=false`，在已挂起环境上必然断连），命中与参数无关，写 `when: () => true` 又违反
+     * "when 必须是纯判定、空参返回 false"的约束，所以用它显式声明，而不是放宽整条规则。
+     */
+    alwaysConfirm?: string;
 };
 
 // ---- PostgreSQL：按**参数里的 SQL** 判定，而不是按 action 名 ----
@@ -282,8 +290,10 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
                 "confirmation.message.pgApplyMigrationDestructiveMany",
             ),
     },
-    // Realtime：只有 Suspend 变化会断开全部在线连接（true 挂起、false 恢复都会断一次），
-    // 限流/频道策略只是配置变更、不断连，交给工具内的 confirm 门槛即可，不在这里重复拦。
+    // Realtime 的开通与挂起其实是同一个下发：Modify(Suspend=false|true)。
+    //   - modifyRealtime：只有传 suspend 才命中（限流/频道策略只是配置变更、不断连）
+    //   - enableRealtime：恒命中。它固定下发 Suspend=false，在已挂起的环境上等同于恢复服务并断连，
+    //     与 modifyRealtime({ suspend: false }) 后果完全一致，两条入口必须给同一道确认。
     "managePgDatabase.modifyRealtime": {
         messageKey: "confirmation.message.pgRealtimeSuspend",
         confirmLabelKey: "confirmation.option.confirmSetting",
@@ -295,6 +305,13 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
                     : "confirmation.message.realtimeSuspendOff",
             ),
         }),
+    },
+    "managePgDatabase.enableRealtime": {
+        messageKey: "confirmation.message.pgRealtimeEnable",
+        confirmLabelKey: "confirmation.option.confirmSetting",
+        alwaysConfirm:
+            "固定下发 Suspend=false，与参数无关；环境已挂起时会恢复服务并断开全部在线连接，未开通时首次调用会自动完成开通",
+        target: () => ({ resource: t("confirmation.message.realtimeEnableAction") }),
     },
 };
 

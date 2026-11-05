@@ -1907,7 +1907,7 @@ async function callPgRealtimeApi(
       : { envId: context.envId },
   });
   const { native, action: apiAction, params: fixedParams } = PG_REALTIME_API[action];
-  // 固定参数在前、调用方参数在后：enable 的 Suspend=false 可被显式传入覆盖（modify 场景）。
+  // 固定参数在前、调用方参数在后：目前只有 enable 带固定参数（Suspend=false），modify 没有固定参数。
   const payload = { EnvId: context.envId, ...fixedParams, ...params };
   // 旧运行时可能没有 database 命名空间，缺省时直接走 commonService，不要先崩在读属性上。
   const database = manager.database as unknown as Record<string, unknown> | undefined;
@@ -2211,7 +2211,7 @@ async function handleRealtimeEnable(
   cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"],
 ) {
   // enable 等价于 Modify(Suspend=false)：未开通环境首次调用即完成开通，已开通且未挂起时无副作用。
-  // 服务端不返回开通态，EnablePGRealtime 的 Enabled 恒为 true（SDK 常量），因此只以调用成功为准。
+  // 服务端不返回开通态，只以调用成功为准。
   const result = await callPgRealtimeApi(context, "enable", {}, cloudBaseOptions);
 
   return buildPgToolResult({
