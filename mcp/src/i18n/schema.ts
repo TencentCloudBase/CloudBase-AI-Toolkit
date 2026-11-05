@@ -1,7 +1,8 @@
 import type { ZodTypeAny } from "zod";
 import { isMessageKey, t, type Lang } from "./index.js";
 
-type ZodConstructor = new (definition: Record<string, unknown>) => ZodTypeAny;
+type ZodV4Def = Record<string, unknown>;
+type ZodConstructor = new (definition: ZodV4Def) => ZodTypeAny;
 
 function isZodSchema(value: unknown): value is ZodTypeAny {
   return Boolean(
@@ -40,30 +41,25 @@ function localizeZodSchema(
     return cached;
   }
 
-  const definition = {
-    ...(schema._def as Record<string, unknown>),
+  const def = {
+    ...((schema as unknown as { _zod: { def: ZodV4Def } })._zod.def),
   };
-  const description = definition.description;
-  if (isMessageKey(description)) {
-    definition.description = t(description, undefined, lang);
-  }
 
-  const Constructor = schema.constructor as ZodConstructor;
-  const localized = new Constructor(definition);
-  seen.set(schema, localized);
-
-  if (typeof definition.shape === "function") {
-    const shape = definition.shape as () => Record<string, ZodTypeAny>;
-    definition.shape = () => localizeZodSchemaShape(shape(), lang, seen);
+  // 先在 def 上替换所有子 schema，再重建实例（zod v4 的 def.shape 是平面对象，不再是 getter）
+  if (def.shape && typeof def.shape === "object") {
+    def.shape = localizeZodSchemaShape(def.shape as Record<string, ZodTypeAny>, lang, seen);
+  } else if (typeof def.shape === "function") {
+    const shape = def.shape as () => Record<string, ZodTypeAny>;
+    def.shape = () => localizeZodSchemaShape(shape(), lang, seen);
   }
-  if (typeof definition.getter === "function") {
-    const getter = definition.getter as () => ZodTypeAny;
-    definition.getter = () => localizeZodSchema(getter(), lang, seen);
+  if (typeof def.getter === "function") {
+    const getter = def.getter as () => ZodTypeAny;
+    def.getter = () => localizeZodSchema(getter(), lang, seen);
   }
 
   for (const key of [
     "innerType",
-    "type",
+    "element",
     "schema",
     "in",
     "out",
@@ -74,9 +70,20 @@ function localizeZodSchema(
     "options",
     "optionsMap",
   ]) {
-    if (key in definition) {
-      definition[key] = localizeSchemaList(definition[key], lang, seen);
+    if (key in def) {
+      def[key] = localizeSchemaList(def[key], lang, seen);
     }
+  }
+
+  const Constructor = schema.constructor as ZodConstructor;
+  let localized = new Constructor(def);
+  seen.set(schema, localized);
+
+  // zod v4 的 description 存在实例属性/注册表里，不在 def 上；用 .describe() 克隆覆盖
+  const description = (schema as unknown as { description?: unknown }).description;
+  if (isMessageKey(description)) {
+    localized = localized.describe(t(description, undefined, lang));
+    seen.set(schema, localized);
   }
 
   return localized;

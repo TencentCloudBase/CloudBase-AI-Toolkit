@@ -98,14 +98,14 @@ describe("manageCloudRun traffic schema", () => {
   it("exposes traffic in the action enum (z.enum)", async () => {
     const { tools } = await createCloudRunTools();
     const actionEnum = tools.manageCloudRun.meta.inputSchema.action;
-    expect(actionEnum._def.values).toContain("traffic");
+    expect(actionEnum.options).toContain("traffic");
   });
 
   it("exposes trafficOp as z.enum with set/promote/rollback", async () => {
     const { tools } = await createCloudRunTools();
     const trafficOp = tools.manageCloudRun.meta.inputSchema.trafficOp.unwrap();
-    expect(trafficOp._def.typeName).toBe("ZodEnum");
-    expect(trafficOp._def.values).toEqual(["set", "promote", "rollback"]);
+    expect(trafficOp.options)
+    expect(trafficOp.options).toEqual(["set", "promote", "rollback"]);
   });
 });
 
@@ -237,7 +237,7 @@ describe("queryCloudRun getDeployRecords", () => {
   it("exposes getDeployRecords in the action enum (z.enum)", async () => {
     const { tools } = await createCloudRunTools();
     const actionEnum = tools.queryCloudRun.meta.inputSchema.action;
-    expect(actionEnum._def.values).toContain("getDeployRecords");
+    expect(actionEnum.options).toContain("getDeployRecords");
   });
 
   it("returns deploy records with BuildId/RunId/version fields", async () => {

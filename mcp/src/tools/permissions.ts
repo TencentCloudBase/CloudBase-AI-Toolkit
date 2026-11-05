@@ -963,7 +963,7 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
         roleIdentity: z.string().optional().describe("permissions.schema.roleIdentity"),
         description: z.string().optional(),
         memberUids: z.array(z.string()).max(100).optional(),
-        policies: z.array(z.record(z.any())).max(20).optional(),
+        policies: z.array(z.record(z.string(), z.any())).max(20).optional(),
         policyIds: z.array(z.string()).max(100).optional().describe("permissions.schema.policyIds"),
         uid: z.string().optional(),
         uids: z.array(z.string()).max(100).optional(),

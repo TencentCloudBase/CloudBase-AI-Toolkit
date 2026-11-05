@@ -185,8 +185,8 @@ describe("gateway tools", () => {
   });
 
   it("schema should expose Domain/Route actions only", () => {
-    const queryActions = tools.queryGateway.meta.inputSchema.action._def.values;
-    const manageActions = tools.manageGateway.meta.inputSchema.action._def.values;
+    const queryActions = tools.queryGateway.meta.inputSchema.action.options;
+    const manageActions = tools.manageGateway.meta.inputSchema.action.options;
     const schema = tools.manageGateway.meta.inputSchema;
 
     expect(queryActions).toEqual([
@@ -210,7 +210,7 @@ describe("gateway tools", () => {
     ]);
     expect(schema.targetType).toBeUndefined();
     expect(schema.type).toBeUndefined();
-    expect(schema.upstreamResourceType.unwrap()._def.values).toEqual([
+    expect(schema.upstreamResourceType.unwrap().options).toEqual([
       "SCF",
       "WEB_SCF",
       "CBR",
@@ -223,15 +223,15 @@ describe("gateway tools", () => {
     expect(schema.qpsPolicy).toBeDefined();
     expect(schema.extension).toBeDefined();
     expect(schema.domainExtension).toBeDefined();
-    expect(schema.protocol.unwrap()._def.values).toEqual([
+    expect(schema.protocol.unwrap().options).toEqual([
       "HTTP",
       "HTTPS",
       "HTTP_AND_HTTPS",
       "HTTP_TO_HTTPS",
       "HTTPS_TO_HTTP",
     ]);
-    expect(schema.cacheType.unwrap()._def.values).toEqual(["CDN", "EO"]);
-    expect(schema.purgeType.unwrap()._def.values).toEqual([
+    expect(schema.cacheType.unwrap().options).toEqual(["CDN", "EO"]);
+    expect(schema.purgeType.unwrap().options).toEqual([
       "PURGE_URL",
       "PURGE_PREFIX",
       "PURGE_HOST",
@@ -790,8 +790,8 @@ describe("gateway tools", () => {
     expect(t(schema.enable.description as MessageKey)).toContain(
       "Routes[].Enable",
     );
-    expect(schema.action._def.values).toContain("enableRoute");
-    expect(schema.action._def.values).toContain("disableRoute");
+    expect(schema.action.options).toContain("enableRoute");
+    expect(schema.action.options).toContain("disableRoute");
   });
 
   it("manageGateway(action=createRoute) should pass EnablePathTransmission when enabled", async () => {

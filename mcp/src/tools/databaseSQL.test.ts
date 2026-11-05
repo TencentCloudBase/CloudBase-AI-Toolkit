@@ -615,7 +615,7 @@ describe("SQL database tools", () => {
     });
 
     const { tools } = createMockServer();
-    expect(tools.queryMysqlDatabase.meta.inputSchema.action._def.values).toContain(
+    expect(tools.queryMysqlDatabase.meta.inputSchema.action.options).toContain(
       "getConnectionInfo",
     );
 

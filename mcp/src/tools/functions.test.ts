@@ -429,8 +429,7 @@ describe("functions tool helpers", () => {
     expect(funcSchema).toBeDefined();
     const buildStrategy = funcSchema.unwrap().shape.buildStrategy;
     expect(buildStrategy).toBeDefined();
-    expect(buildStrategy.unwrap()._def.typeName).toBe("ZodEnum");
-    expect(buildStrategy.unwrap()._def.values).toEqual([
+    expect(buildStrategy.unwrap().options).toEqual([
       "zip",
       "cloud",
       "local",
@@ -1138,7 +1137,7 @@ describe("functions tool helpers", () => {
     const schema = tools.manageFunctions.meta.inputSchema;
     const protocolType = schema.func.unwrap().shape.protocolType;
 
-    expect(protocolType.unwrap()._def.values).toEqual(["WS"]);
+    expect(protocolType.unwrap().options).toEqual(["WS"]);
     expect(protocolType.safeParse("WS").success).toBe(true);
     expect(protocolType.safeParse("HTTP").success).toBe(false);
     expect(protocolType.description).toBe(
@@ -1462,7 +1461,7 @@ describe("functions tool helpers", () => {
     it("documents the default-masking behavior in the queryFunctions schema", () => {
       const schema = tools.queryFunctions.meta.inputSchema;
       expect(schema.revealEnvValues).toBeDefined();
-      expect(schema.revealEnvValues._def.description).toBe(
+      expect(schema.revealEnvValues.description).toBe(
         "functions.schema.query.revealEnvValues",
       );
       expect(
@@ -1610,9 +1609,9 @@ describe("functions tool helpers", () => {
 
     it("exposes publishVersion and listVersionByFunction in action enums", () => {
       const queryActions =
-        tools.queryFunctions.meta.inputSchema.action._def.values;
+        tools.queryFunctions.meta.inputSchema.action.options;
       const manageActions =
-        tools.manageFunctions.meta.inputSchema.action._def.values;
+        tools.manageFunctions.meta.inputSchema.action.options;
       expect(queryActions).toContain("listVersionByFunction");
       expect(queryActions).toContain("getFunctionAlias");
       expect(manageActions).toContain("publishVersion");

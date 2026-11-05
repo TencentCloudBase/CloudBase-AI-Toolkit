@@ -573,7 +573,7 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
       inputSchema: {
         action: z.enum(MANAGE_APP_AUTH_ACTIONS),
         patch: z
-          .record(z.any())
+          .record(z.string(), z.any())
           .optional()
           .describe("appAuth.schema.patch"),
         providerId: z.string().optional().describe("appAuth.schema.manageProviderId"),
@@ -582,14 +582,14 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
           .optional()
           .describe("appAuth.schema.providerType"),
         displayName: z
-          .union([z.string(), z.record(z.any())])
+          .union([z.string(), z.record(z.string(), z.any())])
           .optional()
           .describe("appAuth.schema.displayName"),
         clientId: z
           .string()
           .optional()
           .describe("appAuth.schema.manageClientId"),
-        config: z.record(z.any()).optional().describe("appAuth.schema.config"),
+        config: z.record(z.string(), z.any()).optional().describe("appAuth.schema.config"),
         keyType: z
           .enum(APP_AUTH_KEY_TYPES)
           .optional()

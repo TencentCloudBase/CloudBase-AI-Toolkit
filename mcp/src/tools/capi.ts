@@ -475,7 +475,7 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                         ),
                     ),
                 params: z
-                    .record(z.any())
+                    .record(z.string(), z.any())
                     .optional()
                     .describe("capi.schema.params"),
                 region: z

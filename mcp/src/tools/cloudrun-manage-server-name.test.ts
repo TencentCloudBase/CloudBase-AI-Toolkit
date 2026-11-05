@@ -58,7 +58,7 @@ function createMockServer() {
  * (what runs after validation).
  */
 describe("manageCloudRun serverName", () => {
-  let schema: z.ZodObject<any, any, any, any>;
+  let schema: z.ZodObject<any, any>;
   let tools: Record<string, { meta: any; handler: (args: any) => Promise<any> }>;
   let resolveCloudRunProjectDir: typeof import("./cloudrun.js").resolveCloudRunProjectDir;
 

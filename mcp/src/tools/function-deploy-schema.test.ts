@@ -186,7 +186,7 @@ describe("function deploy input schema", () => {
     expectFailureAt(
       FUNCTION_IMAGE_BUILD_SCHEMA.safeParse({
         cwd: "functions/http-local",
-      }) as ReturnType<typeof FUNCTION_DEPLOY_CONFIG_SCHEMA.safeParse>,
+      }) as unknown as ReturnType<typeof FUNCTION_DEPLOY_CONFIG_SCHEMA.safeParse>,
       "cwd",
     );
 
