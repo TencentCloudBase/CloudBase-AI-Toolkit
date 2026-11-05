@@ -10,16 +10,18 @@
 
 It is **not** the document-database `collection.watch()` path. See "Not the same as `watch()`" below.
 
-## Step 0 — Check provisioning before writing any code
+## Step 0 — Provision Realtime before writing any code
 
-Realtime is provisioned per environment. Check it **first**, through MCP:
+Realtime is provisioned per environment. Two facts decide this step:
 
-`managePgRealtime({ action: "describe" })`
+- `managePgDatabase({ action: "describeRealtime" })` returns the current configuration (suspend state, channel policy, rate limits, pool sizes, timestamps). **A successful describe does not prove the environment is provisioned** — the response has no provisioning flag, so never gate on it.
+- `managePgDatabase({ action: "enableRealtime" })` is the provisioning call. It is equivalent to `Modify(Suspend: false)`: the first call on an unprovisioned environment provisions Realtime, a call on an already provisioned, non-suspended environment is a no-op (no reconnect), and on a suspended environment it resumes the service and drops every live connection.
 
-- Returns the current settings → provisioned. Continue.
-- Fails with a "not provisioned" / "no realtime schema" error → ask the user whether to provision it, then call `managePgRealtime({ action: "enable" })`. Continue only after it reports success. Never write realtime code against an unprovisioned environment, and never substitute a hand-rolled polling loop.
+So: use `describe` when you need the current values, then **ask the user** and call `enable` once before writing any realtime code. Never write realtime code against an environment you have not provisioned this way, and never substitute a hand-rolled polling loop.
 
-Older MCP builds without `managePgRealtime` can fall back to `queryPgDatabase` with `action=sql`:
+`PG_NOT_PROVISIONED` is **not** a Realtime signal: it means the environment has no CloudBase PostgreSQL instance at all, so neither `queryPgDatabase` nor `managePgDatabase` applies.
+
+Older MCP builds without the Realtime actions can fall back to `queryPgDatabase` with `action=sql`:
 
 ```sql
 SELECT count(*) FROM pg_namespace WHERE nspname = 'realtime';
@@ -27,7 +29,7 @@ SELECT count(*) FROM pg_namespace WHERE nspname = 'realtime';
 
 `>= 1` means provisioned; `0` means it needs `enable` — still ask the user first.
 
-Suspend state, channel policy and rate limits are changed through `managePgRealtime({ action: "modify", confirm: true, ... })`. Changing `suspend` immediately drops every live connection, so state the current → target change to the user before sending it.
+Suspend state, channel policy and rate limits are changed through `managePgDatabase({ action: "modifyRealtime", confirm: true, ... })`. Changing `suspend` immediately drops every live connection, so state the current → target change to the user before sending it.
 
 Do **not** gate on `pg_publication LIKE 'cloudbase_realtime%'`. A publication count of `0` is normal — it only means no table has CDC enabled yet.
 
@@ -208,11 +210,11 @@ Choose the integration shape from the game's synchronization model, not from the
 - **Low-frequency state sync** (grid movement, simple arena): workable at modest rates with client-side interpolation, but loss and latency handling must be written by hand — see the delivery-guarantee rules above.
 - **High-frequency deterministic combat** (fighting, MOBA, FPS, frame-precise platformers): not this. Broadcast is a fire-and-forget hint channel; authoritative loop, frame sync and rollback need a dedicated game server. Do not promise this shape.
 
-Rate limits, per-channel message rates and payload ceilings are readable per environment through `managePgRealtime({ action: "describe" })`. Read the actual values before committing to a design; do not assume a number, and do not hard-code them in client code.
+Rate limits, per-channel message rates and payload ceilings are readable per environment through `managePgDatabase({ action: "describeRealtime" })`. Read the actual values before committing to a design; do not assume a number, and do not hard-code them in client code.
 
 ## Verification checklist
 
-1. Step 0 check passes: `managePgRealtime({ action: "describe" })` returns settings (the environment is provisioned).
+1. Step 0 done: `enable` has been called once (or the environment was already provisioned), and `describe` returns the configuration the design assumes.
 2. Correct module registered; `watch()` code not mixed in.
 3. `presence` / `postgres_changes` bound before `subscribe()`, and the client actually reaches `SUBSCRIBED`.
 4. A round-trip message is observed by a second client (remember `self: false`).

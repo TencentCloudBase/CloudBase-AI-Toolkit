@@ -230,7 +230,8 @@ export async function guardDestructiveAction(
         return { intercept: false, status: "unsupported" };
     }
 
-    const confirmLabel = t("confirmation.option.confirm");
+    // 非删除类动作可以在 spec 里覆盖按钮文案（例如 Realtime 改 Suspend 只是断连）
+    const confirmLabel = t(spec.confirmLabelKey ?? "confirmation.option.confirm");
     const cancelLabel = t("confirmation.option.cancel");
     const target = spec.target((params.args ?? {}) as Record<string, unknown>);
     const targetInfo = {

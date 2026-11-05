@@ -40,6 +40,12 @@ export type DestructiveActionSpec = {
     target: (args: Record<string, unknown>) => DestructiveTarget;
     /** 可选的参数谓词：只有它返回 true 时这次调用才命中（见类型注释） */
     when?: DestructiveActionPredicate;
+    /**
+     * 可选：覆盖确认按钮文案。默认是 `confirmation.option.confirm`（"确认删除"）。
+     * 只有动作不是删除、却被判定为需要执行前确认时才需要覆盖 —— 例如改 Realtime 的 Suspend
+     * 只是断连，并没有删任何东西。
+     */
+    confirmLabelKey?: MessageKey;
 };
 
 // ---- PostgreSQL：按**参数里的 SQL** 判定，而不是按 action 名 ----
@@ -275,6 +281,20 @@ export const DESTRUCTIVE_ACTIONS: Readonly<Record<string, DestructiveActionSpec>
                 pgApplyMigrationDestructiveStatements(args),
                 "confirmation.message.pgApplyMigrationDestructiveMany",
             ),
+    },
+    // Realtime：只有 Suspend 变化会断开全部在线连接（true 挂起、false 恢复都会断一次），
+    // 限流/频道策略只是配置变更、不断连，交给工具内的 confirm 门槛即可，不在这里重复拦。
+    "managePgDatabase.modifyRealtime": {
+        messageKey: "confirmation.message.pgRealtimeSuspend",
+        confirmLabelKey: "confirmation.option.confirmSetting",
+        when: (args) => args.suspend !== undefined,
+        target: (args) => ({
+            resource: t(
+                args.suspend === true
+                    ? "confirmation.message.realtimeSuspendOn"
+                    : "confirmation.message.realtimeSuspendOff",
+            ),
+        }),
     },
 };
 

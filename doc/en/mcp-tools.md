@@ -1,6 +1,6 @@
 # MCP Tools
 
-Currently includes 45 tools, grouped by function as follows.
+Currently includes 44 tools, grouped by function as follows.
 
 Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
@@ -43,7 +43,6 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 
 - [`queryPgDatabase`](#querypgdatabase)
 - [`managePgDatabase`](#managepgdatabase)
-- [`managePgRealtime`](#managepgrealtime)
 
 ### PostgreSQL Cloud Storage
 
@@ -352,16 +351,16 @@ Query CloudBase PostgreSQL databases. Supports getting the current PG context, l
 ---
 
 ### `managePgDatabase`
-Manage CloudBase PostgreSQL: execute confirmed write SQL, SQL risk preflight, and migration management. Schema changes such as CREATE/ALTER/DROP MUST use applyMigration (explicit migrationVersion; before success, it automatically writes or validates the local cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql file, consistent with the CLI `tcb db pg migration`). Do not default to execute. execute is mainly for DML and operational SQL like GRANT/RLS.
+Manage CloudBase PostgreSQL: execute confirmed write SQL, SQL risk preflight, migration management, and Realtime settings. Schema changes such as CREATE/ALTER/DROP MUST use applyMigration (explicit migrationVersion; before success, it automatically writes or validates the local cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql file, consistent with the CLI `tcb db pg migration`). Do not default to execute. execute is mainly for DML and operational SQL like GRANT/RLS. Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call provisions an unprovisioned environment and is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops every live connection; client subscriptions use app.realtime(), not collection.watch() — see references/realtime.md in the postgresql-development-cloudbase skill).
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: execute=execute confirmed write SQL (DML/GRANT/RLS; schema DDL is rejected by default, requires allowDdlViaExecute=true); dryRun=only analyze SQL risk without executing; planMigration=preview migration plan (requires migrationName + migrationVersion + sql; optional includeAll=true allows out-of-order, aligned with CLI --include-all); applyMigration=apply migration, preferred for CREATE/ALTER schema (requires migrationName + migrationVersion + sql + confirm=true; optional includeAll; if the local SQL is missing it is automatically written to cloudbase/migrations/, if content mismatches it fails closed with LOCAL_MIGRATION_FILE_MISMATCH; before returning success it polls DescribeTaskResult (default max 10 minutes, adjustable via taskPollTimeoutMs / waitForTask) and verifies the migrationVersion has landed in remote history; on timeout returns MIGRATION_TASK_TIMEOUT, must first describeMigrationTask then listMigrations, do NOT immediately re-push the same version; if not applied returns success=false with errorCode=MIGRATION_NOT_APPLIED); listMigrations=query the applied Migration list (supports limit/offset paging); migrationDetail=view a single Migration detail (requires migrationVersion); describeMigrationTask=query the Push async task status by TaskId (DescribeTaskResult: Status/Phase/Reason; requires taskId; used for waitForTask=false / MIGRATION_TASK_TIMEOUT / failure diagnosis, listMigrations cannot see Reason); fetchMigration=pull SQL from remote history and write to local cloudbase/migrations/ (aligned with CLI tcb db pg migration fetch; optional migrationVersion pulls a single entry, omitted pulls all; force=true overwrites existing files, default skips); repairMigration=repair Migration history (requires migrationVersion + migrationName + repairStatus + repairReason). Allowed values: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: execute=execute confirmed write SQL (DML/GRANT/RLS; schema DDL is rejected by default, requires allowDdlViaExecute=true); dryRun=only analyze SQL risk without executing; planMigration=preview migration plan (requires migrationName + migrationVersion + sql; optional includeAll=true allows out-of-order, aligned with CLI --include-all); applyMigration=apply migration, preferred for CREATE/ALTER schema (requires migrationName + migrationVersion + sql + confirm=true; optional includeAll; if the local SQL is missing it is automatically written to cloudbase/migrations/, if content mismatches it fails closed with LOCAL_MIGRATION_FILE_MISMATCH; before returning success it polls DescribeTaskResult (default max 10 minutes, adjustable via taskPollTimeoutMs / waitForTask) and verifies the migrationVersion has landed in remote history; on timeout returns MIGRATION_TASK_TIMEOUT, must first describeMigrationTask then listMigrations, do NOT immediately re-push the same version; if not applied returns success=false with errorCode=MIGRATION_NOT_APPLIED); listMigrations=query the applied Migration list (supports limit/offset paging); migrationDetail=view a single Migration detail (requires migrationVersion); describeMigrationTask=query the Push async task status by TaskId (DescribeTaskResult: Status/Phase/Reason; requires taskId; used for waitForTask=false / MIGRATION_TASK_TIMEOUT / failure diagnosis, listMigrations cannot see Reason); fetchMigration=pull SQL from remote history and write to local cloudbase/migrations/ (aligned with CLI tcb db pg migration fetch; optional migrationVersion pulls a single entry, omitted pulls all; force=true overwrites existing files, default skips); repairMigration=repair Migration history (requires migrationVersion + migrationName + repairStatus + repairReason); describeRealtime=read the Realtime settings (does not indicate provisioning); enableRealtime=provision and resume, equivalent to Suspend=false (the first call provisions an unprovisioned environment and is a no-op when already provisioned and not suspended); modifyRealtime=incremental Realtime update (requires confirm=true). Allowed values: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration", "describeRealtime", "enableRealtime", "modifyRealtime"</td></tr>
 <tr><td><code>sql</code></td><td>string</td><td></td><td>SQL statement used by action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Must be explicitly set to true before executing any write SQL</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Must be explicitly set to true before executing any write SQL and for action=modifyRealtime; when modifyRealtime omits it nothing is sent and the tool returns the current values plus the pending changes so you can confirm with the user first</td></tr>
 <tr><td><code>envId</code></td><td>string</td><td></td><td>Optional CloudBase environment ID; uses the current MCP environment when omitted</td></tr>
 <tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional PostgreSQL logical instance identifier, default cloudbase-pg</td></tr>
 <tr><td><code>defaultSchema</code></td><td>string</td><td></td><td>Optional default schema, default public</td></tr>
@@ -383,34 +382,18 @@ Manage CloudBase PostgreSQL: execute confirmed write SQL, SQL risk preflight, an
 <tr><td><code>force</code></td><td>boolean</td><td></td><td>Optional for fetchMigration, default false. true=overwrite an existing local SQL file with the same name (aligned with CLI tcb db pg migration fetch --force); false=skip existing files. Used to realign Git checksums from remote history</td></tr>
 <tr><td><code>includeAll</code></td><td>boolean</td><td></td><td>Optional for planMigration / applyMigration, default false. true=allow out-of-order (version lower than remote LatestVersion) Preview/Push, aligned with CLI tcb db pg migration up --include-all; only use when intentionally backfilling history/out-of-order migrations, otherwise choose a larger migrationVersion</td></tr>
 <tr><td><code>allowDdlViaExecute</code></td><td>boolean</td><td></td><td>Optional, default false. Only set true when deliberately bypassing migration history to allow schema DDL via execute; normal CREATE/ALTER schema must use applyMigration</td></tr>
-</tbody>
-</table>
-
----
-
-### `managePgRealtime`
-Manage the Realtime capability of a CloudBase PostgreSQL environment (Broadcast / Presence / Postgres CDC). action=describe reads the provisioning state, suspend state, channel policy and rate-limit / connection-pool settings; action=enable provisions it idempotently; action=modify sends an incremental update containing only the fields you pass explicitly and requires confirm=true. Changing suspend immediately drops every live connection and rejects new ones, so state the current -> target change to the user first. Client subscriptions use app.realtime() (not collection.watch()) — see references/realtime.md in the postgresql-development-cloudbase skill.
-
-#### Parameters
-
-<table>
-<thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Action: describe=read the current Realtime settings; enable=provision idempotently; modify=incremental update (requires confirm=true). Allowed values: "describe", "enable", "modify"</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Optional CloudBase environment ID; uses the current MCP environment when omitted</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Required true for action=modify. When omitted nothing is sent: the tool returns the current values and the pending changes so you can confirm with the user first</td></tr>
-<tr><td><code>suspend</code></td><td>boolean</td><td></td><td>Suspend the service: true immediately drops all live connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores it. Every change disconnects clients once, so they must reconnect</td></tr>
-<tr><td><code>privateOnly</code></td><td>boolean</td><td></td><td>When true only private channels are allowed; clients cannot join channels prefixed with public:</td></tr>
-<tr><td><code>presenceEnabled</code></td><td>boolean</td><td></td><td>Global presence switch. When false, client presence joins on a channel are rejected</td></tr>
-<tr><td><code>maxConcurrentUsers</code></td><td>integer</td><td></td><td>Maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000</td></tr>
-<tr><td><code>maxEventsPerSecond</code></td><td>integer</td><td></td><td>Maximum broadcast events per second across all clients; exceeding it returns a rate-limit error</td></tr>
-<tr><td><code>maxJoinsPerSecond</code></td><td>integer</td><td></td><td>Maximum joins per second; new joins are throttled above it</td></tr>
-<tr><td><code>maxBytesPerSecond</code></td><td>integer</td><td></td><td>Maximum broadcast payload bytes per second across all clients; exceeding it rejects messages</td></tr>
-<tr><td><code>maxChannelsPerClient</code></td><td>integer</td><td></td><td>Maximum channels per client; a client above it cannot join more channels</td></tr>
-<tr><td><code>maxPresenceEventsPerSecond</code></td><td>integer</td><td></td><td>Maximum presence events per second across all clients (track/untrack)</td></tr>
-<tr><td><code>maxPayloadSizeInKB</code></td><td>integer</td><td></td><td>Maximum payload size per message in KB; larger messages are rejected</td></tr>
-<tr><td><code>connectionPool</code></td><td>integer</td><td></td><td>Database connection pool size used for RLS authorization queries</td></tr>
-<tr><td><code>postgresChangesPool</code></td><td>integer</td><td></td><td>Dedicated database connection pool size for CDC (postgres_changes), isolated from the broadcast/auth pool</td></tr>
+<tr><td><code>suspend</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false): true immediately drops all live connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores it. Every change disconnects clients once, so they must reconnect</td></tr>
+<tr><td><code>privateOnly</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime: when true only private channels are allowed; clients cannot join channels prefixed with public:</td></tr>
+<tr><td><code>presenceEnabled</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime: global presence switch. When false, client presence joins on a channel are rejected</td></tr>
+<tr><td><code>maxConcurrentUsers</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000</td></tr>
+<tr><td><code>maxEventsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum broadcast events per second across all clients; exceeding it returns a rate-limit error</td></tr>
+<tr><td><code>maxJoinsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum joins per second; new joins are throttled above it</td></tr>
+<tr><td><code>maxBytesPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum broadcast payload bytes per second across all clients; exceeding it rejects messages</td></tr>
+<tr><td><code>maxChannelsPerClient</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum channels per client; a client above it cannot join more channels</td></tr>
+<tr><td><code>maxPresenceEventsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum presence events per second across all clients (track/untrack)</td></tr>
+<tr><td><code>maxPayloadSizeInKB</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum payload size per message in KB; larger messages are rejected</td></tr>
+<tr><td><code>connectionPool</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: Realtime database connection pool size used for RLS authorization queries. This is not the PG instance connection pool</td></tr>
+<tr><td><code>postgresChangesPool</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: Realtime dedicated connection pool for CDC (postgres_changes), isolated from the broadcast/auth pool</td></tr>
 </tbody>
 </table>
 

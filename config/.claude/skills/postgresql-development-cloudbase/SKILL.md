@@ -18,7 +18,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 ### Use this first when
 
-- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `app.realtime()`, `queryPgDatabase`, `managePgDatabase`, or `managePgRealtime`.
+- The task says CloudBase PG, PostgreSQL, Postgres, PG mode, RLS, JS SDK v3 PostgreSQL, `app.rdb()`, `app.realtime()`, `queryPgDatabase`, `managePgDatabase`, or a Realtime action (`describeRealtime` / `enableRealtime` / `modifyRealtime`).
 - A Web app or CMS must persist business data in CloudBase PostgreSQL.
 
 ### Then also read

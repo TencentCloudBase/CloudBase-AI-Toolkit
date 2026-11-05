@@ -14,6 +14,8 @@ export const confirmation = defineModule(
     // 删集合、销毁实例，还是 PostgreSQL 的 DROP TABLE / TRUNCATE / ALTER…DROP，本质都是
     // "删数据或删对象" —— "确认删除"不误导；改成"确认执行"反而更含糊（执行什么？）。
     "option.confirm": "确认删除",
+    // 非删除类动作（如改 Realtime 的 Suspend）用这个标签覆盖，避免在"只是断连"的场景说"删除"
+    "option.confirmSetting": "确认修改",
     "option.cancel": "取消",
 
     // 每个 message 都必须带 {resource}（这次要动什么），环境 ID 只在拿到时拼进去
@@ -40,6 +42,11 @@ export const confirmation = defineModule(
       "即将在环境 {envId} 上执行会改动数据的 SQL：{resource}。本次共有 {count} 条破坏性语句（这里只预览第一条），执行后无法恢复，请确认。",
     "message.pgApplyMigrationDestructiveMany":
       "这条 migration 里有会删结构的语句（环境 {envId}）：{resource}。本次共有 {count} 条破坏性语句（这里只预览第一条），执行后无法恢复，请确认这次迁移确实要这么做。",
+    // Realtime 的 Suspend：不改数据，但会断开全部在线连接，所以仍要在执行前问一句
+    "message.pgRealtimeSuspend":
+      "即将修改环境 {envId} 的 Realtime 挂起状态：{resource}。挂起状态每变化一次都会立即断开全部在线连接并拒绝新连接，客户端需要重连，请确认这次变更。",
+    "message.realtimeSuspendOn": "挂起服务（Suspend=true）",
+    "message.realtimeSuspendOff": "恢复服务（Suspend=false）",
     "message.unknownResource": "（未能从参数中取到资源名）",
     "message.unknownEnv": "未知",
 
@@ -57,6 +64,7 @@ export const confirmation = defineModule(
   },
   {
     "option.confirm": "Delete",
+    "option.confirmSetting": "Apply change",
     "option.cancel": "Cancel",
 
     "message.deleteFunction": "About to delete the cloud function {resource} (env {envId}). This cannot be undone.",
@@ -79,6 +87,10 @@ export const confirmation = defineModule(
       "About to run data-changing SQL in env {envId}: {resource}. There are {count} destructive statements in this call (only the first is previewed here) and they cannot be undone - confirm.",
     "message.pgApplyMigrationDestructiveMany":
       "This migration contains statements that drop schema (env {envId}): {resource}. There are {count} destructive statements in this call (only the first is previewed here) and they cannot be undone - confirm this migration should do that.",
+    "message.pgRealtimeSuspend":
+      "About to change the Realtime suspend state of env {envId}: {resource}. Every change of the suspend state immediately drops all live connections and rejects new ones, so clients must reconnect - confirm this change.",
+    "message.realtimeSuspendOn": "suspend the service (Suspend=true)",
+    "message.realtimeSuspendOff": "resume the service (Suspend=false)",
     "message.unknownResource": "(could not read the resource name from the arguments)",
     "message.unknownEnv": "unknown",
 
