@@ -52,7 +52,7 @@ import {
   flattenHttpServiceRoutes,
   isDomainPathReachableViaGateway,
 } from "../utils/gateway-access-urls.js";
-import { TCB_PURCHASE_URL } from "../utils/console-links.js";
+import { resolveEnvConsoleUrl, resolveEnvPurchaseUrl } from "../utils/console-links.js";
 import {
   buildEnvCreditsPayload,
   buildEnvMetricsPayload,
@@ -1054,6 +1054,12 @@ async function prepareAuthEnvironment(params: {
   // 没有环境时不再「顺手建一个」：创建环境是花钱/占额度的用户决策，
   // 不能藏在 auth(status) 这种查看状态的调用里。这里只返回开通入口和下一步，
   // 用户在控制台开通后回来说一句，再走一次 status 就能接上。
+  // 购买页按站点切域名：国际站是 buy.tencentcloud.com，不能给国内站链接。
+  const purchaseSite = resolveSiteAndRegion({
+    site: cloudBaseOptions?.site,
+    region: cloudBaseOptions?.region,
+  }).site;
+  const purchaseUrl = resolveEnvPurchaseUrl(purchaseSite);
   return {
     currentEnvId: null,
     envStatus: "NONE",
@@ -1061,8 +1067,8 @@ async function prepareAuthEnvironment(params: {
     envSetupStatus: "ACTION_REQUIRED",
     envSetupActions: dedupeActions(envSetupActions),
     envSetupReason: "no_env",
-    envSetupHelpUrl: TCB_PURCHASE_URL,
-    message: t("env.prepare.noEnv", { helpUrl: TCB_PURCHASE_URL }),
+    envSetupHelpUrl: purchaseUrl,
+    message: t("env.prepare.noEnv", { helpUrl: purchaseUrl }),
     nextStep: buildAuthNextStep("status", {
       suggestedArgs: { action: "status" },
     }),
@@ -1977,7 +1983,8 @@ function buildReleaseMethodHint(): {
 } {
   return {
     method: t("env.release.method"),
-    consoleUrl: "https://console.cloud.tencent.com/tcb",
+    // 控制台域名按站点切：国际站是 console.tencentcloud.com
+    consoleUrl: resolveEnvConsoleUrl(resolveSiteAndRegion({}).site),
     note: t("env.release.note"),
   };
 }

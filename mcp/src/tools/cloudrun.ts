@@ -11,6 +11,7 @@ import { debug } from '../utils/logger.js';
 import { requireProjectRoot } from '../utils/project-config.js';
 import { preferGatewayOrFallback, resolveGatewayAccessUrls } from '../utils/gateway-access-urls.js';
 import { sendDeployNotification } from '../utils/notification.js';
+import { getConsoleDevUrl } from '../utils/site-map.js';
 import {
   buildArtifactCardPayload,
   resolveArtifactEnvContext,
@@ -1171,7 +1172,12 @@ export async function ensureCloudRunEnvInitialized(options: {
 }
 
 function throwCloudRunEnvNotInitialized(envId: string): never {
-  throw new Error(t("cloudrun.error.envNotInitialized", { envId }));
+  throw new Error(
+    t("cloudrun.error.envNotInitialized", {
+      envId,
+      consoleUrl: getConsoleDevUrl(envId, "/platform-run"),
+    }),
+  );
 }
 
 /**
@@ -2579,7 +2585,10 @@ for await (let x of res.textStream) {
                 debug('cloudbaserc.json creation skipped:', error instanceof Error ? error : new Error(String(error)));
               }
             }
-            const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
+            const consoleUrl = getConsoleDevUrl(
+              currentEnvId,
+              `/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`,
+            );
 
             let preferredAccessUrl: string | undefined;
             let preferredAccessUrls: string[] = [];
@@ -2891,7 +2900,10 @@ for await (let x of res.textStream) {
             }
 
             const likelyRedeploy = listLikelyRedeployFields(dirty);
-            const consoleUrl = `https://tcb.cloud.tencent.com/dev?envId=${currentEnvId}#/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`;
+            const consoleUrl = getConsoleDevUrl(
+              currentEnvId,
+              `/platform-run/service/detail?serverName=${input.serverName}&tabId=overview&envId=${currentEnvId}`,
+            );
             const taskId =
               diffResult?.TaskId ??
               diffResult?.Response?.TaskId ??
