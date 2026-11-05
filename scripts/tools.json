@@ -162,21 +162,25 @@
                 "TDSQL",
                 "PostgreSQL",
                 "SCF",
+                "CBF",
                 "EKS",
                 "COS",
                 "AI",
                 "Token",
                 "HOSTING",
                 "Auth",
-                "APIInvocation",
-                "HTTPInvocation",
-                "VM",
+                "Gateway",
                 "Workflow",
+                "CLS",
+                "EO",
+                "STORAGE_EO",
+                "CI",
+                "VM",
                 "Other"
               ]
             },
-            "maxItems": 15,
-            "description": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值对齐云 API DescribeCreditsUsageDetail 的 Modules 枚举：FLEXDB、TDSQL、PostgreSQL、SCF、EKS、COS、AI、Token、HOSTING、Auth、APIInvocation、HTTPInvocation、VM、Workflow、Other（老版本 tcb CLI 缺 PostgreSQL / Token，别拿 CLI 列表当全集）。"
+            "maxItems": 19,
+            "description": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致）。"
           },
           "startDate": {
             "type": "string",

@@ -58,10 +58,11 @@ tcb env info --env-id <envId> --type SCF --start 2026-10-01 --end 2026-10-16
 `SCF` (云函数), `EKS` (云托管), `COS` (云存储), `AI`, `Token` (大模型 token), `HOSTING` (静态托管),
 `Auth` (身份认证), `APIInvocation`, `HTTPInvocation`, `VM` (云主机), `Workflow`, `Other`.
 
-> ⚠️ **CLI ≤ 3.8.x 的模块清单落后于云 API**：本地 `USAGE_MODULES` 只有 13 项，缺 `PostgreSQL` 与
-> `Token`。用这些版本查 PG 环境的用量，`数据库` 一行会显示 0（实际用量整块消失），
-> `--type PostgreSQL` 还会被判成非法值。官方文档 `product/876/132934` 的 Modules 枚举才是全集。
-> 需要这两个模块时，走 `tcb api tcb DescribeCreditsUsageDetail`（见下）而不是 `env info --type`。
+> ⚠️ **CLI ≤ 3.9.x 的模块清单落后于云 API**：本地 `USAGE_MODULES` 只有 15 项 —— 缺 `PostgreSQL` /
+> `Token` 的 3.8.x 更少（13 项），并且到 3.9.x 为止一直缺 `CBF` / `Gateway` / `CLS` / `EO` /
+> `STORAGE_EO` / `CI`。用这些版本查 PG 环境的用量，`数据库` 一行会显示 0（实际用量整块消失），
+> `--type Gateway` 会被判成非法值。
+> 需要这 6 个模块时，走 `tcb api tcb DescribeCreditsUsageDetail`（见下）而不是 `env info --type`。
 >
 > ⚠️ `tcb env list` may return incomplete results under sub-account permissions. Prefer asking the
 > user for the envId instead of auto-discovering it (see `core.md`).
@@ -93,14 +94,17 @@ not picked up yet):
 ```bash
 tcb api tcb DescribeCreditsUsageDetail --api-version 2018-06-08 --body '{
   "EnvId":"<envId>",
-  "Modules":["FLEXDB","TDSQL","PostgreSQL","SCF","EKS","COS","AI","Token",
-             "HOSTING","Auth","APIInvocation","HTTPInvocation","VM","Workflow","Other"],
+  "Modules":["FLEXDB","TDSQL","PostgreSQL","SCF","CBF","EKS","COS","AI","Token",
+             "HOSTING","Auth","Gateway","Workflow","CLS","EO","STORAGE_EO","CI","VM","Other"],
   "StartDate":"2026-11-01","EndDate":"2026-11-30","NeedUsageDetails":false
 }' --json
 ```
 
-`Modules` is required and there is no "all" value — omitting it fails with `MissingParameter`. A module that
-is not in the list simply returns no row, so a short list reads as "this product consumed nothing".
+This 19-module list is the same set the console usage page requests, so the sum of `CreditsValue` matches
+what the console shows. `Modules` is required and there is no "all" value — omitting it fails with
+`MissingParameter`. A module that is not in the list simply returns no row, so a short list reads as
+"this product consumed nothing". Unopened modules return 0 instead of an error, so the list needs no
+per-environment trimming.
 
 ---
 

@@ -135,27 +135,39 @@ const LISTABLE_PACKAGE_ID_SET: ReadonlySet<string> = new Set(LISTABLE_PACKAGE_ID
 /**
  * Resource-usage modules accepted by `DescribeCreditsUsageDetail.Modules`.
  *
- * 出处：云 API 文档《获取资源点用量明细》`product/876/132934` 的 Modules 枚举（15 项）。
- * **不要照抄 tcb CLI 的 `USAGE_MODULES`**——CLI ≤ 3.8.x 只有 13 项，缺 `PostgreSQL` / `Token`，
- * 照抄会导致按模块查询时**整块用量消失**（PG 环境里最典型：数据库一行永远为 0）。
- * `Modules` 是必传参数且没有「全部」取值（实测省略报 MissingParameter），所以新增模块
- * 只能靠这份清单跟上，官方文档是唯一真源。
+ * `Modules` 是必传参数且没有「全部」取值（省略报 `MissingParameter`），没点名的模块连行都不返回，
+ * 所以这份清单少一项，那一项的用量就**整块消失**、而且不报错。
+ *
+ * 取值口径：与云开发控制台「功能用量概览」实际请求的 Modules 一致（19 项），
+ * 这样同一个环境的合计与控制台显示的是同一个数。
+ *
+ * 几个容易踩的点：
+ *   - 云 API 文档《获取资源点用量明细》`product/876/132934` 的枚举只有 15 项，是这份清单的**子集**；
+ *     照文档抄会少 `CBF` / `Gateway` / `CLS` / `EO` / `STORAGE_EO` / `CI` 六项。
+ *   - 别把 `Gateway` 拆成 `APIInvocation` + `HTTPInvocation` 一起传：后两个是 `Gateway` 的拆分子类，
+ *     同传会让「环境调用」这笔钱算两遍（实测正好翻倍）。`COS` 与 `COS_SIA`/`COS_ARC` 同理。
+ *   - `EO` 与 `STORAGE_EO` 是两项独立计费，一起传不会重复。
+ *   - 未开通的模块一律返回 0、不报错，所以清单不需要按环境裁剪。
  */
 export const ENV_USAGE_MODULE_VALUES = [
   "FLEXDB",
   "TDSQL",
   "PostgreSQL",
   "SCF",
+  "CBF",
   "EKS",
   "COS",
   "AI",
   "Token",
   "HOSTING",
   "Auth",
-  "APIInvocation",
-  "HTTPInvocation",
-  "VM",
+  "Gateway",
   "Workflow",
+  "CLS",
+  "EO",
+  "STORAGE_EO",
+  "CI",
+  "VM",
   "Other",
 ] as const;
 
