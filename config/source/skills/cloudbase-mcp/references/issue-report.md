@@ -15,15 +15,17 @@ A conversation is mostly text that does not matter for a bug. A maintainer needs
 Keep:
 
 - the tool name, its `action`, and the arguments' shape — key names and types only
+- the **shape of a result** — field names, nesting, and types — with its values replaced. A failure about which layer holds `code` cannot be diagnosed from an abstracted sample.
 - the error **wording**, kept as-is, with its values replaced — never paraphrased, never trimmed down to "it failed"
 - `RequestId` from the response, exactly as returned — it is the only key to the server-side log
 - `envId`, `site`, `region`, `auth_status`
 - the order of calls, and how long each took
+- which layer made each call: an MCP tool, or the application's own SDK. Four healthy MCP calls next to one browser-side failure is not an MCP failure.
 
 Drop:
 
 - the user's prompt text, generated code, file contents, database rows
-- every value inside arguments or results
+- every value inside arguments or results — but never the structure around those values
 - table names, business entity names, product names — replace with `<table>`, `<entity>`
 
 ## Part B — Why it went wrong
@@ -108,11 +110,15 @@ Write `unknown` for anything on the right that the user did not supply. Never in
 
 ## Ask for at most three things
 
-Past three, the user stops replying.
+Past three, the user stops replying. The three are not a fixed list: pick the evidence that would let a maintainer name the file to change, and skip anything the report already has.
 
-1. The error line the user saw on screen — text or a screenshot.
-2. The `envId` involved, or a yes/no on the one already in the report.
-3. The host client and its version (WorkBuddy, CodeBuddy, Cursor, and so on).
+Usually useful, in this order:
+
+1. The raw result of the failing call — its structure, not just its outcome.
+2. The error line the user saw on screen — text or a screenshot — plus the full text of any secondary failure.
+3. The `envId` involved, or a yes/no on the one already in the report; and the host client with its version.
+
+If the missing evidence is customer code, take it through a private channel and keep only its shape in the report.
 
 ## Redaction — the customer's business comes first
 
@@ -132,19 +138,21 @@ For every value, ask one question: **if this is deleted, can the maintainer stil
 | **never** | password, SecretId / SecretKey, API key, token, cookie, connection string, private key | remove, leave `<secret>` |
 | **mask for public only** | uin, openid, phone, email, IP, bucket name | full value to a private channel; masked if the report is posted publicly |
 | **abstract** | table and column names, business entities, product names, the user's actual request, code identifiers | replace with its kind |
-| **keep** | **`envId`**, `site`, `region`, tool name, `action`, error code, `RequestId`, `status`, duration, versions, **skill and doc paths** | copy exactly |
+| **keep** | **`envId`**, `site`, `region`, tool name, `action`, error code, `RequestId`, `status`, duration, versions, **skill and doc paths**, **result shape** (field names, nesting, types) | copy exactly; for a result, keep the shape and replace the values |
 
 Two rows carry the weight here.
 
-- **`envId` is kept.** It is the only handle that reaches the environment's resources, and it grants no access on its own: without a credential nobody can act on it. Masking it makes the whole report unactionable. The one exception is a public issue — the repo convention is to keep environment IDs out of public text, so post there with the first 6 characters and send the full value through a private channel.
+- **`envId` is kept in full, including in a public issue.** It is the only handle that reaches the environment's resources, and it grants no access on its own: without a credential nobody can act on it. Masking it makes the whole report unactionable, and a public issue has no private channel to fall back on.
 - **Skill and doc paths are kept.** If you abstract a skill path into `<path>`, the attribution table in Part B loses its evidence and the report becomes unusable.
 
 ### Two destinations
 
+Only personal identifiers change between destinations. `envId` stays full in both.
+
 | Destination | `envId` | uin / openid / phone / email | secret |
 | --- | --- | --- | --- |
 | internal ticket, email, chat | full | full | never |
-| public issue (GitHub, cnb) | first 6 | masked | never |
+| public issue (GitHub, cnb) | full | masked | never |
 
 `RequestId` stays intact in both — it carries no business content and only we can resolve it.
 
@@ -164,7 +172,7 @@ The third line is over-redaction: the error class and the shape are gone, and no
 
 | Item | Write as |
 | --- | --- |
-| `envId` | full value, e.g. `mcp-pg-ky5u9q` (public issue: `mcp-pg…`) |
+| `envId` | full value, e.g. `mcp-pg-ky5u9q` — no masking, public issue included |
 | uin | `1000****23` for public; full value in a private channel |
 | phone | `138****5678` |
 | email | `a***@b.com` |
@@ -198,7 +206,7 @@ Write the report in the user's language. Keep the headings.
 | 连接方式 | remote 国内 / remote 国际 / local stdio |
 | MCP 版本 | 2.36.1 / unknown |
 | 站点 · 地域 | domestic · ap-shanghai |
-| envId | mcp-pg-ky5u9q（公开 issue 写 mcp-pg…） |
+| envId | mcp-pg-ky5u9q（完整值，公开 issue 也一样） |
 | 登录态 | auth_status=READY，uin=1000****23 |
 
 ### 调用
@@ -258,5 +266,6 @@ Write the report in the user's language. Keep the headings.
 - **翻车点** — one step, not a summary of the whole run. If three things went wrong, pick the first one; the rest are usually its consequences.
 - **已排除** — only what you checked in this run. Each item saves the maintainer a round trip.
 - **未获取** — the gaps from the visibility table. An honest gap is a faster fix than a confident guess.
+- **Before handing it over** — can a maintainer name the file to change from this report alone? If not, ask for the missing evidence or put it under 未获取. Do not fill the gap with a recommendation: "improve the example" without the result shape that broke it sends the fix nowhere. Keep the template's headings — a conclusion section with code samples only brings business field names back into a report you just redacted.
 
 Hand the finished text to the user to submit. `prepareFeedback` only opens the new-issue page for the current site; it uploads nothing. The user pastes the report there.
