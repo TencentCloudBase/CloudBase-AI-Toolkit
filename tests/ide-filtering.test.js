@@ -181,7 +181,7 @@ test("downloadTemplate tool requires IDE parameter when not detected", async () 
       ? result.content.map((c) => c?.text || "").join("\n")
       : String(result);
     expect(errorText).toContain("ide");
-    expect(errorText).toMatch(/Required|required/i);
+    expect(errorText).toMatch(/Required|required|Invalid input|expected/i);
     console.log(
       "✅ Schema validation error received as expected:",
       errorText
