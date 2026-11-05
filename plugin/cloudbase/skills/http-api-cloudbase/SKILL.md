@@ -84,7 +84,7 @@ Do **not** use this skill for:
    - **MUST use `searchKnowledgeBase` tool** to get OpenAPI specifications
    - Use the tool with `mode=openapi` and specify the `apiName`:
      - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
-     - `nosql` - NoSQL RESTful API (文档型数据库)
+     - `nosql` - NoSQL RESTful API (文档型数据库) — after pgdoc is enabled this same entry point is carried by PostgreSQL; paths and request bodies do not change. See `../postgresql-development-cloudbase/references/pgdoc.md`.
      - `functions` - Cloud Functions API
      - `auth` - Authentication API
      - `cloudrun` - CloudRun API
@@ -113,7 +113,7 @@ Before implementing any HTTP API calls, you should:
 
 2. **Available API names**:
    - `mysqldb` - 关系型数据库 RESTful API (MySQL/PostgreSQL)
-   - `nosql` - NoSQL RESTful API (文档型数据库)
+   - `nosql` - NoSQL RESTful API (文档型数据库) — pgdoc keeps this API name even when PG carries the data; do not switch to `mysqldb`.
    - `functions` - Cloud Functions API
    - `auth` - Authentication API
    - `cloudrun` - CloudRun API

@@ -40,6 +40,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Pure resource-permission administration with no browser SDK code.
 - **NEW business tables that the task explicitly asks to put in CloudBase PostgreSQL (CloudBase PG).** Before applying this skill, call `queryEnv(action="info", envId=...)` and read `EnvInfo.RuntimeBackends`. If `postgresql === true` AND the task asks for a new business table to live in PG, switch to the `postgresql-development-cloudbase` skill for that table: it goes through `app.rdb()`, uses PG row-level security (`CREATE POLICY`), and uploads via `app.storage.from('<bucket>').upload('<key>', file)` against an explicitly-created pgstore bucket.
   - Existing NoSQL collections in the same env keep using THIS skill — PG and NoSQL coexist in CloudBase PG environments. The rule is "follow the task / existing surface", not "PG env forbids NoSQL".
+- **Moving existing document data onto PG without changing the client code** is pgdoc, not a rewrite to `app.rdb()`. Read `../postgresql-development-cloudbase/references/pgdoc.md`: SDK calls and HTTP paths stay the same, but CUSTOM security rules no longer apply and data is not migrated automatically.
 
 ### SDK Code vs MCP Tools
 

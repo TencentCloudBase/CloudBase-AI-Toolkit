@@ -78,6 +78,8 @@ Recipes encode the exact call sequence, required parameters, and empirically dis
 - **Closing down the agent's tool surface — plugin trimming, gateway wrap for audit, expert-enforced constraints**: `./references/recipes/platform-agent-guardrails.md`
 - **Platform edition usage, billing cycle, and environment recycling**: `./references/recipes/platform-usage-and-recycle.md`
 
+**No recipe for this scenario?** A single public Action with no multi-step orchestration does not need a new recipe: resolve it from the API index, then call it through `callCloudApi` (or `tcb api` in a script). Recipes exist for call sequences, prerequisite checks and cleanup obligations — not for one-shot switches.
+
 **Done when**: every parameter value in the call sequence traces to a recipe value marked as verified (实测) or to official docs.
 
 ## Constraints

@@ -4,6 +4,8 @@ Use this reference when a Mini Program collection needs permission design or whe
 
 ## Core ideas
 
+> **pgdoc boundary**: when pgdoc carries the document API on PostgreSQL, CUSTOM security rules on these collections do not take effect. Use the four basic permissions or put validation in a cloud function. See `../postgresql-development-cloudbase/references/pgdoc.md` (section A).
+
 - Mini Program users usually appear as `auth.openid` in security rules.
 - Document ownership is typically checked through `doc._openid`.
 - Security rules validate whether the request shape is allowed; they do not filter the result set after the query runs.

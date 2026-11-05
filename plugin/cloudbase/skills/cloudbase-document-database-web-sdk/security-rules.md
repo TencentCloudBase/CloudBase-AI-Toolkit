@@ -10,6 +10,8 @@ This document covers how to configure security rules for CloudBase NoSQL databas
 
 **Scope note:** The detailed semantics in this document apply only to CloudBase **NoSQL database collections** with `resourceType: "noSqlDatabase"`. Examples such as `doc._openid`, `auth.openid`, query-condition subset validation, and `create` / `update` / `delete` JSON rule templates are **not** generic rules for `function`, `storage`, or `sqlDatabase` resources.
 
+**pgdoc boundary**: once pgdoc carries the document API on PostgreSQL, CUSTOM security rules on those collections do not take effect. Use one of the four basic permissions, or move the check into a cloud function. See `../postgresql-development-cloudbase/references/pgdoc.md` (section A).
+
 **Official references:**
 - General security rules overview: `https://cloud.tencent.com/document/product/876/41802`
 - NoSQL database security rules: `https://docs.cloudbase.net/database/security-rules`
