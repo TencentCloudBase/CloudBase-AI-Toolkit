@@ -75,7 +75,7 @@ describe("queryCloudRun getProcessLog schema", () => {
   it("exposes getProcessLog in the action enum (z.enum)", async () => {
     const { tools } = await createCloudRunTools();
     const actionEnum = tools.queryCloudRun.meta.inputSchema.action;
-    expect(actionEnum._def.values).toContain("getProcessLog");
+    expect(actionEnum.options).toContain("getProcessLog");
   });
 
   it("documents getDeployLog as build log and getProcessLog as runtime log", async () => {

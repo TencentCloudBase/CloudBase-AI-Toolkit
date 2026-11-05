@@ -172,7 +172,7 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
     .optional()
     .describe("functionDeploySchema.schema.http.memorySize"),
   envVariables: z
-    .record(z.union([z.string(), z.number(), z.boolean()]))
+    .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .optional()
     .describe("functionDeploySchema.schema.http.envVariables"),
   vpc: FUNCTION_VPC_SCHEMA.optional().describe("functionDeploySchema.schema.http.vpc"),
@@ -197,7 +197,7 @@ const FUNCTION_HTTP_COMMON_FIELDS = {
         }
         return !trimmed.split("/").some((segment) => segment === "." || segment === "..");
       },
-      { message: t("functionDeploySchema.gatewayPathInvalid") },
+       { error: () => { return t("functionDeploySchema.gatewayPathInvalid"); } },
     )
     .optional()
     .describe("functionDeploySchema.schema.http.gatewayPath"),
@@ -260,11 +260,11 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
   .object({
     cwd: z
       .string()
-      .refine(isAbsolutePath, () => ({ message: t("functionDeploySchema.buildCwdAbsolute") }))
+      .refine(isAbsolutePath, { error: () => { return t("functionDeploySchema.buildCwdAbsolute"); } })
       .describe("functionDeploySchema.schema.build.cwd"),
     dockerfile: z
       .string()
-      .refine(isSafeRelativePath, () => ({ message: t("functionDeploySchema.buildDockerfileSafeRelative") }))
+      .refine(isSafeRelativePath, { error: () => { return t("functionDeploySchema.buildDockerfileSafeRelative"); } })
       .optional()
       .describe("functionDeploySchema.schema.build.dockerfile"),
     registryId: z
@@ -285,7 +285,7 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
     tag: z
       .string()
       .regex(IMAGE_TAG_PATTERN)
-      .refine((value) => value.toLowerCase() !== "latest", () => ({ message: t("functionDeploySchema.tagNoLatest") }))
+      .refine((value) => value.toLowerCase() !== "latest", { error: () => { return t("functionDeploySchema.tagNoLatest"); } })
       .optional()
       .describe("functionDeploySchema.schema.build.tag"),
     platform: z
@@ -293,7 +293,7 @@ export const FUNCTION_IMAGE_BUILD_SCHEMA = z
       .optional()
       .describe("functionDeploySchema.schema.build.platform"),
     buildArgs: z
-      .record(z.string())
+      .record(z.string(), z.string())
       .superRefine((buildArgs, context) => {
         for (const [key, value] of Object.entries(buildArgs)) {
           if (!BUILD_ARG_KEY_PATTERN.test(key)) {
@@ -361,7 +361,7 @@ const FUNCTION_IMAGE_IMAGE_CONFIG_SCHEMA = z
             parsed.registry &&
             (parsed.digest || (parsed.tag && parsed.tag.toLowerCase() !== "latest")),
         );
-      }, () => ({ message: t("functionDeploySchema.imageUriImmutable") }))
+      }, { error: () => { return t("functionDeploySchema.imageUriImmutable"); } })
       .describe("functionDeploySchema.schema.image.uri"),
   })
   .strict();

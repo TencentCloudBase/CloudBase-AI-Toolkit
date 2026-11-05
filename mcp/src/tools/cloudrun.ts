@@ -200,7 +200,7 @@ const ManageCloudRunInputSchema = {
   // Run operation parameters (function services only)
   runOptions: z.object({
     port: z.number().min(1).max(65535).optional().default(3000).describe('cloudrun.schema.manage.runOptions.port'),
-    envParams: z.record(z.string()).optional().describe('cloudrun.schema.manage.runOptions.envParams'),
+    envParams: z.record(z.string(), z.string()).optional().describe('cloudrun.schema.manage.runOptions.envParams'),
     runMode: z.enum(['normal', 'agent']).optional().default('normal').describe('cloudrun.schema.manage.runOptions.runMode'),
     agentId: z.string().optional().describe('cloudrun.schema.manage.runOptions.agentId')
   }).optional().describe('cloudrun.schema.manage.runOptions'),

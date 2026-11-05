@@ -115,7 +115,7 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         agentId: z.string().optional(),
         pageNumber: z.number().optional(),
         pageSize: z.number().optional(),
-        params: z.record(z.any()).optional(),
+        params: z.record(z.string(), z.any()).optional(),
       },
       annotations: {
         readOnlyHint: true,
@@ -220,9 +220,9 @@ export function registerAgentTools(server: ExtendedMcpServer) {
         zipFile: z.string().optional(),
         cosBucketRegion: z.string().optional(),
         tempCosObjectName: z.string().optional(),
-        sessionConfig: z.record(z.any()).optional(),
+        sessionConfig: z.record(z.string(), z.any()).optional(),
         cwd: z.string().optional(),
-        params: z.record(z.any()).optional(),
+        params: z.record(z.string(), z.any()).optional(),
       },
       annotations: {
         readOnlyHint: false,

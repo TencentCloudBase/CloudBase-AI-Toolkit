@@ -184,14 +184,15 @@ describe("msg-push tools schema", () => {
 
   it("queryMessagePush schema: action enum + appid required", () => {
     const schema = tools.queryMessagePush.meta.inputSchema;
-    expect(schema.action._def.values).toEqual(["list", "listSupportedEvents"]);
-    expect(schema.appid._def.typeName).toBe("ZodString");
-    expect(schema.env?._def?.typeName).toBe("ZodOptional");
+    expect(schema.action.options).toEqual(["list", "listSupportedEvents"]);
+    expect(schema.action.element).toBeUndefined();
+    expect(schema.appid._def.type).toBe("string");
+    expect(schema.env?._def?.type).toBe("optional");
   });
 
   it("manageMessagePush schema: action enum, msg_type enum, open event_types, confirm", () => {
     const schema = tools.manageMessagePush.meta.inputSchema;
-    expect(schema.action._def.values).toEqual([
+    expect(schema.action.options).toEqual([
       "subscribe",
       "unsubscribe",
       "setEnable",
@@ -200,8 +201,8 @@ describe("msg-push tools schema", () => {
       "setContainerCallback",
     ]);
     // msg_type is optional enum (default event when omitted)
-    expect(schema.msg_type._def.typeName).toBe("ZodOptional");
-    expect(schema.msg_type._def.innerType._def.values).toEqual([
+    expect(schema.msg_type._def.type).toBe("optional");
+    expect(schema.msg_type._def.innerType.options).toEqual([
       "event",
       "text",
       "image",
@@ -210,11 +211,11 @@ describe("msg-push tools schema", () => {
       "miniprogrampage",
     ]);
     // event_types 是开放字符串数组（工具通用，不按 xpay 枚举收窄）
-    expect(schema.event_types._def.typeName).toBe("ZodOptional");
-    expect(schema.event_types._def.innerType._def.typeName).toBe("ZodArray");
-    expect(schema.event_types._def.innerType._def.type._def.typeName).toBe("ZodString");
-    expect(schema.env_id._def.typeName).toBe("ZodString");
-    expect(schema.function_name._def.typeName).toBe("ZodString");
+    expect(schema.event_types._def.type).toBe("optional");
+    expect(schema.event_types._def.innerType._def.type).toBe("array");
+    expect(schema.event_types._def.innerType._def.element._def.type).toBe("string");
+    expect(schema.env_id._def.type).toBe("string");
+    expect(schema.function_name._def.type).toBe("string");
   });
 
   it("XPAY_EVENT_TYPES 默认集合包含虚拟支付 7 事件", () => {

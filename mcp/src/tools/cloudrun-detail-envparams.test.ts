@@ -155,8 +155,8 @@ describe("queryCloudRun detail EnvParams masking", () => {
     const { tools } = await createCloudRunTools();
     const reveal = tools.queryCloudRun.meta.inputSchema.revealEnvParams;
     expect(reveal).toBeDefined();
-    expect(reveal._def.typeName).toBe("ZodDefault");
-    expect(reveal._def.innerType._def.typeName).toBe("ZodOptional");
+    expect(reveal._def.type).toBe("default");
+    expect(reveal._def.innerType._def.type).toBe("optional");
     expect(reveal.parse(undefined)).toBe(false);
     expect(reveal.parse(true)).toBe(true);
   });

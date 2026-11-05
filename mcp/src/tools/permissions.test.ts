@@ -651,16 +651,16 @@ describe("permission tools", () => {
 
   it("queryPermissions schema includes listPolicy/getPolicy enums", () => {
     const actionSchema = tools.queryPermissions.meta.inputSchema.action;
-    expect(actionSchema._def.values).toEqual(
+    expect(actionSchema.options).toEqual(
       expect.arrayContaining(["listPolicy", "getPolicy"]),
     );
     const policyResourceType = tools.queryPermissions.meta.inputSchema.policyResourceType;
-    expect(policyResourceType._def.innerType._def.values).toEqual(["policy"]);
+    expect(policyResourceType._def.innerType.options).toEqual(["policy"]);
   });
 
   it("managePermissions schema includes setPolicy and confirm", () => {
     const actionSchema = tools.managePermissions.meta.inputSchema.action;
-    expect(actionSchema._def.values).toEqual(expect.arrayContaining(["setPolicy"]));
+    expect(actionSchema.options).toEqual(expect.arrayContaining(["setPolicy"]));
     expect(tools.managePermissions.meta.inputSchema.confirm).toBeDefined();
     expect(tools.managePermissions.meta.inputSchema.regoContent).toBeDefined();
   });

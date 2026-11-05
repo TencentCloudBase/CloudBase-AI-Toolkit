@@ -1426,7 +1426,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           .optional()
           .describe("databaseSQL.schema.query.sql"),
         request: z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .optional()
           .describe("databaseSQL.schema.query.request"),
         dbInstance: z
@@ -1535,7 +1535,7 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           .optional()
           .describe("databaseSQL.schema.manage.sql"),
         request: z
-          .record(z.unknown())
+          .record(z.string(), z.unknown())
           .optional()
           .describe("databaseSQL.schema.manage.request"),
         statements: z
@@ -1548,8 +1548,8 @@ export function registerSQLDatabaseTools(server: ExtendedMcpServer) {
           .describe("databaseSQL.schema.manage.requireReady"),
         statusContext: z
           .object({
-            createResultRequest: z.record(z.unknown()).optional(),
-            taskStatusRequest: z.record(z.unknown()).optional(),
+            createResultRequest: z.record(z.string(), z.unknown()).optional(),
+            taskStatusRequest: z.record(z.string(), z.unknown()).optional(),
           })
           .optional()
           .describe("databaseSQL.schema.manage.statusContext"),

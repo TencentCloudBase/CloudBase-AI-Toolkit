@@ -38,6 +38,9 @@ overrides:
   nanoid: 3.3.18
   '@modelcontextprotocol/sdk': 1.32.2
   browserslist: ^4.28.8
+  zod: 4.6.6
+  conf: 10.2.0
+  decode-uri-component: 0.5.1
 
 importers:
 
@@ -137,7 +140,7 @@ importers:
         version: 0.8.4
       '@modelcontextprotocol/sdk':
         specifier: 1.32.2
-        version: 1.32.2(zod@3.25.76)
+        version: 1.32.2(zod@4.6.6)
       '@types/adm-zip':
         specifier: ^0.5.7
         version: 0.5.8
@@ -166,8 +169,8 @@ importers:
         specifier: ^5.0.0
         version: 5.0.0(winston@3.19.0)
       zod:
-        specifier: 3.25.76
-        version: 3.25.76
+        specifier: 4.6.6
+        version: 4.6.6
     devDependencies:
       '@microsoft/api-extractor':
         specifier: ^7.57.6
@@ -871,7 +874,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
-      zod: ^3.25 || ^4.0
+      zod: 4.6.6
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
@@ -1538,14 +1541,6 @@ packages:
       ajv:
         optional: true
 
-  ajv-formats@1.6.1:
-    resolution: {integrity: sha512-4CjkH20If1lhR5CGtqkrVg3bbOtFEG80X9v6jDOIUhbzzbB+UzPBGy8GQhUNVZ0yvMHdMpawCOcy5ydGMsagGQ==}
-    peerDependencies:
-      ajv: ^7.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
-
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
     peerDependencies:
@@ -1574,9 +1569,6 @@ packages:
 
   ajv@6.14.0:
     resolution: {integrity: sha512-IWrosm/yrn43eiKqkfkHis7QioDleaXQHdDVPKg0FSwwd/DuvyX79TZnFOnYpB7dcsFAMmtFztZuXPDvSePkFw==}
-
-  ajv@7.2.4:
-    resolution: {integrity: sha512-nBeQgg/ZZA3u3SYxyaDvpvDtgZ/EZPF547ARgZBrG9Bhu1vKDwAIjtIf+sDtJUKa2zOcEbmRLBRSyMraS/Oy1A==}
 
   ajv@8.18.0:
     resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
@@ -1943,9 +1935,9 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
-  conf@9.0.2:
-    resolution: {integrity: sha512-rLSiilO85qHgaTBIIHQpsv8z+NnVfZq3cKuYNCXN1AOqPzced0GWZEe/A517VldRLyQYXUMyV+vszavE2jSAqw==}
-    engines: {node: '>=10'}
+  conf@10.2.0:
+    resolution: {integrity: sha512-8fLl9F04EJqjSqH+QjITQfJF8BrOVaYr1jewVgSRAEWePfxT0sku4w2hrGQ60BC/TNLGQ2pgxNlTbWQmMPFvXg==}
+    engines: {node: '>=12'}
 
   content-disposition@0.5.4:
     resolution: {integrity: sha512-FveZTNuGw04cxlAiWbzi6zTAL/lhehaWbTtgluJh4/E95DqMwTmha3KZN1aAWA8cFIhHzMZUvLevkw5Rqk+tSQ==}
@@ -2082,9 +2074,9 @@ packages:
   decimal.js@10.6.0:
     resolution: {integrity: sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg==}
 
-  decode-uri-component@0.2.2:
-    resolution: {integrity: sha512-FqUYQ+8o158GyGTrMFJms9qh3CqTKvAqgqsTnkLI8sKu0028orqBhxNMFkFen0zGyg6epACD32pjVk58ngIErQ==}
-    engines: {node: '>=0.10'}
+  decode-uri-component@0.5.1:
+    resolution: {integrity: sha512-vWHQkXgg2cE3BB4rR0c+PYw9BCQzLoNIRMI7AunIkZst74tw/vpPp7VLoYtsR/cy1f55g3XDWUslfeCZjiZJyA==}
+    engines: {node: '>=14.16'}
 
   deep-equal@1.0.1:
     resolution: {integrity: sha512-bHtC0iYvWhyaTzvV3CZgPeZQqCOBGyGsVV7v4eevpdkLHfiSrXUdBG+qAuSz4RI70sszvjQ1QSZ98An1yNwpSw==}
@@ -4462,15 +4454,12 @@ packages:
   zod-to-json-schema@3.24.6:
     resolution: {integrity: sha512-h/z3PKvcTcTetyjl1fkj79MHNEjm+HpD6NXheWjzOekY7kV+lwDYnHw+ivHkijnCSMz1yJaWBD9vu/Fcmk+vEg==}
     peerDependencies:
-      zod: ^3.24.1
+      zod: 4.6.6
 
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
-      zod: ^3.25.28 || ^4
-
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+      zod: 4.6.6
 
   zod@4.6.6:
     resolution: {integrity: sha512-4UmzQUF5fxvfcYHlbjBmejU+w+hbDnWFx4aS8kBx7nPBHcO2SqPbpAG8snbdg+Xse4pRefR98hgjFgIMCI/UhA==}
@@ -4587,11 +4576,11 @@ snapshots:
   '@cloudbase/mcp@1.0.0-beta.25':
     dependencies:
       '@cloudbase/functions-typings': 1.2.1
-      '@modelcontextprotocol/sdk': 1.32.2(zod@3.25.76)
+      '@modelcontextprotocol/sdk': 1.32.2(zod@4.6.6)
       '@types/jsonwebtoken': 9.0.10
       jsonwebtoken: 9.0.3
-      zod: 3.25.76
-      zod-to-json-schema: 3.24.6(zod@3.25.76)
+      zod: 4.6.6
+      zod-to-json-schema: 3.24.6(zod@4.6.6)
     transitivePeerDependencies:
       - '@cfworker/json-schema'
       - supports-color
@@ -5059,28 +5048,6 @@ snapshots:
       resolve: 1.22.12
 
   '@microsoft/tsdoc@0.16.0': {}
-
-  '@modelcontextprotocol/sdk@1.32.2(zod@3.25.76)':
-    dependencies:
-      '@hono/node-server': 2.1.3(hono@4.13.14)
-      ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
-      content-type: 1.0.5
-      cors: 2.8.5
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.0.3
-      express: 5.2.1
-      express-rate-limit: 8.6.1(express@5.2.1)
-      hono: 4.13.14
-      jose: 6.2.8
-      json-schema-typed: 8.0.2
-      pkce-challenge: 5.0.0
-      raw-body: 3.0.2
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.2(zod@3.25.76)
-    transitivePeerDependencies:
-      - supports-color
 
   '@modelcontextprotocol/sdk@1.32.2(zod@4.6.6)':
     dependencies:
@@ -5797,10 +5764,6 @@ snapshots:
     optionalDependencies:
       ajv: 8.18.0
 
-  ajv-formats@1.6.1(ajv@7.2.4):
-    optionalDependencies:
-      ajv: 7.2.4
-
   ajv-formats@2.1.1(ajv@8.20.0):
     optionalDependencies:
       ajv: 8.20.0
@@ -5827,13 +5790,6 @@ snapshots:
       fast-deep-equal: 3.1.3
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
-      uri-js: 4.4.1
-
-  ajv@7.2.4:
-    dependencies:
-      fast-deep-equal: 3.1.3
-      json-schema-traverse: 1.0.0
-      require-from-string: 2.0.2
       uri-js: 4.4.1
 
   ajv@8.18.0:
@@ -6216,16 +6172,15 @@ snapshots:
 
   concat-map@0.0.1: {}
 
-  conf@9.0.2:
+  conf@10.2.0:
     dependencies:
-      ajv: 7.2.4
-      ajv-formats: 1.6.1(ajv@7.2.4)
+      ajv: 8.20.0
+      ajv-formats: 2.1.1(ajv@8.20.0)
       atomically: 1.7.0
       debounce-fn: 4.0.0
       dot-prop: 6.0.1
       env-paths: 2.2.1
       json-schema-typed: 7.0.3
-      make-dir: 3.1.0
       onetime: 5.1.2
       pkg-up: 3.1.0
       semver: 7.7.4
@@ -6271,7 +6226,7 @@ snapshots:
 
   cos-nodejs-sdk-v5@2.15.4:
     dependencies:
-      conf: 9.0.2
+      conf: 10.2.0
       fast-xml-parser: 4.5.5
       mime-types: 2.1.35
       request: 2.88.2
@@ -6349,7 +6304,7 @@ snapshots:
 
   decimal.js@10.6.0: {}
 
-  decode-uri-component@0.2.2: {}
+  decode-uri-component@0.5.1: {}
 
   deep-equal@1.0.1: {}
 
@@ -7355,7 +7310,7 @@ snapshots:
       '@types/koa': 2.15.2
       co-body: 6.2.0
       formidable: 2.1.5
-      zod: 3.25.76
+      zod: 4.6.6
 
   koa-compose@4.1.0: {}
 
@@ -7832,7 +7787,7 @@ snapshots:
 
   query-string@6.14.1:
     dependencies:
-      decode-uri-component: 0.2.2
+      decode-uri-component: 0.5.1
       filter-obj: 1.1.0
       split-on-first: 1.1.0
       strict-uri-encode: 2.0.0
@@ -8887,18 +8842,12 @@ snapshots:
       compress-commons: 4.1.2
       readable-stream: 3.6.2
 
-  zod-to-json-schema@3.24.6(zod@3.25.76):
+  zod-to-json-schema@3.24.6(zod@4.6.6):
     dependencies:
-      zod: 3.25.76
-
-  zod-to-json-schema@3.25.2(zod@3.25.76):
-    dependencies:
-      zod: 3.25.76
+      zod: 4.6.6
 
   zod-to-json-schema@3.25.2(zod@4.6.6):
     dependencies:
       zod: 4.6.6
-
-  zod@3.25.76: {}
 
   zod@4.6.6: {}
