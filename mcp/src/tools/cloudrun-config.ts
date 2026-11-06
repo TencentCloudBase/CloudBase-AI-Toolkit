@@ -42,6 +42,55 @@ const SUBMIT_DIFF_MAP: Record<string, string> = {
   CustomLogs: "LogPath",
 };
 
+/**
+ * 嵌套结构字段白名单。唯一真源是 @cloudbase/manager-node 的
+ * `types/cloudrun/type.d.ts`（IVpcConf / IVolumeConf / IPublicNetConf）。
+ *
+ * 为什么需要：2026-07 一次性加 12 个 serverConfig 参数时只抄了字段名、没对类型，
+ * `VolumesConf.VolumeName`、`PublicNetConf.PublicAccess` 这些 API 根本不认的字段
+ * 一路透传到 CreateCloudRunServer / UpdateCloudRunServer，换回一句
+ * "The parameter X is not recognized"，用户完全不知道该改成什么。
+ * 契约测试只能挡住我们自己写的新字段，这里挡的是任意来源的脏 key。
+ */
+export const NESTED_OBJECT_KEYS: Record<string, Set<string>> = {
+  VpcConf: new Set(["VpcId", "SubnetId", "VpcCIDR", "SubnetCIDR"]),
+  PublicNetConf: new Set(["PublicNetStatus"]),
+  VolumesConf: new Set([
+    "Type",
+    "BucketName",
+    "Endpoint",
+    "KeyID",
+    "DstPath",
+    "SrcPath",
+    "MountIP",
+    "ReadOnly",
+    "InstanceId",
+  ]),
+};
+
+/**
+ * 嵌套对象/数组里的 key 必须全在白名单内，否则本地抛错。
+ * 抛错信息带上「这一项支持哪些字段」，让调用方一次就能改对。
+ */
+function assertKnownNestedKeys(path: string, value: unknown): void {
+  const allowed = NESTED_OBJECT_KEYS[path];
+  if (!allowed) return;
+  const entries = Array.isArray(value) ? value : [value];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue;
+    for (const key of Object.keys(entry as Record<string, unknown>)) {
+      if (allowed.has(key)) continue;
+      throw new Error(
+        t("cloudrunConfig.unknownNestedKey", {
+          path,
+          key,
+          allowed: [...allowed].join(", "),
+        }),
+      );
+    }
+  }
+}
+
 const STRING_KEYS = new Set([
   "CustomLogs",
   "EnvParams",
@@ -198,10 +247,13 @@ export function parseServerConfigToDiffItems(
     } else if (k === "TimerScale") {
       Items.push({ Key, TimerScale: v });
     } else if (k === "VpcConf") {
+      assertKnownNestedKeys(k, v);
       Items.push({ Key, VpcConf: v as CloudRunVpcConf });
     } else if (k === "VolumesConf") {
+      assertKnownNestedKeys(k, v);
       Items.push({ Key, VolumesConf: v });
     } else if (k === "PublicNetConf") {
+      assertKnownNestedKeys(k, v);
       Items.push({ Key, PublicNetConf: v });
     }
   }

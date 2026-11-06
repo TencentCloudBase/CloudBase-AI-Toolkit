@@ -90,6 +90,38 @@ function buildShortErrorWithCode(error: string, code: string) {
     code,
   };
 }
+
+/**
+ * 后端在「应用认证模块未初始化」时返回的是
+ * `[DescribeLoginConfig] PG环境 xxx 当前状态为 pending，请稍后重试`。
+ *
+ * 这句话把「模块没开」说成了「环境 pending」，并建议重试——实测有环境照着重试了
+ * 11 小时、12 次调用全失败（同环境的 queryPgDatabase / manageHosting 均正常，
+ * 说明环境本身是好的）。这里把它改写成可执行的两条路，并明确去掉「重试」动作。
+ */
+export function isAuthModulePendingError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /状态为\s*pending|status\s+is\s+pending|currently\s+pending/i.test(error.message);
+}
+
+function extractEnvIdFromMessage(message: string): string {
+  const matched = message.match(/(?:PG)?环境\s+([A-Za-z0-9_-]{4,})/);
+  return matched?.[1] ?? t("appAuth.unknownEnv");
+}
+
+export function buildAuthModulePendingEnvelope(error: Error) {
+  const envId = extractEnvIdFromMessage(error.message);
+  // 保留原始错误便于排查，但要摘掉「请稍后重试」——agent 会照这句话循环调用。
+  const cause = error.message
+    .replace(/[，,]\s*(请稍后重试|please try again later)\.?/gi, "")
+    .trim();
+  return {
+    success: false,
+    data: {},
+    message: t("appAuth.authModulePending", { envId, cause }),
+    next_step: t("appAuth.authModulePendingNextStep"),
+  };
+}
 function normalizePlainObject(
   value: unknown,
   label: string,
@@ -369,6 +401,11 @@ export function registerAppAuthTools(server: ExtendedMcpServer) {
     try {
       return jsonContent(await handler());
     } catch (error) {
+      // 先于其它分支：后端把「认证模块未初始化」说成「环境 pending，请稍后重试」，
+      // 原样透出会让 agent 无限重试（见 isAuthModulePendingError 注释）。
+      if (isAuthModulePendingError(error)) {
+        return jsonContent(buildAuthModulePendingEnvelope(error as Error));
+      }
       if (error instanceof Error && (error.message === t("appAuth.noActiveEnv") || error.message === t("appAuth.authRequired"))) {
         const code = (error as Error & { code?: string }).code;
         if (code) {

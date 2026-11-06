@@ -122,7 +122,8 @@ const CLOUDRUN_SERVER_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{2,44}$/;
 const CLOUDRUN_MANAGE_ACTIONS_WITHOUT_SERVER_NAME = new Set(['initEnv']);
 
 // Input schema for manageCloudRun tool
-const ManageCloudRunInputSchema = {
+// 导出仅为契约测试使用（tests 断言嵌套字段名与 @cloudbase/manager-node 类型一致）
+export const ManageCloudRunInputSchema = {
   action: z.enum(['init', 'download', 'run', 'deploy', 'delete', 'createAgent', 'updateConfig', 'initEnv', 'traffic']).describe('cloudrun.schema.manage.action'),
   // Optional so that `initEnv` can be called the way it is documented (envId only) instead of forcing
   // callers to invent a placeholder name. The pattern still applies whenever a value is present; the
@@ -183,14 +184,27 @@ const ManageCloudRunInputSchema = {
       VpcId: z.string().describe('cloudrun.schema.manage.serverConfig.vpcConf.vpcId'),
       SubnetId: z.string().describe('cloudrun.schema.manage.serverConfig.vpcConf.subnetId'),
     }).optional().describe('cloudrun.schema.manage.serverConfig.vpcConf'),
-    VolumesConf: z.array(z.object({
-      VolumeName: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.volumeName'),
-      VolumeType: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.volumeType'),
-      VolumePath: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.volumePath')
-    })).max(10).optional().describe('cloudrun.schema.manage.serverConfig.volumesConf'),
+    VolumesConf: z.array(z.discriminatedUnion('Type', [
+      z.object({
+        Type: z.literal('COS').describe('cloudrun.schema.manage.serverConfig.volumesConf.type'),
+        BucketName: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.bucketName'),
+        DstPath: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.dstPath'),
+        Endpoint: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.endpoint'),
+        SrcPath: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.srcPath'),
+        ReadOnly: z.boolean().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.readOnly'),
+      }),
+      z.object({
+        Type: z.literal('CFS').describe('cloudrun.schema.manage.serverConfig.volumesConf.type'),
+        InstanceId: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.instanceId'),
+        DstPath: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.dstPath'),
+        MountIP: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.mountIP'),
+        KeyID: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.keyID'),
+        SrcPath: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.srcPath'),
+        ReadOnly: z.boolean().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.readOnly'),
+      }),
+    ])).max(10).optional().describe('cloudrun.schema.manage.serverConfig.volumesConf'),
     PublicNetConf: z.object({
-      PublicAccess: z.boolean().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicAccess'),
-      PublicAccessPath: z.string().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicAccessPath')
+      PublicNetStatus: z.string().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicNetStatus'),
     }).optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf'),
   }).optional().describe('cloudrun.schema.manage.serverConfig'),
 

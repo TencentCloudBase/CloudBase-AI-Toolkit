@@ -324,17 +324,28 @@ export const cloudrun = defineModule(
     "schema.manage.serverConfig.vpcConf.subnetId":
       "子网ID，格式如 subnet-xxxxxxxx。云托管实例将占用该子网 IP，需确保有足够可用 IP",
     "schema.manage.serverConfig.volumesConf":
-      "存储卷配置数组，用于挂载云存储（如CFS）到服务实例中。可用于持久化数据或共享文件",
-    "schema.manage.serverConfig.volumesConf.volumeName": "存储卷名称",
-    "schema.manage.serverConfig.volumesConf.volumeType":
-      "存储卷类型，如CFS表示云文件存储",
-    "schema.manage.serverConfig.volumesConf.volumePath":
-      "存储卷挂载路径，服务代码中的目标路径",
-    "schema.manage.serverConfig.publicNetConf":
-      "公网访问配置，用于控制服务的公网访问策略。可配置是否开启公网访问及访问路径",
-    "schema.manage.serverConfig.publicNetConf.publicAccess":
-      "是否开启公网访问，true=开启公网访问，false=关闭公网访问",
-    "schema.manage.serverConfig.publicNetConf.publicAccessPath": "公网访问路径配置",
+      "存储挂载配置数组，按 Type 二选一：COS（对象存储桶）或 CFS（文件存储实例），两者必填字段不同",
+    "schema.manage.serverConfig.volumesConf.type":
+      "挂载类型：COS=对象存储，CFS=云文件存储。Type 不同，需要的字段也不同",
+    "schema.manage.serverConfig.volumesConf.bucketName":
+      "COS 存储桶名称，仅 Type=COS 时必填",
+    "schema.manage.serverConfig.volumesConf.endpoint":
+      "COS 访问域名（Endpoint），仅 Type=COS 时可选填，不填走默认区域域名",
+    "schema.manage.serverConfig.volumesConf.dstPath":
+      "容器内的挂载目标路径，例如 /mnt/data",
+    "schema.manage.serverConfig.volumesConf.srcPath":
+      "远端源路径，留空表示挂载整个桶或实例根目录",
+    "schema.manage.serverConfig.volumesConf.readOnly":
+      "是否只读挂载，默认读写",
+    "schema.manage.serverConfig.volumesConf.instanceId":
+      "CFS 文件存储实例 ID，仅 Type=CFS 时必填",
+    "schema.manage.serverConfig.volumesConf.mountIP":
+      "CFS 挂载 IP，仅 Type=CFS 时可选填",
+    "schema.manage.serverConfig.volumesConf.keyID":
+      "CFS 访问密钥 ID，仅 Type=CFS 时可选填",
+    "schema.manage.serverConfig.publicNetConf": "公网访问配置",
+    "schema.manage.serverConfig.publicNetConf.publicNetStatus":
+      "公网访问状态，字符串。常见取值 open=开启、close=关闭（与 InternalAccess 取值风格一致）",
     "schema.manage.template":
       "项目模板标识符，用于指定初始化项目时使用的模板。可通过queryCloudRun的templates操作获取可用模板列表。常用模板：helloworld=Hello World示例，nodejs=Node.js项目模板，python=Python项目模板等",
     "schema.manage.runOptions":
@@ -695,18 +706,28 @@ export const cloudrun = defineModule(
     "schema.manage.serverConfig.vpcConf.subnetId":
       "Subnet ID, format: subnet-xxxxxxxx. CloudRun instances consume IPs from this subnet, so make sure enough IPs are available",
     "schema.manage.serverConfig.volumesConf":
-      "Volume config array, used to mount cloud storage (such as CFS) into service instances. Useful for persisting data or sharing files",
-    "schema.manage.serverConfig.volumesConf.volumeName": "Volume name",
-    "schema.manage.serverConfig.volumesConf.volumeType":
-      "Volume type; CFS means Cloud File Storage",
-    "schema.manage.serverConfig.volumesConf.volumePath":
-      "Volume mount path, the target path inside the service code",
-    "schema.manage.serverConfig.publicNetConf":
-      "Public access config, used to control the public access policy of the service. You can configure whether public access is enabled and the access path",
-    "schema.manage.serverConfig.publicNetConf.publicAccess":
-      "Whether public access is enabled: true=enable public access, false=disable public access",
-    "schema.manage.serverConfig.publicNetConf.publicAccessPath":
-      "Public access path config",
+      "Volume mount config, selected by Type: COS (object storage bucket) or CFS (cloud file storage instance). The required fields differ",
+    "schema.manage.serverConfig.volumesConf.type":
+      "Mount type: COS=object storage, CFS=cloud file storage. Different Type requires different fields",
+    "schema.manage.serverConfig.volumesConf.bucketName":
+      "COS bucket name, required when Type=COS",
+    "schema.manage.serverConfig.volumesConf.endpoint":
+      "COS endpoint, optional when Type=COS; defaults to the regional endpoint",
+    "schema.manage.serverConfig.volumesConf.dstPath":
+      "Mount path inside the container, for example /mnt/data",
+    "schema.manage.serverConfig.volumesConf.srcPath":
+      "Remote source path; leave empty to mount the whole bucket or instance root",
+    "schema.manage.serverConfig.volumesConf.readOnly":
+      "Mount as read-only; defaults to read-write",
+    "schema.manage.serverConfig.volumesConf.instanceId":
+      "CFS file storage instance ID, required when Type=CFS",
+    "schema.manage.serverConfig.volumesConf.mountIP":
+      "CFS mount IP, optional when Type=CFS",
+    "schema.manage.serverConfig.volumesConf.keyID":
+      "CFS access key ID, optional when Type=CFS",
+    "schema.manage.serverConfig.publicNetConf": "Public access config",
+    "schema.manage.serverConfig.publicNetConf.publicNetStatus":
+      "Public access status, a string. Common values: open=enable, close=disable (same style as InternalAccess)",
     "schema.manage.template":
       "Project template identifier, specifying the template used when initializing a project. Use the templates action of queryCloudRun to list available templates. Common templates: helloworld=Hello World example, nodejs=Node.js project template, python=Python project template, and so on",
     "schema.manage.runOptions":
