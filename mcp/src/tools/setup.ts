@@ -40,16 +40,13 @@ const TEMPLATES: Record<string, { description: MessageKey; url: string }> = {
 export const IDE_TYPES = [
   "all", // 下载所有IDE配置（默认）
   "cursor", // Cursor AI编辑器
-  "windsurf", // WindSurf AI编辑器
   "codebuddy", // CodeBuddy AI编辑器
   "claude-code", // Claude Code AI编辑器
-  "cline", // Cline AI编辑器
   "gemini-cli", // Gemini CLI
   "opencode", // OpenCode AI编辑器
   "qwen-code", // 通义灵码
   "baidu-comate", // 百度Comate
   "openai-codex-cli", // OpenAI Codex CLI
-  "augment-code", // Augment Code
   "github-copilot", // GitHub Copilot
   "roocode", // RooCode AI编辑器（已 deprecated 2026-05，可考虑引导转向 Cline/ZooCode）
   "tongyi-lingma", // 通义灵码
@@ -84,7 +81,6 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
     { path: ".cursor/rules/" },
     { path: ".cursor/mcp.json", isMcpConfig: true },
   ],
-  windsurf: [{ path: ".windsurf/rules/" }],
   codebuddy: [
     { path: ".rules/cloudbase-rules.md" },
     { path: ".rules/cloudbase-rules.mdc" },
@@ -97,7 +93,6 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
     { path: ".mcp.json", isMcpConfig: true },
     { path: ".claude/" },
   ],
-  cline: [{ path: ".clinerules/" }],
   "gemini-cli": [
     { path: ".gemini/GEMINI.md" },
     { path: ".gemini/settings.json", isMcpConfig: true },
@@ -115,12 +110,8 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
     { path: ".codex/config.toml", isMcpConfig: true },
     { path: "AGENTS.md" },
   ],
-  "augment-code": [{ path: ".augment-guidelines" }],
   "github-copilot": [{ path: ".github/copilot-instructions.md" }],
-  roocode: [
-    { path: ".roo/rules/cloudbase-rules.md" },
-    { path: ".roo/mcp.json", isMcpConfig: true },
-  ],
+  roocode: [{ path: ".roo/mcp.json", isMcpConfig: true }],
   "tongyi-lingma": [{ path: ".lingma/rules/cloudbase-rules.md" }],
   trae: [{ path: ".trae/rules/" }],
   qoder: [{ path: ".qoder/rules/" }],
@@ -129,15 +120,9 @@ export const RAW_IDE_FILE_MAPPINGS: Record<string, IdeFileDescriptor[]> = {
     { path: ".vscode/mcp.json", isMcpConfig: true },
     { path: ".vscode/settings.json" },
   ],
-  kiro: [
-    { path: ".kiro/settings/mcp.json", isMcpConfig: true },
-    { path: ".kiro/steering/" },
-  ],
+  kiro: [{ path: ".kiro/settings/mcp.json", isMcpConfig: true }],
   aider: [{ path: "mcp.json", isMcpConfig: true }],
-  "iflow-cli": [
-    { path: "IFLOW.md" },
-    { path: ".iflow/settings.json", isMcpConfig: true },
-  ],
+  "iflow-cli": [{ path: ".iflow/settings.json", isMcpConfig: true }],
 };
 
 const IDE_FILE_MAPPINGS = structuredClone(RAW_IDE_FILE_MAPPINGS)
@@ -159,16 +144,13 @@ IDE_FILE_MAPPINGS["all"] = ALL_IDE_FILES.map((path) => ({ path }));
 const IDE_DESCRIPTIONS: Record<string, MessageKey> = {
   all: "setup.ide.all",
   cursor: "setup.ide.cursor",
-  windsurf: "setup.ide.windsurf",
   codebuddy: "setup.ide.codebuddy",
   "claude-code": "setup.ide.claudeCode",
-  cline: "setup.ide.cline",
   "gemini-cli": "setup.ide.geminiCli",
   opencode: "setup.ide.opencode",
   "qwen-code": "setup.ide.qwenCode",
   "baidu-comate": "setup.ide.baiduComate",
   "openai-codex-cli": "setup.ide.openaiCodexCli",
-  "augment-code": "setup.ide.augmentCode",
   "github-copilot": "setup.ide.githubCopilot",
   roocode: "setup.ide.roocode",
   "tongyi-lingma": "setup.ide.tongyiLingma",
@@ -190,19 +172,16 @@ function getIdeDescription(ide: string): string {
 // INTEGRATION_IDE 环境变量值到 IDE 类型的映射
 const INTEGRATION_IDE_MAPPING: Record<string, string> = {
   Cursor: "cursor",
-  WindSurf: "windsurf",
   CodeBuddy: "codebuddy",
   CodeBuddyManual: "codebuddy",
   CodeBuddyCode: "codebuddy",
   CodeBuddyPlugin: "codebuddy",
   "Claude Code": "claude-code",
-  CLINE: "cline",
   "Gemini CLI": "gemini-cli",
   OpenCode: "opencode",
   "Qwen Code": "qwen-code",
   "Baidu Comate": "baidu-comate",
   "OpenAI Codex CLI": "openai-codex-cli",
-  "Augment Code": "augment-code",
   "GitHub Copilot": "github-copilot",
   RooCode: "roocode",
   "Tongyi Lingma": "tongyi-lingma",

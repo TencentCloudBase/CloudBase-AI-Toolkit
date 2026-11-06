@@ -70,16 +70,13 @@ test("downloadTemplate tool supports IDE filtering", async () => {
     expect(Array.isArray(ideParam.enum)).toBe(true);
     expect(ideParam.enum).toContain("all");
     expect(ideParam.enum).toContain("cursor");
-    expect(ideParam.enum).toContain("windsurf");
     expect(ideParam.enum).toContain("codebuddy");
     expect(ideParam.enum).toContain("claude-code");
-    expect(ideParam.enum).toContain("cline");
     expect(ideParam.enum).toContain("gemini-cli");
     expect(ideParam.enum).toContain("opencode");
     expect(ideParam.enum).toContain("qwen-code");
     expect(ideParam.enum).toContain("baidu-comate");
     expect(ideParam.enum).toContain("openai-codex-cli");
-    expect(ideParam.enum).toContain("augment-code");
     expect(ideParam.enum).toContain("github-copilot");
     expect(ideParam.enum).toContain("roocode");
     expect(ideParam.enum).toContain("tongyi-lingma");

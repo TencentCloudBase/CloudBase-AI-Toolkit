@@ -61,7 +61,8 @@ test('buildCompatConfig generates compatibility artifacts from minimal sources',
 
   expect(fs.existsSync(path.join(compatDir, '.mcp.json'))).toBe(true);
   expect(fs.existsSync(path.join(compatDir, '.claude', 'commands', 'spec.md'))).toBe(true);
-  expect(fs.existsSync(path.join(compatDir, '.kiro', 'steering', 'auth-web-cloudbase', 'rule.md'))).toBe(true);
+  expect(fs.existsSync(path.join(compatDir, '.trae', 'rules', 'auth-web-cloudbase', 'rule.md'))).toBe(true);
+  expect(fs.existsSync(path.join(compatDir, '.trae', 'skills', 'auth-web-cloudbase', 'SKILL.md'))).toBe(true);
 });
 
 test('pass-through codebuddy-plugin copies only git-tracked files', () => {

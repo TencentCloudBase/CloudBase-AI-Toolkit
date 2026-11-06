@@ -806,33 +806,30 @@ Supported templates:
 - vue: Vue + CloudBase full-stack application template
 - miniprogram: WeChat Mini Program + CloudBase template
 - uniapp: UniApp + CloudBase cross-platform application template
-- rules: Only includes AI editor configuration files (includes all mainstream editor configurations such as Cursor, WindSurf, CodeBuddy, etc.), suitable for supplementing AI editor configuration in existing projects
+- rules: Only includes AI editor configuration files (Cursor, CodeBuddy, Claude Code and other mainstream editors), suitable for supplementing AI editor configuration in existing projects
 
 Supported IDE types:
 - all: Download all IDE configurations
 - cursor: Cursor AI editor
-- Other IDE types see list below
-
-Note: If ide parameter is not passed and IDE cannot be detected from environment, an error will be prompted and require passing ide parameter
-- windsurf: WindSurf AI editor
 - codebuddy: CodeBuddy AI editor
 - claude-code: Claude Code AI editor
-- cline: Cline AI editor
 - gemini-cli: Gemini CLI
 - opencode: OpenCode AI editor
 - qwen-code: Tongyi Lingma
 - baidu-comate: Baidu Comate
 - openai-codex-cli: OpenAI Codex CLI
-- augment-code: Augment Code
 - github-copilot: GitHub Copilot
-- roocode: RooCode AI editor
+- roocode: RooCode AI editor (MCP config only, no rule files)
 - tongyi-lingma: Tongyi Lingma
 - trae: Trae AI editor
 - qoder: Qoder AI editor
 - antigravity: Google Antigravity AI editor
 - vscode: Visual Studio Code
-- kiro: Kiro AI editor
+- kiro: Kiro AI editor (MCP config only, no rule files)
 - aider: Aider AI editor
+- iflow-cli: iFlow CLI (MCP config only, no rule files)
+
+Note: If ide parameter is not passed and IDE cannot be detected from environment, an error will be prompted and require passing ide parameter
 
 Special notes:
 - rules template will automatically include current MCP version information, which helps with later maintenance and version tracking
@@ -844,7 +841,7 @@ Special notes:
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
 <tr><td><code>template</code></td><td>string</td><td>Yes</td><td>Template type to download. Allowed values: "react", "vue", "miniprogram", "uniapp", "rules"</td></tr>
-<tr><td><code>ide</code></td><td>string</td><td>Yes</td><td>Specify the IDE type to download. Allowed values: "all", "cursor", "windsurf", "codebuddy", "claude-code", "cline", "gemini-cli", "opencode", "qwen-code", "baidu-comate", "openai-codex-cli", "augment-code", "github-copilot", "roocode", "tongyi-lingma", "trae", "qoder", "antigravity", "vscode", "kiro", "aider", "iflow-cli"</td></tr>
+<tr><td><code>ide</code></td><td>string</td><td>Yes</td><td>Specify the IDE type to download. Allowed values: "all", "cursor", "codebuddy", "claude-code", "gemini-cli", "opencode", "qwen-code", "baidu-comate", "openai-codex-cli", "github-copilot", "roocode", "tongyi-lingma", "trae", "qoder", "antigravity", "vscode", "kiro", "aider", "iflow-cli"</td></tr>
 <tr><td><code>overwrite</code></td><td>boolean</td><td></td><td>Whether to overwrite existing files, defaults to false (no overwrite)</td></tr>
 </tbody>
 </table>
