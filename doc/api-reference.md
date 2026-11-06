@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-11-05
+> - 最近同步：2026-11-06
 
 ## API 概览
 
@@ -41,6 +41,7 @@
 | [DestroyPlatformEnv](https://cloud.tencent.com/document/api/876/138297) | 删除平台版环境 | 20 |
 | [DescribePlatforms](https://cloud.tencent.com/document/api/876/138298) | 查询平台版资源信息 | 20 |
 | [ModifyPlatformEnv](https://cloud.tencent.com/document/api/876/138295) | 修改平台版环境信息 | 20 |
+| [DescribeEnvInfo](https://cloud.tencent.com/document/api/876/140606) | 根据环境ID查询环境详情 | 20 |
 
 ### 用户权限相关接口
 
