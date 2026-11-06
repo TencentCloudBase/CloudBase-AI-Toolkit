@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "../i18n/index.js";
 import type { ExtendedMcpServer } from "../server.js";
-import { registerAppAuthTools } from "./app-auth.js";
+import {
+  buildAuthModulePendingEnvelope,
+  isAuthModulePendingError,
+  registerAppAuthTools,
+} from "./app-auth.js";
 
 const {
   mockGetCloudBaseManager,
@@ -998,5 +1002,32 @@ describe("app auth tools", () => {
       privateKey: "private-key",
       keyId: "custom-login-key-id",
     });
+  });
+});
+
+describe("认证模块未就绪的错误改写", () => {
+  // 真实样本，来自灯塔 toolkit_tool_call 的 c04（2.37.4，2026-11-06）
+  const realMessage =
+    "[DescribeLoginConfig] PG环境 possible-coral-d5g9838da33b47a16 当前状态为 pending，请稍后重试";
+
+  it("识别后端的 pending 文案", () => {
+    expect(isAuthModulePendingError(new Error(realMessage))).toBe(true);
+    expect(isAuthModulePendingError(new Error("[DescribeApiKeyList] status is pending"))).toBe(true);
+  });
+
+  it("不误伤其它错误", () => {
+    expect(isAuthModulePendingError(new Error("需要先完成认证"))).toBe(false);
+    expect(isAuthModulePendingError(new Error("The parameter `EnvId` is not recognized"))).toBe(false);
+    expect(isAuthModulePendingError("not an error")).toBe(false);
+  });
+
+  it("改写后不再出现「请稍后重试」，并带上环境 ID 与下一步", () => {
+    const envelope = buildAuthModulePendingEnvelope(new Error(realMessage));
+    const text = JSON.stringify(envelope);
+    expect(text).not.toContain("请稍后重试");
+    expect(text).toContain("不要原样重试");
+    expect(text).toContain("possible-coral-d5g9838da33b47a16");
+    expect(envelope.success).toBe(false);
+    expect(envelope.next_step).toContain("queryAppAuth");
   });
 });

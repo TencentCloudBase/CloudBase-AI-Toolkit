@@ -12,6 +12,11 @@ export const appAuth = defineModule(
     mustBeStringOrObject: "{label} 必须是字符串或对象",
     noActiveEnv: "未选择当前环境",
     authRequired: "需要先完成认证",
+    authModulePending:
+      "环境 {envId} 的应用认证模块还没就绪（环境本身是好的，其它工具可正常用）。**不要原样重试**——重试不会成功。① 若环境刚创建：等 1–2 分钟后重新查询；② 若已经等过：该环境尚未开通「应用认证」，需先在控制台开通，再回来查询。原始错误：{cause}",
+    authModulePendingNextStep:
+      "不要再重复调用 queryAppAuth。先确认环境是否已开通应用认证；未开通就去控制台开通，开通后重新查询一次。",
+    unknownEnv: "(当前环境)",
     paramRequired: "action={action} 时必须提供 {param}",
     smsHint:
       "短信验证码登录已开启，可直接使用云开发默认短信通道收发验证码，无需配置短信签名/模板/自定义 Provider。" +
@@ -55,6 +60,11 @@ export const appAuth = defineModule(
     mustBeStringOrObject: "{label} must be a string or an object",
     noActiveEnv: "no active environment selected",
     authRequired: "authentication required",
+    authModulePending:
+      "App auth module for environment {envId} is not ready (the environment itself is fine — other tools work). **Do not retry as-is** — retrying will not succeed. ① If the environment was just created: wait 1–2 minutes and query again; ② If it has been this way for a while: the environment has no App Auth enabled — enable it in the console first. Original error: {cause}",
+    authModulePendingNextStep:
+      "Stop calling queryAppAuth repeatedly. Check whether App Auth is enabled for this environment; enable it in the console, then query once more.",
+    unknownEnv: "(current environment)",
     paramRequired: "{param} is required when action={action}",
     smsHint:
       "SMS verification code login is enabled; the CloudBase default SMS channel can send/receive codes without configuring SMS signature/template/custom providers. " +
