@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-10-30 02:36:12
+最近更新时间：2026-11-06 02:35:08
 
 -   微信扫一扫 
 -   QQ
@@ -63,6 +63,7 @@ _我的收藏_
 | [DestroyPlatformEnv](/document/api/876/138297) | 删除平台版环境 | 20 |
 | [DescribePlatforms](/document/api/876/138298) | 查询平台版资源信息 | 20 |
 | [ModifyPlatformEnv](/document/api/876/138295) | 修改平台版环境信息 | 20 |
+| [DescribeEnvInfo](/document/api/876/140606) | 根据环境ID查询环境详情 | 20 |
 
 ## 用户权限相关接口
 

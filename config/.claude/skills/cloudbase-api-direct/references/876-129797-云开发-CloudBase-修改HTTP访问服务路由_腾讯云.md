@@ -2,7 +2,7 @@
 
 ## 修改HTTP访问服务路由
 
-最近更新时间：2026-09-15 03:25:44
+最近更新时间：2026-11-06 02:35:04
 
 -   微信扫一扫 
 -   QQ
@@ -126,3 +126,4 @@ X-TC-Action: ModifyHTTPServiceRoute
 | LimitExceeded.HTTPServiceRoute | HTTP访问服务路由超过上限 |
 | OperationDenied.HTTPServiceDomainEOFrozen | 当前环境EO域名功能已经冻结，不允许创建EO加速域名，请查看云开发资源点进行充正后再试 |
 | OperationDenied.HTTPServiceDomainProcessing | 操作失败，http访问服务域名处理中，稍后再试。 |
+| ResourceNotFound.HTTPServiceResource | http访问服务资源不存在 |
