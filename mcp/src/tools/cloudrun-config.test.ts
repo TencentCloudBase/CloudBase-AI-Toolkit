@@ -225,10 +225,10 @@ describe("serverConfig 嵌套字段与 SDK 类型的契约", () => {
 
   it("PublicNetConf 用的是 PublicNetStatus，不是 PublicAccess", () => {
     const items = parseServerConfigToDiffItems({
-      PublicNetConf: { PublicNetStatus: "open" },
+      PublicNetConf: { PublicNetStatus: "ENABLE" },
     });
     const byKey = Object.fromEntries(items.map((i) => [i.Key, i]));
-    expect(byKey.PublicNetConf?.PublicNetConf).toEqual({ PublicNetStatus: "open" });
+    expect(byKey.PublicNetConf?.PublicNetConf).toEqual({ PublicNetStatus: "ENABLE" });
   });
 
   it("COS / CFS 两种卷都能映射，且字段与 SDK 一致", () => {
@@ -269,7 +269,10 @@ describe("serverConfig 对未知嵌套字段的处理", () => {
 
     const publicNet = (shape.PublicNetConf as any)?.unwrap?.() ?? shape.PublicNetConf;
     expect(publicNet.safeParse({ PublicAccess: true }).success).toBe(false);
-    expect(publicNet.safeParse({ PublicNetStatus: "open" }).success).toBe(true);
+    expect(publicNet.safeParse({ PublicNetStatus: "ENABLE" }).success).toBe(true);
+    // 云 API 的枚举是 ENABLE / DISABLE，不是 open / close（open/close 是 InternalAccess 的取值）
+    expect(publicNet.safeParse({ PublicNetStatus: "open" }).success).toBe(false);
+    expect(publicNet.safeParse({ PublicNetStatus: "DISABLE" }).success).toBe(true);
 
     const volumes = (shape.VolumesConf as any)?.unwrap?.() ?? shape.VolumesConf;
     expect(

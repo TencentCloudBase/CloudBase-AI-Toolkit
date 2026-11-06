@@ -204,7 +204,7 @@ export const ManageCloudRunInputSchema = {
       }).strict(),
     ])).max(10).optional().describe('cloudrun.schema.manage.serverConfig.volumesConf'),
     PublicNetConf: z.object({
-      PublicNetStatus: z.string().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicNetStatus'),
+      PublicNetStatus: z.enum(['ENABLE', 'DISABLE']).optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicNetStatus'),
     }).strict().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf'),
   }).optional().describe('cloudrun.schema.manage.serverConfig'),
 

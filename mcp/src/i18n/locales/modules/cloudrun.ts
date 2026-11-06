@@ -345,7 +345,7 @@ export const cloudrun = defineModule(
       "CFS 访问密钥 ID，仅 Type=CFS 时可选填",
     "schema.manage.serverConfig.publicNetConf": "公网访问配置",
     "schema.manage.serverConfig.publicNetConf.publicNetStatus":
-      "公网访问状态，字符串。常见取值 open=开启、close=关闭（与 InternalAccess 取值风格一致）",
+      "公网访问开关，取值 ENABLE=开启公网访问、DISABLE=关闭公网访问",
     "schema.manage.template":
       "项目模板标识符，用于指定初始化项目时使用的模板。可通过queryCloudRun的templates操作获取可用模板列表。常用模板：helloworld=Hello World示例，nodejs=Node.js项目模板，python=Python项目模板等",
     "schema.manage.runOptions":
@@ -727,7 +727,7 @@ export const cloudrun = defineModule(
       "CFS access key ID, optional when Type=CFS",
     "schema.manage.serverConfig.publicNetConf": "Public access config",
     "schema.manage.serverConfig.publicNetConf.publicNetStatus":
-      "Public access status, a string. Common values: open=enable, close=disable (same style as InternalAccess)",
+      "Public access switch: ENABLE to turn public access on, DISABLE to turn it off",
     "schema.manage.template":
       "Project template identifier, specifying the template used when initializing a project. Use the templates action of queryCloudRun to list available templates. Common templates: helloworld=Hello World example, nodejs=Node.js project template, python=Python project template, and so on",
     "schema.manage.runOptions":
