@@ -11,6 +11,7 @@ import {
     DESTRUCTIVE_NAME_PATTERN,
     capiDestructiveKey,
     resolveDestructiveAction,
+    type DestructiveActionSpec,
 } from "./destructive-actions.js";
 
 /**
@@ -167,6 +168,39 @@ describe("破坏性动作名单与工具面保持同步", () => {
             .filter(([, spec]) => spec.alwaysConfirm !== undefined && spec.when !== undefined)
             .map(([key]) => key);
         expect(both, `这些条目同时声明了 when 与 alwaysConfirm，语义冲突：${both.join(", ")}`).toEqual([]);
+    });
+
+    it("判定链真的读 alwaysConfirm：恒弹由字段驱动，不是「没写 when」隐式生效", () => {
+        const list = DESTRUCTIVE_ACTIONS as Record<string, DestructiveActionSpec>;
+        const action = "__confirmProbe";
+        const key = `managePgDatabase.${action}`;
+        const probe: DestructiveActionSpec = {
+            messageKey: "confirmation.message.pgRealtimeEnable",
+            target: () => ({ resource: "probe" }),
+        };
+
+        list[key] = { ...probe };
+        try {
+            // 名字不像破坏性、又没写 when / alwaysConfirm：不命中
+            expect(resolveDestructiveAction("managePgDatabase", { action })).toBeUndefined();
+
+            // 写清理由后恒弹，且与传什么参数无关
+            list[key].alwaysConfirm = "副作用与参数无关，每次调用都需要执行前确认";
+            for (const args of [{ action }, { action, suspend: false }]) {
+                expect(resolveDestructiveAction("managePgDatabase", args)?.key).toBe(key);
+            }
+
+            // when 优先：谓词返回 false 时不命中，即使写了恒弹理由
+            list[key].when = () => false;
+            expect(resolveDestructiveAction("managePgDatabase", { action })).toBeUndefined();
+        } finally {
+            delete list[key];
+        }
+
+        // 真实条目：enableRealtime 恒弹，理由写在名单上
+        const realtime = resolveDestructiveAction("managePgDatabase", { action: "enableRealtime" });
+        expect(realtime?.key).toBe("managePgDatabase.enableRealtime");
+        expect(realtime?.spec.alwaysConfirm?.trim().length).toBeGreaterThan(8);
     });
 
     it("谓词型条目的 when 必须是纯判定：空参数返回 false，而不是命中", () => {

@@ -63,7 +63,7 @@ export const databasePG = defineModule(
     "schema.manageAllowDdlViaExecute":
       "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
     "schema.realtimeSuspend":
-      "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403 Realtime was disabled for this tenant）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。",
+      "action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。",
     "schema.realtimePrivateOnly":
       "action=modifyRealtime 时生效：true 时仅允许 private 频道，客户端无法 join 带 public: 前缀的频道。",
     "schema.realtimePresenceEnabled":
@@ -363,7 +363,7 @@ export const databasePG = defineModule(
     "schema.manageAllowDdlViaExecute":
       "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
     "schema.realtimeSuspend":
-      "Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false). Global, affects every node of the environment: true immediately drops all live WebSocket connections, rejects new ones (HTTP 403 Realtime was disabled for this tenant) and disables the server-side broadcast API; false restores the service. Any change of the suspend value triggers one disconnect, so clients must reconnect.",
+      "Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false). Global, affects every node of the environment: true immediately drops all live WebSocket connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores the service. Any change of the suspend value triggers one disconnect, so clients must reconnect.",
     "schema.realtimePrivateOnly":
       "Applies to action=modifyRealtime: when true only private channels are allowed; clients cannot join channels prefixed with public:.",
     "schema.realtimePresenceEnabled":

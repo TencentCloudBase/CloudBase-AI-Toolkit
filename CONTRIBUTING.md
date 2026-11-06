@@ -223,6 +223,35 @@ CloudBase AI ToolKit 的对外 Skill（例如对外发布的 Skill 仓库、IDE 
    - 是否没有直接修改 `config/.claude/skills/`、`.generated/compat-config/`、`.skills-repo-output/`
    - 是否在 PR 描述中清晰说明了对外 Skill 行为变化
 
+## MCP 工具：执行前确认
+
+**不用在工具里写确认代码。** 包装层（`mcp/src/utils/tool-wrapper.ts`）接管了所有 `registerTool`，会在业务代码执行前按名单判断要不要弹确认框。工具作者只需要登记触发面。
+
+1. 先判断这次调用属于哪一类：
+   - **按参数收窄**：一次调用让一整块数据消失、且平台没有回收站（实例 / 环境 / 集合 / 目录 / 整张表），或参数里带破坏性 SQL。写 `when`，只有谓词返回 true 时才弹。
+   - **与参数无关的恒弹**：无论传什么参数，后果都需要真人先看一眼。写 `alwaysConfirm` 并写清理由（守卫要求不短于 8 个字），不要写 `when: () => true`。现有例子是 `managePgDatabase.enableRealtime`，它固定下发 `Suspend=false`。
+   - **两者都没有**：名字像删除的 action 保持恒弹；名字不像删除的 action 不会命中。恒弹必须由 `alwaysConfirm` 显式声明。
+   - 名字像删除、但删了能重建（层版本、自定义域名等）→ 写进 `DESTRUCTIVE_EXEMPT_ACTIONS` 并给一句理由，不要登记。
+   - 恒弹会影响每一次调用，包括参数没带来任何变化的那次。登记前先确认这个代价能接受，并把后果写进理由。
+2. 在 `mcp/src/utils/destructive-actions.ts` 的 `DESTRUCTIVE_ACTIONS` 加一行，并在 `mcp/src/i18n/locales/modules/confirmation.ts` 补中英文文案（文案要带 `{resource}`）：
+
+   ```ts
+   "manageXxx.deleteYyy": {
+     messageKey: "confirmation.message.deleteYyy",
+     target: (args) => ({ resource: asText(args.yyyName) }),
+   },
+   ```
+3. 如果「问不了人也不能做」（客户端不支持表单确认时也不许执行），把同一个 key 加进 `FAIL_CLOSED_RULES`。不加的话，这类客户端会直接执行。
+4. 跑守卫，它会检查名单 key 是否真实存在、文案是否取得到、名字像删除的 action 有没有漏登记、`alwaysConfirm` 有没有写清理由：
+
+   ```bash
+   cd mcp && npx vitest run src/utils/destructive-actions.test.ts
+   ```
+5. 新增工具还要按 `AGENTS.md <ide_mcp_upgrade>` 重新生成 IDE 工具白名单，否则会被静默过滤。
+
+⚠️ 不要在工具入参里加 `confirm` 当确认：那个值由调用方自己填，起不到确认作用。
+⚠️ 确认框不是权限边界：客户端可以自动应答，也可以不声明表单能力。收窄能力请用只读凭证或 `enable_plugins`。
+
 ## 代码风格
 
 - 遵循项目的代码风格指南
