@@ -8,10 +8,12 @@ import { getSqlVerb, isDestructiveSql, splitSqlStatements, stripLeadingSqlCommen
  * `manageFunctions` 里 `queryFunctions`（读）与 `deleteFunction`（删）只能共用一个注解值，
  * 模型与客户端都看不出"这一次调用要删东西"。所以名单必须按 `工具名.action` 单独维护。
  *
- * 两条约束：
+ * 三条约束：
  *   1. **只放"执行前确认"的触发面**，不放"值得记一笔"的一切写操作 —— 名单越大，误伤越多；
  *   2. 名字像破坏性、但有意不确认的，必须写进 `DESTRUCTIVE_EXEMPT_ACTIONS` **并给理由**，
- *      由 `destructive-actions.test.ts` 保证"既不登记、也不豁免"的动作会让测试变红。
+ *      由 `destructive-actions.test.ts` 保证"既不登记、也不豁免"的动作会让测试变红；
+ *   3. **恒弹要显式声明**：副作用与参数无关的 action 写 `alwaysConfirm` 并写清理由，判定链会读
+ *      这个字段；名字不像破坏性、又没写 `when` / `alwaysConfirm` 的条目不会命中。
  */
 
 /**
@@ -52,6 +54,7 @@ export type DestructiveActionSpec = {
      * 正常条目靠 `when` 按参数收窄范围；但有些 action 固定下发某个值（例如 enableRealtime 恒发
      * `Suspend=false`，在已挂起环境上必然断连），命中与参数无关，写 `when: () => true` 又违反
      * "when 必须是纯判定、空参返回 false"的约束，所以用它显式声明，而不是放宽整条规则。
+     * `resolveDestructiveAction` 会读取它作为恒命中的依据，不是只给守卫测试看的注释。
      */
     alwaysConfirm?: string;
 };
@@ -486,6 +489,10 @@ function resolveCapiDestructive(args: Record<string, unknown>): ResolvedDestruct
  *   2. Dedicated tools match `tool.action` exactly.
  *   3. An entry with `when` matches only when that predicate returns true, so one action
  *      can cover both a read and a delete (SQL).
+ *   4. An entry with `alwaysConfirm` matches on every call; the field is the reason and is
+ *      read here at runtime. Without either `when` or `alwaysConfirm`, only delete-named
+ *      actions keep the legacy always-match behaviour — a non-destructive-looking action
+ *      never becomes a silent always-confirm just because `when` is missing.
  */
 export function resolveDestructiveAction(
     toolName: string,
@@ -504,7 +511,12 @@ export function resolveDestructiveAction(
     if (!spec) {
         return undefined;
     }
-    if (spec.when && spec.when((args ?? {}) as Record<string, unknown>) !== true) {
+    if (spec.when) {
+        if (spec.when(record) !== true) {
+            return undefined;
+        }
+    } else if (!spec.alwaysConfirm?.trim() && !DESTRUCTIVE_NAME_PATTERN.test(action)) {
+        // 恒弹必须由 alwaysConfirm 显式声明；「没写 when」不算声明。
         return undefined;
     }
     return { key, action, spec };

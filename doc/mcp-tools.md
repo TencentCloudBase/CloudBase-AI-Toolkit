@@ -918,7 +918,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "suspend",
       type: "boolean",
-      description: `action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403 Realtime was disabled for this tenant）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。`,
+      description: `action=modifyRealtime 时生效（enableRealtime 等价于传 Suspend=false）。全局生效，作用于该环境所有节点：true 立即断开全部在线 WebSocket 连接、拒绝新连接（HTTP 403）并禁用服务端广播 API；false 恢复服务。任何 suspend 值的变化都会触发一次断连，客户端需重连。`,
     },
     {
       name: "privateOnly",

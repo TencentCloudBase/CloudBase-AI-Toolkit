@@ -15,7 +15,7 @@ It is **not** the document-database `collection.watch()` path. See "Not the same
 Realtime is provisioned per environment, and provisioning is a **write** call. Do not run it as a fixed step before writing realtime code.
 
 - `managePgDatabase({ action: "describeRealtime" })` reads the current configuration (suspend state, channel policy, rate limits, pool sizes, timestamps). It is a read, and **a successful call does not prove the environment is provisioned** — the response has no provisioning flag, so never use it as a provisioning check.
-- `managePgDatabase({ action: "enableRealtime" })` is the provisioning call. It sends `Modify(Suspend: false)`: the first call on an unprovisioned environment provisions Realtime automatically, a call on an already provisioned, non-suspended environment is a no-op (no reconnect), and on a suspended environment it resumes the service and drops every live connection. (Provisioning-on-first-call is confirmed by the backend; it is not yet spelled out in the public API docs.)
+- `managePgDatabase({ action: "enableRealtime" })` is the provisioning call. It sends `Modify(Suspend: false)`.
 
 Call `enableRealtime` only when the user asks you to provision, or when a realtime call fails in a way that clearly indicates the capability is not available — and confirm with the user first (it triggers a confirmation gate). Never substitute a hand-rolled polling loop.
 
@@ -25,7 +25,7 @@ There is no documented way to query the provisioning state yet. Do not infer it 
 
 Suspend state, channel policy and rate limits are changed through `managePgDatabase({ action: "modifyRealtime", confirm: true, ... })`.
 
-`suspend` is **global (all nodes)**: `true` immediately drops every live WebSocket connection of the environment, rejects new connections with HTTP 403 (`Realtime was disabled for this tenant`) and disables the server-side broadcast API; `false` restores the service. Any change of the value disconnects clients once, so state the current → target change to the user before sending it.
+`suspend` is **global (all nodes)**: `true` immediately drops every live WebSocket connection of the environment, rejects new connections with HTTP 403 and disables the server-side broadcast API; `false` restores the service. Any change of the value disconnects clients once, so state the current → target change to the user before sending it.
 
 Do **not** gate on `pg_publication LIKE 'cloudbase_realtime%'`. A publication count of `0` is normal — it only means no table has CDC enabled yet.
 

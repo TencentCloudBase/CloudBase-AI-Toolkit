@@ -1868,8 +1868,7 @@ async function callPgMigrationApi(
 /**
  * PG Realtime 三个管理 Action 对应的 manager-node 方法名与云 API Action 名。
  * enable 没有独立公开 Action，等价于 Modify(Suspend=false)：未开通环境首次调用即完成开通，
- * 已开通且未挂起时无副作用。因此直接复用 modify 的方法，不依赖 enablePGRealtime 包装
- * （其 Enabled 字段恒为 true，只是 SDK 常量，不代表服务端状态）。
+ * 已开通且未挂起时无副作用。因此直接复用 modify 的方法，不依赖 enablePGRealtime 包装。
  */
 const PG_REALTIME_API: Record<
   PgRealtimeAction,
