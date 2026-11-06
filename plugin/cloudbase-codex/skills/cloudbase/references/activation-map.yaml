@@ -24,6 +24,32 @@ scenarios:
   commonMistakes:
   - 把 Web 登录实现成云函数认证逻辑。
   - 未开启 provider 就直接生成登录 UI。
+- id: miniprogram-onboarding
+  label: First-time mini program CloudBase onboarding
+  priority: 96
+  signals:
+  - 我主要做微信小程序开发
+  - 小程序接入云开发
+  - 小程序首次接入
+  - 帮我接入云开发，我主要做微信小程序开发
+  - 配置微信开发者工具 Skill
+  - 配置开发者工具 Skill
+  - connect this mini program project to CloudBase
+  - first-time mini program CloudBase onboarding
+  firstRead: miniprogram-development
+  thenRead:
+  - cloudbase-platform
+  beforeAction:
+  - 先看项目根目录是否有 `project.config.json` + `app.json`，或用户是否自述「我主要做微信小程序开发」；命中才走小程序接入分支，不要只做通用后端接入。
+  - 通用接入只接好后端，Agent 仍打不开模拟器；把「配置微信开发者工具 Skill」作为下一步，并按教程验收预览后再接业务需求。
+  doNotUse:
+  - auth-web-cloudbase
+  - web-development
+  commonMistakes:
+  - 把小程序首次接入当成通用后端接入，装完插件只建议建表 / 部署 hello API。
+  - 把小程序教程当成只在插件装不上时才用的 fallback。
+  mustCheckBeforeAction:
+  - Project type, DevTools Skill configured, simulator preview works
 - id: miniapp-cloudbase
   priority: 95
   signals:

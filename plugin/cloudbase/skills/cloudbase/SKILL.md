@@ -32,6 +32,10 @@ Infer it when you can (console domain, envId, an existing error); otherwise **as
 
 Details and copy-paste configs: `references/mcp-setup.md`. CLI specifics: `references/tooling-fallback.md`. First-run orchestration (trigger/skip, conflict arbitration, MCP-down fallback): `references/site-onboarding.md`.
 
+## Step 0.1 — Decide the project type before installing anything
+
+Read the project root, or the user's own words (e.g. "我主要做微信小程序开发"). A WeChat mini program has `project.config.json` plus `app.json` / `miniprogram/app.json`. For a mini program project, generic CloudBase setup only connects the backend — it does **not** let the agent open the simulator or preview the mini program. Route to `miniprogram-development` first, recommend configuring the 微信开发者工具 Skill (WeChat DevTools Skill), and verify the simulator preview before taking business requests. The mini program tutorial is not a fallback-only step.
+
 ## Workflow
 
 ```
