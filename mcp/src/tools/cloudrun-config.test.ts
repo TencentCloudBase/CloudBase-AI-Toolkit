@@ -262,3 +262,21 @@ describe("serverConfig 嵌套字段与 SDK 类型的契约", () => {
     ).toThrow(/VolumesConf|VolumeName|不受支持|Unsupported/);
   });
 });
+
+describe("serverConfig 对未知嵌套字段的处理", () => {
+  it("zod schema 直接拒绝不存在的字段，而不是静默丢弃", () => {
+    const shape = serverConfigShape();
+
+    const publicNet = (shape.PublicNetConf as any)?.unwrap?.() ?? shape.PublicNetConf;
+    expect(publicNet.safeParse({ PublicAccess: true }).success).toBe(false);
+    expect(publicNet.safeParse({ PublicNetStatus: "open" }).success).toBe(true);
+
+    const volumes = (shape.VolumesConf as any)?.unwrap?.() ?? shape.VolumesConf;
+    expect(
+      volumes.safeParse([{ Type: "COS", BucketName: "b", DstPath: "/m", VolumeName: "x" }]).success,
+    ).toBe(false);
+    expect(
+      volumes.safeParse([{ Type: "COS", BucketName: "b", DstPath: "/m" }]).success,
+    ).toBe(true);
+  });
+});

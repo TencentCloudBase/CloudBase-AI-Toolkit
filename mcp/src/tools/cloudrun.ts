@@ -192,7 +192,7 @@ export const ManageCloudRunInputSchema = {
         Endpoint: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.endpoint'),
         SrcPath: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.srcPath'),
         ReadOnly: z.boolean().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.readOnly'),
-      }),
+      }).strict(),
       z.object({
         Type: z.literal('CFS').describe('cloudrun.schema.manage.serverConfig.volumesConf.type'),
         InstanceId: z.string().describe('cloudrun.schema.manage.serverConfig.volumesConf.instanceId'),
@@ -201,11 +201,11 @@ export const ManageCloudRunInputSchema = {
         KeyID: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.keyID'),
         SrcPath: z.string().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.srcPath'),
         ReadOnly: z.boolean().optional().describe('cloudrun.schema.manage.serverConfig.volumesConf.readOnly'),
-      }),
+      }).strict(),
     ])).max(10).optional().describe('cloudrun.schema.manage.serverConfig.volumesConf'),
     PublicNetConf: z.object({
       PublicNetStatus: z.string().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf.publicNetStatus'),
-    }).optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf'),
+    }).strict().optional().describe('cloudrun.schema.manage.serverConfig.publicNetConf'),
   }).optional().describe('cloudrun.schema.manage.serverConfig'),
 
   // Init operation parameters
