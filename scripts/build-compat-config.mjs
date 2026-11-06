@@ -23,22 +23,17 @@ const DEFAULT_OUTPUT_DIR = path.join(ROOT_DIR, ".generated", "compat-config");
 const GUIDELINE_TARGETS = [
   ".cursor/rules/cloudbase-rules.mdc",
   ".trae/rules/cloudbase-rules.md",
-  ".windsurf/rules/cloudbase-rules.md",
-  ".roo/rules/cloudbase-rules.md",
   ".lingma/rules/cloudbase-rules.md",
   ".qoder/rules/cloudbase-rules.md",
   ".rules/cloudbase-rules.md",
   ".rules/cloudbase-rules.mdc",
-  ".clinerules/cloudbase-rules.mdc",
   ".github/copilot-instructions.md",
   ".comate/rules/cloudbase-rules.mdr",
-  ".augment-guidelines",
   "CLAUDE.md",
   ".gemini/GEMINI.md",
   "AGENTS.md",
   ".qwen/QWEN.md",
   "CODEBUDDY.md",
-  "IFLOW.md",
 ];
 
 const IDE_RULE_TARGETS = [
@@ -46,9 +41,6 @@ const IDE_RULE_TARGETS = [
   { dir: ".cursor/rules", convertMdToMdc: true },
   { dir: ".agent/rules", convertMdToMdc: false },
   { dir: ".trae/rules", convertMdToMdc: false },
-  { dir: ".windsurf/rules", convertMdToMdc: false },
-  { dir: ".clinerules", convertMdToMdc: false },
-  { dir: ".kiro/steering", convertMdToMdc: false },
 ];
 
 const MACHINE_TARGETS = [
@@ -192,6 +184,15 @@ function buildAgentsSkills(outputDir, skillNames) {
   }
 }
 
+function buildTraeSkills(outputDir, skillNames) {
+  const targetRoot = path.join(outputDir, ".trae", "skills");
+  ensureDir(targetRoot);
+
+  for (const skillName of skillNames) {
+    copyDir(path.join(SKILLS_DIR, skillName), path.join(targetRoot, skillName));
+  }
+}
+
 function buildGuidelineTargets(outputDir, guidelineContent) {
   for (const relativeTarget of GUIDELINE_TARGETS) {
     const targetPath = path.join(outputDir, relativeTarget);
@@ -309,6 +310,7 @@ export function buildCompatConfig(options = {}) {
   buildCodeBuddySkills(outputDir, skillNames);
   buildClaudeSkills(outputDir, skillNames);
   buildAgentsSkills(outputDir, skillNames);
+  buildTraeSkills(outputDir, skillNames);
   buildGuidelineTargets(outputDir, guidelineContent);
   buildIdeRuleTargets(outputDir);
   buildMachineTargets(outputDir);
