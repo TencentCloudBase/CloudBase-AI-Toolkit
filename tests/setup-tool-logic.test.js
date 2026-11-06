@@ -42,7 +42,6 @@ afterEach(() => {
 test('downloadTemplate exposes the supported IDE enum surface', () => {
   expect(IDE_TYPES).toContain('all');
   expect(IDE_TYPES).toContain('cursor');
-  expect(IDE_TYPES).toContain('windsurf');
   expect(IDE_TYPES).toContain('codebuddy');
   expect(IDE_TYPES).toContain('claude-code');
   expect(IDE_TYPES).toContain('kiro');
@@ -106,6 +105,38 @@ test('downloadTemplate filtering keeps all generated files when ide=all', () => 
 
   expect(filtered).toEqual(files);
   expect(filtered).toContain('.cursor/rules/cloudbase-rules.mdc');
-  expect(filtered).toContain('.kiro/steering/auth-web-cloudbase/rule.md');
+  expect(filtered).toContain('.trae/rules/cloudbase-rules.md');
   expect(filtered).toContain('CODEBUDDY.md');
+});
+
+/**
+ * 工具描述里手写了一份 IDE 清单，之前和 IDE_TYPES 各自为政：
+ * #1317 从生成器删掉 windsurf / cline / augment 后，描述里还在列它们，
+ * 用户按描述传 ide 会被 validateIDE 拒掉。清单要么别手写，要么就有东西盯着。
+ */
+test('downloadTemplate 描述里的 IDE 清单与 IDE_TYPES 一致', async () => {
+  const { t } = await import('../mcp/src/i18n/index.ts');
+
+  for (const lang of ['zh', 'en']) {
+    const header = lang === 'zh' ? '支持的IDE类型:' : 'Supported IDE types:';
+    const description = t('setup.downloadTemplate.description', undefined, lang);
+    const start = description.indexOf(header);
+    expect(start, `${lang} 描述里找不到「${header}」`).toBeGreaterThan(-1);
+
+    const listed = [];
+    const lines = description.slice(start + header.length).split('\n');
+    let cursor = 0;
+    while (cursor < lines.length && lines[cursor].trim() === '') cursor += 1;
+    for (; cursor < lines.length; cursor += 1) {
+      const matched = lines[cursor].match(/^- ([a-z][a-z0-9-]*):/);
+      if (!matched) break; // 清单到空行结束
+      listed.push(matched[1]);
+    }
+
+    expect(listed.length, `${lang} 描述里一条 IDE 都没解析出来`).toBeGreaterThan(0);
+    expect(new Set(listed).size, `${lang} 描述里有重复 IDE`).toBe(listed.length);
+    expect([...listed].sort(), `${lang} 描述的 IDE 清单与 IDE_TYPES 不一致`).toEqual(
+      [...IDE_TYPES].sort(),
+    );
+  }
 });

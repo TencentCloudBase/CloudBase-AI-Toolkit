@@ -203,7 +203,7 @@ test('downloadTemplate tool IDE parameter validation', async () => {
     expect(ideParam.enum).toBeDefined();
     
     // Check that our supported IDE types are in the enum
-    const supportedIDEs = ['all', 'cursor', 'windsurf', 'codebuddy', 'claude-code'];
+    const supportedIDEs = ['all', 'cursor', 'codebuddy', 'claude-code'];
     for (const ideType of supportedIDEs) {
       expect(ideParam.enum).toContain(ideType);
     }

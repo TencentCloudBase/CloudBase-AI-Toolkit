@@ -2243,33 +2243,30 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 - vue: Vue + CloudBase 全栈应用模板
 - miniprogram: 微信小程序 + 云开发模板
 - uniapp: UniApp + CloudBase 跨端应用模板
-- rules: 只包含AI编辑器配置文件（包含Cursor、WindSurf、CodeBuddy等所有主流编辑器配置），适合在已有项目中补充AI编辑器配置
+- rules: 只包含AI编辑器配置文件（Cursor、CodeBuddy、Claude Code 等主流编辑器），适合在已有项目中补充AI编辑器配置
 
 支持的IDE类型:
 - all: 下载所有IDE配置
 - cursor: Cursor AI编辑器
-- 其他IDE类型见下方列表
-
-注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数
-- windsurf: WindSurf AI编辑器
 - codebuddy: CodeBuddy AI编辑器
 - claude-code: Claude Code AI编辑器
-- cline: Cline AI编辑器
 - gemini-cli: Gemini CLI
 - opencode: OpenCode AI编辑器
 - qwen-code: 通义灵码
 - baidu-comate: 百度Comate
 - openai-codex-cli: OpenAI Codex CLI
-- augment-code: Augment Code
 - github-copilot: GitHub Copilot
-- roocode: RooCode AI编辑器
+- roocode: RooCode AI编辑器（仅 MCP 配置，不含规则文件）
 - tongyi-lingma: 通义灵码
 - trae: Trae AI编辑器
 - qoder: Qoder AI编辑器
 - antigravity: Google Antigravity AI编辑器
 - vscode: Visual Studio Code
-- kiro: Kiro AI编辑器
+- kiro: Kiro AI编辑器（仅 MCP 配置，不含规则文件）
 - aider: Aider AI编辑器
+- iflow-cli: iFlow CLI（仅 MCP 配置，不含规则文件）
+
+注意：如果未传入 ide 参数且无法从环境变量检测到 IDE，将提示错误并要求传入 ide 参数
 
 特别说明：
 - rules 模板会自动包含当前 MCP 版本号信息，便于后续维护和版本追踪
@@ -2289,7 +2286,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       name: "ide",
       type: "string",
       required: true,
-      description: `指定要下载的IDE类型。 可填写的值: "all", "cursor", "windsurf", "codebuddy", "claude-code", "cline", "gemini-cli", "opencode", "qwen-code", "baidu-comate", "openai-codex-cli", "augment-code", "github-copilot", "roocode", "tongyi-lingma", "trae", "qoder", "antigravity", "vscode", "kiro", "aider", "iflow-cli"`,
+      description: `指定要下载的IDE类型。 可填写的值: "all", "cursor", "codebuddy", "claude-code", "gemini-cli", "opencode", "qwen-code", "baidu-comate", "openai-codex-cli", "github-copilot", "roocode", "tongyi-lingma", "trae", "qoder", "antigravity", "vscode", "kiro", "aider", "iflow-cli"`,
     },
     {
       name: "overwrite",
