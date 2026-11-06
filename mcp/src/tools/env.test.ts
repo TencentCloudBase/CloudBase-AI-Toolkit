@@ -570,11 +570,33 @@ describe("env tools - auth", () => {
     const result = await tools.auth.handler({ action: "status", site: "intl" });
     const payload = JSON.parse(result.content[0].text);
 
-    // 国际站不能给 buy.cloud.tencent.com 的链接，地域也要用 ap-singapore
+    // 国际站不能给 buy.cloud.tencent.com 的链接；region / sqlType 未验证，不带
     expect(payload.env_setup_help_url).toBe(
-      "https://buy.tencentcloud.com/CloudBase?buyType=tcb&region=ap-singapore&sqlType=pg",
+      "https://buy.tencentcloud.com/CloudBase?buyType=tcb",
     );
     expect(payload.message).toContain("https://buy.tencentcloud.com/CloudBase");
+  });
+
+  it("auth(action=status) should ignore a serialized undefined envId from the credential", async () => {
+    // 无环境账号的 web 授权回调会带回 envId="undefined" 字符串，不能当成真实环境
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      envId: "undefined",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
+
+    const result = await tools.auth.handler({ action: "status" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      auth_status: "READY",
+      env_status: "NONE",
+      current_env_id: null,
+      env_setup_status: "ACTION_REQUIRED",
+      env_setup_reason: "no_env",
+    });
   });
 
   it("auth(action=start_auth, authMode=device) should return AUTH_PENDING immediately", async () => {

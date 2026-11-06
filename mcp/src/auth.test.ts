@@ -435,6 +435,21 @@ describe("CloudBase API Key env resolution", () => {
     });
   });
 
+  it("peekLoginState should drop a serialized undefined envId", async () => {
+    // 无环境账号的 web 授权回调写进 auth.json 的是 envId="undefined" 字符串
+    authStoreData.credential = {
+      secretId: "flat-sid",
+      secretKey: "flat-skey",
+      envId: "undefined",
+    };
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.secretId).toBe("flat-sid");
+    expect(loginState?.envId).toBeUndefined();
+  });
+
   it("peekLoginState should prefer CLOUDBASE_API_KEY when both are set", async () => {
     process.env.CLOUDBASE_API_KEY = "primary-key";
     process.env.CLOUDBASE_APIKEY = "fallback-key";

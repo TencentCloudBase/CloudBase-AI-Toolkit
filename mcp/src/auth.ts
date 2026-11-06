@@ -10,6 +10,7 @@ import {
   resolveCredential,
 } from "@cloudbase/toolbox";
 import { debug } from "./utils/logger.js";
+import { sanitizeCredentialEnvId } from "./utils/env-id.js";
 import { requireProjectRoot } from "./utils/project-config.js";
 import {
   resolveApiKeyExchangeRegion,
@@ -700,9 +701,11 @@ async function resolveProjectLoginState(): Promise<LoginState | null> {
   if (!readProjectCredentialFile(projectRoot)) {
     return null;
   }
-  const credential = (await checkAndGetCredential({ cwd: projectRoot })) as
-    | (LoginState & { apiKey?: string; authSource?: string })
-    | null;
+  const credential = sanitizeCredentialEnvId(
+    (await checkAndGetCredential({ cwd: projectRoot })) as
+      | (LoginState & { apiKey?: string; authSource?: string })
+      | null,
+  );
   if (!credential?.secretId) {
     debug("peekLoginState: project credential unusable, falling back to global", {
       projectRoot,
@@ -837,7 +840,7 @@ export async function peekLoginState(options?: {
         )
           ? "project"
           : "env";
-        return credential;
+        return sanitizeCredentialEnvId(credential);
       } catch (e) {
         debug("peekLoginState: API Key login failed", { error: e instanceof Error ? e.message : String(e) });
         // 我们回填的那份失效（密钥被撤、环境被删）：先清掉残留，别让它一直占着 env
@@ -857,7 +860,7 @@ export async function peekLoginState(options?: {
       // 腾讯云密钥模式：直接返回
       debug("loginByApiSecret");
       credentialSource = "env";
-      return envVarLoginState as LoginState;
+      return sanitizeCredentialEnvId(envVarLoginState as LoginState);
     }
   }
 
@@ -865,14 +868,14 @@ export async function peekLoginState(options?: {
   const projectLoginState = projectCredentialSkipped ? null : await resolveProjectLoginState();
   if (projectLoginState) {
     credentialSource = "project";
-    return projectLoginState;
+    return sanitizeCredentialEnvId(projectLoginState);
   }
 
   // Site selects endpoints, not which credential is stored. One flat record is shared.
   await migrateSlottedCredentialToFlat();
   const flatLoginState = await resolveFlatLoginState();
   credentialSource = flatLoginState ? "global" : null;
-  return flatLoginState;
+  return sanitizeCredentialEnvId(flatLoginState);
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {

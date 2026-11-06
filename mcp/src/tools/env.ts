@@ -53,6 +53,7 @@ import {
   isDomainPathReachableViaGateway,
 } from "../utils/gateway-access-urls.js";
 import { resolveEnvConsoleUrl, resolveEnvPurchaseUrl } from "../utils/console-links.js";
+import { normalizeEnvIdValue } from "../utils/env-id.js";
 import {
   buildEnvCreditsPayload,
   buildEnvMetricsPayload,
@@ -1011,15 +1012,16 @@ async function prepareAuthEnvironment(params: {
   loginState: any;
 }): Promise<AuthEnvPreparationResult> {
   const { server, cloudBaseOptions, loginState } = params;
+  // 每个来源都过一遍清洗：授权页可能把 undefined 序列化成字符串写进凭证，
+  // 项目配置 / 环境变量也可能带进同名字符串。非空即有效会让后续请求带 EnvId="undefined"。
   const currentEnvId =
-    getCachedEnvId() ||
-    process.env.CLOUDBASE_ENV_ID ||
+    normalizeEnvIdValue(getCachedEnvId()) ||
+    normalizeEnvIdValue(process.env.CLOUDBASE_ENV_ID) ||
     // 项目级绑定（.cloudbase/project.json 的 envId，回退 cloudbaserc.json）优先于账号级登录态：
     // 登录态是全局的，可能指向别的仓库绑定的环境。
-    readProjectEnvId() ||
-    (typeof loginState?.envId === "string" && loginState.envId.length > 0
-      ? loginState.envId
-      : null);
+    normalizeEnvIdValue(readProjectEnvId()) ||
+    normalizeEnvIdValue(loginState?.envId) ||
+    null;
 
   if (currentEnvId) {
     return {

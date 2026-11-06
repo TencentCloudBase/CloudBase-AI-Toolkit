@@ -23,10 +23,13 @@ const CONSOLE_HOST: Record<SiteId, string> = {
   intl: "console.tencentcloud.com",
 };
 
-/** 开通/购买环境。region 取站点默认地域：国内 ap-shanghai、国际 ap-singapore。 */
+/** 开通/购买环境。国内站带默认地域与 PG 版；国际站让购买页自己选，只带 buyType。 */
 export function resolveEnvPurchaseUrl(site: SiteId): string {
-  const region = SITE_REGION_MAP[site].defaultRegion;
-  return `https://${BUY_HOST[site]}/CloudBase?buyType=tcb&region=${region}&sqlType=pg`;
+  if (site === "intl") {
+    // 国际站购买页认不认 region / sqlType 没验证过，不往外发未验证的参数。
+    return `https://${BUY_HOST.intl}/CloudBase?buyType=tcb`;
+  }
+  return `https://${BUY_HOST.domestic}/CloudBase?buyType=tcb&region=${SITE_REGION_MAP.domestic.defaultRegion}&sqlType=pg`;
 }
 
 /** 控制台页面（环境列表 / 销毁入口）。`path` 默认是 CloudBase 环境页。 */
