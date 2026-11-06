@@ -49,7 +49,8 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 
 ### Use this first when
 
-- The task is a CloudBase app build, integration, or repair and the workspace already contains an application implementation.
+- The task is a CloudBase app build, integration, or repair — including a first-time onboarding request on a workspace that has no application implementation yet.
+- The request is to connect a mini program project to CloudBase for the first time (帮我接入云开发，我主要做微信小程序开发), before any application code exists.
 - The request mixes auth, database, storage, and frontend work in one CloudBase application task.
 
 ### Do this before broad exploration
@@ -68,6 +69,7 @@ Only handle tasks that are part of building, integrating, or maintaining a Cloud
 ### Route quickly to the minimum needed skills
 
 - Minimal Web + database demo / Lovable-like BaaS fast path -> `./minimal-web-baas-demo/SKILL.md` (default for 最小前后端 demo; BaaS-first, no cloud functions)
+- First-time mini program onboarding / WeChat DevTools Skill setup -> `./miniprogram-development/SKILL.md` (configure the DevTools Skill, then verify the simulator preview before taking business requests)
 - Web app execution -> `./web-development/SKILL.md`
 - Declarative whole-project deploy from cloudbaserc (deployApply/deployPlan) -> `./cloudbase-declarative-deploy/SKILL.md`
 - Web auth provider readiness -> `./auth-tool-cloudbase/SKILL.md`
