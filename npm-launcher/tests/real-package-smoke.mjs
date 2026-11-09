@@ -9,6 +9,8 @@
 // NGE_SMOKE_LAUNCHER_SPEC="@cloudbase/npm-launcher@1.0.0": install the just
 // published launcher through npx and run that instead. This is the only mode
 // that also covers the launcher's own npx cold start.
+import { removeTempRoot } from "./cleanup.mjs";
+
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -25,8 +27,8 @@ const LAUNCHER_SPEC = process.env.NGE_SMOKE_LAUNCHER_SPEC || "";
 const isWin = process.platform === "win32";
 
 function cleanup() {
-  fs.rmSync(ROOT, { recursive: true, force: true });
-  fs.rmSync(NPM_CACHE, { recursive: true, force: true });
+  removeTempRoot(ROOT);
+  removeTempRoot(NPM_CACHE);
 }
 function fail(msg) {
   console.error(`FAIL ${msg}`);

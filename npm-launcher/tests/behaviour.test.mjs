@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 
+import { removeTempRoot } from "./cleanup.mjs";
+
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -168,13 +170,13 @@ async function main() {
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
   registry.close();
-  fs.rmSync(ROOT, { recursive: true, force: true });
+  removeTempRoot(ROOT);
   if (failed.length) process.exit(1);
 }
 
 main().catch((e) => {
   console.error(e);
   if (registry) registry.close();
-  fs.rmSync(ROOT, { recursive: true, force: true });
+  removeTempRoot(ROOT);
   process.exit(1);
 });

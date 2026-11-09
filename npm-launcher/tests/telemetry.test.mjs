@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 "use strict";
 
+import { removeTempRoot } from "./cleanup.mjs";
+
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -245,7 +247,7 @@ async function main() {
   if (blackhole) blackhole.close();
   sink.close();
   registry.close();
-  fs.rmSync(ROOT, { recursive: true, force: true });
+  removeTempRoot(ROOT);
   if (failed.length) process.exit(1);
 }
 
@@ -254,6 +256,6 @@ main().catch((e) => {
   if (blackhole) blackhole.close();
   if (sink) sink.close();
   if (registry) registry.close();
-  fs.rmSync(ROOT, { recursive: true, force: true });
+  removeTempRoot(ROOT);
   process.exit(1);
 });
