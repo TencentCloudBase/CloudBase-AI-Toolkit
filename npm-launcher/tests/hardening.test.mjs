@@ -92,7 +92,8 @@ function spawnHeld(root, extra = {}) {
 }
 // Reproduces how Electron-style clients supervise MCP servers on Windows: the
 // launcher runs inside a Job object with KILL_ON_JOB_CLOSE, and closing the
-// job kills every process in it. PowerShell puts itself in the job first so
+// job kills every process in it. TerminateJobObject is used instead of relying
+// on the last handle closing, which other handle holders can delay. PowerShell puts itself in the job first so
 // the launcher and everything it spawns inherit the job with no race.
 const JOB_PS1 = String.raw`
 param($Node, $Index, $Spec, $Base)
@@ -113,7 +114,7 @@ public static class NgeJob {
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr CreateJobObject(IntPtr a, string n);
   [DllImport("kernel32.dll")] public static extern bool SetInformationJobObject(IntPtr j, int c, ref EXT i, uint l);
   [DllImport("kernel32.dll")] public static extern bool AssignProcessToJobObject(IntPtr j, IntPtr p);
-  [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr h);
+  [DllImport("kernel32.dll")] public static extern bool TerminateJobObject(IntPtr j, uint code);
 }
 '@
 $job = [NgeJob]::CreateJobObject([IntPtr]::Zero, $null)
@@ -126,7 +127,8 @@ $lock = Join-Path $Base 'lock'
 for ($i = 0; $i -lt 300 -and -not (Test-Path $lock); $i++) { Start-Sleep -Milliseconds 100 }
 [Console]::Out.WriteLine('LOCK_SEEN=' + (Test-Path $lock))
 [Console]::Out.Flush()
-$null = [NgeJob]::CloseHandle($job)
+# What a client does on close: every process in the job dies, this one included.
+$null = [NgeJob]::TerminateJobObject($job, 1)
 Start-Sleep -Seconds 5
 [Console]::Out.WriteLine('STILL_ALIVE')
 `;
@@ -345,6 +347,8 @@ async function main() {
   removeTempRoot(r9);
 
   console.log("\n[10] 磁盘文件只读第一行，追加行不破坏识别");
+  // [7] resets latest on POSIX only; never depend on an earlier case's state.
+  registry.setLatest("1.0.0");
   const r10 = mkRoot();
   const cold10 = await run(["--sleep", "50"], r10);
   check(cold10.code === 0, "install once");
@@ -357,6 +361,7 @@ async function main() {
   removeTempRoot(r10);
 
   console.log("\n[11] prune 只删版本目录，残留的 .current.* 会被回收");
+  registry.setLatest("1.0.0");
   const r11 = mkRoot();
   await run(["--sleep", "50"], r11);
   const base11 = path.join(r11, SLUG);
