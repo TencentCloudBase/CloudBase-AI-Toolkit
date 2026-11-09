@@ -39,6 +39,7 @@
     "test": "node scripts/generate-skills.mjs && vitest run",
     "typecheck": "tsc --noEmit",
     "e2e:live": "node scripts/e2e-live.mjs",
+    "verify:host": "node scripts/verify-host.mjs",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
   },
   "keywords": [

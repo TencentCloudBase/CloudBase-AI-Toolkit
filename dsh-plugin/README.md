@@ -84,9 +84,11 @@ cd dsh-plugin
 npm install
 npm test          # vitest 单测
 npm run build     # dist/index.js（Host）+ dist/client.js（Web ModuleLoader factory）
-npm run e2e:live  # 需要网络 + 本机 tcb 登录态
-node scripts/verify-host.mjs  # 需要 DSH_BIN（可选 MCP_CLI），在隔离环境里验装、配置、工具表、卸载与升级
+npm run e2e:live     # 需要网络 + 本机 tcb 登录态
+npm run verify:host  # 需要 DSH_BIN；在临时环境里装一次、看配置与工具、卸载，再试升级后用户配置还在
 ```
+
+CI 每天会拿 DSH 的最新版再跑一遍 `verify:host`，结果记在 workflow 运行记录里。新版本超出声明范围时会直接报失败，提醒重新验一遍再决定要不要放宽范围。
 
 除 peer（cordis / react）外运行时 0 依赖。
 

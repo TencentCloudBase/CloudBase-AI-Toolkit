@@ -6,6 +6,7 @@ on:
       - "dsh-plugin/**"
       - "scripts/e2e/verify-dsh-plugin.mjs"
       - ".github/workflows/dsh-plugin-ci.yml"
+      - ".github/workflows/dsh-host-followup.yml"
       - ".github/workflows/npm-publish-dsh-plugin.yaml"
       - "pnpm-workspace.yaml"
   push:
