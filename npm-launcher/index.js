@@ -13,13 +13,14 @@ const ROOT = process.env.NGE_ROOT || path.join(os.homedir(), "cloudbase-mcp", ".
 const isWin = process.platform === "win32";
 
 // Numeric env vars: NaN (or a negative value) must never silently disable a
-// behaviour. Zero is valid: tests use NGE_CHECK_INTERVAL=0 to force a check.
-const num = (v, d) => {
+// behaviour. Only CHECK_INTERVAL accepts 0 (tests use it to force a check);
+// 0 elsewhere would skip the first-run loop entirely or disable the lock.
+const num = (v, d, allowZero = false) => {
   if (v === undefined || v === null || String(v).trim() === "") return d;
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : d;
+  return Number.isFinite(n) && n >= (allowZero ? 0 : 1) ? n : d;
 };
-const CHECK_INTERVAL = num(process.env.NGE_CHECK_INTERVAL, 5 * 60 * 1000);
+const CHECK_INTERVAL = num(process.env.NGE_CHECK_INTERVAL, 5 * 60 * 1000, true);
 const LOCK_STALE = num(process.env.NGE_LOCK_STALE, 10 * 60 * 1000);
 const KEEP = Math.max(1, num(process.env.NGE_KEEP, 5));
 const FIRST_RUN_TIMEOUT = num(process.env.NGE_FIRST_RUN_TIMEOUT, 120e3);
@@ -33,6 +34,9 @@ const TELEMETRY_TIMEOUT = num(process.env.NGE_TELEMETRY_TIMEOUT, 1000);
 const IS_BACKGROUND = process.argv[2] === "--nge-update";
 // Foreground first install gets one overall deadline; background updaters do not.
 let DEADLINE = 0;
+// On the failure exit path keep sockets referenced and leave the loop alive
+// briefly, otherwise the failure event is lost when process.exit() fires.
+let FLUSH_ON_EXIT = false;
 const LAUNCHER_VERSION = (() => {
   try { return JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version; }
   catch { return "1.0.0"; }
@@ -55,6 +59,13 @@ function context(spec) {
   const at = spec.lastIndexOf("@");
   const name = at > 0 ? spec.slice(0, at) : spec;
   const range = (at > 0 && spec.slice(at + 1)) || "latest";
+  // Only tags and exact versions are supported. A range containing spaces or
+  // <>|*?" would break mkdirSync on Windows; rejecting it here also keeps the
+  // directory name (a frozen on-disk contract) predictable.
+  if (!/^[A-Za-z0-9._~^+-]+$/.test(range)) {
+    console.error(`Unsupported version range: ${range}`);
+    process.exit(1);
+  }
   const base = path.join(ROOT, `${name}@${range}`.replace(/[@/\\:]/g, "_"));
   const c = {
     name, range, base, rawSpec: spec,
@@ -66,7 +77,11 @@ function context(spec) {
     logFile: path.join(base, "install.log"),
     eventsFile: path.join(base, "events.jsonl"),
   };
-  fs.mkdirSync(c.versions, { recursive: true });
+  try { fs.mkdirSync(c.versions, { recursive: true }); }
+  catch (err) {
+    console.error(`Cannot create launcher directory: ${err.code || err.message}`);
+    process.exit(1);
+  }
   rotate(c.logFile);
   rotate(c.eventsFile);
   return c;
@@ -152,8 +167,9 @@ function sendTelemetry(e) {
     req.write(data);
     req.end();
     // http.ClientRequest has no unref(); unref the socket instead. The detached
-    // background updater keeps the socket referenced so its events can flush.
-    if (!IS_BACKGROUND) {
+    // background updater and the failure exit path keep the socket referenced
+    // so their events can flush before the process ends.
+    if (!IS_BACKGROUND && !FLUSH_ON_EXIT) {
       req.on("socket", (s) => { try { s.unref(); } catch {} });
     }
   } catch {}
@@ -200,10 +216,16 @@ function readCurrent(c) {
 }
 
 function npmCli() {
+  const candidates = [];
   const p = process.env.npm_execpath;
-  if (!p) return null;
-  const cand = /npx-cli\.js$/.test(p) ? path.join(path.dirname(p), "npm-cli.js") : p;
-  return /npm-cli\.js$/.test(cand) && fs.existsSync(cand) ? cand : null;
+  if (p) {
+    candidates.push(/npx-cli\.js$/.test(p) ? path.join(path.dirname(p), "npm-cli.js") : p);
+  }
+  // Running npm-cli.js with the current node avoids shell:true on Windows,
+  // where spawnSync's timeout only kills cmd.exe and leaves npm holding pipes.
+  candidates.push(path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"));
+  candidates.push(path.join(path.dirname(process.execPath), "../lib/node_modules/npm/bin/npm-cli.js"));
+  return candidates.find((x) => /npm-cli\.js$/.test(x) && fs.existsSync(x)) || null;
 }
 
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
@@ -269,8 +291,14 @@ function install(c, version) {
         emit(c, "install", { result: "reused", targetVersion: version, elapsedMs: elapsed() });
         return { ok: true, reason: "none" };
       }
-      if (fs.existsSync(dest)) {
-        try { fs.renameSync(dest, path.join(c.versions, `.trash-${Date.now()}-${version}`)); } catch {}
+      // Never move aside a version that a running window still holds a lease on.
+      // Antivirus can briefly make package.json unreadable, so binOf() may
+      // return null for a perfectly good directory: re-check after a pause.
+      if (fs.existsSync(dest) && !versionsInUse(c).has(version)) {
+        sleep(200);
+        if (!binOf(c, version)) {
+          try { fs.renameSync(dest, path.join(c.versions, `.trash-${Date.now()}-${version}`)); } catch {}
+        }
       }
       sleep(wait);
     }
@@ -295,10 +323,10 @@ function alive(pid) {
   catch (e) { return e.code === "EPERM"; }
 }
 
-function acquireLease(c, version) {
+function acquireLease(c, version, pid = process.pid) {
   try {
     fs.mkdirSync(c.leases, { recursive: true });
-    const f = path.join(c.leases, String(process.pid));
+    const f = path.join(c.leases, String(pid));
     fs.writeFileSync(f + ".tmp", version);
     fs.renameSync(f + ".tmp", f);
     process.on("exit", () => { try { fs.unlinkSync(f); } catch {} });
@@ -422,8 +450,11 @@ function needCheck(c) {
   return !Number.isFinite(last) || now - last > CHECK_INTERVAL || last > now + 60e3;
 }
 
-function run(bin, args) {
+function run(c, version, bin, args) {
   const child = spawn(process.execPath, [bin, ...args], { stdio: "inherit", windowsHide: true });
+  // If this launcher is kill -9'd, the MCP child keeps the client's pipes and
+  // keeps running. Its own lease protects the version it is using.
+  if (child.pid) acquireLease(c, version, child.pid);
   for (const s of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(s, () => { try { child.kill(s); } catch {} });
   }
@@ -491,7 +522,7 @@ function main() {
       result: "ok", targetVersion: cur.version,
       coldStart: !hadCurrent, elapsedMs: Date.now() - t0,
     });
-    return run(cur.bin, args);
+    return run(c, cur.version, cur.bin, args);
   }
 
   // First run: install in the foreground under one overall deadline.
@@ -507,18 +538,23 @@ function main() {
     cur = readCurrent(c);
   }
   if (!cur) {
+    // Keep sockets alive and give the request a moment to leave the loop;
+    // process.exit(1) here used to drop the most important failure event.
+    FLUSH_ON_EXIT = true;
     emit(c, "fallback", {
       result: "failed", reason: "timeout", coldStart: true, elapsedMs: Date.now() - t0,
     });
     console.error(`Failed to install ${spec}. See log: ${c.logFile}`);
-    process.exit(1);
+    process.exitCode = 1;
+    setTimeout(() => process.exit(1), TELEMETRY_TIMEOUT + 200);
+    return;
   }
   acquireLease(c, cur.version);
   emit(c, "start", {
     result: "ok", targetVersion: cur.version,
     coldStart: true, elapsedMs: Date.now() - t0,
   });
-  run(cur.bin, args);
+  run(c, cur.version, cur.bin, args);
 }
 
 main();

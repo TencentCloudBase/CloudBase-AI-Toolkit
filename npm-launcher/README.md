@@ -67,6 +67,8 @@
 | `NGE_LOCK_STALE` | `600000` | 锁残留多久后视为失效（毫秒） |
 | `NGE_TMP_TTL` | `600000` | 安装被中断留下的临时目录，多久后可以回收（毫秒） |
 
+数字型配置里只有 `NGE_CHECK_INTERVAL` 可以设为 `0`，其余设为 `0` 或非数字会回落到默认值。
+
 ## 目录
 
 ```
@@ -103,9 +105,10 @@ npm test
 
 - `tests/concurrency.test.mjs`：12 个进程并发首次安装、并发装第二个版本、并发热启动带后台更新；检查目录冲突、写坏的 `package.json` 和临时目录残留。
 - `tests/behaviour.test.mjs`：本地 mock registry，检查 stdout 不被 npm 输出污染、参数透传、同一 spec 的 tag 移动、20 个进程并发启动中途发新版、安装失败或断网时回退到旧版本、信号转发、残留锁恢复。
+- `tests/hardening.test.mjs`：`DO_NOT_TRACK`、死 pid 锁回收、等锁只上报一次、版本租约、非法版本范围、`kill -9` launcher 后子进程租约仍保护版本、数字配置边界、首装失败事件能发出。
 - `tests/telemetry.test.mjs`：本地 HTTP 接收端，检查上报字段与登记一致、四个阶段都产生事件、关闭开关生效、上报超时不阻塞启动、客户端标识被清洗。
 
-三组测试都用 `NGE_ROOT` 指到临时目录，不碰真实用户目录；mock registry 用纯 JS 生成 tarball，不依赖系统 `tar`。测试与 CI 显式关闭对外上报，遥测专项只往本地接收端发。CI 在 ubuntu / macOS / Windows 三平台跑 `npm test`，Windows 跳过 POSIX 信号转发那一项。
+四组测试都用 `NGE_ROOT` 指到临时目录，不碰真实用户目录；mock registry 用纯 JS 生成 tarball，不依赖系统 `tar`。测试与 CI 显式关闭对外上报，遥测专项只往本地接收端发。CI 在 ubuntu / macOS / Windows 三平台跑 `npm test`，Windows 跳过 POSIX 信号转发那一项。
 
 ## 诊断
 

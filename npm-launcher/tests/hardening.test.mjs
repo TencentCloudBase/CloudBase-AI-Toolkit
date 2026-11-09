@@ -194,6 +194,76 @@ async function main() {
   try { bad.kill(); } catch {}
   removeTempRoot(r5);
 
+  console.log("\n[6] 非法版本范围明确报错，不会在 Windows 崩在 mkdirSync");
+  const r6 = mkRoot();
+  const bad6 = await new Promise((resolve) => {
+    const child = spawn(process.execPath, [INDEX, "@cloudbase/nge-testpkg@>=1 <2"], {
+      env: env(r6), stdio: ["ignore", "pipe", "pipe"],
+    });
+    let err = "";
+    child.stderr.on("data", (d) => { err += d; });
+    child.on("close", (code) => resolve({ code, err }));
+  });
+  check(bad6.code === 1 && /Unsupported version range/.test(bad6.err),
+    "invalid range exits with a clear message", `code=${bad6.code} err=${bad6.err.trim().slice(0, 90)}`);
+  removeTempRoot(r6);
+
+  console.log("\n[7] 子进程 pid 也有租约，kill -9 launcher 后版本仍受保护");
+  if (process.platform === "win32") {
+    check(true, "SKIP on Windows (SIGKILL semantics differ)");
+  } else {
+    const r7 = mkRoot();
+    const held = spawn(process.execPath, [INDEX, SPEC, "--hold"], {
+      env: env(r7, { NGE_FIRST_RUN_TIMEOUT: "10000" }), stdio: ["ignore", "pipe", "pipe"],
+    });
+    const leases7 = path.join(r7, SLUG, "leases");
+    const ok7 = await waitFor(() => {
+      try { return fs.readdirSync(leases7).filter((f) => /^\d+$/.test(f)).length >= 2; } catch { return false; }
+    }, 15000);
+    const files7 = ok7 ? fs.readdirSync(leases7).filter((f) => /^\d+$/.test(f)) : [];
+    check(ok7 && files7.includes(String(held.pid)),
+      "launcher and MCP child both hold a lease", `leases=${files7.join(",")} launcher=${held.pid}`);
+    const childPid = Number(files7.find((f) => f !== String(held.pid)));
+    const ver7 = current(r7);
+    try { process.kill(held.pid, "SIGKILL"); } catch {}
+    await wait(300);
+    let childAlive = false;
+    try { process.kill(childPid, 0); childAlive = true; } catch {}
+    check(childAlive, "MCP child survives a kill -9 of the launcher");
+    registry.setLatest("2.0.0");
+    await runUpdate(r7, { NGE_KEEP: "1" });
+    check(fs.existsSync(path.join(r7, SLUG, "versions", ver7)),
+      "prune skips the version the orphaned child still uses", `protected=${ver7}`);
+    registry.setLatest("1.0.0");
+    try { process.kill(childPid, "SIGKILL"); } catch {}
+    removeTempRoot(r7);
+  }
+
+  console.log("\n[8] 只有 CHECK_INTERVAL 允许取 0");
+  const r8 = mkRoot();
+  const c8 = await run(["--sleep", "300"], r8, { NGE_FIRST_RUN_TIMEOUT: "0" });
+  check(c8.code === 0 && /TARGET_OK/.test(c8.out),
+    "FIRST_RUN_TIMEOUT=0 falls back to the default instead of skipping install",
+    `code=${c8.code} out=${JSON.stringify(c8.out.slice(0, 80))}`);
+  removeTempRoot(r8);
+
+  console.log("\n[9] 首次安装失败时 fallback 事件仍能发到接收端");
+  const r9 = mkRoot();
+  received.length = 0;
+  registry.setOffline(true);
+  const c9 = await run([], r9, {
+    NGE_FIRST_RUN_TIMEOUT: "1500",
+    npm_config_fetch_retries: "0",
+    npm_config_fetch_timeout: "2000",
+  });
+  registry.setOffline(false);
+  await wait(500);
+  const got9 = received.filter((p) => p.events?.[0]?.mapValue?.phase === "fallback");
+  check(c9.code === 1, "failure exits 1", `code=${c9.code}`);
+  check(/Failed to install/.test(c9.err), "stderr carries the failure line");
+  check(got9.length >= 1, "failure event reaches the network sink", `requests=${received.length}`);
+  removeTempRoot(r9);
+
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
   sink.close();

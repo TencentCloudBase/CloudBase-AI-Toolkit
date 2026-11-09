@@ -28,14 +28,36 @@ alwaysApply: true
 
 10. **在用的版本不能删**：每次启动给当前版本登记 pid 租约，prune 跳过仍有存活进程的租约；进程退出或 pid 已死就回收。锁目录也写 pid，进程已退出立刻抢锁，不再等满 10 分钟 mtime。
 11. **前台首装只有一个总时限**：`DEADLINE` 贯穿 npm view / npm install / rename 退避；等锁失败只上报一次，不每 500ms 刷一条。
+12. **子进程也要登记租约**：`run()` 里给 MCP 子进程再写一份 `leases/<child pid>`。launcher 被 `kill -9` 时子进程仍握着客户端的 stdio 管道继续跑，只有它自己的租约能保护正在用的版本。
+13. **失败退出要给上报留时间**：首装失败分支设 `FLUSH_ON_EXIT`（socket 不 unref）→ `process.exitCode=1` → `setTimeout(..., TELEMETRY_TIMEOUT+200)` → **必须 `return`**，否则会继续读 `cur.version`（null）抛异常，请求一条都发不出去。
+14. **只有 `NGE_CHECK_INTERVAL` 允许为 0**：其余数字配置取 0 会让首装循环直接跳过、锁永远判为过期；`num(v,d,allowZero)` 默认下限 1。
+15. **移走残缺目录前先查租约**：目标版本目录存在但 `binOf()` 读不到时，先确认 `versionsInUse()` 里没有它、停 200ms 再读一次，才改名到 `.trash-*`。Windows 杀软短暂占用 `package.json` 也会让 `binOf()` 返回 null。
+
+## 发布后冻结的目录契约
+
+1.0.0 会被客户端长期固定引用，`.nge` 里的格式**以后不能再改**，新版本必须能读懂旧版本写下的目录：
+
+| 位置 | 约定 |
+| --- | --- |
+| `current` | 纯文本版本号 |
+| `versions/<version>/node_modules/<name>` | 版本目录与包入口 |
+| 以 `.` 开头的目录 | 临时安装目录 / 待删目录 |
+| `lock/` | 目录即锁，内含 `pid` 文件 |
+| `leases/<pid>` | 内容是版本号；launcher 与 MCP 子进程各一份 |
+| `last-check` | 毫秒时间戳 |
+| 顶层目录名 | 由 `name@range` 把 `@ / \ :` 换成 `_` 得到；只接受 tag 与精确版本，含空格或 `<>|*?"` 的 range 直接报错 |
+
+已知限制：两个不同包名可能映射到同一个顶层目录（如 `@x_y/z` 与 `@x/y_z`）。本包实际只服务固定 spec，不会触发；要消除得改目录名规则，那会动已冻结的格式。
 
 ## 未实现的可选项
 
 「发版后立刻生效」需要前台等待 `lockedUpdate` 10–15 秒，会拖慢启动、可能撞上客户端超时。当前实现按「后台更新、下次启动生效」处理；若以后要加，开关需按客户端 timeout 定。
 
+「首次安装改成后台装、前台等」：弱网下 20MB 包在 120 秒内不一定装完，且客户端 150 秒倒计时包含 npx 下载 launcher 的时间。改成 detached 后台安装 + 前台轮询 `current`，超时只提示重启、后台继续装完，能删掉 `DEADLINE` 与前台 spawnSync，也绕开 Windows `npm.cmd` + shell 的超时失效。**这会改变 1.0.0 的启动行为，发布前必须拍板**：发布后固定版本的用户拿不到这个改动。
+
 ## 验证
 
-`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 15/15 通过（75 项）（含 20 并发 + 中途发版）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
+`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 23/23 通过（83 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 首装失败事件能 flush）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
 
 ## 发布
 
@@ -55,6 +77,6 @@ workflow：`.github/workflows/npm-launcher-publish.yml`。
 - **首次发布**：npm 只允许给「已存在的包」配 trusted publisher，所以先在 GitHub 仓库配 secret `NPM_LAUNCHER_TOKEN`（granular access token，bypass 2FA）。
 - **包存在之后**：在 npmjs.com 的包设置里加 Trusted Publisher —— GitHub Actions，org `TencentCloudBase`、repo `CloudBase-AI-Toolkit`、workflow filename `npm-launcher-publish.yml`（只填文件名、区分大小写）、允许 `npm publish`；然后删掉 secret，之后自动走 OIDC + provenance。`package.json.repository` 已填且必须与仓库匹配，别删。
 
-**门禁**：tag 与版本一致、`node --check`、`npm test`（75 项）、`npm pack --dry-run --json` 断言恰好 4 个文件、registry 幂等检查（同版本重跑不会 403）。
+**门禁**：tag 与版本一致、`node --check`、`npm test`（83 项）、`npm pack --dry-run --json` 断言恰好 4 个文件、registry 幂等检查（同版本重跑不会 403）。
 
 **发布后** `verify` job：直连 `registry.npmjs.org` 轮询收录（最多 15 分钟，别信本机 `.npmrc` 镜像），再经 `npx -y @cloudbase/npm-launcher@<version>` 跑 `tests/real-package-smoke.mjs`（`NGE_SMOKE_LAUNCHER_SPEC`），这是唯一覆盖 launcher 自身经 npx 冷启动的验证。
