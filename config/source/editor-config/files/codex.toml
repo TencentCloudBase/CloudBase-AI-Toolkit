@@ -3,5 +3,5 @@
 
 [mcp_servers.cloudbase]
 command = "npx"
-args = ["npm-global-exec@latest", "@cloudbase/cloudbase-mcp@latest"]
+args = ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
 env = { INTEGRATION_IDE = "CodeX" }

@@ -1,0 +1,29 @@
+{
+  "name": "@cloudbase/npm-launcher",
+  "version": "1.0.0",
+  "description": "Install an npm package into a per-version directory and run its bin without touching the shared npx cache",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TencentCloudBase/CloudBase-AI-Toolkit.git",
+    "directory": "npm-launcher"
+  },
+  "main": "index.js",
+  "bin": {
+    "npm-launcher": "index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/concurrency.test.mjs && node tests/behaviour.test.mjs && node tests/telemetry.test.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

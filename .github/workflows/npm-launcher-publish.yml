@@ -1,0 +1,259 @@
+name: Publish @cloudbase/npm-launcher
+
+# Two auth paths on purpose:
+#   - First release: npm only lets you add a trusted publisher to a package that
+#     already exists, so bootstrap with the NPM_LAUNCHER_TOKEN secret (granular
+#     access token with bypass-2FA). This is a one-time secret.
+#   - After the package exists: configure a trusted publisher on npmjs.com for
+#     this exact filename, delete the secret, and every later release uses OIDC
+#     with automatic provenance. No long-lived token stays in CI.
+# npm trusted publishing requires npm CLI >= 11.5.1 / Node >= 22.14.0.
+# Configure on npmjs.com: org=TencentCloudBase, repo=CloudBase-AI-Toolkit,
+# workflow filename=npm-launcher-publish.yml (filename only, case-sensitive),
+# and allow direct `npm publish`.
+#
+# Trigger a release by pushing a tag: npm-launcher-v<package.json version>.
+# Manual dispatch only runs from main; use dry_run to rehearse the preflight.
+
+on:
+  push:
+    tags:
+      - "npm-launcher-v[0-9]+.[0-9]+.[0-9]+"
+      - "npm-launcher-v[0-9]+.[0-9]+.[0-9]+-*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run preflight and pack only; do not publish"
+        type: boolean
+        default: false
+      skip_reference_check:
+        description: "Allow pinned config references to differ (beta releases)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-launcher-publish
+  cancel-in-progress: false
+
+env:
+  NGE_REGISTRY: https://registry.npmjs.org
+  NGE_TELEMETRY: "0"
+
+jobs:
+  publish:
+    # Tag pushes are already pinned to a commit. Manual runs must come from main.
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      dist_tag: ${{ steps.meta.outputs.dist_tag }}
+      verify: ${{ steps.flags.outputs.verify }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Ensure npm CLI supports trusted publishing
+        # Node 24 ships npm 11.x, but pin the major so OIDC support is guaranteed.
+        run: |
+          npm i -g npm@11
+          npm --version
+
+      - name: Resolve version and dist-tag
+        id: meta
+        working-directory: ./npm-launcher
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG_VERSION="${GITHUB_REF#refs/tags/npm-launcher-v}"
+            if [[ "$TAG_VERSION" != "$VERSION" ]]; then
+              echo "::error::tag $TAG_VERSION does not match package.json version $VERSION"
+              exit 1
+            fi
+          fi
+          if [[ "$VERSION" == *-* ]]; then DIST_TAG=beta; else DIST_TAG=latest; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+          echo "Publishing $VERSION as $DIST_TAG"
+
+      - name: Verify pinned config references
+        # A stable release that nobody references is a no-op: every client config
+        # pins an exact launcher version. Beta releases intentionally keep the
+        # stable pin and are exempt.
+        if: steps.meta.outputs.dist_tag == 'latest' && inputs.skip_reference_check != true
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          REFS=(
+            "config/source/editor-config/files/codex.toml"
+            "connectors/cloudbase/mcp.json"
+            "connectors/cloudbase/SUBMISSION.md"
+            "doc/ide-setup/_template.mdx"
+            "doc/en/ide-setup/_template.mdx"
+            "npm-launcher/README.md"
+          )
+          BAD=0
+          for f in "${REFS[@]}"; do
+            if ! grep -Fq "@cloudbase/npm-launcher@$VERSION" "$f"; then
+              echo "::error::$f still pins a different launcher version"
+              BAD=1
+            fi
+          done
+          if [ "$BAD" -ne 0 ]; then
+            echo "::error::Bump every pinned reference above, re-run the artifact pipeline, then publish."
+            exit 1
+          fi
+          echo "All pinned references match $VERSION"
+
+      - name: Preflight tests
+        working-directory: ./npm-launcher
+        run: |
+          node --check index.js
+          npm test
+
+      - name: Verify packed contents
+        working-directory: ./npm-launcher
+        run: |
+          npm pack --dry-run --json > /tmp/npl-pack.json
+          node -e '
+            const p = require("/tmp/npl-pack.json")[0];
+            const names = p.files.map((f) => f.path).sort();
+            const want = ["LICENSE", "README.md", "index.js", "package.json"];
+            if (JSON.stringify(names) !== JSON.stringify(want)) {
+              throw new Error("unexpected package files: " + names.join(", "));
+            }
+            console.log("pack contents OK:", names.join(", "), "size", p.size);
+          '
+
+      - name: Check registry for this version
+        id: registry
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          CODE=$(curl -s -o /tmp/npl-version.json -w "%{http_code}" --max-time 20 \
+            "https://registry.npmjs.org/@cloudbase%2Fnpm-launcher/$VERSION")
+          if [ "$CODE" = "200" ]; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$VERSION is already on npm; skipping publish (re-run safe)"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+            echo "registry check: HTTP $CODE (version not published yet)"
+          fi
+
+      - name: Publish to npm
+        if: inputs.dry_run != true && steps.registry.outputs.already != 'true'
+        working-directory: ./npm-launcher
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_LAUNCHER_TOKEN || '' }}
+          DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "::notice::Bootstrap path: publishing with NPM_LAUNCHER_TOKEN"
+            NPM_CONFIG_PROVENANCE=false npm publish --access public --tag "$DIST_TAG" --verbose
+          else
+            echo "::notice::OIDC path: publishing with npm trusted publishing + provenance"
+            NODE_AUTH_TOKEN="" npm publish --provenance --access public --tag "$DIST_TAG" --verbose
+          fi
+
+      - name: Set verify flag
+        id: flags
+        run: echo "verify=${{ inputs.dry_run != true }}" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          ALREADY: ${{ steps.registry.outputs.already }}
+        run: |
+          {
+            echo "### @cloudbase/npm-launcher $VERSION"
+            echo ""
+            echo "- dist-tag: \`$DIST_TAG\`"
+            echo "- dry run: \`$DRY_RUN\`"
+            echo "- already on npm: \`$ALREADY\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Definition-layer checks cannot prove the tarball is actually usable. This
+  # job waits for registry propagation (npm can take several minutes) and then
+  # cold-starts the published launcher through npx with the real MCP package.
+  verify:
+    needs: publish
+    if: needs.publish.outputs.verify == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Wait for npm registry propagation
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /tmp/npl-v.json -w "%{http_code}" --max-time 20 \
+              "https://registry.npmjs.org/@cloudbase%2Fnpm-launcher/$VERSION")
+            if [ "$CODE" = "200" ]; then
+              echo "$VERSION is on registry.npmjs.org (check $i)"
+              exit 0
+            fi
+            echo "check $i: HTTP $CODE, waiting 30s for propagation"
+            sleep 30
+          done
+          echo "::error::$VERSION never appeared on registry.npmjs.org"
+          exit 1
+
+      - name: Verify published metadata
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+          DIST_TAG: ${{ needs.publish.outputs.dist_tag }}
+        run: |
+          curl -fsS "https://registry.npmjs.org/@cloudbase%2Fnpm-launcher" -o /tmp/npl-full.json
+          node -e '
+            const fs = require("fs");
+            const d = JSON.parse(fs.readFileSync("/tmp/npl-full.json", "utf8"));
+            const v = process.env.VERSION, tag = process.env.DIST_TAG;
+            const rel = d.versions && d.versions[v];
+            if (!rel) throw new Error("version " + v + " missing from registry metadata");
+            if (!rel.dist || !rel.dist.tarball || !rel.dist.integrity) {
+              throw new Error("missing tarball/integrity for " + v);
+            }
+            const pinned = d["dist-tags"] && d["dist-tags"][tag];
+            console.log("version", v, "dist-tag", tag, "->", pinned || "(not set)");
+            console.log("tarball", rel.dist.tarball);
+            if (pinned && pinned !== v) {
+              console.log("::warning::dist-tag " + tag + " points to " + pinned + ", not " + v);
+            }
+          '
+
+      - name: Smoke the published launcher through npx
+        working-directory: ./npm-launcher
+        env:
+          NGE_SMOKE_LAUNCHER_SPEC: "@cloudbase/npm-launcher@${{ needs.publish.outputs.version }}"
+          NGE_SMOKE_MAX_MS: "240000"
+        run: node tests/real-package-smoke.mjs
+
+      - name: Summary
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          {
+            echo "### Published package verified"
+            echo ""
+            echo "- \`@cloudbase/npm-launcher@$VERSION\` reachable on registry.npmjs.org"
+            echo "- cold start through \`npx -y\` completed with the real MCP package"
+          } >> "$GITHUB_STEP_SUMMARY"
