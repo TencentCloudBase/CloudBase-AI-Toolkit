@@ -32,8 +32,11 @@ const TELEMETRY_ENABLED = process.env.NGE_TELEMETRY !== "0" && !process.env.DO_N
 const TELEMETRY_ENDPOINT = process.env.NGE_TELEMETRY_ENDPOINT || "https://otheve.beacon.qq.com/analytics/v2_upload";
 const TELEMETRY_TIMEOUT = num(process.env.NGE_TELEMETRY_TIMEOUT, 1000);
 const IS_BACKGROUND = process.argv[2] === "--nge-update";
-// Foreground first install gets one overall deadline; background updaters do not.
-let DEADLINE = 0;
+// On-disk files are read as "first line only": a future release can append
+// extra lines without making 1.0.0 mis-read a version or a pid.
+const firstLine = (s) => String(s || "").split(/\r?\n/)[0].trim();
+// Only directories that look like a version may be pruned.
+const VERSION_DIR = /^\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?$/;
 // On the failure exit path keep sockets referenced and leave the loop alive
 // briefly, otherwise the failure event is lost when process.exit() fires.
 let FLUSH_ON_EXIT = false;
@@ -209,7 +212,7 @@ function binOf(c, version) {
 
 function readCurrent(c) {
   try {
-    const version = fs.readFileSync(c.current, "utf8").trim();
+    const version = firstLine(fs.readFileSync(c.current, "utf8"));
     const bin = binOf(c, version);
     return bin ? { version, bin } : null;
   } catch { return null; }
@@ -230,7 +233,7 @@ function npmCli() {
 
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
 function npm(c, args, cwd) {
-  const budget = DEADLINE ? Math.max(5e3, DEADLINE - Date.now()) : 5 * 60 * 1000;
+  const budget = 5 * 60 * 1000;
   const full = [...args, `--registry=${REGISTRY}`, "--no-audit", "--no-fund", "--loglevel=error"];
   const opts = { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true, timeout: budget };
   const cli = npmCli();
@@ -257,11 +260,11 @@ function resolveVersion(c) {
 
 // Returns { ok, reason } so the caller can report the real failure category
 // instead of hard-coding one on the update / fallback events.
-function install(c, version) {
+function install(c, version, coldStart = false) {
   const t0 = Date.now();
   const elapsed = () => Date.now() - t0;
   if (binOf(c, version)) {
-    emit(c, "install", { result: "reused", targetVersion: version, elapsedMs: elapsed() });
+    emit(c, "install", { result: "reused", targetVersion: version, coldStart, elapsedMs: elapsed() });
     return { ok: true, reason: "none" };
   }
   // Each process installs into its own temporary directory. No shared node_modules.
@@ -271,7 +274,7 @@ function install(c, version) {
   const r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp);
   if (!r.ok) {
     const reason = classify(r.errText);
-    emit(c, "install", { result: "failed", targetVersion: version, reason, elapsedMs: elapsed() });
+    emit(c, "install", { result: "failed", targetVersion: version, reason, coldStart, elapsedMs: elapsed() });
     rm(tmp);
     return { ok: false, reason };
   }
@@ -282,13 +285,13 @@ function install(c, version) {
   for (let i = 0, wait = 100; i < 10; i++, wait = Math.min(wait * 2, 2000)) {
     try {
       fs.renameSync(tmp, dest);
-      emit(c, "install", { result: "ok", targetVersion: version, elapsedMs: elapsed() });
+      emit(c, "install", { result: "ok", targetVersion: version, coldStart, elapsedMs: elapsed() });
       return { ok: true, reason: "none" };
     } catch (err) {
       lastErr = `${err.code || ""} ${err.message || ""}`;
       if (binOf(c, version)) {
         rm(tmp);
-        emit(c, "install", { result: "reused", targetVersion: version, elapsedMs: elapsed() });
+        emit(c, "install", { result: "reused", targetVersion: version, coldStart, elapsedMs: elapsed() });
         return { ok: true, reason: "none" };
       }
       // Never move aside a version that a running window still holds a lease on.
@@ -304,13 +307,14 @@ function install(c, version) {
     }
   }
   const reason = classify(lastErr);
-  emit(c, "install", { result: "failed", targetVersion: version, reason, elapsedMs: elapsed() });
+  emit(c, "install", { result: "failed", targetVersion: version, reason, coldStart, elapsedMs: elapsed() });
   rm(tmp);
   return { ok: false, reason };
 }
 
 function setCurrent(c, version) {
-  const t = `${c.current}.${process.pid}`;
+  // Dot-prefixed so prune can reclaim it if rename fails on Windows.
+  const t = path.join(c.base, `.current.${process.pid}`);
   fs.writeFileSync(t, version);
   fs.renameSync(t, c.current);
 }
@@ -341,7 +345,7 @@ function versionsInUse(c) {
     if (!/^\d+$/.test(f)) continue;
     const p = path.join(c.leases, f);
     if (alive(Number(f))) {
-      try { used.add(fs.readFileSync(p, "utf8").trim()); } catch {}
+      try { used.add(firstLine(fs.readFileSync(p, "utf8"))); } catch {}
     } else {
       rm(p); // lease left behind by a kill -9
     }
@@ -356,12 +360,15 @@ function prune(c, keepVersion) {
   try {
     all = fs.readdirSync(c.versions).map((d) => {
       try { return { d, t: fs.statSync(path.join(c.versions, d)).mtimeMs }; }
-      catch { return null; } // another process may have removed it mid-scan
+      catch { return null; }
     }).filter(Boolean);
   } catch { return; }
   all.filter((x) => x.d.startsWith(".") && Date.now() - x.t > TMP_TTL)
     .forEach((x) => rm(path.join(c.versions, x.d)));
-  all.filter((x) => !x.d.startsWith(".") && x.d !== keepVersion && !inUse.has(x.d))
+  // Anything that is not a version directory is left alone: a future release
+  // may store metadata here and 1.0.0 must not delete it.
+  all.filter((x) => !x.d.startsWith(".") && VERSION_DIR.test(x.d)
+    && x.d !== keepVersion && !inUse.has(x.d))
     .sort((a, b) => b.t - a.t).slice(KEEP - 1)
     .forEach((x) => {
       const trash = path.join(c.versions, `.trash-${Date.now()}-${x.d}`);
@@ -370,6 +377,15 @@ function prune(c, keepVersion) {
         rm(trash);
       } catch {}
     });
+  // A setCurrent() temp file whose rename failed is never reused; drop it once
+  // it is old enough that no live process could still be retrying.
+  try {
+    for (const f of fs.readdirSync(c.base)) {
+      if (!f.startsWith(".current.")) continue;
+      const p = path.join(c.base, f);
+      try { if (Date.now() - fs.statSync(p).mtimeMs > TMP_TTL) rm(p); } catch {}
+    }
+  } catch {}
 }
 
 function lockStale(c) {
@@ -377,7 +393,7 @@ function lockStale(c) {
     const age = Date.now() - fs.statSync(c.lock).mtimeMs;
     if (age > LOCK_STALE) return true;
     let pid = 0;
-    try { pid = Number(fs.readFileSync(path.join(c.lock, "pid"), "utf8")); } catch {}
+    try { pid = Number(firstLine(fs.readFileSync(path.join(c.lock, "pid"), "utf8"))); } catch {}
     if (!pid) return age > 5000; // just created, or a legacy lock without pid
     try { process.kill(pid, 0); return false; }
     catch (e) { return e.code === "ESRCH"; }
@@ -403,10 +419,13 @@ function update(c) {
   const elapsed = () => Date.now() - t0;
   const from = readCurrent(c);
   const fromVersion = from ? from.version : "";
+  const coldStart = !from;
   const version = resolveVersion(c);
   if (!version) {
-    emit(c, "update", { result: "skipped", reason: "registry", fromVersion, elapsedMs: elapsed() });
-    emit(c, "fallback", { result: "fallback", reason: "registry", targetVersion: fromVersion || "unknown", elapsedMs: elapsed() });
+    emit(c, "update", { result: "skipped", reason: "registry", fromVersion, coldStart, elapsedMs: elapsed() });
+    if (fromVersion) {
+      emit(c, "fallback", { result: "fallback", reason: "registry", targetVersion: fromVersion, coldStart, elapsedMs: elapsed() });
+    }
     return log(c, "resolve failed, keep current");
   }
   // Nothing to install: refresh the check stamp and leave the metrics alone.
@@ -414,10 +433,12 @@ function update(c) {
     try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
     return;
   }
-  const installed = install(c, version);
+  const installed = install(c, version, coldStart);
   if (!installed.ok) {
-    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: installed.reason, elapsedMs: elapsed() });
-    emit(c, "fallback", { result: "fallback", reason: installed.reason, targetVersion: fromVersion || "unknown", elapsedMs: elapsed() });
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: installed.reason, coldStart, elapsedMs: elapsed() });
+    if (fromVersion) {
+      emit(c, "fallback", { result: "fallback", reason: installed.reason, targetVersion: fromVersion, coldStart, elapsedMs: elapsed() });
+    }
     return log(c, `install ${version} failed, keep current`);
   }
   try {
@@ -427,10 +448,10 @@ function update(c) {
     // Do not report success or prune if current never switched: pruning could
     // remove the version that running windows still use.
     const reason = classify(`${err.code || ""} ${err.message || ""}`);
-    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason, elapsedMs: elapsed() });
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason, coldStart, elapsedMs: elapsed() });
     return log(c, `setCurrent ${version} failed, keep current`);
   }
-  emit(c, "update", { result: "ok", targetVersion: version, fromVersion, elapsedMs: elapsed() });
+  emit(c, "update", { result: "ok", targetVersion: version, fromVersion, coldStart, elapsedMs: elapsed() });
   prune(c, version);
 }
 
@@ -443,9 +464,41 @@ function lockedUpdate(c, opts = {}) {
   return true;
 }
 
+function spawnUpdater(c, spec) {
+  try {
+    const bg = spawn(process.execPath, [__filename, "--nge-update", spec],
+      { detached: true, stdio: "ignore", windowsHide: true });
+    bg.on("error", () => {});
+    bg.unref();
+    return true;
+  } catch { return false; }
+}
+
+function installerBusy(c) {
+  return fs.existsSync(c.lock) && !lockStale(c);
+}
+
+// The foreground waits but never runs npm, so read the last real failure from
+// the local event log. Only a genuine wait expiry should be reported as timeout.
+function lastFailureReason(c) {
+  try {
+    const lines = fs.readFileSync(c.eventsFile, "utf8").trim().split("\n").filter(Boolean).slice(-20);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const e = JSON.parse(lines[i]);
+      const failed = (e.phase === "install" || e.phase === "update") && e.result === "failed";
+      const skipped = e.phase === "update" && e.result === "skipped"
+        && e.reason && e.reason !== "lock" && e.reason !== "none";
+      if (failed || skipped) {
+        return e.reason && e.reason !== "none" ? e.reason : "other";
+      }
+    }
+  } catch {}
+  return "timeout";
+}
+
 function needCheck(c) {
   let last = NaN;
-  try { last = Number(fs.readFileSync(c.stamp, "utf8")); } catch {}
+  try { last = Number(firstLine(fs.readFileSync(c.stamp, "utf8"))); } catch {}
   const now = Date.now();
   return !Number.isFinite(last) || now - last > CHECK_INTERVAL || last > now + 60e3;
 }
@@ -511,12 +564,7 @@ function main() {
     acquireLease(c, cur.version);
     if (needCheck(c)) {
       try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
-      try {
-        const bg = spawn(process.execPath, [__filename, "--nge-update", spec],
-          { detached: true, stdio: "ignore", windowsHide: true });
-        bg.on("error", () => {});
-        bg.unref();
-      } catch {}
+      spawnUpdater(c, spec);
     }
     emit(c, "start", {
       result: "ok", targetVersion: cur.version,
@@ -525,24 +573,29 @@ function main() {
     return run(c, cur.version, cur.bin, args);
   }
 
-  // First run: install in the foreground under one overall deadline.
-  DEADLINE = Date.now() + FIRST_RUN_TIMEOUT;
-  let reportedWait = false;
-  while (!cur && Date.now() < DEADLINE) {
-    if (lockedUpdate(c, { quiet: true })) { cur = readCurrent(c); break; }
-    if (!reportedWait) {
-      reportedWait = true;
-      emit(c, "update", { result: "skipped", reason: "lock", coldStart: true });
-    }
+  // First run: a detached updater owns the download. The foreground only waits
+  // for `current` to appear. If the client kills this process, the updater keeps
+  // running and the next reconnect continues waiting instead of downloading
+  // from scratch.
+  const deadline = Date.now() + FIRST_RUN_TIMEOUT;
+  let attempts = 0;
+  let lastAttempt = 0;
+  if (spawnUpdater(c, spec)) { attempts = 1; lastAttempt = Date.now(); }
+  while (!cur && Date.now() < deadline) {
     sleep(500);
     cur = readCurrent(c);
+    if (cur) break;
+    // Retry inside the remaining budget if an updater died without installing.
+    if (attempts < 3 && Date.now() - lastAttempt > 10000 && !installerBusy(c)) {
+      if (spawnUpdater(c, spec)) { attempts += 1; lastAttempt = Date.now(); }
+    }
   }
   if (!cur) {
-    // Keep sockets alive and give the request a moment to leave the loop;
-    // process.exit(1) here used to drop the most important failure event.
     FLUSH_ON_EXIT = true;
-    emit(c, "fallback", {
-      result: "failed", reason: "timeout", coldStart: true, elapsedMs: Date.now() - t0,
+    // No old version exists, so this is a start failure, not a fallback.
+    emit(c, "start", {
+      result: "failed", reason: lastFailureReason(c),
+      coldStart: true, elapsedMs: Date.now() - t0,
     });
     console.error(`Failed to install ${spec}. See log: ${c.logFile}`);
     process.exitCode = 1;

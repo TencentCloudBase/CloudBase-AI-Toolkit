@@ -22,7 +22,7 @@
 | 情况 | 做什么 |
 | --- | --- |
 | 本地已有可用版本 | 立刻启动；距上次检查超过 5 分钟时，后台检查更新，新版本在下次启动生效 |
-| 第一次运行 | 前台安装，等待其他进程装完；成功后再启动 |
+| 第一次运行 | 后台进程负责下载安装，前台只等版本就绪；前台被客户端杀掉后下载继续，重连接着等，不从头再来 |
 | 安装或检查更新失败 | 继续用旧版本，不退出 |
 | 某个版本还有进程在用 | 给它登记租约，清理版本目录时跳过它 |
 | 多个进程同时启动 | 各自用独立临时目录安装，装完原子改名；锁只用来避免重复下载 |
@@ -31,6 +31,8 @@
 ## 遥测
 
 本包默认发送匿名运行数据，用来统计本地连接成功率、首次安装成功率、更新失败时继续用旧版本的情况，以及平台与版本分布。启动、安装、更新、回退各记一条；上报在后台发出，网络失败会跳过，不会拖慢启动。
+
+首次安装没有旧版本可回退，因此失败记 `start:failed`（带真实失败原因），不记 `fallback`；`coldStart` 会一路带到后台进程的安装与更新事件里。只有真正等待超时才写 `timeout`。
 
 每次事件只包含以下 12 个字段：
 
@@ -84,18 +86,35 @@
 
 `npm` 的输出全部写入 `install.log`。stdout 留给 MCP 的 JSON-RPC 通道，launcher 自己不会往 stdout 写任何东西；唯一例外是手动排障的 `--nge-diag`，不要把它写进 MCP 配置。
 
+## 目录约定（发布后冻结）
+
+这些文件的含义在 1.0.0 发布后不再改变，后续版本必须能读懂旧版本写下的目录：
+
+| 位置 | 约定 |
+| --- | --- |
+| `current` / `leases/<pid>` / `lock/pid` / `last-check` | 纯文本，**只读第一行**；以后可以在后面追加行 |
+| `versions/<版本号>/node_modules/<包名>/` | 只把符合版本号格式的目录当作版本，其他目录不清理 |
+| 以 `.` 开头的目录 | 临时安装目录 / 待删目录 |
+| `lock/` | 目录即锁，内含 `pid` 文件 |
+| `leases/<pid>` | 内容是版本号；launcher 与 MCP 子进程各一份 |
+| 顶层目录名 | 由 `name@range` 把 `@ / \ :` 换成 `_` 得到；只接受 tag 与精确版本 |
+
+**格式要做不兼容的改动时，换一个根目录名（例如 `.nge2`），不要改现有文件的含义。**
+
+已知限制：顶层目录名是有损映射，`@a_b/c` 与 `@a/b_c` 会指向同一个目录；`HOME` 放在网络盘或 WSL 与 Windows 共用时 pid 判断可能失效。本包实际只服务固定 spec，这些场景暂不处理。
+
 ## 清理残留
 
 升级到本包之前，如果旧实现留下过安装残片，可以先清掉：
 
 ```bash
 # macOS / Linux
-rm -rf ~/cloudbase-mcp/node_modules ~/cloudbase-mcp/package-lock.json ~/.npm/_npx
+rm -rf ~/cloudbase-mcp/node_modules ~/cloudbase-mcp/package-lock.json
 ```
 
-Windows 上对应 `%USERPROFILE%\cloudbase-mcp\node_modules`、`%USERPROFILE%\cloudbase-mcp\package-lock.json` 和 `%LOCALAPPDATA%\npm-cache\_npx`。
+Windows 上对应 `%USERPROFILE%\cloudbase-mcp\node_modules` 和 `%USERPROFILE%\cloudbase-mcp\package-lock.json`。
 
-本包使用 `<NGE_ROOT>` 下的新目录，升级之后不需要再手动清理。
+只删旧实现留下的这两个文件，不要清 `~/.npm/_npx` 或整个 npm 缓存：那会清掉其他工具的缓存，也会打断正在运行的 MCP。本包使用 `<NGE_ROOT>` 下的新目录，升级之后不需要再手动清理。
 
 ## 测试（在源码仓库中运行）
 
@@ -105,7 +124,7 @@ npm test
 
 - `tests/concurrency.test.mjs`：12 个进程并发首次安装、并发装第二个版本、并发热启动带后台更新；检查目录冲突、写坏的 `package.json` 和临时目录残留。
 - `tests/behaviour.test.mjs`：本地 mock registry，检查 stdout 不被 npm 输出污染、参数透传、同一 spec 的 tag 移动、20 个进程并发启动中途发新版、安装失败或断网时回退到旧版本、信号转发、残留锁恢复。
-- `tests/hardening.test.mjs`：`DO_NOT_TRACK`、死 pid 锁回收、等锁只上报一次、版本租约、非法版本范围、`kill -9` launcher 后子进程租约仍保护版本、数字配置边界、首装失败事件能发出。
+- `tests/hardening.test.mjs`：`DO_NOT_TRACK`、死 pid 锁回收、等锁只上报一次、版本租约、非法版本范围、`kill -9` launcher 后子进程租约仍保护版本、数字配置边界、只读第一行、prune 不误删非版本目录、杀掉前台后台仍装完并重连秒起、首装失败的真实原因与 `coldStart` 口径。
 - `tests/stdout-guard.test.mjs`：静态禁止 `console.log`，并验证冷启动、首装失败、后台更新、参数错误四条路径的 stdout 不被污染。
 - `tests/telemetry.test.mjs`：本地 HTTP 接收端，检查上报字段与登记一致、四个阶段都产生事件、关闭开关生效、上报超时不阻塞启动、客户端标识被清洗。
 

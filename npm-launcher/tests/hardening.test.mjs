@@ -247,22 +247,86 @@ async function main() {
     `code=${c8.code} out=${JSON.stringify(c8.out.slice(0, 80))}`);
   removeTempRoot(r8);
 
-  console.log("\n[9] 首次安装失败时 fallback 事件仍能发到接收端");
+  console.log("\n[9] 首装失败：start:failed 能发出、原因真实、且不算回退");
   const r9 = mkRoot();
   received.length = 0;
   registry.setOffline(true);
   const c9 = await run([], r9, {
-    NGE_FIRST_RUN_TIMEOUT: "1500",
+    NGE_FIRST_RUN_TIMEOUT: "3000",
     npm_config_fetch_retries: "0",
     npm_config_fetch_timeout: "2000",
   });
   registry.setOffline(false);
-  await wait(500);
-  const got9 = received.filter((p) => p.events?.[0]?.mapValue?.phase === "fallback");
+  await wait(800);
+  const maps = received.map((p) => p.events?.[0]?.mapValue).filter(Boolean);
+  const startFailed = maps.filter((m) => m.phase === "start" && m.result === "failed");
+  const fallbacks = maps.filter((m) => m.phase === "fallback");
   check(c9.code === 1, "failure exits 1", `code=${c9.code}`);
   check(/Failed to install/.test(c9.err), "stderr carries the failure line");
-  check(got9.length >= 1, "failure event reaches the network sink", `requests=${received.length}`);
+  check(startFailed.length >= 1, "start:failed reaches the network sink", `requests=${received.length}`);
+  check(startFailed[0]?.coldStart === "true", "start:failed is marked coldStart");
+  check(startFailed[0]?.reason && startFailed[0].reason !== "timeout",
+    "reason is the real npm failure, not a hard-coded timeout", `reason=${startFailed[0]?.reason}`);
+  check(fallbacks.length === 0, "no fallback event when there is no old version",
+    `fallbacks=${fallbacks.length}`);
+  const bgEvents = maps.filter((m) => m.phase === "update" || m.phase === "install");
+  check(bgEvents.length > 0 && bgEvents.every((m) => m.coldStart === "true"),
+    "coldStart is carried by background install/update events",
+    bgEvents.map((m) => `${m.phase}:${m.coldStart}`).join(","));
   removeTempRoot(r9);
+
+  console.log("\n[10] 磁盘文件只读第一行，追加行不破坏识别");
+  const r10 = mkRoot();
+  const cold10 = await run(["--sleep", "50"], r10);
+  check(cold10.code === 0, "install once");
+  const base10 = path.join(r10, SLUG);
+  fs.writeFileSync(path.join(base10, "current"), "1.0.0\nextra: metadata\n");
+  fs.writeFileSync(path.join(base10, "last-check"), `${Date.now()}\nextra: metadata\n`);
+  const warm10 = await run(["--sleep", "50"], r10);
+  check(warm10.code === 0 && /TARGET_OK 1\.0\.0/.test(warm10.out),
+    "current with extra lines still starts the right version", JSON.stringify(warm10.out));
+  removeTempRoot(r10);
+
+  console.log("\n[11] prune 只删版本目录，残留的 .current.* 会被回收");
+  const r11 = mkRoot();
+  await run(["--sleep", "50"], r11);
+  const base11 = path.join(r11, SLUG);
+  fs.mkdirSync(path.join(base11, "versions", "meta"), { recursive: true });
+  fs.mkdirSync(path.join(base11, "versions", "not-a-version"), { recursive: true });
+  const stale11 = path.join(base11, ".current.99999");
+  fs.writeFileSync(stale11, "1.0.0");
+  const old11 = new Date(Date.now() - 2 * 60 * 60 * 1000);
+  fs.utimesSync(stale11, old11, old11);
+  registry.setLatest("2.0.0");
+  await runUpdate(r11);
+  registry.setLatest("1.0.0");
+  check(fs.existsSync(path.join(base11, "versions", "meta")), "non-version directory is left alone");
+  check(fs.existsSync(path.join(base11, "versions", "not-a-version")), "non-semver directory is left alone");
+  check(!fs.existsSync(stale11), "stale .current.* temp file is reclaimed");
+  removeTempRoot(r11);
+
+  console.log("\n[12] 前台被杀后后台仍装完，重连直接启动");
+  if (process.platform === "win32") {
+    check(true, "SKIP on Windows (SIGKILL semantics differ)");
+  } else {
+    const r12 = mkRoot();
+    const foreground = spawn(process.execPath, [INDEX, SPEC], {
+      env: env(r12, { NGE_FIRST_RUN_TIMEOUT: "60000", NGE_TELEMETRY_TIMEOUT: "1" }),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const closed12 = new Promise((res) => foreground.on("close", res));
+    foreground.stdout.on("data", () => {});
+    foreground.stderr.on("data", () => {});
+    await wait(700);
+    try { foreground.kill("SIGKILL"); } catch {}
+    await closed12;
+    const done12 = await waitFor(() => current(r12) !== null, 20000);
+    check(done12, "detached install finishes after the foreground is killed", `current=${current(r12)}`);
+    const again12 = await run(["--sleep", "100"], r12);
+    check(again12.code === 0 && /TARGET_OK/.test(again12.out),
+      "reconnect starts immediately without downloading again", JSON.stringify(again12.out));
+    removeTempRoot(r12);
+  }
 
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
