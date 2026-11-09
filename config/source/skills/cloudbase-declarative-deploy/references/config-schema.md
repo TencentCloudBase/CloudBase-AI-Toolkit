@@ -109,6 +109,12 @@ There is also a top-level conditional rule in the official schema:
 Build/install fields are declarative intent in the spec. Execution side depends on
 resource path: some flows execute locally, while cloud-mode-compatible flows execute in
 cloud pipeline (staticCmd declarations) or consume prebuilt artifacts.
+
+For the **local-form tools** (`deployBuild` / `deployPlan` / `deployApply`):
+`buildCommand` and `installCommand` are **never executed by apply** — they are only used to
+infer the output directory. `deployBuild` runs `hosting[]` build commands explicitly; for
+`app` the build must be run outside these tools. `deployApply` uploads `outputDir` as-is and
+fails with `BUILD_OUTPUT_NOT_FOUND` when it is missing or empty.
 - `gateway`: built around `routes[]`; each route requires `path` and `target`, with
   protocol/auth/QPS-related constraints.
 

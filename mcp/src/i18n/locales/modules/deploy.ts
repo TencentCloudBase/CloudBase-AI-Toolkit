@@ -5,10 +5,12 @@ export const deploy = defineModule(
     buildTitle: "构建声明式配置中的静态托管项目（本地构建）",
     buildDescription:
       "解析 cloudbaserc 并对 hosting[] 中配置了 buildCommand 的项目执行本地构建（仅执行 buildCommand，不安装依赖、不上传）。" +
-      "对应 CLI 的 tcb app build，但只处理 hosting[] 静态托管项，与 cloudbaserc 的 app 资源类型（云端构建管线）无关。" +
+      "只处理 hosting[]，不处理 cloudbaserc 的 app 资源 —— app 的产物需要你自己在项目目录构建" +
+      "（产物目录与构建命令可从 deployPlan 的 buildHint 读取），或改用 CLI `tcb app deploy` 走云端构建。" +
       "声明式 hosting 部署拆分为「build → plan → apply」三步，本工具是第一步：" +
       "先本地构建产物，再 deployPlan 预演，最后 deployApply 上传产物。" +
-      "deployApply 不再隐式本地构建 —— 带构建命令的 hosting 项在产物缺失时会报错引导先执行本工具。" +
+      "deployApply 对 app 与 hosting 都不构建 —— 产物缺失时报 BUILD_OUTPUT_NOT_FOUND，" +
+      "hosting 可用本工具补齐，app 需你自行构建。" +
       "纯静态托管（未配置 buildCommand 且无法探测框架）自动跳过。" +
       "构建为纯本地操作：不解析环境、不要求登录，也不需要 confirm。" +
       "\n- cwd：项目根目录，默认当前工作目录" +
@@ -21,6 +23,13 @@ export const deploy = defineModule(
       "conflict=检测到冲突需中断，deploy=直传覆盖。" +
       "计划已按 yes 复算为「实际会发生的动作」：不传 yes=true 时，云端已存在的函数会标为 skip" +
       "（并在 declaredStatus 保留 update），与 deployApply 的实际执行结果一致，避免预演与执行相反。" +
+      "\n⚠️ app / hosting 的计划项一律是「直传已有产物」：声明式部署只部署不构建，" +
+      "cloudbaserc 的 buildCommand / framework 只用于推断产物目录，不会被执行。" +
+      "\napp / hosting 的计划项带 buildHint = { buildCommand, outputDir, artifactReady }（机器可读，" +
+      "不要去解析 details 里的中文文案）：artifactReady=false 表示产物目录缺失或为空，" +
+      "此时 deployApply 必定失败（BUILD_OUTPUT_NOT_FOUND）。正确做法是先构建再 apply —— " +
+      "hosting 可调用 deployBuild；app 需在项目目录执行 buildHint.buildCommand（为 null 则本就无需构建）。" +
+      "构建完成后重新 deployPlan 确认 artifactReady=true，不要改配置绕过。" +
       "\n适用边界：本工具用于项目级声明式编排（一份 cloudbaserc 统一 plan/apply）；" +
       "单资源临时直传请用 manageFunctions/manageHosting/manageApps。" +
       "\n- cwd：项目根目录，默认当前工作目录" +
@@ -34,9 +43,15 @@ export const deploy = defineModule(
     applyDescription:
       "解析 cloudbaserc 并按 database→functions→app→hosting→gateway 顺序执行声明式部署。" +
       "这是 deployPlan 的执行对仗工具（plan 预演 / deployApply 执行同一份 cloudbaserc），" +
-      "属于本地形态的 apply（读本地 cloudbaserc 并在本地构建上传），" +
+      "属于本地形态的 apply（读本地 cloudbaserc 并把本地产物上传到云端），" +
       "是会变更云端资源的写操作，必须显式传 confirm=true 才会执行。" +
       "建议先用 deployPlan 预演，确认计划无误后再执行。" +
+      "\n⚠️ 只部署不构建：本工具不会执行任何构建命令（app 与 hosting 都不会）。" +
+      "cloudbaserc 里的 buildCommand / installCommand / framework 只用于推断产物目录，不会被执行。" +
+      "产物目录不存在或为空时报 BUILD_OUTPUT_NOT_FOUND —— hosting 先调 deployBuild，" +
+      "app 需让用户在项目目录执行其构建命令，完成后重试，不要改配置绕过。" +
+      "构建前可用 deployPlan 读取 buildHint.buildCommand / outputDir / artifactReady 确认该跑什么。" +
+      "app 需要云端构建时用 CLI `tcb app deploy`（本工具不提供云端构建）。" +
       "\n适用边界：本工具用于项目级声明式编排（一份 cloudbaserc 统一 plan/apply）；" +
       "单资源临时直传请用 manageFunctions/manageHosting/manageApps。" +
       "\n- confirm：必须显式传 true 才执行部署，否则直接拒绝" +
@@ -94,10 +109,12 @@ export const deploy = defineModule(
     buildTitle: "Build static hosting projects declared in the config (local build)",
     buildDescription:
       "Parses cloudbaserc and runs a local build for every hosting[] item that declares a buildCommand (only buildCommand runs — no dependency install, no upload)." +
-      " Equivalent to the CLI's tcb app build, but it only handles hosting[] static items and has nothing to do with the cloudbaserc app resource type (the cloud build pipeline)." +
+      " It only handles hosting[] and does NOT handle the cloudbaserc app resource — app artifacts must be built by you in the project directory" +
+      " (read the build command and output directory from deployPlan's buildHint), or use the CLI `tcb app deploy` for a cloud build instead." +
       " Declarative hosting deployment is split into three steps — build → plan → apply — and this tool is the first one:" +
       " build the artifacts locally, preview with deployPlan, then upload them with deployApply." +
-      " deployApply no longer builds implicitly — a hosting item with a build command that is missing its artifacts fails with guidance to run this tool first." +
+      " deployApply builds neither app nor hosting — missing artifacts fail with BUILD_OUTPUT_NOT_FOUND;" +
+      " for hosting run this tool, for app build it yourself." +
       " Pure static hosting (no buildCommand and no detectable framework) is skipped automatically." +
       " The build is a purely local operation: it resolves no environment, requires no login and needs no confirm." +
       "\n- cwd: project root, defaults to the current working directory" +
@@ -110,6 +127,13 @@ export const deploy = defineModule(
       "conflict=conflict detected, abort, deploy=direct overwrite. " +
       "The plan is recomputed by yes into the actions that will actually happen: without yes=true, functions already in the cloud are marked skip " +
       "(with update kept in declaredStatus), consistent with deployApply's actual execution, avoiding a plan/execution mismatch." +
+      "\n⚠️ app / hosting plan items are always a direct upload of existing artifacts: declarative deploy deploys but never builds; " +
+      "buildCommand / framework in cloudbaserc are only used to infer the output directory and are never executed." +
+      "\napp / hosting plan items carry buildHint = { buildCommand, outputDir, artifactReady } (machine-readable — " +
+      "do not parse the localized text in details): artifactReady=false means the output directory is missing or empty, " +
+      "and deployApply is guaranteed to fail (BUILD_OUTPUT_NOT_FOUND). Build first, then apply — " +
+      "for hosting call deployBuild; for app run buildHint.buildCommand in the project directory (null means no build is needed). " +
+      "Re-run deployPlan afterwards to confirm artifactReady=true; do not edit the config to work around it." +
       "\nScope: this tool is for project-level declarative orchestration (one cloudbaserc for unified plan/apply); " +
       "for ad-hoc single-resource direct upload use manageFunctions/manageHosting/manageApps." +
       "\n- cwd: project root, defaults to the current working directory" +
@@ -123,9 +147,15 @@ export const deploy = defineModule(
     applyDescription:
       "Parse cloudbaserc and execute the declarative deployment in the order database→functions→app→hosting→gateway. " +
       "This is the execution counterpart of deployPlan (plan previews / deployApply executes the same cloudbaserc), " +
-      "a local form of apply (reads the local cloudbaserc and builds/uploads locally). " +
+      "a local form of apply (reads the local cloudbaserc and uploads local artifacts to the cloud). " +
       "It is a write operation that changes cloud resources and requires an explicit confirm=true to execute. " +
       "It is recommended to preview with deployPlan first and execute after confirming the plan." +
+      "\n⚠️ Deploys but never builds: this tool runs no build command at all (neither app nor hosting). " +
+      "buildCommand / installCommand / framework in cloudbaserc are only used to infer the output directory and are never executed. " +
+      "A missing or empty output directory fails with BUILD_OUTPUT_NOT_FOUND — for hosting call deployBuild first, " +
+      "for app ask the user to run its build command in the project directory, then retry; do not edit the config to work around it. " +
+      "Before building, read buildHint.buildCommand / outputDir / artifactReady from deployPlan to see what needs to run. " +
+      "When app needs a cloud build, use the CLI `tcb app deploy` (this tool provides no cloud build)." +
       "\nScope: this tool is for project-level declarative orchestration (one cloudbaserc for unified plan/apply); " +
       "for ad-hoc single-resource direct upload use manageFunctions/manageHosting/manageApps." +
       "\n- confirm: must be explicitly true to execute the deployment, otherwise it is rejected" +
