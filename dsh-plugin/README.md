@@ -69,9 +69,13 @@ dsh --profile headless "列出所有 mcp__cloudbase__ 工具"
 4. **不要给插件配置 `CLOUDBASE_API_KEY`**：无效 Key 会挡住 device-code 登录。登录与环境选择全部走 `mcp__cloudbase__auth`。
 5. **技能由插件注册，不拷进 `~/.dsh/skills`**。环境用 `auth` 的 `set_env` 绑定，用 `action=status` 查看。插件不会按会话自动改环境。
 
-## 隐私
+## 来源与权限
 
-凭据只存本机（tcb 登录态或 `~/.dsh/.credentials.yaml`，权限 600），插件不上传密钥，读操作只访问你自己的 CloudBase 环境。
+这个包由 TencentCloudBase 发布，源码在 [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit/tree/main/dsh-plugin)，按 MIT 许可开放。
+
+工具会在你的工作区里建文件、改代码、上传部署产物，并访问你自己的 CloudBase 环境。写操作回到会话里等你确认，界面不会绕过审批。插件会启动本机的 `cloudbase-mcp` 进程，但不会把 API Key 或代理设置传进去。
+
+凭据只存本机：复用 `tcb login` 的登录态，或放在 `~/.dsh/.credentials.yaml`（权限 600）。插件不上传密钥。
 
 ## 开发
 
@@ -81,6 +85,7 @@ npm install
 npm test          # vitest 单测
 npm run build     # dist/index.js（Host）+ dist/client.js（Web ModuleLoader factory）
 npm run e2e:live  # 需要网络 + 本机 tcb 登录态
+node scripts/verify-host.mjs  # 需要 DSH_BIN（可选 MCP_CLI），在隔离环境里验装、配置、工具表、卸载与升级
 ```
 
 除 peer（cordis / react）外运行时 0 依赖。
