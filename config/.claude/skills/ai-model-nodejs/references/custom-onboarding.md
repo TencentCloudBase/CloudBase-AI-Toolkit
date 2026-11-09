@@ -24,4 +24,4 @@ callCloudApi(service="tcb", action="CreateAIModel", params={
 
 Once onboarded, confirm with `DescribeAIModels` that the group is ready, then call `ai.createModel("<the GroupName you just registered>")` from your code. Use `UpdateAIModel` to add/remove models, rotate keys, or change `BaseUrl` (remember `Models` is a **full replacement**). Use `DeleteAIModel` to remove a custom group (builtin groups cannot be deleted).
 
-> Custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack. Field casing follows the live contract — fall back to camelCase on `InvalidParameter`.
+> Custom-model billing is covered by the third-party provider and does not draw from the environment's resource points. Field casing follows the live contract — fall back to camelCase on `InvalidParameter`.

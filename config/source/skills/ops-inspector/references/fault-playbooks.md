@@ -155,7 +155,7 @@ Shared prerequisites for every playbook:
 
 1. Console → **AI module** → per-model **Token** consumption (the only place that shows quota side)
 2. `DescribeAIModels` — which groups/models are actually enabled for this environment (`hunyuan-exp` / `cloudbase` / custom)
-3. `DescribeActivityInfo` — 小程序成长计划 enrollment (`ai_miniprogram_inspire_plan`), then `DescribeEnvPostpayPackage` for the Token Credits pack
+3. `DescribeActivityInfo` — 小程序成长计划 enrollment (`ai_miniprogram_inspire_plan`), then `queryEnv(action="info")` for an advisory billing-plan notice (Token resource packs were discontinued 2026-06-18)
 
 ### Decision tree
 

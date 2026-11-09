@@ -64,7 +64,7 @@ const usage = await res.usage;        // token usage
 
 ⚠️ **Image generation is only available in the Node SDK**, not in the JS SDK (Web) or WeChat Mini Program.
 
-⚠️ **Image generation also consumes the Token Credits resource pack**, so the two-step preflight must pass before calling it. Per-call cost is higher than text and calls take longer (set cloud function timeout to 900 s).
+⚠️ **Image generation also draws from the environment's resource points**, so the two-step preflight must pass before calling it. Per-call cost is higher than text and calls take longer (set cloud function timeout to 900 s).
 
 ```js
 const imageModel = ai.createImageModel("hunyuan-image");

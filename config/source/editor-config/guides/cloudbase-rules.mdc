@@ -94,7 +94,7 @@ Overrides convenience. Full rationale lives in `{web-development}`.
 | Cloud Functions | `{cloud-functions}` | domain skill | `{cloudrun-development}` | Event vs HTTP, runtime, `scf_bootstrap` |
 | CloudRun backend | `{cloudrun-development}` | domain skill | `{cloud-functions}` | Container boundary, Dockerfile, CORS |
 | AI Agent | `{cloudbase-agent}` | `{cloud-functions}` / `{cloudrun-development}` | — | AG-UI, SSE streaming |
-| AI model (text/image/stream) | `{ai-model-web}` (or node/wechat) | sibling AI skills | `{cloudbase-agent}` first | Token Credits / Growth Plan preflight |
+| AI model (text/image/stream) | `{ai-model-web}` (or node/wechat) | sibling AI skills | `{cloudbase-agent}` first | Resource-point plan notice / Growth Plan preflight |
 | UI generation | `{ui-design}` | platform skill | backend-only skills | Design specification first |
 | Ops / troubleshooting | `{ops-inspector}` | `{cloud-functions}`, `{cloudrun-development}` | `{ui-design}`, `{spec-workflow}` | CLS, log time range |
 | Spec / architecture | `{spec-workflow}` | platform guideline | jumping straight to code | Requirements → design → tasks |
@@ -106,7 +106,7 @@ Overrides convenience. Full rationale lives in `{web-development}`.
 - Mini program failures: treating `wx.cloud` like Web auth/SDK.
 - New relational databases use PostgreSQL. MySQL skills apply only when the environment already has MySQL.
 - PG failures: falling back to NoSQL or MySQL, or guessing raw HTTP instead of `app.rdb()`.
-- AI model failures: missing Token Credits / Growth Plan — check packages before rewriting code.
+- AI model failures: quota-based plan or unenrolled Growth Plan — surface the console switch entry before rewriting code.
 - “最小前后端 / Todo / 留言板”: use `{minimal-web-baas-demo}` — **browser SDK CRUD**, not cloud-function middleware.
 
 ## Platform auth (never mix)

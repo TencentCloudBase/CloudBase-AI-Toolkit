@@ -73,7 +73,7 @@ await model.generateText({
 
 ## Mandatory Two-Step Preflight (before any SDK code)
 
-Before calling any AI API on the server, **run the two-step preflight**: ① eligibility, ② group readiness. **Text generation and image generation draw from the same Token Credits resource pack**, and both must complete the preflight before code is emitted.
+Before calling any AI API on the server, **run the two-step preflight**: ① eligibility, ② group readiness. **Text generation and image generation draw from the same resource-point pool**, and both must complete the preflight before code is emitted.
 
 ### Step 0: obtain the environment ID
 
@@ -81,28 +81,24 @@ Call the MCP tool `queryEnv` with `action=info` and read `EnvId` from the respon
 
 ---
 
-### Preflight ① — Eligibility (Token Credits resource pack)
+### Preflight ① — Billing plan (advisory, never blocks)
 
-Call the MCP tool:
+CloudBase managed models are billed against the environment's **resource points**.
+Token resource packs were discontinued on 2026-06-18; do not send users to any
+purchase page for one.
 
-```
-callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId })
-```
+`queryEnv(action="info")` may expose `EnvInfo.BillingInfo.EnvDeductionMode`:
+`"credits"` means resource-point billing, `"normal"` means the older
+quota-based billing. The field comes from `DescribeBillingInfo` and can be
+absent, or the call can fail. **Treat it as advisory only** — never stop writing
+code and never guess a plan the response does not state.
 
-**Pass conditions (all required):**
-- `envPostpayPackageInfoList` contains at least one entry
-- That entry's `postpayPackageId` starts with `pkg_tcb_tokencredits_`
-- That entry's `status` is NOT in `[3, 4]` (3 / 4 typically mean expired / disabled; trust the live response)
+Surface this once, then continue to Preflight ②:
 
-- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
-  > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
-  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
-  >
-  > Let me know once it's done and I'll re-check the resource pack status.
-
-- ✅ **Satisfied** → proceed to preflight ②.
-
-> Parameter casing is PascalCase by contract. If the call returns `InvalidParameter`, fall back to camelCase (`envId`) and trust the live response.
+> Managed model calls are deducted from the environment's resource points. If the
+> environment is still on a quota-based plan, switch it to a resource-point plan
+> in the console first:
+> https://tcb.cloud.tencent.com/dev#/env/package-usage/basic
 
 ---
 
@@ -190,7 +186,7 @@ Eligibility alone is not enough. **Do not write `createModel("cloudbase")` yet.*
 
 ## Custom onboarding (models outside the managed catalog)
 
-When the user wants a **non-managed** text model (self-hosted, enterprise-internal, third-party OpenAI-compatible endpoint, …), **do not block**. Guide them through onboarding — console flow, the full `CreateAIModel` payload, and follow-up management steps: [custom-onboarding.md](references/custom-onboarding.md). The custom `GroupName` MUST start with `custom-`; custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack.
+When the user wants a **non-managed** text model (self-hosted, enterprise-internal, third-party OpenAI-compatible endpoint, …), **do not block**. Guide them through onboarding — console flow, the full `CreateAIModel` payload, and follow-up management steps: [custom-onboarding.md](references/custom-onboarding.md). The custom `GroupName` MUST start with `custom-`; custom-model billing is covered by the third-party provider and does not draw from the environment's resource points.
 
 ---
 
@@ -262,7 +258,7 @@ For full `generateText` / `streamText` / `generateImage` code examples, the erro
 
 ## Best Practices
 
-1. **Run the two-step preflight before writing business code** — ① eligibility: `queryEnv` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when the target model is missing. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` instead of emitting SDK code and letting the user debug runtime errors.
+1. **Run the two-step preflight before writing business code** — ① advisory billing-plan notice (text + image share the same resource-point pool); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when the target model is missing.
 2. **Never assume any model is already enabled** — not `deepseek-v4.1-flash`, not `hunyuan-image`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling) and then `UpdateAIModel` to enable it.
 3. **`createModel` accepts exactly four kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-v3"` (legacy plan group, only `hy3`, being retired), `"hunyuan-exp"` (older legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")` — the first two are vendor/model names, the last is a placeholder. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
 4. **Do not invent SDK method names or parameters.** This skill (SKILL.md + `references/api-reference.md`) is the authoritative reference for `@cloudbase/node-sdk`'s AI surface — look up the method signature there before writing code. If a method or field is not documented there, stop and ask, or check the live contract via the MCP tools. No guessing.
@@ -271,7 +267,7 @@ For full `generateText` / `streamText` / `generateImage` code examples, the erro
 7. **Prefer streaming for long-form interactions** — in HTTP-function or cloud-function SSE scenarios, use `streamText` + `for await (const chunk of result.textStream)` to flush chunks back to the client incrementally. Handle stream interruption in `catch` and close the underlying response.
 8. **Pin `@cloudbase/node-sdk` >= 3.16.0** on the server — image generation is only available from this version. Verify with `npm ls @cloudbase/node-sdk` to confirm the version actually loaded by the cloud function / cloud run runtime — local and production can drift.
 9. **Centralize model names in config, not scattered literals.** Keep the chosen text / image model in a single constant and source from `DescribeAIModels` / `DescribeManagedAIModelList`. The managed catalog evolves; a single source of truth makes upgrades cheap. For models outside the managed catalog, follow the Custom Onboarding section — never hard-code third-party API keys in business code (let `CreateAIModel.Secret.ApiKey` hold them via CloudBase).
-10. **Distinguish "preflight failure" from "model call failure"** — the former means the resource pack is not active or the target model has not been enabled via `UpdateAIModel` (guide the user to purchase / enable). The latter is a parameter issue or upstream error. Do not wrap both in one generic toast.
+10. **Distinguish "preflight failure" from "model call failure"** — the former means the target model has not been enabled via `UpdateAIModel` (guide the user to enable it). The latter is a parameter issue or upstream error. Do not wrap both in one generic toast.
 11. **Do not log full prompts or generated text in production** — log only `usage.total_tokens` and a short prefix. Prompts can leak sensitive content; token counts can leak cost signals.
 12. **TypeScript: do NOT use `any` to silence SDK type errors.** The Node SDK ships its own types; narrow with `unknown` + a type guard, write a precise `interface` for the shape you consume, or augment types in a local `.d.ts`. Never `: any`, `as any`, `@ts-ignore`, `@ts-nocheck`. See the Engineering constitution in the `web-development` skill — it applies to backend TS too.
 13. **Self-verify before claiming done.** `tsc --noEmit` + project build + actually invoke the function (local invoke / `manageFunctions(action="invokeFunction")` / direct HTTP hit) and confirm `usage.total_tokens > 0` and the returned text is not an error envelope. "It should work" without a real round-trip is not acceptable evidence.

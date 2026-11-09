@@ -386,7 +386,7 @@ scenarios:
   - 流式对话
   - hunyuan-exp
   - deepseek-v4-flash
-  - Token Credits 资源包
+  - 资源点套餐
   - 小程序成长计划
   - ai_miniprogram_inspire_plan
   - callCloudApi AI 模型
@@ -396,22 +396,22 @@ scenarios:
   - ai-model-nodejs
   - ai-model-wechat
   beforeAction:
-  - 先跑「调用前必须的资格检查」：用 `queryEnv` 拿到 `EnvId`，再按端别优先级查资格。
-  - Web / Node.js 端优先 `callCloudApi(tcb, DescribeEnvPostpayPackage)` 确认 Token Credits 资源包开通；未命中返回 `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` 引导购买。
-  - 小程序端优先调用 `callCloudApi` 的 `DescribeActivityInfo`（参数 activityNames 为 ai_miniprogram_inspire_plan）判断成长计划是否报名；命中用 `cloudbase` / `hy3`（先确认 `hy3` 已在该分组内启用）；存量代码里的 `hunyuan-v3` 分组只剩 `hy3`、正在退场，`hunyuan-exp` 的默认模型 `hunyuan-2.0-instruct-20251111` 已于 2026-05-31 下线；未命中引导 `https://docs.cloudbase.net/ai/ai-inspire-plan` 或退回资源包 + 非 hunyuan 模型。
+  - 先做计费提示与分组就绪检查：用 `queryEnv` 拿到 `EnvId`，再按端别优先级处理。
+  - Web / Node.js 端只给一次计费提示（不阻断写代码）：内置模型按环境资源点抵扣，Token 资源包已于 2026-06-18 停售；套餐仍为配额制时引导到 `https://tcb.cloud.tencent.com/dev#/env/package-usage/basic` 切换为资源点套餐。`queryEnv(action=info)` 的 `EnvInfo.BillingInfo.EnvDeductionMode` 为 `credits` 表示资源点结算，字段缺失或调用失败都不要当作阻断。
+  - 小程序端优先调用 `callCloudApi` 的 `DescribeActivityInfo`（参数 activityNames 为 ai_miniprogram_inspire_plan）判断成长计划是否报名；命中用 `cloudbase` / `hy3`（先确认 `hy3` 已在该分组内启用）；存量代码里的 `hunyuan-v3` 分组只剩 `hy3`、正在退场，`hunyuan-exp` 的默认模型 `hunyuan-2.0-instruct-20251111` 已于 2026-05-31 下线；未命中引导 `https://docs.cloudbase.net/ai/ai-inspire-plan` 或退回资源点套餐 + 非 hunyuan 模型。
   - 指定的模型不在托管列表时走自定义接入（CloudBase 控制台 `#/ai` 或 `callCloudApi(tcb, CreateAIModel)`），不要点名任何第三方品牌。
   doNotUse:
   - cloudbase-agent
   - cloud-functions
   - cloudrun-development
   commonMistakes:
-  - 跳过资格检查直接写 SDK 调用，运行时才发现资源包未开通或计划未报名。
+  - 跳过计费提示与分组就绪检查直接写 SDK 调用，运行时才发现套餐不支持抵扣或计划未报名。
   - 把小程序场景错误地退化成 Web SDK 调用。
   - 图像生成忽略超时与单次 Token 费用，云函数 timeout 仍保留默认值。
   - 在业务代码里硬编码第三方模型密钥，而非走「不在托管列表时的自定义接入」。
   label: AI model call (大模型调用 / 文本生成 / 图片生成 / 流式对话)
   mustCheckBeforeAction:
-  - 先跑「调用前必须的资格检查」：`DescribeActivityInfo`（小程序成长计划） + `DescribeEnvPostpayPackage`（Token Credits 资源包）
+  - 先做计费提示：`DescribeActivityInfo`（小程序成长计划） + 资源点套餐提示（不阻断）
 - id: ops-inspector
   priority: 82
   signals:

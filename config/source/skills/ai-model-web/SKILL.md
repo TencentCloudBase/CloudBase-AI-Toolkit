@@ -88,28 +88,27 @@ Call the MCP tool `queryEnv` with `action=info` and read `EnvId` from the respon
 
 ---
 
-### Preflight ① — Eligibility (Token Credits resource pack)
+### Preflight ① — Billing plan (advisory, never blocks)
 
-Call the MCP tool:
+CloudBase managed models are billed against the environment's **resource points**.
+Token resource packs were discontinued on 2026-06-18; do not send users to any
+purchase page for one.
 
-```
-callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId })
-```
+`queryEnv(action="info")` may expose `EnvInfo.BillingInfo.EnvDeductionMode`:
+`"credits"` means resource-point billing, `"normal"` means the older
+quota-based billing. The field comes from `DescribeBillingInfo` and can be
+absent, or the call can fail. **Treat it as advisory only** — never stop writing
+code and never guess a plan the response does not state.
 
-**Pass conditions (all required):**
-- `envPostpayPackageInfoList` contains at least one entry
-- That entry's `postpayPackageId` starts with `pkg_tcb_tokencredits_`
-- That entry's `status` is NOT in `[3, 4]` (3 / 4 typically mean expired / disabled; trust the live response)
+Surface this once, then continue to Preflight ②:
 
-- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
-  > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
-  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
-  >
-  > Let me know once it's done and I'll re-check the resource pack status.
+> Managed model calls are deducted from the environment's resource points. If the
+> environment is still on a quota-based plan, switch it to a resource-point plan
+> in the console first:
+> https://tcb.cloud.tencent.com/dev#/env/package-usage/basic
 
-- ✅ **Satisfied** → proceed to preflight ②.
-
-> Parameter casing is PascalCase by contract. If the call returns `InvalidParameter`, fall back to camelCase (`envId` / `envPostpayPackageInfoList`) and trust the live response. For the Mini Program scenario there is an additional growth-plan branch — switch to the `ai-model-wechat` skill.
+> For the Mini Program scenario there is an additional growth-plan branch — use
+> the `ai-model-wechat` skill.
 
 ---
 
@@ -217,7 +216,7 @@ callCloudApi(service="tcb", action="CreateAIModel", params={
 
 Once onboarded, confirm with `DescribeAIModels` that the group is ready, then call `ai.createModel("<the GroupName you just registered>")` from your code. Use `UpdateAIModel` to add/remove models, rotate keys, or change `BaseUrl` (remember `Models` is a **full replacement**). Use `DeleteAIModel` to remove a custom group (builtin groups cannot be deleted).
 
-> Custom-model billing is covered by the third-party provider and does not draw from the Token Credits resource pack. Field casing follows the live contract — fall back to camelCase on `InvalidParameter`.
+> Custom-model billing is covered by the third-party provider and does not draw from the environment's resource points. Field casing follows the live contract — fall back to camelCase on `InvalidParameter`.
 
 ---
 
@@ -379,7 +378,7 @@ interface Usage {
 
 ## Best Practices
 
-1. **Run the two-step preflight first** — ① eligibility (Token Credits resource pack via `DescribeEnvPostpayPackage`) + ② group readiness (`DescribeAIModels` to inspect what is enabled, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` and `Status: 1` when the target model is missing). Skipping preflight leads straight to "model not found" / "model not enabled" errors at runtime.
+1. **Run the two-step preflight first** — ① advisory billing-plan notice + ② group readiness (`DescribeAIModels` to inspect what is enabled, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` and `Status: 1` when the target model is missing). Skipping preflight leads straight to "model not found" / "model not enabled" errors at runtime.
 2. **Never assume any model is already enabled** — not `deepseek-v4.1-flash`, not `hunyuan-*`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling or invent vendor prefixes) and then `UpdateAIModel` to enable it.
 3. **`createModel` accepts exactly four kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-v3"` (legacy plan group, only `hy3`, being retired), `"hunyuan-exp"` (older legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")`.
 4. **Do not invent SDK method names or parameters.** This SKILL.md is the authoritative reference for `@cloudbase/js-sdk`'s AI surface — look up the method signature here (or in the Type Definitions section below) before writing code. If a method or field is not documented here, stop and ask, or check the live contract via the MCP tools. No guessing.
@@ -389,6 +388,6 @@ interface Usage {
 8. **Keep `accessKey` safe** — use a publishable key, never a secret key.
 9. **Initialize early** — set up the SDK at app entry so auth and AI are both ready before routing.
 10. **Do NOT use anonymous auth for AI features** — anonymous login is disabled by default for new environments, and anonymous users are denied AI model permissions. Require a verified sign-in (phone, email, username+password, WeChat, custom) before calling any AI API. Delegate provider configuration to the `auth-tool-cloudbase` skill and the browser sign-in flow to the `auth-web-cloudbase` skill; the AI-model skill checks `auth.getSession()` and verifies `loginType` before gating the call.
-11. **Distinguish "preflight failure" from "model call failure"** — the former means the user needs to buy a resource pack or call `UpdateAIModel`; the latter is a prompt / parameter / network issue. Give the user different guidance for each.
+11. **Distinguish "preflight failure" from "model call failure"** — the former means the target model has not been enabled via `UpdateAIModel`; the latter is a prompt / parameter / network issue. Give the user different guidance for each.
 12. **TypeScript: do NOT use `any` to silence type errors from the SDK.** The SDK ships its own types; if an error shows up, narrow with `unknown` + a type guard, write a precise `interface` for the shape you actually consume, or augment types in a local `.d.ts`. Never `: any`, `as any`, `@ts-ignore`, or `@ts-nocheck`. See the Engineering constitution in the `web-development` skill.
 13. **Self-verify before claiming done.** Run `tsc --noEmit` + the project build + open the page with `agent-browser` and actually trigger the AI call. Confirm: (a) the text stream reaches the UI, (b) no new console errors, (c) `result.usage` is non-zero. Saying "it should work" without evidence is not acceptable — follow `web-development/browser-testing.md`.
