@@ -133,7 +133,7 @@ async function main() {
   const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
   fs.utimesSync(lockPath, old, old);
   registry.setLatest("4.0.0");
-  const r6 = await launch([], { NGE_CHECK_INTERVAL: "0" });
+  await launch([], { NGE_CHECK_INTERVAL: "0" });
   const recovered = await waitFor(() => current() === "4.0.0");
   check(recovered, "stale lock is cleared and update proceeds", `current=${current()}`);
   const r7 = await launch([]);
