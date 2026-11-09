@@ -90,6 +90,75 @@ function spawnHeld(root, extra = {}) {
   child.stderr.on("data", () => {});
   return child;
 }
+// Reproduces how Electron-style clients supervise MCP servers on Windows: the
+// launcher runs inside a Job object with KILL_ON_JOB_CLOSE, and closing the
+// job kills every process in it. PowerShell puts itself in the job first so
+// the launcher and everything it spawns inherit the job with no race.
+const JOB_PS1 = String.raw`
+param($Node, $Index, $Spec, $Base)
+$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class NgeJob {
+  [StructLayout(LayoutKind.Sequential)] public struct BASIC {
+    public long PerProcessUserTimeLimit; public long PerJobUserTimeLimit; public uint LimitFlags;
+    public UIntPtr MinimumWorkingSetSize; public UIntPtr MaximumWorkingSetSize; public uint ActiveProcessLimit;
+    public UIntPtr Affinity; public uint PriorityClass; public uint SchedulingClass; }
+  [StructLayout(LayoutKind.Sequential)] public struct IOC {
+    public ulong R; public ulong W; public ulong O; public ulong RB; public ulong WB; public ulong OB; }
+  [StructLayout(LayoutKind.Sequential)] public struct EXT {
+    public BASIC Basic; public IOC Io; public UIntPtr ProcessMemoryLimit; public UIntPtr JobMemoryLimit;
+    public UIntPtr PeakProcessMemoryUsed; public UIntPtr PeakJobMemoryUsed; }
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr CreateJobObject(IntPtr a, string n);
+  [DllImport("kernel32.dll")] public static extern bool SetInformationJobObject(IntPtr j, int c, ref EXT i, uint l);
+  [DllImport("kernel32.dll")] public static extern bool AssignProcessToJobObject(IntPtr j, IntPtr p);
+  [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr h);
+}
+'@
+$job = [NgeJob]::CreateJobObject([IntPtr]::Zero, $null)
+$info = New-Object NgeJob+EXT
+$info.Basic.LimitFlags = 0x2000
+if (-not [NgeJob]::SetInformationJobObject($job, 9, [ref]$info, [uint32][Runtime.InteropServices.Marshal]::SizeOf($info))) { [Console]::Out.WriteLine('SETINFO_FAILED'); exit 2 }
+if (-not [NgeJob]::AssignProcessToJobObject($job, [Diagnostics.Process]::GetCurrentProcess().Handle)) { [Console]::Out.WriteLine('ASSIGN_FAILED'); exit 2 }
+$null = Start-Process -FilePath $Node -ArgumentList @(('"' + $Index + '"'), $Spec) -PassThru -WindowStyle Hidden
+$lock = Join-Path $Base 'lock'
+for ($i = 0; $i -lt 300 -and -not (Test-Path $lock); $i++) { Start-Sleep -Milliseconds 100 }
+[Console]::Out.WriteLine('LOCK_SEEN=' + (Test-Path $lock))
+[Console]::Out.Flush()
+$null = [NgeJob]::CloseHandle($job)
+Start-Sleep -Seconds 5
+[Console]::Out.WriteLine('STILL_ALIVE')
+`;
+
+async function killedByJob(extra) {
+  const root = mkRoot();
+  const base = path.join(root, SLUG);
+  fs.mkdirSync(base, { recursive: true });
+  const ps1 = path.join(root, "job.ps1");
+  fs.writeFileSync(ps1, JOB_PS1);
+  const out = await new Promise((resolve) => {
+    const ps = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+      "-File", ps1, process.execPath, INDEX, SPEC, base], {
+      env: env(root, { NGE_FIRST_RUN_TIMEOUT: "60000", ...extra }), stdio: ["ignore", "pipe", "pipe"],
+    });
+    let o = "";
+    ps.stdout.on("data", (d) => { o += d; });
+    ps.stderr.on("data", (d) => { o += d; });
+    ps.on("close", () => resolve(o.trim()));
+  });
+  // The tarball is delayed 4 s; give a surviving installer time to finish.
+  await waitFor(() => current(root) !== null, 15000);
+  const result = {
+    out: out.slice(0, 300),
+    lockSeen: /LOCK_SEEN=True/.test(out) && !/STILL_ALIVE/.test(out),
+    current: current(root),
+    leftovers: fs.readdirSync(base).filter((f) => f.startsWith(".updater-env-")),
+  };
+  removeTempRoot(root);
+  return result;
+}
+
 async function startSink() {
   const server = http.createServer((req, res) => {
     let b = "";
@@ -326,6 +395,42 @@ async function main() {
     check(again12.code === 0 && /TARGET_OK/.test(again12.out),
       "reconnect starts immediately without downloading again", JSON.stringify(again12.out));
     removeTempRoot(r12);
+  }
+
+  console.log("\n[13] 首装等待超时只看本次会话的事件，旧会话的失败原因不串过来");
+  const r13 = mkRoot();
+  const base13 = path.join(r13, SLUG);
+  fs.mkdirSync(path.join(base13, "lock"), { recursive: true });
+  // A live pid holds the lock: the download is "still in progress" elsewhere.
+  fs.writeFileSync(path.join(base13, "lock", "pid"), String(process.pid));
+  fs.writeFileSync(path.join(base13, "events.jsonl"), JSON.stringify({
+    ts: new Date(Date.now() - 24 * 3600e3).toISOString(),
+    phase: "install", result: "failed", reason: "enospc",
+  }) + "\n");
+  const c13 = await run([], r13, { NGE_FIRST_RUN_TIMEOUT: "3000" });
+  const last13 = events(r13).filter((e) => e.phase === "start").pop();
+  check(c13.code === 1 && last13?.result === "failed", "wait expiry exits 1 with start:failed",
+    `code=${c13.code}`);
+  check(last13?.reason === "timeout", "reason is timeout, not yesterday's enospc",
+    `reason=${last13?.reason}`);
+  removeTempRoot(r13);
+
+  console.log("\n[14] Windows：客户端用 Job 对象杀掉整棵进程树时，首装仍在 Job 外继续");
+  if (process.platform !== "win32") {
+    check(true, "SKIP outside Windows (Job objects are Windows-only)");
+  } else {
+    registry.setTarballDelay(4000);
+    const control = await killedByJob({ NGE_WIN_BREAKAWAY: "0" });
+    check(control.lockSeen, "control: installer started before the job was closed", control.out);
+    check(control.current === null,
+      "control: a plain detached installer dies with the job (harness reproduces the bug)",
+      `current=${control.current}`);
+    const fixed = await killedByJob({});
+    check(fixed.lockSeen, "installer started before the job was closed", fixed.out);
+    check(fixed.current !== null, "installer outside the job finishes after the job is closed",
+      `current=${fixed.current}`);
+    check(fixed.leftovers.length === 0, "no env file left behind", fixed.leftovers.join(","));
+    registry.setTarballDelay(0);
   }
 
   const failed = results.filter((r) => !r.ok);

@@ -8,6 +8,21 @@ const os = require("os");
 const http = require("http");
 const https = require("https");
 
+// A Windows first-run updater started through WMI (see spawnOutsideJob) does
+// not inherit our environment. Its variables arrive in a dot-prefixed file that
+// is applied here, before any constant below reads process.env, and deleted.
+// If the file is gone the updater exits: running with the wrong NGE_ROOT or
+// registry would be worse than not running at all.
+if (process.argv[2] === "--nge-update" && process.argv[4]) {
+  const f = process.argv[4];
+  try {
+    if (!path.basename(f).startsWith(".updater-env-")) throw new Error("bad env file");
+    const vars = JSON.parse(fs.readFileSync(f, "utf8"));
+    try { fs.rmSync(f, { force: true }); } catch {}
+    for (const [k, v] of Object.entries(vars)) if (typeof v === "string") process.env[k] = v;
+  } catch { process.exit(0); }
+}
+
 const REGISTRY = process.env.NGE_REGISTRY || "https://mirrors.cloud.tencent.com/npm/";
 const ROOT = process.env.NGE_ROOT || path.join(os.homedir(), "cloudbase-mcp", ".nge");
 const isWin = process.platform === "win32";
@@ -377,11 +392,11 @@ function prune(c, keepVersion) {
         rm(trash);
       } catch {}
     });
-  // A setCurrent() temp file whose rename failed is never reused; drop it once
-  // it is old enough that no live process could still be retrying.
+  // A setCurrent() temp file whose rename failed, or a WMI env file nobody
+  // picked up, is never reused; drop it once no live process could want it.
   try {
     for (const f of fs.readdirSync(c.base)) {
-      if (!f.startsWith(".current.")) continue;
+      if (!f.startsWith(".current.") && !f.startsWith(".updater-env-")) continue;
       const p = path.join(c.base, f);
       try { if (Date.now() - fs.statSync(p).mtimeMs > TMP_TTL) rm(p); } catch {}
     }
@@ -464,7 +479,51 @@ function lockedUpdate(c, opts = {}) {
   return true;
 }
 
-function spawnUpdater(c, spec) {
+// Variables the updater needs when it cannot inherit our environment.
+const UPDATER_ENV = /^(NGE_|npm_|DO_NOT_TRACK$|CLOUDBASE_MCP_CLIENT$|INTEGRATION_IDE$|(HTTPS?|NO|ALL)_PROXY$|NODE_EXTRA_CA_CERTS$|PATH$|PATHEXT$|SystemRoot$|ComSpec$|USERPROFILE$|HOMEDRIVE$|HOMEPATH$|APPDATA$|LOCALAPPDATA$|TEMP$|TMP$)/i;
+
+// Windows clients often run MCP servers inside a Job object with
+// KILL_ON_JOB_CLOSE. `detached: true` does not leave the job, so a first-run
+// installer spawned normally dies with the client and every reconnect starts
+// the download from scratch. A process created through WMI is parented to the
+// WMI provider host, not to us, and is outside the client's job.
+// Used only for the first install (once per machine); warm-start update checks
+// stay on the plain spawn so a usable version still starts immediately.
+function spawnOutsideJob(c, spec) {
+  if (/["\r\n]/.test(spec + process.execPath + __filename)) return false;
+  const envFile = path.join(c.base, `.updater-env-${process.pid}-${Date.now()}.json`);
+  try {
+    const vars = {};
+    for (const [k, v] of Object.entries(process.env)) if (UPDATER_ENV.test(k)) vars[k] = v;
+    fs.writeFileSync(envFile, JSON.stringify(vars), { mode: 0o600 });
+  } catch { return false; }
+  // Values travel in environment variables, so the script itself has no quoting.
+  const script = [
+    "$ErrorActionPreference='Stop'",
+    "$si=New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}",
+    "$r=Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$env:NGE_WMI_CMD;CurrentDirectory=$env:NGE_WMI_CWD;ProcessStartupInformation=$si}",
+    "if($r.ReturnValue -ne 0){exit 3}",
+    "[Console]::Out.Write($r.ProcessId)",
+  ].join(";");
+  const exe = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const cmd = `"${process.execPath}" "${__filename}" --nge-update "${spec}" "${envFile}"`;
+  const r = spawnSync(exe, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], {
+    env: { ...process.env, NGE_WMI_CMD: cmd, NGE_WMI_CWD: c.base },
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true, timeout: 20000,
+  });
+  const pid = String(r.stdout || "").trim();
+  const ok = r.status === 0 && /^\d+$/.test(pid);
+  log(c, ok ? `updater started outside the job: pid ${pid}`
+    : `WMI updater failed (status=${r.status}), using plain spawn: ${String(r.stderr || "").slice(0, 300)}${r.error ? r.error.message : ""}`);
+  // Without its env file a stray WMI process exits on its own (see the top of this file).
+  if (!ok) rm(envFile);
+  return ok;
+}
+
+function spawnUpdater(c, spec, opts = {}) {
+  if (opts.outsideJob && isWin && process.env.NGE_WIN_BREAKAWAY !== "0" && spawnOutsideJob(c, spec)) {
+    return true;
+  }
   try {
     const bg = spawn(process.execPath, [__filename, "--nge-update", spec],
       { detached: true, stdio: "ignore", windowsHide: true });
@@ -480,11 +539,16 @@ function installerBusy(c) {
 
 // The foreground waits but never runs npm, so read the last real failure from
 // the local event log. Only a genuine wait expiry should be reported as timeout.
-function lastFailureReason(c) {
+// Events older than `since` belong to an earlier session (yesterday's ENOSPC,
+// say) and must not be blamed for today's slow download.
+function lastFailureReason(c, since) {
   try {
-    const lines = fs.readFileSync(c.eventsFile, "utf8").trim().split("\n").filter(Boolean).slice(-20);
+    const lines = fs.readFileSync(c.eventsFile, "utf8").trim().split("\n").filter(Boolean);
     for (let i = lines.length - 1; i >= 0; i--) {
-      const e = JSON.parse(lines[i]);
+      let e;
+      try { e = JSON.parse(lines[i]); } catch { continue; }
+      const ts = Date.parse(e.ts);
+      if (!Number.isFinite(ts) || ts < since) break;
       const failed = (e.phase === "install" || e.phase === "update") && e.result === "failed";
       const skipped = e.phase === "update" && e.result === "skipped"
         && e.reason && e.reason !== "lock" && e.reason !== "none";
@@ -580,21 +644,21 @@ function main() {
   const deadline = Date.now() + FIRST_RUN_TIMEOUT;
   let attempts = 0;
   let lastAttempt = 0;
-  if (spawnUpdater(c, spec)) { attempts = 1; lastAttempt = Date.now(); }
+  if (spawnUpdater(c, spec, { outsideJob: true })) { attempts = 1; lastAttempt = Date.now(); }
   while (!cur && Date.now() < deadline) {
     sleep(500);
     cur = readCurrent(c);
     if (cur) break;
     // Retry inside the remaining budget if an updater died without installing.
     if (attempts < 3 && Date.now() - lastAttempt > 10000 && !installerBusy(c)) {
-      if (spawnUpdater(c, spec)) { attempts += 1; lastAttempt = Date.now(); }
+      if (spawnUpdater(c, spec, { outsideJob: true })) { attempts += 1; lastAttempt = Date.now(); }
     }
   }
   if (!cur) {
     FLUSH_ON_EXIT = true;
     // No old version exists, so this is a start failure, not a fallback.
     emit(c, "start", {
-      result: "failed", reason: lastFailureReason(c),
+      result: "failed", reason: lastFailureReason(c, t0),
       coldStart: true, elapsedMs: Date.now() - t0,
     });
     console.error(`Failed to install ${spec}. See log: ${c.logFile}`);

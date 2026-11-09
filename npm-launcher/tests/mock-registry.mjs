@@ -75,7 +75,7 @@ function tarball(version) {
 export function startMockRegistry() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nge-registry-"));
   const tars = Object.fromEntries(VERSIONS.map((v) => [v, tarball(v)]));
-  const state = { latest: "1.0.0", failVersion: null, offline: false };
+  const state = { latest: "1.0.0", failVersion: null, offline: false, tarballDelay: 0 };
 
   const server = http.createServer((req, res) => {
     const url = decodeURIComponent((req.url || "").split("?")[0]);
@@ -85,8 +85,11 @@ export function startMockRegistry() {
     if (tgz) {
       const v = tgz[1];
       if (!tars[v] || state.failVersion === v) { res.writeHead(500); res.end("broken tarball"); return; }
-      res.writeHead(200, { "content-type": "application/octet-stream" });
-      res.end(tars[v].buf);
+      // A delay keeps an install in flight long enough for a test to kill it.
+      setTimeout(() => {
+        res.writeHead(200, { "content-type": "application/octet-stream" });
+        res.end(tars[v].buf);
+      }, state.tarballDelay);
       return;
     }
     if (url.includes("nge-testpkg")) {
@@ -116,6 +119,7 @@ export function startMockRegistry() {
         setLatest: (v) => { state.latest = v; },
         failTarball: (v) => { state.failVersion = v; },
         setOffline: (v) => { state.offline = v; },
+        setTarballDelay: (ms) => { state.tarballDelay = ms; },
         close: () => { server.close(); fs.rmSync(dir, { recursive: true, force: true }); },
       });
     });
