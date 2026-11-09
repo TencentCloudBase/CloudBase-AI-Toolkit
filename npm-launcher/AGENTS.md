@@ -16,7 +16,7 @@ alwaysApply: true
 
 ## 设计红线
 
-1. **stdout 是 MCP 的 JSON-RPC 通道**：npm 的 stdout/stderr 一律 pipe 后写 `install.log`，只有目标包进程用 `stdio: "inherit"`。
+1. **stdout 是 MCP 的 JSON-RPC 通道，launcher 自己一个字节都不写**：npm 的 stdout/stderr 一律 pipe 后写 `install.log`；后台更新进程 `stdio: "ignore"`；错误只走 `console.error`（stderr）；冷启动、首装失败、后台更新、参数错误四条路径的 stdout 必须为空或只有目标包输出。唯一例外是手动排障的 `--nge-diag`，它用 `process.stdout.write`，**绝不能写进 MCP 配置**。`tests/stdout-guard.test.mjs` 做静态检查（禁止 `console.log`、stdout 写入只能出现在 diag 分支）加五条动态路径断言，改输出行为必须跑它。
 2. **不共用 node_modules**：每个进程用自己的 `.tmp-<pid>-<ts>` 安装，成功后 `renameSync` 到 `versions/<version>`。目标已存在时先判 `binOf()`，另一个进程装好就直接复用。
 3. **`current` 必须原子替换**：写 `<current>.<pid>` 再 rename，绝不原地覆写。
 4. **锁只防重复下载，不保证正确性**：`mkdir` 抢锁，超时视为残留；抢不到锁最多多等一轮，不能因此失败退出。
@@ -57,7 +57,7 @@ alwaysApply: true
 
 ## 验证
 
-`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 23/23 通过（83 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 首装失败事件能 flush）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
+`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 23/23 + 10/10 通过（93 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 首装失败事件能 flush）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
 
 ## 发布
 
@@ -77,6 +77,6 @@ workflow：`.github/workflows/npm-launcher-publish.yml`。
 - **首次发布**：npm 只允许给「已存在的包」配 trusted publisher，所以先在 GitHub 仓库配 secret `NPM_LAUNCHER_TOKEN`（granular access token，bypass 2FA）。
 - **包存在之后**：在 npmjs.com 的包设置里加 Trusted Publisher —— GitHub Actions，org `TencentCloudBase`、repo `CloudBase-AI-Toolkit`、workflow filename `npm-launcher-publish.yml`（只填文件名、区分大小写）、允许 `npm publish`；然后删掉 secret，之后自动走 OIDC + provenance。`package.json.repository` 已填且必须与仓库匹配，别删。
 
-**门禁**：tag 与版本一致、`node --check`、`npm test`（83 项）、`npm pack --dry-run --json` 断言恰好 4 个文件、registry 幂等检查（同版本重跑不会 403）。
+**门禁**：tag 与版本一致、`node --check`、`npm test`（93 项）、`npm pack --dry-run --json` 断言恰好 4 个文件、registry 幂等检查（同版本重跑不会 403）。
 
 **发布后** `verify` job：直连 `registry.npmjs.org` 轮询收录（最多 15 分钟，别信本机 `.npmrc` 镜像），再经 `npx -y @cloudbase/npm-launcher@<version>` 跑 `tests/real-package-smoke.mjs`（`NGE_SMOKE_LAUNCHER_SPEC`），这是唯一覆盖 launcher 自身经 npx 冷启动的验证。
