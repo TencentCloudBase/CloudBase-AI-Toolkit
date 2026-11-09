@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const INDEX = path.join(PKG, "index.js");
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "nge-concurrency-"));
+const NPM_CACHE = fs.mkdtempSync(path.join(os.tmpdir(), "nge-concurrency-npmcache-"));
 
 const results = [];
 function check(ok, label, detail = "") {
@@ -26,6 +27,7 @@ function env(extra = {}) {
       ? (process.env.PATH || "")
       : `/usr/local/bin:${process.env.PATH || ""}`,
     NGE_ROOT: ROOT,
+    npm_config_cache: NPM_CACHE,
     NGE_CHECK_INTERVAL: "3600000",
     NGE_TELEMETRY: "0", // tests must never send real telemetry to beacon
     ...extra,
@@ -103,11 +105,13 @@ async function main() {
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
   removeTempRoot(ROOT);
+  removeTempRoot(NPM_CACHE);
   if (failed.length) process.exit(1);
 }
 
 main().catch((e) => {
   console.error(e);
   removeTempRoot(ROOT);
+  removeTempRoot(NPM_CACHE);
   process.exit(1);
 });

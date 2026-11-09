@@ -10,18 +10,29 @@ const https = require("https");
 
 const REGISTRY = process.env.NGE_REGISTRY || "https://mirrors.cloud.tencent.com/npm/";
 const ROOT = process.env.NGE_ROOT || path.join(os.homedir(), "cloudbase-mcp", ".nge");
-const CHECK_INTERVAL = Number(process.env.NGE_CHECK_INTERVAL || 5 * 60 * 1000);
-const LOCK_STALE = Number(process.env.NGE_LOCK_STALE || 10 * 60 * 1000);
-const KEEP = Number(process.env.NGE_KEEP || 5);
-const FIRST_RUN_TIMEOUT = Number(process.env.NGE_FIRST_RUN_TIMEOUT || 120e3);
 const isWin = process.platform === "win32";
 
-// Telemetry is on by default. NGE_TELEMETRY=0 turns off the network call only;
-// local events.jsonl is always written so --nge-diag works offline.
-const TELEMETRY_ENABLED = process.env.NGE_TELEMETRY !== "0";
+// Numeric env vars: NaN (or a negative value) must never silently disable a
+// behaviour. Zero is valid: tests use NGE_CHECK_INTERVAL=0 to force a check.
+const num = (v, d) => {
+  if (v === undefined || v === null || String(v).trim() === "") return d;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : d;
+};
+const CHECK_INTERVAL = num(process.env.NGE_CHECK_INTERVAL, 5 * 60 * 1000);
+const LOCK_STALE = num(process.env.NGE_LOCK_STALE, 10 * 60 * 1000);
+const KEEP = Math.max(1, num(process.env.NGE_KEEP, 5));
+const FIRST_RUN_TIMEOUT = num(process.env.NGE_FIRST_RUN_TIMEOUT, 120e3);
+const TMP_TTL = num(process.env.NGE_TMP_TTL, 10 * 60 * 1000);
+
+// Telemetry is on by default. NGE_TELEMETRY=0 / DO_NOT_TRACK turn off the
+// network call only; local events.jsonl is always written for --nge-diag.
+const TELEMETRY_ENABLED = process.env.NGE_TELEMETRY !== "0" && !process.env.DO_NOT_TRACK;
 const TELEMETRY_ENDPOINT = process.env.NGE_TELEMETRY_ENDPOINT || "https://otheve.beacon.qq.com/analytics/v2_upload";
-const TELEMETRY_TIMEOUT = Number(process.env.NGE_TELEMETRY_TIMEOUT || 1000);
+const TELEMETRY_TIMEOUT = num(process.env.NGE_TELEMETRY_TIMEOUT, 1000);
 const IS_BACKGROUND = process.argv[2] === "--nge-update";
+// Foreground first install gets one overall deadline; background updaters do not.
+let DEADLINE = 0;
 const LAUNCHER_VERSION = (() => {
   try { return JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version; }
   catch { return "1.0.0"; }
@@ -29,6 +40,16 @@ const LAUNCHER_VERSION = (() => {
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const rm = (p) => { try { fs.rmSync(p, { recursive: true, force: true }); } catch {} };
+
+function rotate(file, max = 1 << 20) {
+  try {
+    if (fs.statSync(file).size > max) {
+      // Windows cannot rename over an existing .1 file.
+      try { fs.rmSync(file + ".1", { force: true }); } catch {}
+      fs.renameSync(file, file + ".1");
+    }
+  } catch {}
+}
 
 function context(spec) {
   const at = spec.lastIndexOf("@");
@@ -41,10 +62,13 @@ function context(spec) {
     current: path.join(base, "current"),
     stamp: path.join(base, "last-check"),
     lock: path.join(base, "lock"),
+    leases: path.join(base, "leases"),
     logFile: path.join(base, "install.log"),
     eventsFile: path.join(base, "events.jsonl"),
   };
   fs.mkdirSync(c.versions, { recursive: true });
+  rotate(c.logFile);
+  rotate(c.eventsFile);
   return c;
 }
 
@@ -68,15 +92,22 @@ function safeClient() {
   const v = process.env.CLOUDBASE_MCP_CLIENT || "";
   return /^[A-Za-z0-9._-]{1,64}$/.test(v) ? v : "unknown";
 }
+// Specific error codes first: npm output often contains the registry URL, so a
+// broad /registry/i match must stay last or it swallows auth/integrity errors.
 function classify(text) {
   const s = String(text || "");
   if (/ENOTEMPTY/i.test(s)) return "enotempty";
   if (/EPERM/i.test(s)) return "eperm";
   if (/EBUSY/i.test(s)) return "ebusy";
+  if (/EACCES/i.test(s)) return "eacces";
+  if (/ENOSPC/i.test(s)) return "enospc";
   if (/EJSONPARSE/i.test(s)) return "ejsonparse";
-  if (/ETIMEDOUT|TIMED?OUT|ESOCKETTIMEDOUT/i.test(s)) return "timeout";
+  if (/ETIMEDOUT|TIMED?OUT|ESOCKETTIMEDOUT|SIGKILL|SIGTERM/i.test(s)) return "timeout";
+  if (/E401|E403|EAUTH/i.test(s)) return "auth";
+  if (/ETARGET|E404/i.test(s)) return "notfound";
+  if (/EINTEGRITY/i.test(s)) return "integrity";
   if (/ENOTFOUND|EAI_AGAIN|ECONNRESET|ECONNREFUSED|ENETUNREACH|network/i.test(s)) return "network";
-  if (/E404|E500|\b50[0-9]\b|Internal Server Error|registry/i.test(s)) return "registry";
+  if (/E500|\b50[0-9]\b|Internal Server Error|registry/i.test(s)) return "registry";
   if (/EEXIST|lock/i.test(s)) return "lock";
   return "other";
 }
@@ -120,10 +151,11 @@ function sendTelemetry(e) {
     req.on("timeout", () => { try { req.destroy(); } catch {} });
     req.write(data);
     req.end();
-    // The detached background updater has no other handles; keeping this one
-    // referenced lets its events actually flush. The foreground start path
-    // never waits for the network — process.exit() ends it with the child.
-    if (!IS_BACKGROUND && req.unref) req.unref();
+    // http.ClientRequest has no unref(); unref the socket instead. The detached
+    // background updater keeps the socket referenced so its events can flush.
+    if (!IS_BACKGROUND) {
+      req.on("socket", (s) => { try { s.unref(); } catch {} });
+    }
   } catch {}
 }
 
@@ -167,19 +199,28 @@ function readCurrent(c) {
   } catch { return null; }
 }
 
+function npmCli() {
+  const p = process.env.npm_execpath;
+  if (!p) return null;
+  const cand = /npx-cli\.js$/.test(p) ? path.join(path.dirname(p), "npm-cli.js") : p;
+  return /npm-cli\.js$/.test(cand) && fs.existsSync(cand) ? cand : null;
+}
+
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
 function npm(c, args, cwd) {
+  const budget = DEADLINE ? Math.max(5e3, DEADLINE - Date.now()) : 5 * 60 * 1000;
   const full = [...args, `--registry=${REGISTRY}`, "--no-audit", "--no-fund", "--loglevel=error"];
-  const opts = { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true, timeout: 5 * 60 * 1000 };
-  const cli = process.env.npm_execpath;
-  const r = cli && /npm-cli\.js$/.test(cli) && fs.existsSync(cli)
+  const opts = { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true, timeout: budget };
+  const cli = npmCli();
+  const r = cli
     ? spawnSync(process.execPath, [cli, ...full], opts)
     : spawnSync(isWin ? "npm.cmd" : "npm", full, { ...opts, shell: isWin });
+  const timedOut = !!r.signal || !!(r.error && /ETIMEDOUT|TIMED?OUT/i.test(`${r.error.code || ""} ${r.error.message || ""}`));
   log(c, `npm ${args.join(" ")} -> ${r.status} [platform=${process.platform} node=${process.version} npm=${process.env.npm_execpath || "npm"}]\n${r.stdout || ""}${r.stderr || ""}${r.error ? r.error.message : ""}`);
   return {
-    ok: r.status === 0,
+    ok: r.status === 0 && !r.error,
     out: r.stdout || "",
-    errText: `${r.stderr || ""}${r.error ? r.error.message : ""}`,
+    errText: `${r.stderr || ""}${r.error ? r.error.message : ""}${timedOut ? " ETIMEDOUT" : ""}`,
   };
 }
 
@@ -208,16 +249,17 @@ function install(c, version) {
   const r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp);
   if (!r.ok) {
     const reason = classify(r.errText);
-    emit(c, "install", {
-      result: "failed", targetVersion: version, reason, elapsedMs: elapsed(),
-    });
+    emit(c, "install", { result: "failed", targetVersion: version, reason, elapsedMs: elapsed() });
     rm(tmp);
     return { ok: false, reason };
   }
+  const dest = path.join(c.versions, version);
   let lastErr = "";
-  for (let i = 0; i < 5; i++) {
+  // Exponential backoff: Defender / antivirus can hold freshly unpacked files
+  // for well over the old 1.5s window. A half-written dest is moved aside first.
+  for (let i = 0, wait = 100; i < 10; i++, wait = Math.min(wait * 2, 2000)) {
     try {
-      fs.renameSync(tmp, path.join(c.versions, version));
+      fs.renameSync(tmp, dest);
       emit(c, "install", { result: "ok", targetVersion: version, elapsedMs: elapsed() });
       return { ok: true, reason: "none" };
     } catch (err) {
@@ -227,13 +269,14 @@ function install(c, version) {
         emit(c, "install", { result: "reused", targetVersion: version, elapsedMs: elapsed() });
         return { ok: true, reason: "none" };
       }
-      sleep(300);
+      if (fs.existsSync(dest)) {
+        try { fs.renameSync(dest, path.join(c.versions, `.trash-${Date.now()}-${version}`)); } catch {}
+      }
+      sleep(wait);
     }
   }
   const reason = classify(lastErr);
-  emit(c, "install", {
-    result: "failed", targetVersion: version, reason, elapsedMs: elapsed(),
-  });
+  emit(c, "install", { result: "failed", targetVersion: version, reason, elapsedMs: elapsed() });
   rm(tmp);
   return { ok: false, reason };
 }
@@ -244,40 +287,87 @@ function setCurrent(c, version) {
   fs.renameSync(t, c.current);
 }
 
-function prune(c, keepVersion) {
+// ---- version leases -------------------------------------------------------
+// A long-running MCP window may still be using an older version. prune must not
+// delete a version whose launcher process is alive, even if KEEP is exceeded.
+function alive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (e) { return e.code === "EPERM"; }
+}
+
+function acquireLease(c, version) {
   try {
-    const all = fs.readdirSync(c.versions).map((d) => ({
-      d, t: fs.statSync(path.join(c.versions, d)).mtimeMs,
-    }));
-    all.filter((x) => x.d.startsWith(".") && Date.now() - x.t > (Number(process.env.NGE_TMP_TTL) || 10 * 60 * 1000))
-      .forEach((x) => rm(path.join(c.versions, x.d)));
-    all.filter((x) => !x.d.startsWith(".") && x.d !== keepVersion)
-      .sort((a, b) => b.t - a.t).slice(KEEP - 1)
-      .forEach((x) => {
-        const trash = path.join(c.versions, `.trash-${Date.now()}-${x.d}`);
-        try {
-          fs.renameSync(path.join(c.versions, x.d), trash);
-          rm(trash);
-        } catch {}
-      });
+    fs.mkdirSync(c.leases, { recursive: true });
+    const f = path.join(c.leases, String(process.pid));
+    fs.writeFileSync(f + ".tmp", version);
+    fs.renameSync(f + ".tmp", f);
+    process.on("exit", () => { try { fs.unlinkSync(f); } catch {} });
   } catch {}
 }
 
-function tryLock(c) {
-  try {
-    fs.mkdirSync(c.lock);
-    return true;
-  } catch (e) {
-    if (e.code !== "EEXIST") return false;
-    try {
-      if (Date.now() - fs.statSync(c.lock).mtimeMs > LOCK_STALE) {
-        rm(c.lock);
-        fs.mkdirSync(c.lock);
-        return true;
-      }
-    } catch {}
-    return false;
+function versionsInUse(c) {
+  const used = new Set();
+  let files = [];
+  try { files = fs.readdirSync(c.leases); } catch { return used; }
+  for (const f of files) {
+    if (!/^\d+$/.test(f)) continue;
+    const p = path.join(c.leases, f);
+    if (alive(Number(f))) {
+      try { used.add(fs.readFileSync(p, "utf8").trim()); } catch {}
+    } else {
+      rm(p); // lease left behind by a kill -9
+    }
   }
+  return used;
+}
+// ---------------------------------------------------------------------------
+
+function prune(c, keepVersion) {
+  const inUse = versionsInUse(c);
+  let all = [];
+  try {
+    all = fs.readdirSync(c.versions).map((d) => {
+      try { return { d, t: fs.statSync(path.join(c.versions, d)).mtimeMs }; }
+      catch { return null; } // another process may have removed it mid-scan
+    }).filter(Boolean);
+  } catch { return; }
+  all.filter((x) => x.d.startsWith(".") && Date.now() - x.t > TMP_TTL)
+    .forEach((x) => rm(path.join(c.versions, x.d)));
+  all.filter((x) => !x.d.startsWith(".") && x.d !== keepVersion && !inUse.has(x.d))
+    .sort((a, b) => b.t - a.t).slice(KEEP - 1)
+    .forEach((x) => {
+      const trash = path.join(c.versions, `.trash-${Date.now()}-${x.d}`);
+      try {
+        fs.renameSync(path.join(c.versions, x.d), trash);
+        rm(trash);
+      } catch {}
+    });
+}
+
+function lockStale(c) {
+  try {
+    const age = Date.now() - fs.statSync(c.lock).mtimeMs;
+    if (age > LOCK_STALE) return true;
+    let pid = 0;
+    try { pid = Number(fs.readFileSync(path.join(c.lock, "pid"), "utf8")); } catch {}
+    if (!pid) return age > 5000; // just created, or a legacy lock without pid
+    try { process.kill(pid, 0); return false; }
+    catch (e) { return e.code === "ESRCH"; }
+  } catch { return false; }
+}
+
+function tryLock(c) {
+  for (let i = 0; i < 2; i++) {
+    try {
+      fs.mkdirSync(c.lock);
+      try { fs.writeFileSync(path.join(c.lock, "pid"), String(process.pid)); } catch {}
+      return true;
+    } catch (e) {
+      if (e.code !== "EEXIST" || !lockStale(c)) return false;
+      rm(c.lock); // two processes may both reclaim; worst case is one extra download
+    }
+  }
+  return false;
 }
 
 function update(c) {
@@ -288,33 +378,37 @@ function update(c) {
   const version = resolveVersion(c);
   if (!version) {
     emit(c, "update", { result: "skipped", reason: "registry", fromVersion, elapsedMs: elapsed() });
-    emit(c, "fallback", {
-      result: "fallback", reason: "registry",
-      targetVersion: fromVersion || "unknown", elapsedMs: elapsed(),
-    });
+    emit(c, "fallback", { result: "fallback", reason: "registry", targetVersion: fromVersion || "unknown", elapsedMs: elapsed() });
     return log(c, "resolve failed, keep current");
+  }
+  // Nothing to install: refresh the check stamp and leave the metrics alone.
+  if (version === fromVersion) {
+    try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
+    return;
   }
   const installed = install(c, version);
   if (!installed.ok) {
-    emit(c, "update", {
-      result: "failed", targetVersion: version, fromVersion,
-      reason: installed.reason, elapsedMs: elapsed(),
-    });
-    emit(c, "fallback", {
-      result: "fallback", reason: installed.reason,
-      targetVersion: fromVersion || "unknown", elapsedMs: elapsed(),
-    });
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: installed.reason, elapsedMs: elapsed() });
+    emit(c, "fallback", { result: "fallback", reason: installed.reason, targetVersion: fromVersion || "unknown", elapsedMs: elapsed() });
     return log(c, `install ${version} failed, keep current`);
   }
-  setCurrent(c, version);
-  fs.writeFileSync(c.stamp, String(Date.now()));
+  try {
+    setCurrent(c, version);
+    fs.writeFileSync(c.stamp, String(Date.now()));
+  } catch (err) {
+    // Do not report success or prune if current never switched: pruning could
+    // remove the version that running windows still use.
+    const reason = classify(`${err.code || ""} ${err.message || ""}`);
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason, elapsedMs: elapsed() });
+    return log(c, `setCurrent ${version} failed, keep current`);
+  }
   emit(c, "update", { result: "ok", targetVersion: version, fromVersion, elapsedMs: elapsed() });
   prune(c, version);
 }
 
-function lockedUpdate(c) {
+function lockedUpdate(c, opts = {}) {
   if (!tryLock(c)) {
-    emit(c, "update", { result: "skipped", reason: "lock" });
+    if (!opts.quiet) emit(c, "update", { result: "skipped", reason: "lock" });
     return false;
   }
   try { update(c); } finally { rm(c.lock); }
@@ -322,7 +416,10 @@ function lockedUpdate(c) {
 }
 
 function needCheck(c) {
-  try { return Date.now() - Number(fs.readFileSync(c.stamp, "utf8")) > CHECK_INTERVAL; } catch { return true; }
+  let last = NaN;
+  try { last = Number(fs.readFileSync(c.stamp, "utf8")); } catch {}
+  const now = Date.now();
+  return !Number.isFinite(last) || now - last > CHECK_INTERVAL || last > now + 60e3;
 }
 
 function run(bin, args) {
@@ -362,6 +459,7 @@ function main() {
       `spec=${args[0]} registry=${REGISTRY}`,
       `current=${cur ? cur.version : "(none)"}`,
       `versions=${versions.join(",") || "(none)"}`,
+      `leases=${versionsInUse(c).size}`,
       `lock=${fs.existsSync(c.lock) ? "present" : "absent"}`,
       `last_check=${fs.existsSync(c.stamp) ? fs.readFileSync(c.stamp, "utf8").trim() : "(none)"}`,
       `telemetry=${TELEMETRY_ENABLED ? "on" : "off"}`,
@@ -379,10 +477,15 @@ function main() {
 
   if (cur) {
     // A usable version exists: start immediately, check for updates in the background.
+    acquireLease(c, cur.version);
     if (needCheck(c)) {
-      fs.writeFileSync(c.stamp, String(Date.now()));
-      spawn(process.execPath, [__filename, "--nge-update", spec],
-        { detached: true, stdio: "ignore", windowsHide: true }).unref();
+      try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
+      try {
+        const bg = spawn(process.execPath, [__filename, "--nge-update", spec],
+          { detached: true, stdio: "ignore", windowsHide: true });
+        bg.on("error", () => {});
+        bg.unref();
+      } catch {}
     }
     emit(c, "start", {
       result: "ok", targetVersion: cur.version,
@@ -391,10 +494,15 @@ function main() {
     return run(cur.bin, args);
   }
 
-  // First run: install in the foreground. If another process holds the lock, wait for it.
-  const deadline = Date.now() + FIRST_RUN_TIMEOUT;
-  while (!cur && Date.now() < deadline) {
-    if (lockedUpdate(c)) { cur = readCurrent(c); break; }
+  // First run: install in the foreground under one overall deadline.
+  DEADLINE = Date.now() + FIRST_RUN_TIMEOUT;
+  let reportedWait = false;
+  while (!cur && Date.now() < DEADLINE) {
+    if (lockedUpdate(c, { quiet: true })) { cur = readCurrent(c); break; }
+    if (!reportedWait) {
+      reportedWait = true;
+      emit(c, "update", { result: "skipped", reason: "lock", coldStart: true });
+    }
     sleep(500);
     cur = readCurrent(c);
   }
@@ -405,6 +513,7 @@ function main() {
     console.error(`Failed to install ${spec}. See log: ${c.logFile}`);
     process.exit(1);
   }
+  acquireLease(c, cur.version);
   emit(c, "start", {
     result: "ok", targetVersion: cur.version,
     coldStart: true, elapsedMs: Date.now() - t0,

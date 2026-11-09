@@ -14,6 +14,7 @@ import { startMockRegistry } from "./mock-registry.mjs";
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const INDEX = path.join(PKG, "index.js");
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "nge-telemetry-"));
+const NPM_CACHE = fs.mkdtempSync(path.join(os.tmpdir(), "nge-telemetry-npmcache-"));
 const SPEC = "@cloudbase/nge-testpkg@latest";
 
 // Must match the beacon-side registration, key for key.
@@ -53,6 +54,7 @@ function env(extra = {}) {
       ? (process.env.PATH || "")
       : `/usr/local/bin:${process.env.PATH || ""}`,
     NGE_ROOT: ROOT,
+    npm_config_cache: NPM_CACHE,
     NGE_REGISTRY: registry.url,
     NGE_CHECK_INTERVAL: "3600000",
     NGE_TELEMETRY: "1", // explicitly on; CI sets 0 at the job level
@@ -248,6 +250,7 @@ async function main() {
   sink.close();
   registry.close();
   removeTempRoot(ROOT);
+  removeTempRoot(NPM_CACHE);
   if (failed.length) process.exit(1);
 }
 
@@ -257,5 +260,6 @@ main().catch((e) => {
   if (sink) sink.close();
   if (registry) registry.close();
   removeTempRoot(ROOT);
+  removeTempRoot(NPM_CACHE);
   process.exit(1);
 });
