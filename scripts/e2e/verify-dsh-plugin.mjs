@@ -25,6 +25,28 @@ const pkg = JSON.parse(readFileSync(join(plugin, "package.json"), "utf8"));
 if (pkg.name !== "@cloudbase/dsh-plugin") fail(`unexpected package name ${pkg.name}`);
 else pass("package name @cloudbase/dsh-plugin");
 
+// DSH 0.2.1+ reads only package.json `engines.dsh` to decide compatibility.
+// The four human-readable copies must carry the same range, otherwise docs drift from the real gate.
+const dshRange = pkg.engines?.dsh;
+if (typeof dshRange !== "string" || dshRange.trim() === "") {
+  fail("package.json must declare a non-empty engines.dsh range");
+} else {
+  pass(`engines.dsh = ${dshRange}`);
+  const copies = [
+    ["src/shared/constants.ts", /DSH_COMPAT\s*=\s*"([^"]+)"/],
+    ["README.md", null],
+    ["AGENTS.md", null],
+    ["scripts/demo.md", null],
+  ];
+  for (const [rel, re] of copies) {
+    const text = readFileSync(join(plugin, rel), "utf8");
+    const value = re ? text.match(re)?.[1] : undefined;
+    const ok = value === undefined ? text.includes(dshRange) : value === dshRange;
+    if (!ok) fail(`${rel} does not carry the engines.dsh range ${dshRange}`);
+    else pass(`${rel} carries the same range`);
+  }
+}
+
 const inject = pkg.dsh?.client?.inject ?? [];
 if (!inject.includes("connection")) fail("dsh.client.inject must include connection (RPC channel)");
 else pass("client inject includes connection");

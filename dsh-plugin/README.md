@@ -12,7 +12,7 @@
 >
 > 你的模型（DeepSeek / Claude / 随便换）、你的后端（自己的 CloudBase 环境）、你的数据（本地会话 + 自己数据库）。
 
-CloudBase backend for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Compatible with **DSH `>=0.1.0-rc.6 <0.3.0`** (verified on `0.2.0-rc.2`) · Node `>=18` · MCP tools follow `@cloudbase/cloudbase-mcp@latest`.
+CloudBase backend for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Compatible with **DSH `>=0.1.0-rc.6 <0.3.0`** (verified on `0.2.0-rc.2`; declared as `engines.dsh` and enforced by DSH 0.2.1+) · Node `>=18` · MCP tools follow `@cloudbase/cloudbase-mcp@latest`.
 
 ## 安装
 
@@ -53,7 +53,7 @@ dsh --profile headless "列出所有 mcp__cloudbase__ 工具"
 
 | 能力 | 说明 |
 |---|---|
-| MCP 桥 | 注册 `mcp__cloudbase__*`（与 `@cloudbase/cloudbase-mcp` 工具集一致，当前 38 个） |
+| MCP 桥 | 在对话里调用 CloudBase 工具（`mcp__cloudbase__*`） |
 | DataTableCard | `queryPgDatabase` / `queryMysqlDatabase` / `readNoSqlDatabaseContent` 结果表格：分页、排序、复制 JSON、导出 CSV |
 | DeployPreviewCard | `manageHosting` upload 后 iframe 预览真实域名 + 打开按钮 |
 | 交付物行 | 会话尾部展示产物路径 + 域名 |
