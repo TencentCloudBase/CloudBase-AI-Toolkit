@@ -1,6 +1,6 @@
 {
   "name": "@cloudbase/dsh-plugin",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "CloudBase backend for DeepSeek Harness — database, storage, authentication, and frontend/backend deployment",
   "icon": "./icon.png",
   "type": "module",
@@ -39,6 +39,7 @@
     "test": "node scripts/generate-skills.mjs && vitest run",
     "typecheck": "tsc --noEmit",
     "e2e:live": "node scripts/e2e-live.mjs",
+    "verify:host": "node scripts/verify-host.mjs",
     "prepublishOnly": "npm run typecheck && npm run build && npm test"
   },
   "keywords": [
@@ -65,7 +66,8 @@
     "provenance": true
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=18",
+    "dsh": ">=0.1.0-rc.6 <0.3.0"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

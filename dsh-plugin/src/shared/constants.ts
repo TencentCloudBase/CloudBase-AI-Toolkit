@@ -30,4 +30,5 @@ export const URL_TOOLS = [
 ] as const;
 /** 兼容旧名：部署即"返回 URL"的一类工具。 */
 export const DEPLOY_TOOLS = URL_TOOLS;
+/** Keep in sync with `engines.dsh` in package.json; checked by scripts/e2e/verify-dsh-plugin.mjs. */
 export const DSH_COMPAT = ">=0.1.0-rc.6 <0.3.0";

@@ -1,6 +1,6 @@
 # Demo / acceptance script
 
-Target: DSH `>=0.1.0-rc.6 <0.3.0`, local tcb login, plugin built.
+Target: DSH `>=0.1.0-rc.6 <0.3.0` (declared as `engines.dsh`), local tcb login, plugin built.
 
 ## 1. Install
 
