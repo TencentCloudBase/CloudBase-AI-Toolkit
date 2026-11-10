@@ -202,7 +202,7 @@ const IDES: IDE[] = [
     useCommandInsteadOfConfig: true,
     installCommandDocs: '**通过插件市场安装（推荐）**\n\n1. 在 Kimi Code 中输入 `/plugins` 打开插件面板\n2. 切换到 **Curated** 标签页\n3. 找到 **Tencent CloudBase**（id: `cloudbase`），回车选择 **install**\n4. 安装完成后重启 Kimi Code 或新开对话\n\n**手动配置 MCP（可选）**\n\n编辑 `~/.kimi-code/mcp.json`：',
     installCommandDocsEn: '**Install from the plugin marketplace (recommended)**\n\n1. Type `/plugins` in Kimi Code to open the plugin panel\n2. Switch to the **Curated** tab\n3. Find **Tencent CloudBase** (id: `cloudbase`) and press Enter to select **install**\n4. After install, restart Kimi Code or start a new chat\n\n**Manual MCP config (optional)**\n\nEdit `~/.kimi-code/mcp.json`:',
-    configExample: `{\n  \"mcpServers\": {\n    \"cloudbase\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@cloudbase/cloudbase-mcp@latest\"],\n      \"env\": {\n        \"INTEGRATION_IDE\": \"Kimi Code\"\n      }\n    }\n  }\n}`,
+    configExample: `{\n  \"mcpServers\": {\n    \"cloudbase\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@cloudbase/npm-launcher@1.0.0\", \"@cloudbase/cloudbase-mcp@latest\"],\n      \"env\": {\n        \"INTEGRATION_IDE\": \"Kimi Code\"\n      }\n    }\n  }\n}`,
   },
   {
     id: 'kimi-work',
@@ -230,13 +230,13 @@ const IDES: IDE[] = [
     docUrl: '/ai/cloudbase-ai-toolkit/ide-setup/zcode',
     supportsProjectMCP: false,
     useCommandInsteadOfConfig: true,
-    installCommandDocs: '**使用内置插件（推荐，ZCode ≥ 3.4.1）**\n\n1. 打开 ZCode **设置** → **插件**\n2. 在 **开发者工具** 中找到 **cloudbase-skills** 并启用\n\n**手动配置 MCP（可选）**\n\n1. 打开 **设置** → **MCP 服务器** → **添加** → **新建 MCP 服务器**\n2. 填写：名称 `cloudbase`，作用域「用户」，类型 stdio，超时 `30000`，命令 `npx`，参数 `-y @cloudbase/cloudbase-mcp@latest`，环境变量 `INTEGRATION_IDE=ZCode`\n3. 保存后返回列表',
-    installCommandDocsEn: '**Use the built-in plugin (recommended, ZCode ≥ 3.4.1)**\n\n1. Open ZCode **Settings** → **Plugins**\n2. Under **Developer Tools**, find **cloudbase-skills** and enable it\n\n**Manual MCP config (optional)**\n\n1. Open **Settings** → **MCP Servers** → **Add** → **New MCP server**\n2. Fill in: name `cloudbase`, scope "User", type stdio, timeout `30000`, command `npx`, args `-y @cloudbase/cloudbase-mcp@latest`, env `INTEGRATION_IDE=ZCode`\n3. Save and go back to the list',
+    installCommandDocs: '**使用内置插件（推荐，ZCode ≥ 3.4.1）**\n\n1. 打开 ZCode **设置** → **插件**\n2. 在 **开发者工具** 中找到 **cloudbase-skills** 并启用\n\n**手动配置 MCP（可选）**\n\n1. 打开 **设置** → **MCP 服务器** → **添加** → **新建 MCP 服务器**\n2. 填写：名称 `cloudbase`，作用域「用户」，类型 stdio，超时 `150000`，命令 `npx`，参数 `-y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest`，环境变量 `INTEGRATION_IDE=ZCode`\n3. 保存后返回列表',
+    installCommandDocsEn: '**Use the built-in plugin (recommended, ZCode ≥ 3.4.1)**\n\n1. Open ZCode **Settings** → **Plugins**\n2. Under **Developer Tools**, find **cloudbase-skills** and enable it\n\n**Manual MCP config (optional)**\n\n1. Open **Settings** → **MCP Servers** → **Add** → **New MCP server**\n2. Fill in: name `cloudbase`, scope "User", type stdio, timeout `150000`, command `npx`, args `-y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest`, env `INTEGRATION_IDE=ZCode`\n3. Save and go back to the list',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "ZCode"
       }
@@ -317,7 +317,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Cursor"
       }
@@ -340,7 +340,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "CodeBuddyManual"
       }
@@ -361,7 +361,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "ClaudeCode"
       }
@@ -392,7 +392,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "OpenCode"
       }
@@ -414,7 +414,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Trae"
       }
@@ -435,7 +435,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Qoder"
       }
@@ -456,7 +456,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "WindSurf"
       }
@@ -477,7 +477,7 @@ const IDES: IDE[] = [
   "servers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "VSCode"
       }
@@ -494,7 +494,7 @@ const IDES: IDE[] = [
     iconUrl: '/img/ide-logos/codebuddy.svg',
     docUrl: 'https://cnb.cool/codebuddy/codebuddy-code/-/blob/main/docs/mcp.md',
     supportsProjectMCP: true,
-    cliCommand: 'codebuddy mcp add --scope project cloudbase --env INTEGRATION_IDE=CodeBuddyCode -- npx @cloudbase/cloudbase-mcp@latest',
+    cliCommand: 'codebuddy mcp add --scope project cloudbase --env INTEGRATION_IDE=CodeBuddyCode -- npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest',
     alternativeConfig: '或者将以下配置添加到 .mcp.json:',
     alternativeConfigEn: 'Or add the following to .mcp.json:',
     configExample: `{
@@ -502,7 +502,7 @@ const IDES: IDE[] = [
     "cloudbase": {
       "type": "stdio",
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "CodeBuddyCode"
       }
@@ -525,7 +525,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "LingMa"
       }
@@ -545,7 +545,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Qwen"
       }
@@ -565,7 +565,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Gemini"
       }
@@ -587,7 +587,7 @@ const IDES: IDE[] = [
       "autoApprove": [],
       "timeout": 60,
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Cline"
       },
@@ -610,7 +610,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Antigravity"
       }
@@ -630,7 +630,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "disabled": false,
       "env": {
         "INTEGRATION_IDE": "RooCode"
@@ -651,7 +651,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Augment"
       }
@@ -672,7 +672,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Kiro"
       }
@@ -689,14 +689,14 @@ const IDES: IDE[] = [
     iconUrl: '/img/ide-logos/iflow-cli.svg',
     docUrl: 'https://platform.iflow.cn/cli/examples/mcp',
     supportsProjectMCP: false,
-    cliCommand: 'iflow mcp add-json --scope project cloudbase \'{"command":"npx","args":["@cloudbase/cloudbase-mcp@latest"],"env":{"INTEGRATION_IDE":"iFlow"}}\'',
+    cliCommand: 'iflow mcp add-json --scope project cloudbase \'{"command":"npx","args":["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],"env":{"INTEGRATION_IDE":"iFlow"}}\'',
     alternativeConfig: '或者将以下配置添加到 .iflow/settings.json:',
     alternativeConfigEn: 'Or add the following to .iflow/settings.json:',
     configExample: `{
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "iFlow"
       }
@@ -720,7 +720,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "OpenAI Codex CLI"
       }
@@ -741,7 +741,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Comate"
       }

@@ -68,7 +68,7 @@ If the user needs **local stdio** instead (local file access, offline), set the 
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "intl",
         "TCB_REGION": "ap-singapore"
@@ -180,7 +180,7 @@ Configure via your IDE's MCP settings when Plugin install is unavailable:
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -201,7 +201,7 @@ Configure via your IDE's MCP settings when Plugin install is unavailable:
   mcpServers:
     - uses: stdio
       command: npx
-      args: ["@cloudbase/cloudbase-mcp@latest"]
+      args: ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
   ```
 
 ---
@@ -218,7 +218,7 @@ When your IDE does not support native MCP or Plugin install, use **mcporter** as
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "description": "CloudBase MCP",
       "lifecycle": "keep-alive"
     }

@@ -7,7 +7,7 @@
   "description_en": "Develop, deploy, debug, and troubleshoot CloudBase applications across Web apps, WeChat Mini Programs, uni-app, native apps, cloud functions, CloudRun, PostgreSQL databases, document databases, storage, hosting, authentication, AI model calls, AI agents, and ops diagnostics.",
   "source": "cloudbase",
   "type": "mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "examples_zh": [
     "帮我用 CloudBase 创建一个 React Web 应用，并配置登录、PostgreSQL 数据库和静态托管部署",
     "帮我开发一个微信小程序页面，接入 wx.cloud 云开发、云函数和数据库",

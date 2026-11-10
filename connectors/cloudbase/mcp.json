@@ -4,9 +4,11 @@
             "command": "npx",
             "args": [
                 "-y",
+                "@cloudbase/npm-launcher@1.0.0",
+                "@cloudbase/npm-launcher@1.0.0",
                 "@cloudbase/cloudbase-mcp@latest"
             ],
-            "timeout": 60000,
+            "timeout": 150000,
             "runtime": {
                 "type": "node",
                 "version": ">=20"
