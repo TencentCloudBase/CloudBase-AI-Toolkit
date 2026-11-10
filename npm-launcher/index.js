@@ -660,7 +660,9 @@ function main() {
   let attempts = 0;
   let lastAttempt = 0;
   if (spawnUpdater(c, spec, { outsideJob: true })) { attempts = 1; lastAttempt = Date.now(); }
-  while (!cur && Date.now() < deadline) {
+  // `cur` is null here (the branch above returned), and the loop breaks as soon
+  // as readCurrent() succeeds, so only the deadline needs re-testing.
+  while (Date.now() < deadline) {
     sleep(500);
     cur = readCurrent(c);
     if (cur) break;
