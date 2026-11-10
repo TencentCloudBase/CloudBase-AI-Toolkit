@@ -104,6 +104,14 @@
 
 已知限制：顶层目录名是有损映射，`@a_b/c` 与 `@a/b_c` 会指向同一个目录；`HOME` 放在网络盘或 WSL 与 Windows 共用时 pid 判断可能失效。本包实际只服务固定 spec，这些场景暂不处理。
 
+## Windows 首次安装
+
+Windows 客户端常把 MCP 进程放进一个 Job，关掉客户端时里面所有进程会被一起结束。首次安装时，launcher 会请 Windows 自带的 WMI 服务代为启动后台安装进程，让它不在这个 Job 里，客户端关闭后下载仍能继续。只有首次安装走这条路，每台机器一次；已有版本时的更新检查仍用普通进程。
+
+WMI 启动的进程不继承环境变量，所以 launcher 会先在 `<NGE_ROOT>/<包名@范围>/` 下临时写一个点开头的 `.updater-env-*.json`。里面只有运行所需的 `NGE_*`、npm 配置、代理地址和 PATH 等：**不含 token、密码或任何认证信息**，代理地址里的用户名密码会被去掉。后台进程读到后立即删除，万一残留会在 10 分钟后回收。
+
+如果 WMI 被组策略或安全软件拦截、或 20 秒内没启动成功，会退回普通进程，首装照常进行，只是关客户端时会被一起结束；原因记在 `install.log`。设置 `NGE_WIN_BREAKAWAY=0` 可以手动关掉这条路。
+
 ## 清理残留
 
 升级到本包之前，如果旧实现留下过安装残片，可以先清掉：
@@ -127,9 +135,10 @@ npm test
 - `tests/behaviour.test.mjs`：本地 mock registry，检查 stdout 不被 npm 输出污染、参数透传、同一 spec 的 tag 移动、20 个进程并发启动中途发新版、安装失败或断网时回退到旧版本、信号转发、残留锁恢复。
 - `tests/hardening.test.mjs`：`DO_NOT_TRACK`、死 pid 锁回收、等锁只上报一次、版本租约、非法版本范围、`kill -9` launcher 后子进程租约仍保护版本、数字配置边界、只读第一行、prune 不误删非版本目录、杀掉前台后台仍装完并重连秒起、首装失败的真实原因与 `coldStart` 口径、超时只看本次会话的事件；Windows 上用 Job 对象（KILL_ON_JOB_CLOSE）模拟客户端关闭，先验证普通 detached 进程会被一起结束，再验证 WMI 拉起的首装进程仍能装完。
 - `tests/stdout-guard.test.mjs`：静态禁止 `console.log`，并验证冷启动、首装失败、后台更新、参数错误四条路径的 stdout 不被污染。
+- `tests/updater-env.test.mjs`：验证 Windows 首装的临时环境文件不会写入 token、密码或认证信息，代理地址里的用户名密码会被去掉，必要配置仍保留。
 - `tests/telemetry.test.mjs`：本地 HTTP 接收端，检查上报字段与登记一致、四个阶段都产生事件、关闭开关生效、上报超时不阻塞启动、客户端标识被清洗。
 
-五组测试都用 `NGE_ROOT` 指到临时目录，不碰真实用户目录；mock registry 用纯 JS 生成 tarball，不依赖系统 `tar`。测试与 CI 显式关闭对外上报，遥测专项只往本地接收端发。CI 在 ubuntu / macOS / Windows 三平台跑 `npm test`，Windows 跳过 POSIX 信号转发那一项。
+六组测试都用 `NGE_ROOT` 指到临时目录，不碰真实用户目录；mock registry 用纯 JS 生成 tarball，不依赖系统 `tar`。测试与 CI 显式关闭对外上报，遥测专项只往本地接收端发。CI 在 ubuntu / macOS / Windows 三平台跑 `npm test`，Windows 跳过 POSIX 信号转发那一项。
 
 ## 诊断
 

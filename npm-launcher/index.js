@@ -481,6 +481,23 @@ function lockedUpdate(c, opts = {}) {
 
 // Variables the updater needs when it cannot inherit our environment.
 const UPDATER_ENV = /^(NGE_|npm_|DO_NOT_TRACK$|CLOUDBASE_MCP_CLIENT$|INTEGRATION_IDE$|(HTTPS?|NO|ALL)_PROXY$|NODE_EXTRA_CA_CERTS$|PATH$|PATHEXT$|SystemRoot$|ComSpec$|USERPROFILE$|HOMEDRIVE$|HOMEPATH$|APPDATA$|LOCALAPPDATA$|TEMP$|TMP$)/i;
+// `npm_` also matches NPM_TOKEN and .npmrc-derived auth keys, and a proxy URL
+// may carry user:pass@. None of that may reach the on-disk env file.
+const SECRET_KEY = /(TOKEN|SECRET|PASSWORD|PASSWD|AUTH|CREDENTIAL|APIKEY|API_KEY|PRIVATE_KEY)/i;
+
+function stripUserinfo(value) {
+  return String(value).replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/i, "$1");
+}
+
+function collectUpdaterEnv() {
+  const vars = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v !== "string") continue;
+    if (!UPDATER_ENV.test(k) || SECRET_KEY.test(k)) continue;
+    vars[k] = stripUserinfo(v);
+  }
+  return vars;
+}
 
 // Windows clients often run MCP servers inside a Job object with
 // KILL_ON_JOB_CLOSE. `detached: true` does not leave the job, so a first-run
@@ -493,9 +510,7 @@ function spawnOutsideJob(c, spec) {
   if (/["\r\n]/.test(spec + process.execPath + __filename)) return false;
   const envFile = path.join(c.base, `.updater-env-${process.pid}-${Date.now()}.json`);
   try {
-    const vars = {};
-    for (const [k, v] of Object.entries(process.env)) if (UPDATER_ENV.test(k)) vars[k] = v;
-    fs.writeFileSync(envFile, JSON.stringify(vars), { mode: 0o600 });
+    fs.writeFileSync(envFile, JSON.stringify(collectUpdaterEnv()), { mode: 0o600 });
   } catch { return false; }
   // Values travel in environment variables, so the script itself has no quoting.
   const script = [
@@ -674,4 +689,5 @@ function main() {
   run(c, cur.version, cur.bin, args);
 }
 
-main();
+if (require.main === module) main();
+module.exports = { collectUpdaterEnv, stripUserinfo };

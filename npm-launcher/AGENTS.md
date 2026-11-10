@@ -35,7 +35,7 @@ alwaysApply: true
 16. **磁盘文件只读第一行**：`current` / `leases/<pid>` / `lock/pid` / `last-check` 一律走 `firstLine()`，以后可以在后面追加行而不破坏 1.0.0。
 17. **prune 只删版本目录**：`VERSION_DIR` 正则之外的目录（例如未来的 `versions/meta`）一律不动；`setCurrent()` 的临时文件改成 `.current.<pid>` 放在 base 下，按 `TMP_TTL` 回收。
 18. **遥测口径**：首装失败没有旧版本，记 `start:failed` 而不是 `fallback`；reason 从本地事件日志取真实值，**只看本次启动（`t0`）之后的事件**，旧会话的失败原因不能串过来；只有真超时才写 `timeout`；`coldStart` 由 `update()` 的 `!from` 一路传到 `install()`；`fallback` 只在 `fromVersion` 非空时发。
-19. **Windows 首装要逃出客户端的 Job 对象**：Electron 类客户端常把 MCP 进程放进带 KILL_ON_JOB_CLOSE 的 Job，`detached: true` 不会脱离 Job，客户端一关后台安装就跟着死。首装（仅首装，热启动的更新检查不走这里）用 PowerShell `Invoke-CimMethod Win32_Process Create` 拉起 `--nge-update`，父进程是 WMI 宿主，不在 Job 里。WMI 进程不继承环境变量，所以把 `NGE_*` / `npm_*` / 代理 / PATH 等写进 `.updater-env-<pid>-<ts>.json`（base 下、点开头、0600），`--nge-update <spec> <envFile>` 读到后立刻删除，读不到就直接退出；残留按 `TMP_TTL` 由 prune 回收。WMI 失败（被策略或安全软件拦截、20 秒超时）就退回普通 spawn，并在 `install.log` 记一行。`NGE_WIN_BREAKAWAY=0` 可关掉。
+19. **Windows 首装要逃出客户端的 Job 对象**：Electron 类客户端常把 MCP 进程放进带 KILL_ON_JOB_CLOSE 的 Job，`detached: true` 不会脱离 Job，客户端一关后台安装就跟着死。首装（仅首装，热启动的更新检查不走这里）用 PowerShell `Invoke-CimMethod Win32_Process Create` 拉起 `--nge-update`，父进程是 WMI 宿主，不在 Job 里。WMI 进程不继承环境变量，所以把 `NGE_*` / `npm_*` / 代理 / PATH 等写进 `.updater-env-<pid>-<ts>.json`（base 下、点开头、0600），`--nge-update <spec> <envFile>` 读到后立刻删除，读不到就直接退出；残留按 `TMP_TTL` 由 prune 回收。写文件前用 `SECRET_KEY` 过滤凭据变量名（`npm_` 也会匹配 `NPM_TOKEN` 和 .npmrc 派生的 auth 键）、用 `stripUserinfo()` 剥掉代理地址里的 `user:pass@`；`collectUpdaterEnv()` 在文件末尾导出供单测直接验证。WMI 失败（被策略或安全软件拦截、20 秒超时）就退回普通 spawn，并在 `install.log` 记一行。`NGE_WIN_BREAKAWAY=0` 可关掉。
 
 ## 发布后冻结的目录契约
 
@@ -53,7 +53,7 @@ alwaysApply: true
 | 文件读取 | 只读第一行，后续可在后面追加行 |
 | 非版本目录 | `versions/` 下不符合版本号格式的目录一律不清理 |
 | `current` 临时文件 | `.current.<pid>` 放在 base 下，按 `TMP_TTL` 回收 |
-| Windows 首装环境文件 | `.updater-env-<pid>-<ts>.json` 放在 base 下，被读后即删，残留按 `TMP_TTL` 回收 |
+| Windows 首装环境文件 | `.updater-env-<pid>-<ts>.json` 放在 base 下，只含运行所需配置、不含凭据，被读后即删，残留按 `TMP_TTL` 回收 |
 
 **逃生口**：格式要做不兼容的改动时，换根目录名（例如 `.nge2`），不要改现有文件的含义。
 
@@ -67,7 +67,7 @@ alwaysApply: true
 
 ## 验证
 
-`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 37/37 + 10/10 通过（107 项；Windows 上 hardening 另有 Job 对象专项 5 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
+`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs` + `tests/updater-env.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 37/37 + 10/10 + 11/11 通过（118 项；Windows 上 hardening 另有 Job 对象专项 5 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
 
 ## 发布
 
