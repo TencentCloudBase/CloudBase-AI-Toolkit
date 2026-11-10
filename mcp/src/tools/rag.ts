@@ -1025,10 +1025,7 @@ export async function registerRagTools(server: ExtendedMcpServer) {
           );
         }
 
-        const skill = skills.find(
-          (item) =>
-            item.name === skillName || item.absolutePath.includes(skillName!),
-        );
+        const skill = skills.find((item) => item.name === skillName!.trim());
 
         if (!skill) {
           const remoteHint =
