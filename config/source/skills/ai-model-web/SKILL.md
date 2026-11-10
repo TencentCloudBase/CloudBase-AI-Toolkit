@@ -103,7 +103,7 @@ callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId }
 
 - ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
   > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
-  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+  > https://buy.cloud.tencent.com/CloudBase?buyType=resPack&envId={envId}&resourceType=token
   >
   > Let me know once it's done and I'll re-check the resource pack status.
 

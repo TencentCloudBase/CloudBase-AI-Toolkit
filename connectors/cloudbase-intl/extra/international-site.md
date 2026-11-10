@@ -23,7 +23,7 @@ systems that must never be mixed. Read this file before acting on any CloudBase 
   those links to users. Route them to the international console above, or ask the user how
   they want to proceed.
   - Specifically: when the AI Token Credits resource pack is missing, do **not** emit the
-    `buy.cloud.tencent.com/lowcode?...` purchase link. Tell the user the pack is not enabled
+    `buy.cloud.tencent.com/CloudBase?...` purchase link. Tell the user the pack is not enabled
     on the environment and let them handle billing on the international console.
 
 ## Sign-in
