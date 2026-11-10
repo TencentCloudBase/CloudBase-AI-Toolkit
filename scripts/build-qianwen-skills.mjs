@@ -8,10 +8,10 @@
  * (`../auth-tool-cloudbase/SKILL.md`), which would dangle inside a single-skill ZIP.
  *
  * So every package is built one of two ways, both declared in
- * `connectors/cloudbase/qianwen/manifest.json`:
+ * `markets/qianwen/manifest.json`:
  *
  *   - `authored` — a self-contained entry skill written for this market. No rewrites.
- *   - `skill`    — an existing skill from `connectors/cloudbase/skills/references/**`, with
+ *   - `skill`    — an existing skill from `config/source/skills/**`, with
  *                  sibling references rewritten into CloudBase MCP knowledge-base lookups
  *                  (`searchKnowledgeBase`), so the package stands on its own.
  *
@@ -31,7 +31,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const MANIFEST_PATH = "connectors/cloudbase/qianwen/manifest.json";
+const MANIFEST_PATH = "markets/qianwen/manifest.json";
 
 /** Platform limits, straight from the publish docs. */
 const MAX_PACKAGE_BYTES = 10 * 1024 * 1024;
@@ -151,7 +151,7 @@ function rewriteSiblingReferences(dir) {
 
 /** Directory names of every sibling skill, used to tell a real relative path from prose dots. */
 function siblingSkillNames() {
-  const dir = path.join(ROOT, "connectors/cloudbase/skills/references");
+  const dir = path.join(ROOT, "config/source/skills");
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir, { withFileTypes: true })
