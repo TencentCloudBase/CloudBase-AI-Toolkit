@@ -8,6 +8,11 @@ name: Follow DSH host releases
 # the point of this job. It installs into a throwaway directory outside the
 # workspace, pinned to the exact version reported by the registry, with install
 # scripts disabled. It is never a global install and never a workspace dependency.
+#
+# Scheduled runs on GitHub Actions can arrive hours late, so a push to main that
+# touches the plugin or this check also runs the same acceptance right away.
+# The report shows when the last scheduled run actually succeeded, so a missing
+# day is visible instead of being assumed.
 on:
   schedule:
     - cron: '23 5 * * *'
@@ -17,6 +22,13 @@ on:
         description: "DSH version to verify; defaults to the published latest"
         required: false
         type: string
+  push:
+    branches: [main]
+    paths:
+      - "dsh-plugin/**"
+      - ".github/workflows/dsh-host-followup.yml"
+      - ".github/workflows/dsh-plugin-ci.yml"
+      - "scripts/e2e/verify-dsh-plugin.mjs"
   pull_request:
     paths:
       - ".github/workflows/dsh-host-followup.yml"
@@ -25,6 +37,8 @@ on:
 
 permissions:
   contents: read
+  # Read only this workflow's own run history for the report below.
+  actions: read
 
 jobs:
   acceptance:
@@ -98,21 +112,36 @@ jobs:
           DSH_BIN: ${{ runner.temp }}/dsh-host/node_modules/.bin/dsh
         run: node dsh-plugin/scripts/verify-host.mjs
 
+      - name: Find the last successful scheduled run
+        id: last
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WHEN=$(gh api "repos/${{ github.repository }}/actions/workflows/dsh-host-followup.yml/runs?event=schedule&status=success&per_page=1" \
+            --jq '.workflow_runs[0].created_at // "none"' 2>/dev/null || echo "unknown")
+          echo "when=$WHEN" >> "$GITHUB_OUTPUT"
+
       - name: Report
         if: always()
         env:
           HOST_VERSION: ${{ steps.host.outputs.version }}
           OUTCOME: ${{ steps.acceptance.outcome }}
+          LAST_SCHEDULED: ${{ steps.last.outputs.when }}
         run: |
           node --input-type=module -e '
             import { appendFileSync, readFileSync } from "node:fs";
             const { engines } = JSON.parse(readFileSync("dsh-plugin/package.json", "utf8"));
+            const last = process.env.LAST_SCHEDULED || "unknown";
+            const parsed = Date.parse(last);
+            const overdue = Number.isFinite(parsed) && Date.now() - parsed > 48 * 60 * 60 * 1000;
             appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
               "## DSH host follow-up",
               "",
               `- Host: ${process.env.HOST_VERSION}`,
               `- Declared range: ${engines.dsh}`,
               `- Acceptance: ${process.env.OUTCOME}`,
+              `- Last successful scheduled run: ${last}${overdue ? " (overdue by more than 2 days)" : ""}`,
               "- MCP tool list: not checked here; it needs a locally built cloudbase-mcp entrypoint.",
               "",
             ].join("\n"));
