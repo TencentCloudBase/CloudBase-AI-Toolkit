@@ -684,6 +684,49 @@ describe("searchKnowledgeBase mode=skill remote references", () => {
     );
     expect(text).toContain(`${SKILL_REMOTE_BASE_URL}/ghost-skill/SKILL.md`);
   });
+
+  it("resolves a skill whose name also appears in the skills root path", async () => {
+    process.env.CLOUDBASE_MCP_CLOUD_MODE = "true";
+    const { home } = await createFakeSkillHome("aa-first-skill");
+    const skillsRoot = path.join(
+      home,
+      ".cloudbase-mcp",
+      "web-template",
+      ".claude",
+      "skills",
+    );
+    const mcpSkillDir = path.join(skillsRoot, "cloudbase-mcp");
+    await fs.mkdir(mcpSkillDir, { recursive: true });
+    await fs.writeFile(
+      path.join(mcpSkillDir, "SKILL.md"),
+      [
+        "---",
+        "name: cloudbase-mcp",
+        "description: guide for connecting the MCP server",
+        "---",
+        "",
+        "# CloudBase MCP reference",
+      ].join("\n"),
+      "utf8",
+    );
+    mockFetchByStatus(200);
+
+    const tools = await registerInFakeHome(home);
+    const options: string[] =
+      tools.searchKnowledgeBase.meta.inputSchema.skillName.unwrap().options;
+    expect(options).toContain("cloudbase-mcp");
+    expect(options[0]).not.toBe("cloudbase-mcp");
+
+    const result = await tools.searchKnowledgeBase.handler({
+      mode: "skill",
+      skillName: "cloudbase-mcp",
+    });
+    const text = result.content[0].text;
+
+    expect(text).toContain(`${SKILL_REMOTE_BASE_URL}/cloudbase-mcp/SKILL.md`);
+    expect(text).toContain("# CloudBase MCP reference");
+    expect(text).not.toContain("# Fake Skill");
+  });
 });
 
 describe("CloudBase docs markdown addressing", () => {
