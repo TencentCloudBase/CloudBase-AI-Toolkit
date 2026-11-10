@@ -57,8 +57,11 @@ const start = Date.now();
 const launcher = LAUNCHER_SPEC
   ? { file: isWin ? "npx.cmd" : "npx", args: ["-y", LAUNCHER_SPEC], shell: isWin }
   : { file: process.execPath, args: [INDEX], shell: false };
+// npx resolves a same-named bin from the cwd package.json (this package's own
+// bin is "npm-launcher"), which makes it fail with "command not found" instead
+// of installing the published package. Run from the isolated temp root.
 const child = spawn(launcher.file, [...launcher.args, SPEC, "--version"], {
-  env, stdio: ["ignore", "pipe", "pipe"], shell: launcher.shell,
+  env, stdio: ["ignore", "pipe", "pipe"], shell: launcher.shell, cwd: ROOT,
 });
 let stderr = "";
 child.stderr.on("data", (d) => { stderr += d; });
