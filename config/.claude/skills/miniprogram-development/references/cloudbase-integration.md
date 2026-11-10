@@ -36,7 +36,7 @@
        "mcpServers": {
          "cloudbase": {
            "command": "npx",
-           "args": ["@cloudbase/cloudbase-mcp@latest"],
+           "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
            "description": "CloudBase MCP",
            "lifecycle": "keep-alive"
          }

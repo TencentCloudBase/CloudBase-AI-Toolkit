@@ -59,7 +59,7 @@ connectors/cloudbase/
 
 | 字段 | 为什么 |
 | --- | --- |
-| `timeout: 150000` | launcher 首次要在前台装整个 MCP 包（约 20 MB）再握手，默认 30 秒不够，也不能短于 launcher 的首次安装等待（120 秒） |
+| `timeout: 150000` | 首次运行由 launcher 在后台下载约 20 MB 的 MCP 包，前台最多等待 120 秒；默认 30 秒不够，也不能短于这段等待 |
 | `npmRegistries` | 国内优先 npmmirror、官方兜底；客户端按序回退 |
 | `staticEnv.CLOUDBASE_MCP_CLIENT` | 遥测的 `client` 来源标识，缺了统计里分不出 WorkBuddy |
 | `preAuth: "cli"` | 连接前先跑 `cli.json` 的认证；`cli.json` 本身不是另一种接入方式 |

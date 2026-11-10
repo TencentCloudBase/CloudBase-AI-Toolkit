@@ -62,7 +62,7 @@ Publishing and sync repos live under [TencentCloudBase](https://github.com/Tence
 
 | Repository | Contents | Typical entry |
 |------|------|----------|
-| [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit) (this repo) | MCP Server source; marketplace source for Claude Code / Codex | `npx @cloudbase/cloudbase-mcp@latest` |
+| [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit) (this repo) | MCP Server source; marketplace source for Claude Code / Codex | `npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest` |
 | [dsh-plugin](./dsh-plugin) | DeepSeek Harness plugin (`@cloudbase/dsh-plugin`): MCP bridge + DB/Storage/Auth panel | `dsh plugin add @cloudbase/dsh-plugin` |
 | [cloudbase-plugin](https://github.com/TencentCloudBase/cloudbase-plugin) | Open Plugin Spec publish repo (CI-synced): MCP + Skills + Hooks | `npx plugins add TencentCloudBase/cloudbase-plugin` · CNB fallback: `npx plugins add https://cnb.cool/tencent/cloud/cloudbase/cloudbase-plugin.git` |
 | [cloudbase-sites-plugin](https://github.com/TencentCloudBase/cloudbase-sites-plugin) | Sites plugin: Vite Web create & deploy | `npx plugins add TencentCloudBase/cloudbase-sites-plugin` · CNB: `https://cnb.cool/tencent/cloud/cloudbase/cloudbase-sites-plugin.git` |
@@ -112,7 +112,7 @@ Details and IDE differences: [AI plugin docs](https://docs.cloudbase.net/ai/clou
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -208,7 +208,7 @@ Methods, data, and limits: [Same-task evaluation: cloud VM vs CloudBase](https:/
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -224,7 +224,7 @@ Methods, data, and limits: [Same-task evaluation: cloud VM vs CloudBase](https:/
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -286,7 +286,7 @@ Pick the endpoint matching the site your environment lives in—the two sites us
 
 > A static key pair stays valid until it is rotated or deleted; an OAuth session ends when you log out. Use the static form only where the browser flow is impossible—and keep it out of a repository.
 
-**Local**: runs `npx @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download.
+**Local**: runs `npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download.
 
 Remote trade-off: local-filesystem features (upload, template download) are unavailable, and the international site does not yet expose NoSQL tools.
 
