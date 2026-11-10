@@ -89,21 +89,32 @@ function normalizeMeta(text) {
 /**
  * Only the files that actually enter the submission package count as content.
  *
- * `SUBMISSION.md` is addressed to the reviewer and `extra/` is a build-time input — neither
- * is shipped (see PACKAGE_ENTRIES in scripts/build-connector-cloudbase-intl.mjs), so editing
- * them must not consume a version. If that entry list ever changes, keep this in step; the
- * failure mode is a bump that is one version too eager or too shy, not a broken package.
+ * Both builders zip an explicit entry list (PACKAGE_ENTRIES in
+ * scripts/build-connector-cloudbase.mjs / -cloudbase-intl.mjs). Anything else in the package
+ * directory — SUBMISSION.md, extra/, or another distribution channel's assets — is not
+ * shipped, so editing it must not consume a version. Keep these lists in step with the
+ * builders; a drift shows up as a bump that is one version too eager or too shy.
  */
-const NOT_SHIPPED = ["SUBMISSION.md", "extra/"];
+const SHIPPED_ENTRIES = {
+  "connectors/cloudbase": [
+    "connector-meta.json",
+    "mcp.json",
+    "cli.json",
+    "icon.svg",
+    "skills",
+  ],
+  "connectors/cloudbase-intl": [
+    "connector-meta.json",
+    "mcp.json",
+    "icon.svg",
+    "skills",
+  ],
+};
 
 function shippedFiles(files, packDir) {
-  return files.filter(
-    (file) =>
-      !NOT_SHIPPED.some((excluded) =>
-        excluded.endsWith("/")
-          ? file.startsWith(`${packDir}/${excluded}`)
-          : file === `${packDir}/${excluded}`,
-      ),
+  const entries = new Set(SHIPPED_ENTRIES[packDir] ?? []);
+  return files.filter((file) =>
+    entries.has(file.slice(packDir.length + 1).split("/")[0]),
   );
 }
 
