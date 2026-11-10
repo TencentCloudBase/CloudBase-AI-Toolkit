@@ -53,28 +53,35 @@ CLI auto-completes: detect framework -> infer build command + output dir -> uplo
 
 ---
 
-## Workflow 1b: Local build for declarative hosting (`tcb app build`)
+## Workflow 1b: Local build before declarative deploy (`tcb app build`)
 
-For **declarative hosting** projects (a `hosting[]` array in `cloudbaserc.json`), the CLI no longer
-builds locally during deploy. The two steps are now separate:
+`tcb deploy` (declarative deploy) **builds nothing** — neither `hosting[]` items nor the
+`app` resource. `buildCommand` / `installCommand` / `framework` in `cloudbaserc.json` only
+tell it where the artifacts are. Build first, then deploy:
 
 ```bash
-tcb app build        # 1. Run the configured build commands (local only)
+tcb app build        # 1. Run the configured build commands (local only, hosting[] items)
 tcb deploy           # 2. Upload the built artifacts
 ```
 
 `tcb app build`:
 - reads `cloudbaserc.json` and runs each hosting item's `buildCommand`
+- **only covers `hosting[]`** — for the `app` resource run your own build command in the
+  project directory before `tcb deploy`
 - **does NOT install dependencies** — run your package manager first
 - **does NOT deploy** anything
 - is a **pure local command**: no envId, no auth required
 
-> ⚠️ If you run `tcb deploy` while the build output directory is missing or empty, it fails and tells you
-> to run `tcb app build` first.
+> ⚠️ If you run `tcb deploy` while the build output directory is missing or empty, it fails
+> with `BUILD_OUTPUT_NOT_FOUND`. For `hosting[]` run `tcb app build`; for `app` run your own
+> build command.
 >
 > ⚠️ If the output directory exists but is **stale**, `tcb deploy` uploads it as-is and only warns. It
-> cannot tell whether the sources changed — always `tcb app build` before `tcb deploy` after editing
+> cannot tell whether the sources changed — always rebuild before `tcb deploy` after editing
 > code, or you will ship the previous build.
+>
+> ℹ️ Want a **cloud** build instead of building locally? Use `tcb app deploy` — it uploads
+> the source and builds in the cloud pipeline. `tcb deploy` has no cloud-build path.
 
 ---
 
@@ -228,7 +235,12 @@ Key flags:
 
 > ⚠️ `--yes` without `--env-id` hangs in CI — non-interactive mode cannot open the environment selector. Always pass both.
 
-To skip build entirely in CI: `tcb deploy my-app --env-id env-xxx --build-command '' --output-dir './' --yes`
+To skip the **cloud** build in CI and upload prebuilt artifacts instead:
+`tcb app deploy my-app --env-id env-xxx --build-command '' --output-dir './' --yes`
+
+> This applies to `tcb app deploy` (the cloud-build command). `tcb deploy` never builds at all —
+> it uploads existing artifacts and fails with `BUILD_OUTPUT_NOT_FOUND` when they are missing,
+> so passing `--build-command ''` there is pointless.
 
 ---
 
