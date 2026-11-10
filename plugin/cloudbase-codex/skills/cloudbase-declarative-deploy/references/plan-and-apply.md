@@ -101,9 +101,29 @@ Where build runs depends on resource and path:
 - `hosting`: run `deployBuild` first (local build when `buildCommand` exists), then
   `deployApply` uploads the artifacts. A missing output aborts apply with
   `BUILD_OUTPUT_NOT_FOUND` and directs you back to `deployBuild`
-- `app` (`framework=static`): local/prebuilt artifacts uploaded directly
-- `app` (non-static): source package uploaded, cloud pipeline builds and deploys
+- `app`: **build it yourself** before apply — `deployBuild` only covers `hosting`.
+  `deployApply` uploads `outputDir` as-is and aborts with `BUILD_OUTPUT_NOT_FOUND`
+  when it is missing or empty. Use the CLI `tcb app deploy` instead when a cloud
+  build is wanted; `deployApply` has no cloud-build path
 - `functions`: path depends on `buildStrategy` (`zip`/`cloud`/`local`/`image`)
+
+`deployApply` executes no build command for `app` or `hosting`. `buildCommand` /
+`installCommand` / `framework` only drive output-directory inference.
+
+### `buildHint`: what to build, read from the plan
+
+Every `app` / `hosting` plan item returned by `deployPlan` carries:
+
+| field | meaning |
+|-------|---------|
+| `buildCommand` | the command to run; `null` → nothing to build |
+| `outputDir` | absolute path that apply will upload |
+| `artifactReady` | `false` → the directory is missing or empty, apply **will** fail |
+
+Read these fields rather than parsing the localized strings in `details` (the wording
+changes; the fields are the contract). On `artifactReady: false`, build (via
+`deployBuild` for `hosting`, or `buildHint.buildCommand` for `app`), then re-run
+`deployPlan` to confirm `artifactReady: true`.
 
 ## Cloud-hosted upload pipeline path (not local-form deployPlan/deployApply)
 
@@ -146,15 +166,18 @@ This path deploys by package artifact (not local path).
 
 ```
 1. deployBuild({ cwd, mode? })                            # only when hosting has a buildCommand
-2. deployPlan({ cwd, mode?, envId?, only?, skip?, yes? })
+   <your own build command in the project dir>             # when cloudbaserc declares `app`
+2. deployPlan({ cwd, mode?, envId?, only?, skip?, yes? })  # check buildHint.artifactReady
 3. Review plan; resolve any `conflict`; complete Deployment Gate declaration.
 4. deployApply({ confirm: true, cwd, mode?, envId?, only?, skip?, yes?, concurrency?, continueOnError?, confirmDestructive? })
 5. Report the returned result.
 ```
 
-If `deployApply` fails with `BUILD_OUTPUT_NOT_FOUND`, you skipped step 1: run
-`deployBuild` (after installing dependencies if it reports `DEPENDENCY_NOT_INSTALLED`),
-then retry apply.
+If `deployApply` fails with `BUILD_OUTPUT_NOT_FOUND`, you skipped step 1. For `hosting`
+run `deployBuild` (after installing dependencies if it reports
+`DEPENDENCY_NOT_INSTALLED`); for `app` run its build command yourself — read
+`buildHint.buildCommand` / `buildHint.outputDir` from `deployPlan` to know what to run.
+Then retry apply.
 
 Keep `mode` / `envId` / `only` / `skip` identical between plan and apply so the applied
 change matches the previewed plan.

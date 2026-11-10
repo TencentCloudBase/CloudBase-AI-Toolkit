@@ -135,7 +135,7 @@ callCloudApi({
 **On miss:** surface the purchase link (replace `{envId}` with the real ID — never leave the placeholder):
 
 ```
-https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+https://buy.cloud.tencent.com/CloudBase?buyType=resPack&envId={envId}&resourceType=token
 ```
 
 ### Preflight ② · Group Readiness (mandatory for every Mini Program AI call)
