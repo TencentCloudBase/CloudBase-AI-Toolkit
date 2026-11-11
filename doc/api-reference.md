@@ -2,7 +2,7 @@
 
 > - 数据源：[API 概览](https://cloud.tencent.com/document/api/876/34809) · [依赖产品接口指引](https://cloud.tencent.com/document/api/876/34808)
 > - 所有接口均为腾讯云 API 3.0 管控面接口，支持各语言官方 SDK 调用；也可通过 CloudBase MCP 的 `callCloudApi` 工具或 [API Explorer](https://console.cloud.tencent.com/api/explorer) 直接调用
-> - 最近同步：2026-11-10
+> - 最近同步：2026-11-11
 
 ## API 概览
 
@@ -96,7 +96,7 @@
 
 | 接口名称 | 接口功能 | 频率限制（次/秒） |
 | --- | --- | --- |
-| [CreateEnv](https://cloud.tencent.com/document/api/876/128592) | 创建环境 | 20 |
+| [CreateEnv](https://cloud.tencent.com/document/api/876/128592) | 创建环境 | 10 |
 | [ModifyEnvPlan](https://cloud.tencent.com/document/api/876/128591) | 更新云开发环境套餐 | 20 |
 | [RenewEnv](https://cloud.tencent.com/document/api/876/128590) | 续费云开发环境 | 20 |
 | [DescribeCreditsUsage](https://cloud.tencent.com/document/api/876/132935) | 获取资源点用量 | 20 |
