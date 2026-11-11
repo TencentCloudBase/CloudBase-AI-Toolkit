@@ -138,6 +138,8 @@ export const env = defineModule(
       "已绑定环境，list 默认只返回当前环境。要查看其他地域请传 region（例如 region=\"ap-singapore\"），或使用 CLI: tcb env list -r ap-singapore。",
     "list.singleEnvDegradedNote":
       "当前凭证为环境级（托管授权凭证绑定 {envId}），账号级环境列表接口无权限，已降级为仅返回绑定环境的信息。如需查看账号下全部环境，请用有账号级权限的凭证登录。",
+    "list.accountListPermissionDegradedNote":
+      "账号级环境列表接口返回 invalid token（当前凭证无该接口权限），已降级为仅返回绑定环境 {envId} 的信息。如需查看账号下全部环境，请用有账号级权限的凭证登录。",
 
     // ---- queryEnv 错误增强 ----
     "queryError.paramHeader": "参数错误：请求未通过服务端的参数校验，请检查本次调用的入参：",
@@ -487,6 +489,8 @@ export const env = defineModule(
       "An environment is bound, so list returns only the current environment by default. To see other regions pass region (for example region=\"ap-singapore\"), or use CLI: tcb env list -r ap-singapore.",
     "list.singleEnvDegradedNote":
       "The current credential is env-level (hosted authorization credential bound to {envId}) and has no permission for the account-level environment list API, so the result is degraded to only the bound environment. To see all environments under the account, log in with a credential that has account-level permission.",
+    "list.accountListPermissionDegradedNote":
+      "The account-level environment list API returned invalid token (the current credential lacks permission for it), so the result is degraded to only the bound environment {envId}. To see all environments under the account, log in with a credential that has account-level permission.",
 
     // ---- queryEnv error enrichment ----
     "queryError.paramHeader":
