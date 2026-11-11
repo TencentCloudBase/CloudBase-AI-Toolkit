@@ -457,12 +457,15 @@ export async function createCloudBaseMcpServer(options?: {
     server.logger = logger;
   }
 
+  // 工具管线无条件安装：注册期过滤、两道执行前检查、失败文案增强与业务失败
+  // isError 语义都挂在这一层，与是否上报数据无关。这里只把遥测开关作为链内配置
+  // 传入；下面的 if 负责决定是否发出会话上报事件。
+  wrapServerWithTelemetry(server, { telemetryEnabled: enableTelemetry });
+
   // Enable telemetry if requested
   if (enableTelemetry) {
-    wrapServerWithTelemetry(server);
-
     // 会话建立后上报一次（补"分母"：进程 start 早于握手，拿不到 client 与能力声明）。
-    // **这一个 if 就是总闸**：`enableTelemetry: false` 时连这条会话事件也不发——
+    // **这一个 if 只是上报总闸**：`enableTelemetry: false` 时连这条会话事件也不发——
     // 关掉遥测的调用方（测试环境分支、冒烟脚本、评审 harness）本来就是为了不出网。
     // - **每会话只发一次**：幂等粒度是**会话**，不是 server 实例 —— 同一会话里重复的
     //   initialized 通知只报一次；不同会话即使共用同一个实例也各报一次；
