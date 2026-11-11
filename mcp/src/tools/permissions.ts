@@ -898,10 +898,30 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
               policyResourceType,
             );
             logCloudBaseResult(server.logger, result);
-            const data = (result as { Data?: { PolicyList?: unknown[]; Total?: string | number } })
-              ?.Data;
-            const policyList = data?.PolicyList ?? [];
-            const total = data?.Total ?? policyList.length;
+            type PolicyListPayload = { PolicyList?: unknown[]; Total?: string | number };
+            const raw = result as PolicyListPayload & {
+              Data?: PolicyListPayload;
+              RequestId?: string;
+            };
+            // Cloud API responses are wrapped as { Data, RequestId }; requestFn-based
+            // local endpoints return the gateway's raw inner response, i.e. the same
+            // fields without the Data wrapper. Accept both shapes.
+            const data: PolicyListPayload | undefined = raw?.Data ?? raw;
+            if (data?.PolicyList === undefined && data?.Total === undefined) {
+              // Align with CLI: a response without policy fields must not be reported as "0 policies".
+              throw new Error(t("permissions.listPolicyNoData"));
+            }
+            const policyList = data.PolicyList ?? [];
+            const total = data.Total ?? policyList.length;
+            // PG / authz_engine=opa environments short-circuit inside the SDK:
+            // no request is sent and the SDK returns an explicit empty RequestId.
+            // A missing RequestId is NOT proof of a skip: requestFn-based local
+            // endpoints return the gateway's raw inner response, which may omit
+            // RequestId even when a real query returned policies. Only the
+            // explicit empty string means "no request was sent"; treat anything
+            // else (including an absent field) as a real request to avoid a
+            // false PG/OPA note that contradicts a non-empty policies list.
+            const skipped = raw.RequestId === "";
             return buildEnvelope(
               {
                 action,
@@ -909,11 +929,32 @@ export function registerPermissionTools(server: ExtendedMcpServer) {
                 policyResourceType: policyResourceType ?? null,
                 policies: policyList,
                 total,
-                note:
-                  t("permissions.listPolicyNote"),
+                skipped,
+                note: t(
+                  skipped
+                    ? "permissions.listPolicySkippedNote"
+                    : "permissions.listPolicyNote",
+                ),
                 raw: result,
               },
               t("permissions.listPolicySuccess"),
+              skipped
+                ? {
+                    nextActions: [
+                      {
+                        tool: "queryPermissions",
+                        action: "getPolicy",
+                        reason: t("permissions.listPolicyReadUserRego"),
+                      },
+                      {
+                        tool: "queryPermissions",
+                        action: "getPolicy",
+                        reason: t("permissions.listPolicyReadExtensionRego"),
+                        suggested_args: { extension: true },
+                      },
+                    ],
+                  }
+                : undefined,
             );
           }
           case "getPolicy": {

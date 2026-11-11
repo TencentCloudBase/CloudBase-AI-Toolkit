@@ -700,6 +700,86 @@ describe("permission tools", () => {
     });
   });
 
+  it("queryPermissions(action=listPolicy) marks empty list as skipped when RequestId is empty", async () => {
+    mockDescribeResourcePolicyList.mockResolvedValueOnce({
+      Data: { PolicyList: [], Total: "0" },
+      RequestId: "",
+    });
+
+    const result = await tools.queryPermissions.handler({
+      action: "listPolicy",
+      policyResourceType: "policy",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.data.skipped).toBe(true);
+    expect(payload.data.note).toContain("不代表");
+    expect(payload.nextActions.map((item: { action: string }) => item.action)).toEqual([
+      "getPolicy",
+      "getPolicy",
+    ]);
+    expect(payload.nextActions[1].suggested_args).toEqual({ extension: true });
+  });
+
+  it("queryPermissions(action=listPolicy) does not mark a real empty result as skipped", async () => {
+    mockDescribeResourcePolicyList.mockResolvedValueOnce({
+      Data: { PolicyList: [], Total: "0" },
+      RequestId: "req-list-policy",
+    });
+
+    const result = await tools.queryPermissions.handler({ action: "listPolicy" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.data.skipped).toBe(false);
+    expect(payload.data.note).toContain("真实查询结果为空");
+    expect(payload.nextActions).toBeUndefined();
+  });
+
+  it("queryPermissions(action=listPolicy) treats a response without RequestId as a real request", async () => {
+    // requestFn-based local endpoints return the gateway's raw inner response,
+    // which may omit RequestId even when a real query returned policies.
+    // An absent field must not be mistaken for the SDK short-circuit signal.
+    mockDescribeResourcePolicyList.mockResolvedValueOnce({
+      Data: {
+        PolicyList: [{ Resource: "todos", Permission: "READONLY" }],
+        Total: "1",
+      },
+    });
+
+    const result = await tools.queryPermissions.handler({ action: "listPolicy" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.data.skipped).toBe(false);
+    expect(payload.data.policies).toHaveLength(1);
+    expect(payload.nextActions).toBeUndefined();
+  });
+
+  it("queryPermissions(action=listPolicy) fails instead of reporting zero when the payload has no policy fields", async () => {
+    mockDescribeResourcePolicyList.mockResolvedValueOnce({ RequestId: "req-list-policy" });
+
+    const result = await tools.queryPermissions.handler({ action: "listPolicy" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({ success: false });
+    expect(payload.message).toContain("策略数据");
+  });
+
+  it("queryPermissions(action=listPolicy) reads the unwrapped response from local endpoints", async () => {
+    // With CLOUDBASE_LOCAL_ENDPOINT the injected requestFn returns the gateway's inner
+    // response: no `Data` wrapper, only the flat fields.
+    mockDescribeResourcePolicyList.mockResolvedValueOnce({
+      PolicyList: [{ Resource: "todos", Permission: "READONLY" }],
+      Total: "1",
+      RequestId: "req-local",
+    });
+
+    const result = await tools.queryPermissions.handler({ action: "listPolicy" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({ success: true, data: { skipped: false, total: "1" } });
+    expect(payload.data.policies).toHaveLength(1);
+  });
+
   it("queryPermissions(action=getPolicy) reads authz.user.rego by default", async () => {
     mockDescribeEnvAuthzConfig.mockResolvedValueOnce({
       Item: {
