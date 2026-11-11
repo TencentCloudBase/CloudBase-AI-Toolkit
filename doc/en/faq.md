@@ -110,6 +110,33 @@ Follow the steps in [How do I install CloudBase MCP globally?](#how-do-i-install
 
 ---
 
+### MCP connection fails with ENOTEMPTY
+
+If the connection keeps failing with `ENOTEMPTY: directory not empty`, clear the leftover local npx cache once:
+
+1. Fully quit your AI tool and make sure no other window is still running MCP.
+2. Run one of the commands below. They find CloudBase cache directories by package name, so you don't need to identify a specific folder.
+
+   macOS / Linux:
+
+   ```bash
+   CACHE=$(npm config get cache)
+   rm -rf "$CACHE"/_npx/*/node_modules/@cloudbase
+   ```
+
+   Windows (PowerShell):
+
+   ```powershell
+   $cache = npm config get cache
+   Remove-Item -Path "$cache\_npx\*\node_modules\@cloudbase" -Recurse -Force -ErrorAction SilentlyContinue
+   ```
+
+3. Reopen your AI tool and connect CloudBase again.
+
+These commands only remove CloudBase-related caches and leave other tools untouched. Re-downloading on the next connection is expected. If it still fails, include the error message and the time it happened when contacting support.
+
+---
+
 ### MCP error -32001: Request timed out after configuring MCP
 
 If you see `MCP error -32001: Request timed out` while configuring MCP:
