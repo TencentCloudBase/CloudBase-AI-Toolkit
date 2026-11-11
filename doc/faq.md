@@ -108,6 +108,33 @@ AI 会自动下载并更新最新的规则配置到你的项目目录。
 
 ---
 
+### MCP 连接报 ENOTEMPTY 怎么办？
+
+连接反复失败、错误信息里出现 `ENOTEMPTY: directory not empty` 时，先清理一次本地残留的 npx 缓存：
+
+1. 完全退出 AI 开发工具，确认没有其它窗口还在运行 MCP。
+2. 在终端执行下面两条之一。命令按包名找出 CloudBase 的缓存目录，不需要你确认具体目录名。
+
+   macOS / Linux：
+
+   ```bash
+   CACHE=$(npm config get cache)
+   rm -rf "$CACHE"/_npx/*/node_modules/@cloudbase
+   ```
+
+   Windows（PowerShell）：
+
+   ```powershell
+   $cache = npm config get cache
+   Remove-Item -Path "$cache\_npx\*\node_modules\@cloudbase" -Recurse -Force -ErrorAction SilentlyContinue
+   ```
+
+3. 重新打开工具，再连接一次 CloudBase。
+
+命令只清理 CloudBase 相关的缓存，不动其它工具；重连时重新下载一次属于正常现象。如果之后仍然反复失败，请在反馈时附上错误提示和发生时间。
+
+---
+
 ### MCP 配置后提示 MCP error -32001: Request timed out
 
 如果在配置 MCP 时遇到 `MCP error -32001: Request timed out` 错误，可以按以下步骤解决：
