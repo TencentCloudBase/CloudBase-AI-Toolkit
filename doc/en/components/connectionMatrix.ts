@@ -73,8 +73,11 @@ export const SITE_IDS: SiteId[] = ['domestic', 'intl'];
 /** npm 包名：本地模式与 MCP Registry 共用 */
 export const MCP_PACKAGE = '@cloudbase/cloudbase-mcp';
 
+/** 本地 stdio 启动器：按版本目录装包，避开共享 npx 缓存。版本固定，不用 @latest。 */
+export const LAUNCHER_PACKAGE = '@cloudbase/npm-launcher@1.0.0';
+
 /** 本地模式启动命令 */
-export const LOCAL_RUN_COMMAND = `npx ${MCP_PACKAGE}@latest`;
+export const LOCAL_RUN_COMMAND = `npx -y ${LAUNCHER_PACKAGE} ${MCP_PACKAGE}@latest`;
 
 /** MCP 服务在客户端配置里的固定名字 */
 export const MCP_SERVER_NAME = 'cloudbase';
@@ -111,7 +114,7 @@ export function buildLocalConfig(ideName = 'Cursor'): string {
       mcpServers: {
         cloudbase: {
           command: 'npx',
-          args: [`${MCP_PACKAGE}@latest`],
+          args: ['-y', LAUNCHER_PACKAGE, `${MCP_PACKAGE}@latest`],
           env: { INTEGRATION_IDE: ideName },
         },
       },
@@ -312,7 +315,7 @@ export interface InstallLinkContext {
 export function buildCursorInstallUrl({ mode, siteId, ideName }: InstallLinkContext): string {
   const config =
     mode === 'local'
-      ? { env: { INTEGRATION_IDE: ideName }, command: 'npx', args: [`${MCP_PACKAGE}@latest`] }
+      ? { env: { INTEGRATION_IDE: ideName }, command: 'npx', args: ['-y', LAUNCHER_PACKAGE, `${MCP_PACKAGE}@latest`] }
       : { url: buildRemoteEndpoint(siteId) };
   const encoded = encodeURIComponent(toBase64(JSON.stringify(config)));
   return `https://cursor.com/en-US/install-mcp?name=${MCP_SERVER_NAME}&config=${encoded}`;
@@ -325,7 +328,7 @@ export function buildVSCodeInstallUrl({ mode, siteId, ideName }: InstallLinkCont
       ? {
           name: MCP_SERVER_NAME,
           command: 'npx',
-          args: [`${MCP_PACKAGE}@latest`],
+          args: ['-y', LAUNCHER_PACKAGE, `${MCP_PACKAGE}@latest`],
           env: { INTEGRATION_IDE: ideName },
         }
       : { name: MCP_SERVER_NAME, type: 'http', url: buildRemoteEndpoint(siteId) };
@@ -345,7 +348,7 @@ const TRAE_SCHEME = 'trae://';
 export function buildTraeInstallUrl({ mode, siteId, ideName }: InstallLinkContext): string {
   const config =
     mode === 'local'
-      ? { command: 'npx', args: [`${MCP_PACKAGE}@latest`], env: { INTEGRATION_IDE: ideName } }
+      ? { command: 'npx', args: ['-y', LAUNCHER_PACKAGE, `${MCP_PACKAGE}@latest`], env: { INTEGRATION_IDE: ideName } }
       : { url: buildRemoteEndpoint(siteId) };
   const type = mode === 'local' ? 'stdio' : 'http';
   const encoded = encodeURIComponent(toBase64(JSON.stringify(config)));
@@ -353,40 +356,31 @@ export function buildTraeInstallUrl({ mode, siteId, ideName }: InstallLinkContex
 }
 
 /* ---------------------------------------------------------------------------
- * 连接器深链（已内置 CloudBase 的客户端）
+ * 内置连接器入口（已内置 CloudBase 的客户端）
  *
- * WorkBuddy 的 `workbuddy://` 路由表里没有 `mcp/install`（已解包枚举全部字面量），
- * 硬塞 MCP 安装链接会点出「当前版本不支持」。但它有 Task Deeplink 可以**预选连接器**：
- * 命中条件是 host=`task` 且 `action=start`；点完落在新建任务页，CloudBase 已勾上、
- * 提示词已填进草稿（停在草稿不自动提交；未授权时会引导过一次授权）。
+ * WorkBuddy 有 `workbuddy://task` 深链，但它只在装了客户端的机器上响应：没装的人
+ * 点了没反应，文档是公开页，入口不能押在自定义协议上。改用对外可分享的资产链接，
+ * 浏览器里能打开，WorkBuddy 里打开则直接落到 CloudBase 连接器。
  *
- * 所以它不是「一键装好」而是「一键带着 CloudBase 开任务」。调用方按下方的 `kind`
- * 区分文案，不要统一写成「一键安装」。
- *
- * ⚠️ 当前 WorkBuddy 市场里的 CloudBase 条目是**本地 npx（stdio）型**，不是远端 URL
- * 型。这条链接激活的就是那个条目，因此走的是本地模式链路。要让内置连接器也吃上远端
- * 模式，需要先把市场条目的 mcp.json 改成 `{"url": ...}` 型——那是产品侧动作，不在这层。
+ * 代价是不再预填任务草稿（`prompt` / `connectorIds` 属于深链参数），用户打开连接器
+ * 后自己决定做什么。调用方按 `kind` 区分文案，不要写成「一键安装」。
  * ------------------------------------------------------------------------- */
 
 /**
- * CloudBase 在 WorkBuddy 连接器市场的 id。
+ * CloudBase 连接器的对外分享链接。
  *
- * 四处取值一致，已核对：市场条目目录名、授权态 `connector-states.json` 的 key、
- * 本地 `mcp.json` 里的 `connector:cloudbase`、市场条目内 `mcpServers` 的 key。
+ * ⚠️ 同一个链接也写在 `ide-setup/workbuddy.mdx`、`cloud-function/develop/ai-local.md`
+ * 和 `static/skill.md`，换链接时四处要一起改。
  */
-export const WORKBUDDY_CONNECTOR_ID = 'cloudbase';
-
-/** 打开连接器时预填的提示词：先把连接调通，再谈能做什么 */
-const WORKBUDDY_DEFAULT_PROMPT = '帮我连接 CloudBase 连接器，测通 MCP 功能并介绍可以做什么';
+export const WORKBUDDY_CONNECTOR_URL =
+  'https://www.workbuddy.cn/share/asset?shareCode=ZxZ2mdZ8yKM0s3uj0JUXU5&sig=HG4sMzqfmvtP2q5L';
 
 /**
- * WorkBuddy：预选 CloudBase 连接器并新建任务。
+ * WorkBuddy：打开内置 CloudBase 连接器。
  *
- * 只带 `connectorIds`。刻意不带 `cwd` / `skills`——那两个参数会改变落点页面的
- * 形态，文档页不该替用户预设工作目录或技能集。
+ * 函数名沿用 `buildWorkBuddyTaskUrl` 是为了不牵动 IDESelector 的 import；返回值已经是
+ * HTTPS 资产链接，不再是 task 深链，也不再接受提示词参数。
  */
-export function buildWorkBuddyTaskUrl(
-  prompt: string = WORKBUDDY_DEFAULT_PROMPT,
-): string {
-  return `workbuddy://task?action=start&prompt=${encodeURIComponent(prompt)}&connectorIds=${WORKBUDDY_CONNECTOR_ID}`;
+export function buildWorkBuddyTaskUrl(): string {
+  return WORKBUDDY_CONNECTOR_URL;
 }
