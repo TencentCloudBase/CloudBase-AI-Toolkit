@@ -1,7 +1,7 @@
 ---
 name: ops-inspector
 description: AIOps-style CloudBase inspection skill. Use when users need health checks, log diagnosis, alarm interpretation (CPU alert normal?, peak QPS), metrics via queryEnv(action=metrics), fault playbooks for 429 / AI model 429 / function timeout / function 404 / ACCESS_TOKEN_INVALID / zero invocations, or a scheduled patrol that reports only new or worse findings. Triggers on 巡检, 诊断, 告警, 峰值 QPS, 限频, 调用量为 0, 定时巡检, 每天检查, 值守, troubleshooting.
-version: 2.37.5
+version: 2.37.6
 license: MIT
 alwaysApply: false
 ---
