@@ -1,7 +1,7 @@
 ---
 name: relational-database-web-cloudbase
 description: "[Deprecated] Existing CloudBase MySQL Web SDK only. Do not recommend MySQL for new relational apps — use postgresql-development and app.rdb(). Read this only when a browser app must keep using @cloudbase/js-sdk against an environment that already has MySQL."
-version: 2.37.5
+version: 2.37.6
 license: MIT
 alwaysApply: false
 metadata:

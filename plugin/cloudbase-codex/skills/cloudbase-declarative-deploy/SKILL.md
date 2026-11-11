@@ -1,7 +1,7 @@
 ---
 name: cloudbase-declarative-deploy
 description: "CloudBase declarative deployment from a cloudbaserc config (声明式部署, 配置式部署, cloudbaserc 部署) through the deployBuild / deployPlan / deployApply MCP tools. Use when deploying database, functions, app, hosting, or gateway resources described in cloudbaserc.json/yaml as a single desired-state config, when a user wants to build static hosting artifacts locally first (deployBuild), or wants a dry-run plan before applying (deployPlan), or when handling multi-environment deploys via mode / envOverrides. Covers build-plan-apply flow (deployBuild local build → deployPlan dry-run → deployApply confirm=true), the deploy-but-never-build contract for app and hosting, reading buildHint (buildCommand / outputDir / artifactReady) from the plan, hosting build-output neutralization, BUILD_OUTPUT_NOT_FOUND recovery, envId resolution priority, only/skip filtering, concurrency, and continueOnError."
-version: 2.37.5
+version: 2.37.6
 license: MIT
 alwaysApply: false
 ---
