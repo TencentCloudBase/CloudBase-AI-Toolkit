@@ -65,7 +65,7 @@ npm run build:connector:intl
 | --- | --- | --- |
 | 1 | `cloud-api-operations/references/calling-methods.md:114` | CAM 角色载体事实表，`principal` 的 base64 编码了国内站载体，只换 host 会做出失效链接 |
 | 8 | `console.cloud.tencent.com`（API Explorer ×2、CAM 角色授权/详情 ×3、`/tcb/*` 控制台页 ×3） | 国际站对应入口未确认 |
-| 5 | `buy.cloud.tencent.com/lowcode?...`（AI Token Credits 购买链接） | 国际站购买域名与路径未确认 |
+| 5 | `buy.cloud.tencent.com/CloudBase?...`（AI Token Credits 购买链接） | 国际站购买域名与路径未确认 |
 
 当前由 `references/international-site.md` 明确禁止 AI 把这几类链接转发给用户，并改为引导到国际站控制台。
 

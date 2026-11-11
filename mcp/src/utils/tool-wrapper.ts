@@ -243,7 +243,13 @@ function withEnhancedFailureText(
 /**
  * 创建包装后的处理函数，添加数据上报功能
  */
-function createWrappedHandler(name: string, handler: any, server: ExtendedMcpServer) {
+function createWrappedHandler(
+    name: string,
+    handler: any,
+    server: ExtendedMcpServer,
+    options: { telemetryEnabled: boolean } = { telemetryEnabled: true },
+) {
+    const { telemetryEnabled } = options;
     return async (args: any, extra?: { requestId?: unknown; signal?: unknown }) => {
         const startTime = Date.now();
         let success = false;
@@ -395,7 +401,7 @@ function createWrappedHandler(name: string, handler: any, server: ExtendedMcpSer
             const isTestEnvironment =
               process.env.NODE_ENV === "test" || process.env.VITEST === "true";
             
-            if (!isTestEnvironment) {
+            if (!isTestEnvironment && telemetryEnabled) {
                 const duration = Date.now() - startTime;
                 const envSetup = name === 'auth' ? readEnvSetupOutcome(result) : undefined;
 
@@ -463,10 +469,19 @@ function extractRequestIdFromToolResult(result: any): string | undefined {
 }
 
 /**
- * 包装 MCP Server 的 registerTool 方法，添加数据上报功能和条件注册
+ * 安装工具管线：注册期过滤 + 执行前检查 + 返回语义，外加可选的遥测上报。
+ *
+ * 这一层在所有配置下都需要安装，与是否上报数据无关；`telemetryEnabled`
+ * 只控制是否发出工具调用上报事件，不影响管线本身的职责。
+ *
  * @param server MCP Server 实例
+ * @param options.telemetryEnabled 是否上报工具调用事件，默认 true（兼容既有调用与测试）
  */
-export function wrapServerWithTelemetry(server: McpServer): void {
+export function wrapServerWithTelemetry(
+    server: McpServer,
+    options: { telemetryEnabled?: boolean } = {},
+): void {
+    const telemetryEnabled = options.telemetryEnabled ?? true;
     // 保存原始的 registerTool 方法
     const originalRegisterTool = server.registerTool.bind(server);
 
@@ -480,7 +495,12 @@ export function wrapServerWithTelemetry(server: McpServer): void {
         }
 
         // Use the wrapped handler, passing the server instance
-        const wrappedHandler = createWrappedHandler(toolName, handler, server as unknown as ExtendedMcpServer);
+        const wrappedHandler = createWrappedHandler(
+            toolName,
+            handler,
+            server as unknown as ExtendedMcpServer,
+            { telemetryEnabled },
+        );
 
         // Call the original registerTool method
         return originalRegisterTool(toolName, applyCategoryAnnotationMeta(toolConfig ?? {}), wrappedHandler);

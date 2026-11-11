@@ -1092,10 +1092,38 @@ async function prepareAuthEnvironment(params: {
   };
 }
 
+/**
+ * 账号级 DescribeEnvs 被 CAM 拒绝时，后端返回的是 `invalid token`
+ * （AuthFailure.UnauthorizedOperation / rspcode 100011），而不是一个明确的
+ * 「无权限」。判据只认这段文本，避免把其它鉴权/网络故障也当成可降级情况。
+ */
+function isAccountListPermissionRejection(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /invalid token/i.test(message);
+}
+
+/**
+ * list 降级时要查询的绑定环境。envManager 的缓存是「当前生效绑定」的单一
+ * 入口（项目级绑定与 CLOUDBASE_ENV_ID 在登录准备阶段都会写进去），因此优先
+ * 读它；环境变量与宿主注入的 envId 只作兜底。清洗规则与 auth 环境准备一致。
+ */
+function resolveBoundEnvIdForListFallback(
+  cloudBaseOptions?: { envId?: unknown } | null,
+): string | undefined {
+  return (
+    normalizeEnvIdValue(getCachedEnvId()) ||
+    normalizeEnvIdValue(process.env.CLOUDBASE_ENV_ID) ||
+    normalizeEnvIdValue(cloudBaseOptions?.envId) ||
+    undefined
+  );
+}
+
 function buildEnvQueryListResult(params: {
   result: any;
   cloudBaseOptions: any;
   hasEnvId: boolean;
+  /** DescribeEnvs 因权限被拒后降级到 DescribeEnvInfo，需要如实告知调用方。 */
+  degradedNote?: string;
   /**
    * region 是否真正透传到了按地域的 DescribeEnvs 查询。
    * 环境级凭证（托管授权 token / API Key）下 list 会 pin 到绑定 envId 改走
@@ -1168,7 +1196,7 @@ function buildEnvQueryListResult(params: {
   const regionIgnoredNote = regionIgnored
     ? `已忽略 region="${params.filters.region}"：当前为环境级凭证（单环境权限），查询固定落在绑定环境${boundEnvId ? ` ${boundEnvId}` : ""}，地域参数不参与查询。这是凭据权限边界，不代表该地域没有环境。`
     : undefined;
-  const scopeNotes = [currentEnvOnlyNote, regionIgnoredNote].filter(
+  const scopeNotes = [currentEnvOnlyNote, regionIgnoredNote, params.degradedNote].filter(
     (note): note is string => Boolean(note),
   );
 
@@ -3124,6 +3152,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         // pinned 分支实际查询的 envId（可能是 CLOUDBASE_ENV_ID，与
         // cloudBaseOptions.envId 不一致）。回执里「只保留当前环境」必须按它过滤。
         let pinnedEnvId: string | undefined;
+        // DescribeEnvs 权限被拒后降级到 DescribeEnvInfo 时写给调用方的说明。
+        let listDegradedNote: string | undefined;
 
         switch (action) {
           case "list":
@@ -3206,20 +3236,53 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               }
             } catch (error) {
               debug("获取环境列表时出错，尝试降级到 listEnvs():", error instanceof Error ? error : new Error(String(error)));
-              // Fallback to original method on error
-              try {
-                const cloudbaseList = await getManagerForEnvQuery(undefined, false, region);
-                regionAppliedToQuery = Boolean(region);
-                result = await cloudbaseList.env.listEnvs();
-                logCloudBaseResult(server.logger, result);
-              } catch (fallbackError) {
-                const toolPayloadResult = toolPayloadErrorToResult(fallbackError);
-                if (toolPayloadResult) {
-                  return toolPayloadResult;
+              // 账号级 DescribeEnvs 被 CAM 拒绝时，listEnvs() 打的是同一个账号级
+              // 接口，重试必然再失败。改用环境级 DescribeEnvInfo 按绑定 envId 返回，
+              // 并在回执里写明降级原因。判据只认 invalid token，其它故障保持原兜底。
+              const boundEnvId = isAccountListPermissionRejection(error)
+                ? resolveBoundEnvIdForListFallback(cloudBaseOptions)
+                : undefined;
+              let degraded = false;
+              if (boundEnvId) {
+                try {
+                  const cloudbaseList = await getManagerForEnvQuery(undefined, false, region);
+                  const envInfo = await cloudbaseList.env.describeEnvInfo({ EnvId: boundEnvId });
+                  logCloudBaseResult(server.logger, envInfo);
+                  const baseInfo = envInfo?.EnvInfo?.EnvBaseInfo;
+                  result = {
+                    EnvList: [
+                      baseInfo ??
+                        (envInfo?.EnvInfo
+                          ? { EnvId: boundEnvId, ...envInfo.EnvInfo }
+                          : { EnvId: boundEnvId }),
+                    ],
+                  };
+                  pinnedEnvId = boundEnvId;
+                  regionAppliedToQuery = false;
+                  listDegradedNote = t("env.list.accountListPermissionDegradedNote", {
+                    envId: boundEnvId,
+                  });
+                  degraded = true;
+                } catch (envInfoError) {
+                  debug("DescribeEnvs 权限不足后降级到 DescribeEnvInfo 也失败:", envInfoError instanceof Error ? envInfoError : new Error(String(envInfoError)));
                 }
-                debug("降级到 listEnvs() 也失败:", fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)));
-                const enhancedMessage = buildEnvQueryErrorMessage(fallbackError, "list");
-                return buildTextErrorResult(enhancedMessage);
+              }
+              if (!degraded) {
+                // Fallback to original method on error
+                try {
+                  const cloudbaseList = await getManagerForEnvQuery(undefined, false, region);
+                  regionAppliedToQuery = Boolean(region);
+                  result = await cloudbaseList.env.listEnvs();
+                  logCloudBaseResult(server.logger, result);
+                } catch (fallbackError) {
+                  const toolPayloadResult = toolPayloadErrorToResult(fallbackError);
+                  if (toolPayloadResult) {
+                    return toolPayloadResult;
+                  }
+                  debug("降级到 listEnvs() 也失败:", fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)));
+                  const enhancedMessage = buildEnvQueryErrorMessage(fallbackError, "list");
+                  return buildTextErrorResult(enhancedMessage);
+                }
               }
             }
             result = buildEnvQueryListResult({
@@ -3228,6 +3291,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               hasEnvId,
               regionApplied: regionAppliedToQuery,
               targetEnvId: pinnedEnvId,
+              degradedNote: listDegradedNote,
               filters: {
                 alias,
                 aliasExact,

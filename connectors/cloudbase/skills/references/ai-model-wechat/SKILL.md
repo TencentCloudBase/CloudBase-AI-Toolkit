@@ -132,10 +132,10 @@ callCloudApi({
 
 **Hit criterion:** `envPostpayPackageInfoList` contains an entry whose `postpayPackageId` starts with `pkg_tcb_tokencredits_`, has `status ∉ [3, 4]` (not expired, not disabled), and `versionSwitchStatus` is not in a blocking state.
 
-**On miss:** surface the purchase link (replace `{envId}` with the real ID — never leave the placeholder):
+**On miss:** surface the purchase link (replace `{region}` with the environment's `Region` from `queryEnv`, e.g. `ap-shanghai`, and `{envId}` with the real ID — never leave the placeholders):
 
 ```
-https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+https://buy.cloud.tencent.com/CloudBase?buyType=resPack&region={region}&envId={envId}
 ```
 
 ### Preflight ② · Group Readiness (mandatory for every Mini Program AI call)

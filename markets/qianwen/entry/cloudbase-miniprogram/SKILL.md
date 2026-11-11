@@ -31,10 +31,10 @@ license: MIT
 claude mcp add --transport http cloudbase https://tcb-api.cloud.tencent.com/mcp/v1
 
 # B. 本地 stdio（需要 API Key，或要用远程缺的工具）
-claude mcp add cloudbase -- npx -y @cloudbase/cloudbase-mcp@latest
+claude mcp add cloudbase -- npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest
 
 # C. 客户端不支持 MCP 但有终端（走 mcporter 桥）
-npx -y mcporter@0.16.1 call --stdio "npx -y @cloudbase/cloudbase-mcp@latest" auth action=status
+npx -y mcporter@0.16.1 call --stdio "npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest" auth action=status
 ```
 
 图形客户端（Cursor、Qoder）只能让用户手动加：类型 HTTP / Streamable HTTP，地址填 `/mcp/v1`。

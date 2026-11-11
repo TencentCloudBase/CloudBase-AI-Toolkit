@@ -1690,6 +1690,92 @@ describe("env tools - queryEnv", () => {
     ]);
   });
 
+  describe("queryEnv(list) degraded fallback on account-level rejection", () => {
+    const rejection = () =>
+      new Error("[DescribeEnvs] [request id:0]invalid token (AuthFailure.UnauthorizedOperation)");
+
+    it("returns the bound environment and a scope_note when DescribeEnvs is rejected", async () => {
+      mockGetCachedEnvId.mockReturnValue("env-bound");
+      const describeEnvInfo = vi.fn().mockResolvedValue({
+        EnvInfo: { EnvBaseInfo: { EnvId: "env-bound", Alias: "bound-env", Status: "NORMAL" } },
+      });
+      const commonServiceCall = vi.fn().mockRejectedValue(rejection());
+      const listEnvs = vi.fn();
+      mockGetCloudBaseManager.mockResolvedValue({
+        commonService: vi.fn(() => ({ call: commonServiceCall })),
+        env: { listEnvs, describeEnvInfo },
+      });
+
+      const { tools } = createMockServer();
+      const result = await tools.queryEnv.handler({ action: "list" });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-bound" });
+      expect(listEnvs).not.toHaveBeenCalled();
+      expect(payload.EnvList).toEqual([
+        { EnvId: "env-bound", Alias: "bound-env", Status: "NORMAL" },
+      ]);
+      expect(payload.scope_note).toContain("env-bound");
+      expect(payload.AppliedFilters.currentEnvOnly).toBe(true);
+    });
+
+    it("keeps the original fallback for errors other than invalid token", async () => {
+      mockGetCachedEnvId.mockReturnValue("env-bound");
+      const describeEnvInfo = vi.fn();
+      const commonServiceCall = vi.fn().mockRejectedValue(new Error("ECONNRESET"));
+      const listEnvs = vi.fn().mockResolvedValue({ EnvList: [{ EnvId: "env-bound" }] });
+      mockGetCloudBaseManager.mockResolvedValue({
+        commonService: vi.fn(() => ({ call: commonServiceCall })),
+        env: { listEnvs, describeEnvInfo },
+      });
+
+      const { tools } = createMockServer();
+      const result = await tools.queryEnv.handler({ action: "list" });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(describeEnvInfo).not.toHaveBeenCalled();
+      expect(listEnvs).toHaveBeenCalled();
+      expect(payload.scope_note ?? "").not.toContain("invalid token");
+    });
+
+    it("falls back to listEnvs when no bound envId is available", async () => {
+      mockGetCachedEnvId.mockReturnValue(null);
+      const describeEnvInfo = vi.fn();
+      const commonServiceCall = vi.fn().mockRejectedValue(rejection());
+      const listEnvs = vi.fn().mockResolvedValue({ EnvList: [{ EnvId: "env-fallback" }] });
+      mockGetCloudBaseManager.mockResolvedValue({
+        commonService: vi.fn(() => ({ call: commonServiceCall })),
+        env: { listEnvs, describeEnvInfo },
+      });
+
+      const { tools } = createMockServer("TestIDE", undefined, {});
+      const result = await tools.queryEnv.handler({ action: "list" });
+      const payload = JSON.parse(result.content[0].text);
+
+      expect(describeEnvInfo).not.toHaveBeenCalled();
+      expect(listEnvs).toHaveBeenCalled();
+      expect(payload.EnvList).toEqual([{ EnvId: "env-fallback" }]);
+    });
+
+    it("keeps the original error when the degraded DescribeEnvInfo also fails", async () => {
+      mockGetCachedEnvId.mockReturnValue("env-bound");
+      const describeEnvInfo = vi.fn().mockRejectedValue(new Error("DescribeEnvInfo denied"));
+      const commonServiceCall = vi.fn().mockRejectedValue(rejection());
+      const listEnvs = vi.fn().mockRejectedValue(new Error("listEnvs denied"));
+      mockGetCloudBaseManager.mockResolvedValue({
+        commonService: vi.fn(() => ({ call: commonServiceCall })),
+        env: { listEnvs, describeEnvInfo },
+      });
+
+      const { tools } = createMockServer();
+      const result = await tools.queryEnv.handler({ action: "list" });
+
+      expect(describeEnvInfo).toHaveBeenCalledWith({ EnvId: "env-bound" });
+      expect(listEnvs).toHaveBeenCalled();
+      expect(result.isError).toBe(true);
+    });
+  });
+
   it("queryEnv(info) should preserve detailed fields such as PackageId", async () => {
     const getEnvInfo = vi.fn().mockResolvedValue({
       EnvInfo: {

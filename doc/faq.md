@@ -371,7 +371,7 @@ CloudBase AI ToolKit 与微信开发者工具可以完美配合使用，提供�
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "intl"
       }
@@ -393,7 +393,7 @@ CloudBase AI ToolKit 与微信开发者工具可以完美配合使用，提供�
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "domestic",
         "TCB_REGION": "ap-singapore"

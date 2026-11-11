@@ -101,9 +101,9 @@ callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId }
 - That entry's `postpayPackageId` starts with `pkg_tcb_tokencredits_`
 - That entry's `status` is NOT in `[3, 4]` (3 / 4 typically mean expired / disabled; trust the live response)
 
-- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
+- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replace `{region}` with the environment's `Region` from `queryEnv`, e.g. `ap-shanghai`, and `{envId}` with the real id):
   > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
-  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+  > https://buy.cloud.tencent.com/CloudBase?buyType=resPack&region={region}&envId={envId}
   >
   > Let me know once it's done and I'll re-check the resource pack status.
 

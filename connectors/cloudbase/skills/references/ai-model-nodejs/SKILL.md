@@ -94,9 +94,9 @@ callCloudApi(service="tcb", action="DescribeEnvPostpayPackage", params={ EnvId }
 - That entry's `postpayPackageId` starts with `pkg_tcb_tokencredits_`
 - That entry's `status` is NOT in `[3, 4]` (3 / 4 typically mean expired / disabled; trust the live response)
 
-- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replacing `{envId}` with the real id):
+- ❌ **Not satisfied** → **stop writing code** and surface this to the user (replace `{region}` with the environment's `Region` from `queryEnv`, e.g. `ap-shanghai`, and `{envId}` with the real id):
   > The current environment has no active Token Credits resource pack. Please purchase one before calling any AI API:
-  > https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token
+  > https://buy.cloud.tencent.com/CloudBase?buyType=resPack&region={region}&envId={envId}
   >
   > Let me know once it's done and I'll re-check the resource pack status.
 
@@ -262,7 +262,7 @@ For full `generateText` / `streamText` / `generateImage` code examples, the erro
 
 ## Best Practices
 
-1. **Run the two-step preflight before writing business code** — ① eligibility: `queryEnv` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when the target model is missing. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/lowcode?buyType=resPack&envId={envId}&resourceType=token` instead of emitting SDK code and letting the user debug runtime errors.
+1. **Run the two-step preflight before writing business code** — ① eligibility: `queryEnv` → `callCloudApi(tcb, DescribeEnvPostpayPackage)` to confirm the Token Credits resource pack (text + image share the same pack); ② group readiness: `DescribeAIModels` for the `cloudbase` group and its `Models[]`, `DescribeManagedAIModelList` for the authoritative supported-model catalog, `UpdateAIModel` with a full-replacement `Models[]` + `Status: 1` when the target model is missing. If the pack is missing, return the purchase link `https://buy.cloud.tencent.com/CloudBase?buyType=resPack&region={region}&envId={envId}` instead of emitting SDK code and letting the user debug runtime errors.
 2. **Never assume any model is already enabled** — not `deepseek-v4.1-flash`, not `hunyuan-image`, not anything. Always verify with `DescribeAIModels` first; if the target is missing, look up the exact `Model` string in `DescribeManagedAIModelList` (do **not** guess the spelling) and then `UpdateAIModel` to enable it.
 3. **`createModel` accepts exactly four kinds of values** — `"cloudbase"` (the main managed group), `"hunyuan-v3"` (legacy plan group, only `hy3`, being retired), `"hunyuan-exp"` (older legacy builtin), or a user-defined GroupName registered via `CreateAIModel` (**MUST start with `custom-`**, e.g. `custom-kimi`, `custom-openai-compat`). **Never** guess with `createModel("deepseek")` / `createModel("kimi")` / `createModel("custom")` — the first two are vendor/model names, the last is a placeholder. `createImageModel("hunyuan-image")` is a separate image API — keep it as-is.
 4. **Do not invent SDK method names or parameters.** This skill (SKILL.md + `references/api-reference.md`) is the authoritative reference for `@cloudbase/node-sdk`'s AI surface — look up the method signature there before writing code. If a method or field is not documented there, stop and ask, or check the live contract via the MCP tools. No guessing.
