@@ -35,7 +35,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
    `tcb help <cmd>` only works one level deep. Try `-h`, then `tcb help <cmd>`, then
    `tcb docs search "<keyword>"` — never conclude a command does not exist from a help error.
    `tcb --help` itself is a **hand-maintained static list**, so absence from it says nothing about
-   lifecycle: `init`, `pull`, `new`, `open`, `rollback`, `self-update`, `monitor`, `integration`,
+   lifecycle: `init --without-template`, `new`, `open`, `rollback`, `self-update`, `monitor`, `integration`,
    `service`, `cloudfunction`, `cloudrunfunction` and `run:deprecated` are all registered yet unlisted.
    **Absence from help ≠ deprecated**, and **"no marker" ≠ endorsed** — the statuses differ:
    `tcb monitor` / `tcb integration` are **officially supported** (recommend normally), while
@@ -116,7 +116,7 @@ Use when the user wants to manage CloudBase resources via command line, **or** w
 |-----------|------|
 | Login, site (国际站/国内站), env switching, `tcb docs`, error diagnosis | `references/core.md` |
 | Create / modify / renew / destroy an environment, API Keys, login policy, safe domains, usage | `references/env.md` |
-| `tcb config` (CLI settings, `cloudbaserc.json` sync), `tcb init` / `new` / `pull` / `open` / `validate` / `self-update` / `rollback` | `references/config.md` |
+| `tcb config` (CLI settings, `cloudbaserc.json` sync), `tcb init --without-template` / `new` / `open` / `validate` / `self-update` / `rollback` | `references/config.md` |
 | Configure an AI tool + MCP + Skills (`tcb ai`) | `references/config.md` |
 | Deploy/debug cloud functions, versions, provisioned concurrency, layers, triggers | `references/functions.md` |
 | Deploy static site / SPA (preferred CLI web path) | `references/hosting.md` |
