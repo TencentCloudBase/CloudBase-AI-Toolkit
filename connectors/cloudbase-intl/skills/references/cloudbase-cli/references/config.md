@@ -7,8 +7,9 @@
 | **CLI local settings** | `config get / set / list / delete` | The CLI's own local store (site, language) |
 | **Project config sync** | `config init / pull / diff / update` | `cloudbaserc.json` ↔ the cloud |
 
-Plus the project / tooling bootstrap commands: `init`, `new`, `pull`, `open`, `validate`,
-`self-update`, `rollback`, and the **`tcb ai` setup wizard**.
+Plus the project / tooling bootstrap commands: `init --without-template`, `new`, `open`, `validate`,
+`self-update`, `rollback`, and the **`tcb ai` setup wizard**. (`pull` and the template branch of
+`init` / `new` are retired — see Workflow 3.)
 
 ## When to Use
 
@@ -122,34 +123,40 @@ tcb config update integration key-xxx
 ## Workflow 3: Scaffold a project
 
 ```bash
-# Create and initialize a new project in the current directory
-tcb init
-tcb init --template react
+# Initialize the current directory as a project (no template download)
+tcb init --without-template
 
-# Pull a template into a target directory
-tcb pull miniprogram
-tcb pull react -o ./my-app
-tcb pull https://github.com/user/repo
-tcb pull https://cnb.cool/user/repo/tree/main/examples --output ./my-project
-tcb pull -s miniprogram -o ./my-app
-tcb pull -f -o ./my-app                      # force-clean the output dir (careful!)
+# Example code: clone the examples repo, then cd into the matching directory
+git clone --depth 1 https://github.com/TencentCloudBase/awesome-cloudbase-examples
+
+# Templates are delivered by `tcb ai` now, not by pull/init/new.
+# Run the wizard once (AI tool + MCP + Skills config), then you can drop a
+# built-in template into the current project:
+tcb ai --setup
+tcb ai --template vue        # miniprogram | react | vue | uniapp | rules
 ```
 
-Built-in templates: `miniprogram` (微信小程序 + CloudBase), `react` (Web App), `vue` (Web App),
-`uniapp` (跨端 App), `rules` (AI 规则与配置). `--source/-s` also accepts a Git URL
-(GitHub / Gitee / CNB / SSH) and a Git subdirectory URL.
+> ⛔ **Old template commands retired (2026-11).** `tcb pull`, `tcb init` without `--without-template`
+> (including `--template <name>`), and `tcb new <appName>` without a Git URL only print a migration
+> notice and exit with code `1`. They cannot succeed — do not suggest them, and do not report them as
+> broken: template distribution was consolidated into the examples repo and `tcb ai`. `tcb ai
+> --template <name>` is **still supported** and downloads the same built-in templates; it runs the AI
+> setup wizard first if the toolkit is not configured yet.
 
-> ⚠️ `tcb pull --force` (`-f`) **deletes the target directory contents** before pulling. Never pass it
-> without explicit user confirmation, and never point it at a directory that holds uncommitted work.
+| Built-in template | Example repo directory (if you want the plain code) |
+| --- | --- |
+| `miniprogram` | `miniprogram/cloudbase-miniprogram-template` |
+| `react` | `web/cloudbase-react-template` |
+| `vue` | `web/cloudbase-vue-template` |
+| `uniapp` | `universal/cloudbase-uniapp-template` |
 
-> ℹ️ `tcb init` and `tcb pull` are implemented but **not listed in `tcb --help`**. They are valid
-> commands — do not tell the user they do not exist.
+> ℹ️ `tcb init --without-template` and `tcb new` are implemented but **not listed in `tcb --help`**.
+> They are valid commands — do not tell the user they do not exist.
 
 ### Create a new app / open the console
 
 ```bash
-# Create a new CloudBase app from a template (Git URL or built-in)
-tcb new my-app
+# Create a new CloudBase app by cloning a Git repo (a bare built-in template name is retired)
 tcb new my-app https://github.com/user/repo
 tcb new my-app https://github.com/user/repo --clone    # clone the whole repo, not just the template
 
@@ -158,9 +165,9 @@ tcb open
 tcb open <link>          # a specific console or doc link
 ```
 
-> ℹ️ `tcb new` differs from `tcb init`: `init` initializes the **current** directory, `new` creates a
-> **new** one (and can clone a template repo). `tcb open` is a convenience wrapper — headless/CI
-> environments have no browser, so do not use it there.
+> ℹ️ `tcb new` differs from `tcb init --without-template`: `init` initializes the **current**
+> directory, `new` creates a **new** one by cloning a repo. `tcb open` is a convenience wrapper —
+> headless/CI environments have no browser, so do not use it there.
 
 ---
 
@@ -247,9 +254,8 @@ tcb config pull <module> [keyId...]              # cloud -> local config file
 tcb config diff <module> [name]                  # local vs cloud (fn only)
 tcb config update <module> [keyId]               # local config file -> cloud
 
-tcb init [--template <t>]                        # scaffold in the CURRENT directory
-tcb new <appName> [templateUri] [--clone]        # create a NEW app (optionally clone a repo)
-tcb pull <template|git-url> [-o <dir>] [-f]      # pull a template
+tcb init --without-template                      # initialize the CURRENT directory (no template)
+tcb new <appName> <git-url> [--clone]            # create a NEW app by cloning a repo
 tcb open [link]                                  # open the console / a doc link in a browser
 tcb validate                                     # project standards check
 tcb ai [--setup] [--scope project|global|custom] # configure AI tool + MCP + Skills
@@ -269,8 +275,8 @@ tcb rollback                                     # revert the standalone CLI one
 | "未知的配置项" | `config get/set` only accepts `isIntl` / `lang` | Do not pass `cloudbaserc.json` keys here |
 | `config diff integration` not supported | `diff` is `fn`-only | Diff integrations manually via `tcb integration list` |
 | Config pushed but function unchanged | `config update` only pushes config, not code | Use `tcb fn code update` / `tcb fn deploy` for code |
-| `tcb pull` emptied a directory | `--force` deletes the target first | Re-pull without `-f`; recover from git |
-| "not a valid command" for `init` / `pull` / `ai` / `new` | These are hidden from `tcb --help` | They are valid — the help list is incomplete |
+| `tcb pull` / `tcb init` exit `1` with `已下线` | Old template commands retired in 2026-11 | `tcb ai --template <name>` for a built-in template, or clone the examples repo |
+| "not a valid command" for `init --without-template` / `ai` / `new` | These are hidden from `tcb --help` | They are valid — the help list is incomplete |
 | `self-update --version` printed a version and did nothing | `--version` is the global "print version" flag | Use `--target-version <x.y.z>` to pin |
 | `--dir` rejected | `--dir` needs `--scope custom` | Pass `tcb ai --setup --scope custom --dir <path>` |
 
@@ -281,5 +287,5 @@ tcb rollback                                     # revert the standalone CLI one
 - [ ] Did I use the right half of `tcb config` (local settings vs project sync)?
 - [ ] For site changes: is `isIntl` consistent with the target envId's site?
 - [ ] For `config update`: ran `tcb config diff` and showed the user the changes first?
-- [ ] For `tcb pull -f`: confirmed with the user that the target directory is disposable?
+- [ ] Did I avoid the retired `tcb pull` / `tcb init <template>` / `tcb new <appName>` and point the user to `tcb ai --template <name>` or the examples repo instead?
 - [ ] For `self-update`: got user approval (or pinned a version in CI instead)?
