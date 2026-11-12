@@ -21,7 +21,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node tests/concurrency.test.mjs && node tests/behaviour.test.mjs && node tests/telemetry.test.mjs && node tests/hardening.test.mjs && node tests/stdout-guard.test.mjs && node tests/updater-env.test.mjs"
+    "test": "node tests/concurrency.test.mjs && node tests/behaviour.test.mjs && node tests/telemetry.test.mjs && node tests/hardening.test.mjs && node tests/stdout-guard.test.mjs && node tests/updater-env.test.mjs && node tests/npm-cli.test.mjs"
   },
   "publishConfig": {
     "access": "public"

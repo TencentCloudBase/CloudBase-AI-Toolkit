@@ -692,4 +692,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { collectUpdaterEnv, stripUserinfo };
+module.exports = { collectUpdaterEnv, stripUserinfo, npmCli };

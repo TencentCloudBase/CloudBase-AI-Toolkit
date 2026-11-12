@@ -18,7 +18,7 @@
  *      small (see build-allinone-skill.ts), but the WorkBuddy connector review reads the
  *      LICENSE sitting beside each skill entry — shipping the bundle without them is a
  *      litmus for "missing license" rejections.
- *   4. Validates the package (meta fields, single stdio server, runtime/staticEnv/preAuth,
+ *   4. Validates the package (meta fields, single stdio server, runtime/env/preAuth,
  *      registry and timeout values, cli.json commands, no secrets).
  *   5. Zips the submittable files into dist/cloudbase-connector.zip.
  *
@@ -176,7 +176,7 @@ function validate() {
   if (meta.minWorkbuddyVersion !== MIN_WORKBUDDY_VERSION) {
     fail(
       `connector-meta.json minWorkbuddyVersion must be "${MIN_WORKBUDDY_VERSION}" — ` +
-        `runtime/staticEnv/npmRegistries/preAuth are 5.0.0 fields, found "${meta.minWorkbuddyVersion}"`,
+        `runtime/env/npmRegistries/preAuth are 5.0.0 fields, found "${meta.minWorkbuddyVersion}"`,
     );
   }
   for (const key of ["examples_zh", "examples_en"]) {
@@ -215,12 +215,12 @@ function validate() {
         "the whole MCP package before the handshake",
     );
   }
-  const staticEnv = server.staticEnv ?? {};
-  if (!staticEnv.CLOUDBASE_MCP_CLIENT) {
-    fail("mcp.json staticEnv must carry CLOUDBASE_MCP_CLIENT so calls are attributable to WorkBuddy");
+  const env = server.env ?? {};
+  if (!env.CLOUDBASE_MCP_CLIENT) {
+    fail("mcp.json env must carry CLOUDBASE_MCP_CLIENT so calls are attributable to WorkBuddy");
   }
-  if (!staticEnv.INTEGRATION_IDE) {
-    fail("mcp.json staticEnv must carry INTEGRATION_IDE");
+  if (!env.INTEGRATION_IDE) {
+    fail("mcp.json env must carry INTEGRATION_IDE");
   }
 
   for (const key of ["init", "auth", "status", "unAuth"]) {
@@ -279,7 +279,7 @@ function validate() {
     .filter((entry) => entry.isDirectory()).length;
   console.log(`     ✓ source=${meta.source} type=mcp, single stdio server, preAuth=cli`);
   console.log(`     ✓ runtime node + ${registries.length} registry mirror(s), timeout ${server.timeout} ms`);
-  console.log(`     ✓ staticEnv: ${Object.keys(staticEnv).join(", ")}`);
+  console.log(`     ✓ env: ${Object.keys(env).join(", ")}`);
   console.log(`     ✓ cli.json: 4 commands × 3 platforms, tcb ≥ ${cli.versionCheck.minVersion}`);
   console.log(`     ✓ ${referenceDirs} bundled skill references, all with a LICENSE file, no secrets`);
   return meta;

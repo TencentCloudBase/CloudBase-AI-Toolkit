@@ -131,6 +131,10 @@ CloudBase CLI supports project-level configuration and stores config files in yo
 
 ## FAQ
 
+**Q: Connection keeps failing with `ENOTEMPTY`?**
+
+A: Leftover files in the local npx cache. Fully quit the AI tool, run the cleanup commands in the [FAQ](../faq#mcp-connection-fails-with-enotempty), then reconnect.
+
 **Q: How do I switch the AI tool?**
 
 A: Run `tcb ai --setup` to open the setup wizard again and choose a different tool. Add `--scope` to control whether the MCP / Skills config is written to the project or to your home directory.

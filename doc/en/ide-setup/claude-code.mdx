@@ -75,6 +75,10 @@ If you only need MCP tool connectivity, you can also configure it manually:
 
 ## FAQ
 
+**Q: Connection keeps failing with `ENOTEMPTY`?**
+
+A: Leftover files in the local npx cache. Fully quit the AI tool, run the cleanup commands in the [FAQ](../faq#mcp-connection-fails-with-enotempty), then reconnect.
+
 **Q: Adding the plugin marketplace fails with `program not found`?**
 A: No usable `git` was found on the machine. Install [Git for Windows](https://git-scm.com/download/win), reopen your terminal, then run `claude plugin marketplace add` again.
 

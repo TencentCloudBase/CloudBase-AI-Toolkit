@@ -62,6 +62,10 @@ If you only need MCP tool connectivity, you can also configure manually:
 
 ## FAQ
 
+**Q: Connection keeps failing with `ENOTEMPTY`?**
+
+A: Leftover files in the local npx cache. Fully quit the AI tool, run the cleanup commands in the [FAQ](../faq#mcp-connection-fails-with-enotempty), then reconnect.
+
 **Q: Adding the plugin marketplace fails with `failed to run git clone ... program not found`?**
 A: Codex uses `git clone` to fetch the marketplace repository, and no usable `git` was found on this machine. Install Git for Windows, quit and reopen Codex, and make sure **Sparse path** is left empty.
 
