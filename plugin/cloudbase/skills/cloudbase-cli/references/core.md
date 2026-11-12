@@ -24,7 +24,7 @@
 | Task | Read |
 |------|------|
 | Create / modify / renew / destroy an environment, API Keys, login policy, safe domains | `env.md` |
-| `tcb config` (CLI settings, `cloudbaserc.json` sync), `tcb init` / `pull` / `validate` / `self-update` | `config.md` |
+| `tcb config` (CLI settings, `cloudbaserc.json` sync), `tcb init --without-template` / `validate` / `self-update` | `config.md` |
 | Log search | `logs.md` |
 | Metric monitoring | `monitor.md` |
 | Data model / PostgreSQL migrations | `schema.md` |
@@ -363,7 +363,7 @@ Help shows API doc link?
 
 > ⚠️ **`tcb --help` is a hand-maintained static list, not an enumeration of what exists** (the CLI
 > source has a hardcoded `COMMAND_LINES` array). Commands absent from it are **not** deprecated — this
-> group includes `tcb init`, `tcb pull`, `tcb new`, `tcb open`, `tcb rollback`, `tcb self-update`,
+> group includes `tcb init --without-template`, `tcb new`, `tcb open`, `tcb rollback`, `tcb self-update`,
 > `tcb monitor`, `tcb integration`, `tcb service`, `tcb cloudfunction`, `tcb cloudrunfunction` and
 > `tcb run:deprecated`.
 >
@@ -386,11 +386,14 @@ Absence/presence in `tcb --help` is **not** the criterion — the table below is
 |---------|:---:|---|---|
 | `tcb monitor` | ✗ | — | ✅ **Officially supported** — recommend it normally |
 | `tcb integration` | ✗ | — | ✅ **Officially supported** — recommend it normally |
-| `tcb init` / `pull` / `new` / `open` / `rollback` / `self-update` | ✗ | — | ✅ Normal commands, just not listed |
+| `tcb init --without-template` / `new` / `open` / `rollback` / `self-update` | ✗ | — | ✅ Normal commands, just not listed |
 | `tcb ai` / `lowcode` / `sync-model-dts` / `validate` | ✓ | — | ✅ Normal |
 | `tcb service` | ✗ | — | 🚫 **Not recommended** (product decision, no marker) → use `tcb routes` / `tcb domains` |
 | `tcb cloudfunction` / `tcb cloudrunfunction` | ✗ | — | 🚫 **Not recommended** (legacy families, no marker) → use `tcb fn` |
 | `tcb permission` | ✓ | `[已下线]` | ⛔ Offline — calling it only prints a migration notice → use `tcb policy` |
+| `tcb pull` | ✗ | `已废弃` | ⛔ Offline since 2026-11 — only prints a migration notice, exits `1` → `tcb ai --template <name>` or clone the examples repo |
+| `tcb init` without `--without-template`, and `tcb init --template <name>` | ✗ | `--template` 标 `已废弃` | ⛔ Template branch offline — exits `1` → `tcb ai --template <name>`, or `tcb init --without-template` for an empty project |
+| `tcb new <appName>` with no Git URL | ✗ | — | ⛔ Built-in template branch offline — exits `1` → `tcb new <appName> <git-url>`, or `tcb ai --template <name>` |
 | `tcb framework` / `tcb run` / `tcb run:deprecated` | ✗ | `[已废弃]` | ⚠️ Deprecated, will be removed → `tcb app deploy` / `tcb cloudrun` |
 | `tcb fn config` / `tcb fn log` | ✓ | `已废弃` | ⚠️ Deprecated → `tcb config update fn` / `tcb logs search` |
 
@@ -581,7 +584,13 @@ CloudBase CLI uses structured exit codes for CI/CD and agent error handling.
 | 3 | Invalid input | Missing/malformed params | Check `--help`, fix params |
 | 4 | Resource not found | Wrong envId, missing function/collection | Verify with `tcb env list` / `tcb fn list` |
 | 5 | Cloud API error | Network timeout, SDK error | Retry with backoff |
-| 6 | Local file error | `cloudbaserc.json` missing/corrupt | Check config, `tcb init` |
+| 6 | Local file error | `cloudbaserc.json` missing/corrupt | Check config, `tcb init --without-template` |
+| 7 | Service not enabled | Product not activated for the account (CloudBase, log service, static hosting) | Enable it in the console — retrying or changing params won't help |
+
+> ℹ️ The retired template commands (`tcb pull`, `tcb init` without `--without-template`,
+> `tcb new <appName>` without a Git URL) exit `1` with `code: COMMAND_DEPRECATED` in `--json`.
+> Exit `1` alone cannot tell them apart from a generic error — read the `code` field before
+> deciding whether a retry makes sense (for these it never does).
 
 ### Response-level errors (not exit codes)
 
