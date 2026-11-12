@@ -8,6 +8,7 @@
 // bundled Node lays out npm — which is exactly the layout a client update can
 // change. No product behaviour is changed to make these pass.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
@@ -19,6 +20,9 @@ function check(ok, label, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
 }
 
+// Build every fixture path with path.join so the separators match what
+// npmCli() computes on this platform (win32 uses backslashes).
+const base = path.join(os.tmpdir(), "nge-contract");
 const realExistsSync = fs.existsSync;
 const savedExecPath = process.env.npm_execpath;
 const dir = path.dirname(process.execPath);
@@ -39,8 +43,9 @@ function withPaths(existing, npmExecPath) {
 }
 
 try {
-  const sibling = "/tmp/nge-contract/npm-cli.js";
-  const npxPath = "/tmp/nge-contract/npx-cli.js";
+  const sibling = path.join(base, "npm-cli.js");
+  const npxPath = path.join(base, "npx-cli.js");
+  const unrelated = path.join(base, "not-npm.js");
 
   check(
     withPaths([sibling], npxPath) === sibling,
@@ -53,7 +58,7 @@ try {
   );
 
   check(
-    withPaths([besideNode], "/tmp/nge-contract/not-npm.js") === besideNode,
+    withPaths([besideNode], unrelated) === besideNode,
     "a non-npm-cli.js npm_execpath is rejected; the Node-relative candidate wins",
   );
 
