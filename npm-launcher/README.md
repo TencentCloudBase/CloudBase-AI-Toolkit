@@ -48,7 +48,7 @@
 | `nodeMajor` | Node 主版本 |
 | `client` | 宿主来源（`CLOUDBASE_MCP_CLIENT`） |
 | `coldStart` | 是否首次安装 |
-| `reason` | 失败原因类别 |
+| `reason` | 失败原因类别（归一后的类别名，不含命令输出原文） |
 | `elapsedMs` | 耗时（毫秒） |
 
 上报字段只有上表 12 项，不含账号标识、设备指纹、本地路径、目标包参数或命令输出原文。

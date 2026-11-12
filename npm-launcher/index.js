@@ -129,6 +129,12 @@ function safeClient() {
 // broad /registry/i match must stay last or it swallows auth/integrity errors.
 function classify(text) {
   const s = String(text || "");
+  // An incomplete bundled npm can still answer `npm view` but has no install
+  // command module. Keep this ahead of the broad /registry/ match: npm error
+  // text usually includes the registry URL and would otherwise swallow it.
+  if (/Cannot find module/i.test(s) &&
+      /(?:npm[\\/]|lib[\\/]commands|node_modules[\\/]npm)/i.test(s)) return "npm-incomplete";
+  if (/ENOENT/i.test(s)) return "enoent";
   if (/ENOTEMPTY/i.test(s)) return "enotempty";
   if (/EPERM/i.test(s)) return "eperm";
   if (/EBUSY/i.test(s)) return "ebusy";
@@ -233,6 +239,15 @@ function readCurrent(c) {
   } catch { return null; }
 }
 
+// npm-cli.js alone is not enough: some clients ship an npm shim that can
+// answer `npm view` but is missing the install command. Treat such a candidate
+// as unusable so npm() falls through to the next one / the npm command on PATH,
+// instead of failing deep inside install with an unclassifiable error.
+function npmCliComplete(cli) {
+  const root = path.dirname(path.dirname(cli));
+  return fs.existsSync(path.join(root, "lib/commands/install.js"));
+}
+
 function npmCli() {
   const candidates = [];
   const p = process.env.npm_execpath;
@@ -243,7 +258,7 @@ function npmCli() {
   // where spawnSync's timeout only kills cmd.exe and leaves npm holding pipes.
   candidates.push(path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"));
   candidates.push(path.join(path.dirname(process.execPath), "../lib/node_modules/npm/bin/npm-cli.js"));
-  return candidates.find((x) => /npm-cli\.js$/.test(x) && fs.existsSync(x)) || null;
+  return candidates.find((x) => /npm-cli\.js$/.test(x) && fs.existsSync(x) && npmCliComplete(x)) || null;
 }
 
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
@@ -256,21 +271,29 @@ function npm(c, args, cwd) {
     ? spawnSync(process.execPath, [cli, ...full], opts)
     : spawnSync(isWin ? "npm.cmd" : "npm", full, { ...opts, shell: isWin });
   const timedOut = !!r.signal || !!(r.error && /ETIMEDOUT|TIMED?OUT/i.test(`${r.error.code || ""} ${r.error.message || ""}`));
-  log(c, `npm ${args.join(" ")} -> ${r.status} [platform=${process.platform} node=${process.version} npm=${process.env.npm_execpath || "npm"}]\n${r.stdout || ""}${r.stderr || ""}${r.error ? r.error.message : ""}`);
-  return {
-    ok: r.status === 0 && !r.error,
-    out: r.stdout || "",
-    errText: `${r.stderr || ""}${r.error ? r.error.message : ""}${timedOut ? " ETIMEDOUT" : ""}`,
-  };
+  const ok = r.status === 0 && !r.error;
+  const errText = `${r.stderr || ""}${r.error ? r.error.message : ""}${timedOut ? " ETIMEDOUT" : ""}`;
+  let reason = "none";
+  if (!ok) {
+    reason = errText.trim() ? classify(errText) : "empty-output";
+    if (reason === "other" && r.error) reason = "spawn-failed";
+  }
+  log(c, `npm ${args.join(" ")} -> ${r.status} [platform=${process.platform} node=${process.version} npm=${process.env.npm_execpath || "npm"} npmCli=${cli || "none"}${ok ? "" : ` reason=${reason}`}]\n${r.stdout || ""}${r.stderr || ""}${r.error ? r.error.message : ""}`);
+  return { ok, out: r.stdout || "", errText, reason };
 }
 
+// Return the real failure category alongside the version. The caller must not
+// hard-code "registry": `npm view` can fail for ENOENT, an incomplete npm, a
+// network error, or an empty response, and each needs a different fix.
 function resolveVersion(c) {
   const r = npm(c, ["view", `${c.name}@${c.range}`, "version", "--json"], c.base);
-  if (!r.ok) return null;
+  if (!r.ok) return { version: null, reason: r.reason };
   try {
     const v = JSON.parse(r.out);
-    return Array.isArray(v) ? v[v.length - 1] : v;
-  } catch { return null; }
+    const version = Array.isArray(v) ? v[v.length - 1] : v;
+    if (!version || typeof version !== "string") return { version: null, reason: "empty-output" };
+    return { version, reason: "none" };
+  } catch { return { version: null, reason: "empty-output" }; }
 }
 
 // Returns { ok, reason } so the caller can report the real failure category
@@ -288,7 +311,7 @@ function install(c, version, coldStart = false) {
   fs.writeFileSync(path.join(tmp, "package.json"), '{"private":true}');
   const r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp);
   if (!r.ok) {
-    const reason = classify(r.errText);
+    const reason = r.reason;
     emit(c, "install", { result: "failed", targetVersion: version, reason, coldStart, elapsedMs: elapsed() });
     rm(tmp);
     return { ok: false, reason };
@@ -435,11 +458,13 @@ function update(c) {
   const from = readCurrent(c);
   const fromVersion = from ? from.version : "";
   const coldStart = !from;
-  const version = resolveVersion(c);
+  const resolved = resolveVersion(c);
+  const version = resolved.version;
   if (!version) {
-    emit(c, "update", { result: "skipped", reason: "registry", fromVersion, coldStart, elapsedMs: elapsed() });
+    const reason = resolved.reason;
+    emit(c, "update", { result: "skipped", reason, fromVersion, coldStart, elapsedMs: elapsed() });
     if (fromVersion) {
-      emit(c, "fallback", { result: "fallback", reason: "registry", targetVersion: fromVersion, coldStart, elapsedMs: elapsed() });
+      emit(c, "fallback", { result: "fallback", reason, targetVersion: fromVersion, coldStart, elapsedMs: elapsed() });
     }
     return log(c, "resolve failed, keep current");
   }
@@ -692,4 +717,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { collectUpdaterEnv, stripUserinfo, npmCli };
+module.exports = { collectUpdaterEnv, stripUserinfo, npmCli, classify };
