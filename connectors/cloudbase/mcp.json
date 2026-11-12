@@ -16,7 +16,7 @@
                 "https://registry.npmmirror.com",
                 "https://registry.npmjs.org"
             ],
-            "staticEnv": {
+            "env": {
                 "INTEGRATION_IDE": "WorkBuddy",
                 "CLOUDBASE_MCP_CLIENT": "workbuddy"
             }

@@ -21,7 +21,7 @@
             "linux": "tcb --version",
             "win32": "tcb.cmd --version"
         },
-        "minVersion": "3.8.7"
+        "minVersion": "3.9.2"
     },
     "auth": {
         "darwin": "tcb login --flow web --yes",
