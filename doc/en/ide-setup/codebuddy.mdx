@@ -139,6 +139,10 @@ Or manually write the MCP configuration:
 
 ## FAQ
 
+**Q: Connection keeps failing with `ENOTEMPTY`?**
+
+A: Leftover files in the local npx cache. Fully quit the AI tool, run the cleanup commands in the [FAQ](../faq#mcp-connection-fails-with-enotempty), then reconnect.
+
 **Q: Do I still need `tcb login --cloudbase-api-key` if I have a Tencent Cloud account?**
 A: No. Start a conversation and follow the prompts to complete Device Login. API Key login is mainly for users who don't have a Tencent Cloud account and only have an environment API Key.
 

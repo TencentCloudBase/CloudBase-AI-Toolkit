@@ -128,6 +128,9 @@ dsh --profile headless "列出所有 mcp__cloudbase__ 工具"
 
 ## 常见问题
 
+**Q: 连接反复失败，提示 `ENOTEMPTY`？**
+A: 本地 npx 缓存有残留文件。完全退出当前 AI 工具后，按[常见问题](../faq#mcp-连接报-enotempty-怎么办)里的命令清理一次，再重新连接。
+
 **Q: 插件页里看不到 CloudBase 插件？**
 A: Web UI 形态需要重建一次 DSH web 前端（见上方注意事项第 1 条），然后重启 DSH。
 

@@ -131,6 +131,10 @@ You can drive CodeBuddy with CloudBase AI models:
 
 ## FAQ
 
+**Q: Connection keeps failing with `ENOTEMPTY`?**
+
+A: Leftover files in the local npx cache. Fully quit the AI tool, run the cleanup commands in the [FAQ](../faq#mcp-connection-fails-with-enotempty), then reconnect.
+
 **Q: AI ToolKit does not work?**
 A: Install and sign in to [Nightly](https://developers.weixin.qq.com/miniprogram/dev/devtools/nightly_backup.html), import the Skill via **Export DevTools Skill** (or `wechatide`) into your Agent, and allow the first auth popup. You can also ask the Agent to “check whether DevTools is signed in.”
 
