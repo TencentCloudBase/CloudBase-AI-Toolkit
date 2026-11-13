@@ -24,9 +24,9 @@ alwaysApply: true
 6. **删除前先改名**：Windows 上文件被占用时 rename 会失败，跳过即可，别删出半个目录。
 7. **用 `process.execPath` 启动目标包**，不碰 `.cmd` / `.ps1` shim；并转发 SIGINT / SIGTERM / SIGHUP。
 8. `KEEP` 不要设太小：长跑的窗口可能在用到旧版本，目录被清掉后懒加载模块会报错。
-9. **npm 完整性校验**：`npmCli()` 命中 `npm-cli.js` 后还要确认同前缀 `lib/commands/install.js` 存在。客户端可能打包一个能跑 `npm view`、却缺 install 命令的半残 npm；只用 `existsSync` 判存在会让它一路走到 install 才以 `other` 失败。候选不完整就跳过，让后面的候选或 PATH 上的 npm 接管。
+9. **npm 完整性校验**：`npmCli()` 命中 `npm-cli.js` 后还要确认同前缀 `lib/commands/install.js` 存在。客户端可能打包一个能跑 `npm view`、却缺 install 命令的半残 npm；只用 `existsSync` 判存在会让它一路走到 install 才以 `other` 失败。候选不完整就跳过，让后面的候选或 PATH 上的 npm 接管。失败原因由 `npmFailureReason()` 统一裁决：`spawnSync` 自己没拉起 npm 记 `spawn-failed`，npm 自己打印的 `ENOENT` 仍是 `enoent`，超时优先于两者。
 10. **遥测**：默认开启，`NGE_TELEMETRY=0` 只关网络上报，`events.jsonl` 始终写本地。只报灯塔已登记的 12 个键（事件 `toolkit_launcher`）——**新增字段必须先登记**，否则被网关静默丢弃。上报 fire-and-forget、1 秒超时、前台退出路径不等网络；测试与 CI 一律关闭对外上报，遥测专项只发本地接收端（`NGE_TELEMETRY_ENDPOINT`）。
-   `common.A2` 现在放**与 `mcp/src/utils/device-id.ts` 逐字同算法的设备标识**（灯塔落到 `uin` 列），使本包事件与 MCP 的 lifecycle / tool_call 可直接按 `uin` 串联、按设备去重；**不新增登记参数，仍是 12 键**。锚点只在遥测开启时读一次，结果缓存在 `<base>/.device-id`（点开头、0600、`wx` 排他创建），关闭 `NGE_TELEMETRY=0` / `DO_NOT_TRACK` 时连锚点都不读。改算法必须两侧同步，并跑 `specs/npm-launcher-1.1.0/device-id-parity.mts` 对拍。
+   `common.A2` 现在放**与 `mcp/src/utils/device-id.ts` 逐字同算法的设备标识**（灯塔落到 `uin` 列），使本包事件与 MCP 的 lifecycle / tool_call 可直接按 `uin` 串联、按设备去重；**不新增登记参数，仍是 12 键**。锚点只在遥测开启时读一次，结果缓存在 `<base>/.device-id`（点开头、0600、`wx` 排他创建），关闭 `NGE_TELEMETRY=0` / `DO_NOT_TRACK` 时连锚点都不读；读锚点是遥测副作用，`emit()` 里包了 `try/catch`，不能让安装主流程跟着失败。**改算法必须两侧同步**，门禁是公开仓 `tests/device-id-parity.test.mjs`（真机行为对拍，纯 Node 内置模块、三平台 CI 可跑）与 `tests/device-id.test.mjs`（源码要素一致）；本地对拍脚本只作额外复核，**不进门禁、也不能写进 PR 验收项**。
 
 11. **在用的版本不能删**：每次启动给当前版本登记 pid 租约，prune 跳过仍有存活进程的租约；进程退出或 pid 已死就回收。锁目录也写 pid，进程已退出立刻抢锁，不再等满 10 分钟 mtime。
 12. **首装是「后台装、前台等」**：前台只 spawn detached 的 `--nge-update` 并轮询 `current`，绝不自己跑 npm；客户端杀掉前台后下载继续，重连接着等。`FIRST_RUN_TIMEOUT` 是前台等待上限，后台每次 npm 调用固定 5 分钟；预算内最多重试 2 次（仅当锁空闲且距上次拉起超过 10 秒）。
@@ -69,7 +69,7 @@ alwaysApply: true
 
 ## 验证
 
-`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs` + `tests/updater-env.test.mjs` + `tests/npm-cli.test.mjs` + `tests/failure-reason.test.mjs` + `tests/device-id.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 30/30 + 37/37 + 10/10 + 11/11 + 11/11 + 20/20 + 20/20 通过（170 项；Windows 上 hardening 另有 Job 对象专项 5 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
+`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs` + `tests/updater-env.test.mjs` + `tests/npm-cli.test.mjs` + `tests/failure-reason.test.mjs` + `tests/device-id.test.mjs` + `tests/device-id-parity.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 30/30 + 37/37 + 10/10 + 11/11 + 11/11 + 24/24 + 20/20 + 10/10 通过（184 项；Windows 上 hardening 另有 Job 对象专项 5 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
 
 ## 发布
 

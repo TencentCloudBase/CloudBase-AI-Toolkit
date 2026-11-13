@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const INDEX = path.join(PKG, "index.js");
-const { classify } = require(INDEX);
+const { classify, npmFailureReason } = require(INDEX);
 const SPEC = "@cloudbase/nge-testpkg@latest";
 const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "nge-reason-"));
 const FAKE = path.join(ROOT, "fake-npm");
@@ -119,6 +119,22 @@ async function main() {
   const emptySkip = empty.events.find((e) => e.phase === "update" && e.result === "skipped");
   check(emptySkip?.reason === "empty-output", "empty stderr/stdout yields empty-output", emptySkip?.reason);
   check(empty.stdout === "", "stdout stays empty on silent failure");
+
+  console.log("\n[5] a failed spawn is distinct from an error printed by npm");
+  const spawnErr = {
+    status: null, signal: null, stderr: "",
+    error: { code: "ENOENT", message: "spawnSync npm ENOENT" },
+  };
+  check(npmFailureReason(spawnErr) === "spawn-failed",
+    "spawnSync failing to start npm yields spawn-failed", npmFailureReason(spawnErr));
+  check(npmFailureReason({ status: 1, stderr: "npm ERR! spawn ENOENT" }) === "enoent",
+    "ENOENT printed by npm itself is still enoent");
+  check(npmFailureReason({
+    status: null, signal: "SIGTERM", stderr: "",
+    error: { code: "ETIMEDOUT", message: "spawnSync npm ETIMEDOUT" },
+  }) === "timeout", "a timed-out child stays timeout");
+  check(npmFailureReason({ status: 1, stderr: "" }) === "empty-output",
+    "a silent npm failure stays empty-output");
 
   try { fs.rmSync(ROOT, { recursive: true, force: true }); } catch {}
   const failed = results.filter((r) => !r).length;

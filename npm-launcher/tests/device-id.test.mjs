@@ -15,6 +15,8 @@ const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const INDEX = path.join(PKG, "index.js");
 const { computeDeviceId, deviceId } = require(INDEX);
 const MCP_SRC = path.join(PKG, "..", "mcp", "src", "utils", "device-id.ts");
+// The no-signal fallback lives in the reporter, not in device-id.ts.
+const MCP_TELEMETRY_SRC = path.join(PKG, "..", "mcp", "src", "utils", "telemetry.ts");
 
 const HEX32 = /^[0-9a-f]{32}$/;
 const SOURCES = ["platform-uuid", "machine-guid", "machine-id", "host-fallback", "host-only"];
@@ -71,10 +73,13 @@ async function main() {
     for (const token of ["IOPlatformUUID", "MachineGuid", "/etc/machine-id", "sha256", "substring(0, 32)"]) {
       check(mcp.includes(token) && launcher.includes(token), `both implementations contain ${token}`);
     }
-    check(launcher.includes("cloudbase-mcp|no-device-signal"),
-      "no-signal fallback string matches the MCP reporter");
+    const telemetry = fs.existsSync(MCP_TELEMETRY_SRC)
+      ? fs.readFileSync(MCP_TELEMETRY_SRC, "utf8") : "";
+    check(launcher.includes("cloudbase-mcp|no-device-signal") &&
+      telemetry.includes("cloudbase-mcp|no-device-signal"),
+      "no-signal fallback is shared by launcher and the MCP reporter (telemetry.ts)");
   } else {
-    check(true, "MCP source not present in this checkout; parity checked by the specs/ script");
+    check(true, "MCP source absent in this checkout; behavioural parity runs in device-id-parity.test.mjs");
   }
 
   console.log("\n[3] cache file is created and reused");

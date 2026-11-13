@@ -315,7 +315,11 @@ function sendTelemetry(e) {
 
 function emit(c, phase, fields = {}) {
   // Respect the opt-out: with telemetry off we never even read the anchor.
-  if (TELEMETRY_ENABLED) deviceId(c);
+  // Reading the anchor is a telemetry side effect, so a failure there must not
+  // abort an install that would otherwise succeed.
+  if (TELEMETRY_ENABLED) {
+    try { deviceId(c); } catch {}
+  }
   const e = {
     ts: new Date().toISOString(),
     phase,
@@ -377,6 +381,17 @@ function npmCli() {
   return candidates.find((x) => /npm-cli\.js$/.test(x) && fs.existsSync(x) && npmCliComplete(x)) || null;
 }
 
+// A failed spawn is its own category: the npm process never started, so there
+// is no stderr for classify() to read. A timeout beats the spawn error because
+// spawnSync reports both on a timed-out child. Exported for the contract tests.
+function npmFailureReason(r) {
+  const timedOut = !!r.signal || !!(r.error && /ETIMEDOUT|TIMED?OUT/i.test(`${r.error.code || ""} ${r.error.message || ""}`));
+  if (timedOut) return "timeout";
+  if (r.error) return "spawn-failed";
+  const text = String(r.stderr || "");
+  return text.trim() ? classify(text) : "empty-output";
+}
+
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
 function npm(c, args, cwd) {
   const budget = 5 * 60 * 1000;
@@ -386,14 +401,9 @@ function npm(c, args, cwd) {
   const r = cli
     ? spawnSync(process.execPath, [cli, ...full], opts)
     : spawnSync(isWin ? "npm.cmd" : "npm", full, { ...opts, shell: isWin });
-  const timedOut = !!r.signal || !!(r.error && /ETIMEDOUT|TIMED?OUT/i.test(`${r.error.code || ""} ${r.error.message || ""}`));
   const ok = r.status === 0 && !r.error;
-  const errText = `${r.stderr || ""}${r.error ? r.error.message : ""}${timedOut ? " ETIMEDOUT" : ""}`;
-  let reason = "none";
-  if (!ok) {
-    reason = errText.trim() ? classify(errText) : "empty-output";
-    if (reason === "other" && r.error) reason = "spawn-failed";
-  }
+  const reason = ok ? "none" : npmFailureReason(r);
+  const errText = `${r.stderr || ""}${r.error ? r.error.message : ""}`;
   log(c, `npm ${args.join(" ")} -> ${r.status} [platform=${process.platform} node=${process.version} npm=${process.env.npm_execpath || "npm"} npmCli=${cli || "none"}${ok ? "" : ` reason=${reason}`}]\n${r.stdout || ""}${r.stderr || ""}${r.error ? r.error.message : ""}`);
   return { ok, out: r.stdout || "", errText, reason };
 }
@@ -833,4 +843,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { collectUpdaterEnv, stripUserinfo, npmCli, classify, computeDeviceId, deviceId };
+module.exports = { collectUpdaterEnv, stripUserinfo, npmCli, classify, npmFailureReason, computeDeviceId, deviceId };
