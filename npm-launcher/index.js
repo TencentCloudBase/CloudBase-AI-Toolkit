@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 "use strict";
 
-const { spawn, spawnSync } = require("child_process");
+const { spawn, spawnSync, execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const http = require("http");
 const https = require("https");
+const crypto = require("crypto");
 
 // A Windows first-run updater started through WMI (see spawnOutsideJob) does
 // not inherit our environment. Its variables arrive in a dot-prefixed file that
@@ -112,6 +113,8 @@ const log = (c, msg) => {
 // ---- telemetry ------------------------------------------------------------
 // Only these 12 keys are reported. They are registered on the beacon side as
 // toolkit_launcher; any extra key would be silently dropped by the gateway.
+// Device identity lives in common.A2 (the beacon `uin` column), so no extra
+// parameter needs registering to join launcher and MCP events.
 const MAP_KEYS = [
   "phase", "result", "launcherVersion", "spec", "targetVersion", "fromVersion",
   "osPlatform", "nodeMajor", "client", "coldStart", "reason", "elapsedMs",
@@ -151,6 +154,116 @@ function classify(text) {
   return "other";
 }
 
+// ---- device id ------------------------------------------------------------
+// Byte-for-byte port of mcp/src/utils/device-id.ts. Keeping the same algorithm
+// means toolkit_launcher and toolkit_lifecycle / toolkit_tool_call rows carry
+// the same value in the beacon `uin` column and can be joined directly.
+// Anchors are system-level immutable ids, never a random fallback: a random
+// value would make one machine look like a new device on every launch.
+const ANCHOR_TIMEOUT_MS = 1000;
+const VIRTUAL_NIC_PREFIXES = [
+  "awdl", "llw", "bridge", "utun", "tun", "tap", "veth", "docker", "br-",
+  "vmnet", "vboxnet", "vether", "zt", "tailscale", "wg", "lo",
+];
+const sha256Short = (v) => crypto.createHash("sha256").update(v).digest("hex").substring(0, 32);
+
+function execQuietly(file, args) {
+  try {
+    return execFileSync(file, args, {
+      timeout: ANCHOR_TIMEOUT_MS, encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"], windowsHide: true,
+    });
+  } catch { return undefined; }
+}
+function readFileQuietly(file) {
+  try { return fs.readFileSync(file, "utf8").trim(); } catch { return undefined; }
+}
+const isUsableMachineId = (v) => /^[0-9a-f]{16,64}$/i.test(v) && !/^0+$/.test(v);
+
+function readSystemAnchor(platform = process.platform) {
+  if (platform === "darwin") {
+    const out = execQuietly("ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"]);
+    const m = out && /"IOPlatformUUID"\s*=\s*"([^"]+)"/.exec(out);
+    if (m && m[1]) return { value: m[1].trim(), source: "platform-uuid" };
+    return undefined;
+  }
+  if (platform === "win32") {
+    const out = execQuietly("reg", ["query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid"]);
+    const m = out && /MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]{8,})/.exec(out);
+    if (m && m[1]) return { value: m[1].trim().toLowerCase(), source: "machine-guid" };
+    return undefined;
+  }
+  for (const candidate of ["/etc/machine-id", "/var/lib/dbus/machine-id"]) {
+    const raw = readFileQuietly(candidate);
+    if (raw && isUsableMachineId(raw)) return { value: raw.toLowerCase(), source: "machine-id" };
+  }
+  return undefined;
+}
+
+function physicalMacAddresses(interfaces = os.networkInterfaces()) {
+  const macs = new Set();
+  for (const [name, list] of Object.entries(interfaces)) {
+    if (!list) continue;
+    const lower = name.toLowerCase();
+    if (VIRTUAL_NIC_PREFIXES.some((prefix) => lower.startsWith(prefix))) continue;
+    for (const nic of list) {
+      const mac = nic && nic.mac && nic.mac.toLowerCase();
+      if (!nic || nic.internal || !mac) continue;
+      if (mac === "00:00:00:00:00:00" || mac === "ff:ff:ff:ff:ff:ff") continue;
+      macs.add(mac);
+    }
+  }
+  return [...macs].sort();
+}
+
+function collectHostSignal() {
+  let hostname = "unknown-host";
+  try { hostname = os.hostname() || hostname; } catch {}
+  let cpu = "";
+  try { cpu = os.cpus().map((x) => x.model).join(","); } catch {}
+  let macs = [];
+  try { macs = physicalMacAddresses(); } catch {}
+  const parts = [hostname, cpu, ...macs].filter(Boolean);
+  return { value: parts.join("|"), source: macs.length > 0 ? "host-fallback" : "host-only" };
+}
+
+function computeDeviceId(platform = process.platform) {
+  const anchor = readSystemAnchor(platform) || collectHostSignal();
+  return { deviceId: sha256Short(anchor.value), source: anchor.source };
+}
+
+// Read the anchor once and cache it beside the version directory. Running
+// `ioreg` / `reg` on every reconnect would add up to 1s to a 6ms hot start.
+// Dot-prefixed so prune() (which only removes .current.* / .updater-env-*) and
+// 1.0.0 leave it alone. "wx" makes concurrent first runs converge on one id.
+const DEVICE_ID_RE = /^[0-9a-f]{32}$/;
+let cachedDeviceId = "";
+function deviceId(c) {
+  if (cachedDeviceId) return cachedDeviceId;
+  const file = path.join(c.base, ".device-id");
+  try {
+    const existing = firstLine(fs.readFileSync(file, "utf8"));
+    if (DEVICE_ID_RE.test(existing)) return (cachedDeviceId = existing);
+  } catch {}
+  let fresh;
+  try { fresh = computeDeviceId().deviceId; }
+  catch { fresh = sha256Short("cloudbase-mcp|no-device-signal"); }
+  try {
+    fs.writeFileSync(file, fresh + "\n", { flag: "wx", mode: 0o600 });
+  } catch {
+    // Another process may have just created the file but not finished writing.
+    for (let i = 0; i < 3; i++) {
+      try {
+        const winner = firstLine(fs.readFileSync(file, "utf8"));
+        if (DEVICE_ID_RE.test(winner)) return (cachedDeviceId = winner);
+      } catch {}
+      sleep(10);
+    }
+    try { fs.writeFileSync(file, fresh + "\n", { mode: 0o600 }); } catch {}
+  }
+  return (cachedDeviceId = fresh);
+}
+
 function sendTelemetry(e) {
   try {
     const mapValue = {};
@@ -162,9 +275,10 @@ function sendTelemetry(e) {
       mainAppKey: "0WEB0AD0GM4PUUU1",
       platformId: 3,
       common: {
-        // A fixed source marker, not a device fingerprint. A2 is optional on
-        // v2_upload but a non-empty value keeps the gateway from dropping rows.
-        A2: "cloudbase-npm-launcher",
+        // Same device id as the MCP reporter, so both events share the uin
+        // column. A2 is optional on v2_upload; a non-empty value keeps the
+        // gateway from dropping rows.
+        A2: cachedDeviceId || "cloudbase-npm-launcher",
         A101: `cloudbase-npm-launcher/${LAUNCHER_VERSION}`,
         from: "cloudbase-npm-launcher",
         xDeployEnv: "production",
@@ -200,6 +314,8 @@ function sendTelemetry(e) {
 }
 
 function emit(c, phase, fields = {}) {
+  // Respect the opt-out: with telemetry off we never even read the anchor.
+  if (TELEMETRY_ENABLED) deviceId(c);
   const e = {
     ts: new Date().toISOString(),
     phase,
@@ -717,4 +833,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { collectUpdaterEnv, stripUserinfo, npmCli, classify };
+module.exports = { collectUpdaterEnv, stripUserinfo, npmCli, classify, computeDeviceId, deviceId };

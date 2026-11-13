@@ -166,8 +166,10 @@ async function main() {
   check(received.every((p) => p.mainAppKey === "0WEB0AD0GM4PUUU1" && p.sdkId === "js" && p.platformId === 3),
     "v2_upload envelope matches the MCP reporter");
   check(received.every((p) => p.common.from === "cloudbase-npm-launcher"
-    && p.common.A2 === "cloudbase-npm-launcher"),
-    "A2 is a fixed source marker, not a device fingerprint");
+    && /^[0-9a-f]{32}$/.test(p.common.A2)),
+    "A2 is a 32-hex device id computed with the MCP reporter algorithm");
+  check(new Set(received.map((p) => p.common.A2)).size === 1,
+    "every event from one machine carries the same device id");
   check(received.every((p) => JSON.stringify(Object.keys(p.events[0].mapValue).sort()) === JSON.stringify(KEYS)),
     "mapValue has exactly the 12 registered keys");
   const mv = received.find((p) => p.events[0].mapValue.phase === "start")?.events[0].mapValue;
