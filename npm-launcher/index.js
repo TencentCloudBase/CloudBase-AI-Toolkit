@@ -232,35 +232,18 @@ function computeDeviceId(platform = process.platform) {
   return { deviceId: sha256Short(anchor.value), source: anchor.source };
 }
 
-// Read the anchor once and cache it beside the version directory. Running
-// `ioreg` / `reg` on every reconnect would add up to 1s to a 6ms hot start.
-// Dot-prefixed so prune() (which only removes .current.* / .updater-env-*) and
-// 1.0.0 leave it alone. "wx" makes concurrent first runs converge on one id.
-const DEVICE_ID_RE = /^[0-9a-f]{32}$/;
+// Keep the id in process memory, exactly like the MCP reporter does with its
+// `deviceId` field: one launcher process serves one client connection, so the
+// lifetimes match. Persisting it would freeze the value across OS reinstalls or
+// hardware changes while the MCP side recomputes from the current anchor, and
+// the two rows would stop sharing a uin. Reading the anchor costs about 10ms
+// (the 1s timeout is only a worst-case guard), and nothing is written to disk.
 let cachedDeviceId = "";
-function deviceId(c) {
+function deviceId() {
   if (cachedDeviceId) return cachedDeviceId;
-  const file = path.join(c.base, ".device-id");
-  try {
-    const existing = firstLine(fs.readFileSync(file, "utf8"));
-    if (DEVICE_ID_RE.test(existing)) return (cachedDeviceId = existing);
-  } catch {}
   let fresh;
   try { fresh = computeDeviceId().deviceId; }
   catch { fresh = sha256Short("cloudbase-mcp|no-device-signal"); }
-  try {
-    fs.writeFileSync(file, fresh + "\n", { flag: "wx", mode: 0o600 });
-  } catch {
-    // Another process may have just created the file but not finished writing.
-    for (let i = 0; i < 3; i++) {
-      try {
-        const winner = firstLine(fs.readFileSync(file, "utf8"));
-        if (DEVICE_ID_RE.test(winner)) return (cachedDeviceId = winner);
-      } catch {}
-      sleep(10);
-    }
-    try { fs.writeFileSync(file, fresh + "\n", { mode: 0o600 }); } catch {}
-  }
   return (cachedDeviceId = fresh);
 }
 
@@ -318,7 +301,7 @@ function emit(c, phase, fields = {}) {
   // Reading the anchor is a telemetry side effect, so a failure there must not
   // abort an install that would otherwise succeed.
   if (TELEMETRY_ENABLED) {
-    try { deviceId(c); } catch {}
+    try { deviceId(); } catch {}
   }
   const e = {
     ts: new Date().toISOString(),

@@ -27,19 +27,18 @@ function check(ok, label, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
 }
 
-// Call deviceId() in a fresh process so the module-level cache cannot hide
-// whether the on-disk value was actually read.
-function inFreshProcess(base) {
-  const script = `const l = require(${JSON.stringify(INDEX)}); process.stdout.write(l.deviceId({ base: ${JSON.stringify(base)} }));`;
-  const r = spawnSync(process.execPath, ["-e", script], {
+// Each process recomputes from the system anchor. There is no on-disk id file,
+// matching the MCP reporter's constructor-level cache.
+const FRESH_SCRIPT = `const l = require(${JSON.stringify(INDEX)}); process.stdout.write(l.deviceId());`;
+function inFreshProcess() {
+  const r = spawnSync(process.execPath, ["-e", FRESH_SCRIPT], {
     encoding: "utf8", env: { ...process.env, NGE_TELEMETRY: "0" },
   });
   return { value: (r.stdout || "").trim(), stderr: r.stderr || "", status: r.status };
 }
-function concurrent(base, n) {
-  const script = `const l = require(${JSON.stringify(INDEX)}); process.stdout.write(l.deviceId({ base: ${JSON.stringify(base)} }));`;
+function concurrent(n) {
   return Promise.all(Array.from({ length: n }, () => new Promise((resolve) => {
-    const p = spawn(process.execPath, ["-e", script], {
+    const p = spawn(process.execPath, ["-e", FRESH_SCRIPT], {
       env: { ...process.env, NGE_TELEMETRY: "0" }, stdio: ["ignore", "pipe", "ignore"],
     });
     let out = "";
@@ -57,8 +56,7 @@ async function main() {
   check(HEX32.test(a.deviceId), "computeDeviceId returns 32 lowercase hex", a.deviceId);
   check(SOURCES.includes(a.source), "anchor source is one of the known fallbacks", a.source);
   check(a.deviceId === b.deviceId, "repeated computation is stable (no random fallback)");
-  fs.mkdirSync(path.join(ROOT, "self"), { recursive: true });
-  check(HEX32.test(deviceId({ base: path.join(ROOT, "self") })), "deviceId() returns the same shape");
+  check(HEX32.test(deviceId()), "deviceId() returns the same shape");
 
   console.log("\n[2] algorithm agrees with the MCP reporter source");
   if (fs.existsSync(MCP_SRC)) {
@@ -82,34 +80,24 @@ async function main() {
     check(true, "MCP source absent in this checkout; behavioural parity runs in device-id-parity.test.mjs");
   }
 
-  console.log("\n[3] cache file is created and reused");
-  const base1 = path.join(ROOT, "base1");
-  fs.mkdirSync(base1, { recursive: true });
-  const file1 = path.join(base1, ".device-id");
-  const first = inFreshProcess(base1);
-  check(first.status === 0 && HEX32.test(first.value), "first run writes a valid id", first.value);
-  check(fs.existsSync(file1), ".device-id exists under the cache base");
-  check(first.stderr === "", "no stderr noise while computing the anchor");
-  const second = inFreshProcess(base1);
-  check(second.value === first.value, "second process reads the cached id");
-  fs.writeFileSync(file1, "b".repeat(32) + "\n");
-  const third = inFreshProcess(base1);
-  check(third.value === "b".repeat(32), "a valid cached id is reused verbatim");
-  fs.writeFileSync(file1, "garbage\n");
-  const fourth = inFreshProcess(base1);
-  check(HEX32.test(fourth.value) && fourth.value === a.deviceId,
-    "an invalid cache is recomputed from the anchor", fourth.value);
+  console.log("\n[3] in-process cache, nothing written to disk");
+  const first = deviceId();
+  check(first === deviceId(), "repeated deviceId() calls reuse the in-process value");
+  check(first === a.deviceId, "deviceId() matches computeDeviceId()");
+  check(!fs.readFileSync(INDEX, "utf8").includes(".device-id"),
+    "index.js has no on-disk device id file");
+  check(!fs.readdirSync(ROOT).some((f) => f.includes("device-id")),
+    "no id file appears under the isolated root");
 
-  console.log("\n[4] device-level, not per-directory");
-  const base2 = path.join(ROOT, "base2");
-  fs.mkdirSync(base2, { recursive: true });
-  const other = inFreshProcess(base2);
-  check(other.value === a.deviceId, "a different cache base yields the SAME id (system anchor, not a random instance)");
+  console.log("\n[4] separate processes recompute the same id");
+  const fresh = inFreshProcess();
+  check(fresh.status === 0 && HEX32.test(fresh.value), "a fresh process computes a valid id", fresh.value);
+  check(fresh.value === a.deviceId,
+    "a fresh process matches this process (system anchor, not a random instance)");
+  check(fresh.stderr === "", "no stderr noise while computing the anchor");
 
-  console.log("\n[5] concurrent first runs converge");
-  const base3 = path.join(ROOT, "base3");
-  fs.mkdirSync(base3, { recursive: true });
-  const ids = await concurrent(base3, 4);
+  console.log("\n[5] concurrent processes agree");
+  const ids = await concurrent(4);
   check(ids.every((v) => HEX32.test(v)), "all four processes return a valid id", ids.join(","));
   check(new Set(ids).size === 1, "all four processes agree on one id");
 
