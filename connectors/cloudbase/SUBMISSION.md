@@ -49,7 +49,7 @@ visible_in = ["internal", "iOA", "cloudhosted", "selfhosted"]
 ```
 connectors/cloudbase/
 ├── connector-meta.json   # 名称/描述/示例/source/type/version/minWorkbuddyVersion
-├── mcp.json              # 单 server：npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest（stdio）
+├── mcp.json              # 单 server：npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest（stdio）
 ├── cli.json              # tcb 的 init / auth / status / unAuth，preAuth 用
 ├── icon.svg              # 市场图标（源自 scripts/cloudbase-logo.svg）
 └── skills/               # 生成物：SKILL.md + references/（31 个子技能）

@@ -38,7 +38,7 @@ Full Toolkit narrative, related repos, and IDE matrix: [repository README](../RE
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -109,7 +109,7 @@ Pick the endpoint matching the site your environment lives in—the two sites us
 
 > A static key pair stays valid until it is rotated or deleted; an OAuth session ends when you log out. Use the static form only where the browser flow is impossible—and keep it out of a repository.
 
-**Local**: runs `npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download. Requires Node.js v18.15.0+.
+**Local**: runs `npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest` on your machine—full features, including local filesystem upload and template download. Requires Node.js v18.15.0+.
 
 Remote trade-off: local-filesystem features (upload, template download) are unavailable, and the international site does not yet expose NoSQL tools.
 
@@ -231,7 +231,7 @@ output, and `resources/list` stays empty, so nothing new appears in a resource b
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -247,7 +247,7 @@ output, and `resources/list` stays empty, so nothing new appears in a resource b
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
