@@ -38,7 +38,8 @@ const { createCloudBaseMcpServer } = require('@cloudbase/cloudbase-mcp');
 
 // 插件组合是平台方策略，写死在 wrapper 里，员工不配置
 const PLUGINS = 'env,database,functions,storage,hosting,gateway,cloudrun,apps'.split(',');
-// 不传时官方默认全开，含能透传任意云 API 的 capi——企业场景务必排除
+// 不传时官方默认全开，含能透传任意云 API 的 capi——企业场景从工具面排除
+// 权限边界由这把 API Key 的 CAM 权限决定，pluginsEnabled 只收窄工具面
 
 const upstream = await createCloudBaseMcpServer({
   name: 'cloudbase-mcp', cloudMode: false,
@@ -117,7 +118,7 @@ if (scope && scope !== 'single_env') {
       "args": ["-y", "@your-org/cloudbase-wrapper@1.0.0"],
       "env": {
         "CLOUDBASE_ENV_ID": "env-xxxxx",
-        "CLOUDBASE_API_KEY": "ak-xxxxx"
+        "CLOUDBASE_API_KEY": "<平台下发的环境级 API Key>"
       }
     }
   }
@@ -125,6 +126,20 @@ if (scope && scope !== 'single_env') {
 ```
 
 版本号固定（升级由平台方发新版推动），避免 `npx` 每次拉到不同版本。Key 的纪律同 Recipe 7：一人一 Key、离职即删、单环境最多 5 个滚着换。
+
+`CLOUDBASE_API_KEY` 可填 `ak-` 开头的密钥，或控制台「API Key 管理」签发的 `ApiKey` / `service_role` JWT。两种都能换出 STS 临时凭证，MCP 与 CLI 都支持。
+
+| 形态 | 从哪来 | 用途 |
+| --- | --- | --- |
+| `ak-` 开头 | 管理面密钥 | CLI / MCP 建表、建函数、部署 |
+| `ApiKey` / `service_role` JWT | 控制台「API Key 管理」签发的服务端密钥 | 换出 STS 临时凭证给 MCP / CLI，服务端读写数据 |
+| `PublishableKey` / `anon` JWT | 环境自带的可发布密钥 | 前端公开发布 |
+
+环境级 API Key 调不了 `DescribePlatforms`、`DescribeEnvs` 这类账号级 / 平台级接口，这类调用用账号级凭证。
+
+`PublishableKey` / `anon` 不填进 MCP 配置，匿名权限调上述接口返回权限不足。
+
+解 payload 看 `meta.platform` 与 `role` 可自检形态，不需要联网。换证报 `SIGN_PARAM_INVALID` 时，按 `exp` 是否过期 → 请求参数是否传全 → Key 是否吊销的顺序排查。
 
 ### 4. 用它部署：上传通道统一，三个例子同一骨架
 
@@ -183,11 +198,11 @@ await queryApps({ action: 'getBuildLog',  serviceName, buildId });
 
 - **入口用 CJS**（`dist/index.cjs`）：ESM 入口引用了未声明的内部依赖，装不上直接报模块找不到
 - **stdout 只写 JSON-RPC**：所有日志 `console.error`。多一个 `console.log` 客户端握手就崩
-- **`pluginsEnabled` 必须显式传**：默认全开含 `capi`（通用云 API 通道），等于绕过整个裁剪
+- **`pluginsEnabled` 显式传**：只收窄工具面，减少暴露与误调用；权限边界由 API Key 的 CAM 权限决定，是环境级别，`capi` 能调什么仍受这把 Key 的策略约束
 - **enum 剪空要下架整个工具**：留下一个「没有任何合法参数」的工具，模型会反复空参重试
 - **两个环境变量必须同时给**：只给 Key 不给 `CLOUDBASE_ENV_ID`，Key 根本不参与解析，静默回落全局登录态
 - **错误返回带原因**：拦截时写明「平台策略禁止，重试无效」，不带说明的报错会诱使模型换个姿势再试
-- **只交 STS 不交 API Key**：临时凭证 30 分钟过期，过期后没有根凭证可重换，整条链路瘫痪——交付物永远是 `envId + API Key` 对
+- **只交 STS 不交 API Key**：临时凭证会过期，过期后没有根凭证可重换；`ak-` 与 `ApiKey` / `service_role` JWT 都能换出 STS，MCP 与 CLI 都支持，交付物用 `envId + API Key` 对
 - **接口名与参数凭记忆猜**：Action 名、参数结构、默认值一律以文档索引（api-reference）与官方文档为准；记忆推断的内容必须标注并先验证再用
 
 ## 验证步骤
