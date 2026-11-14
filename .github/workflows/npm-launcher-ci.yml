@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "npm-launcher/**"
+      - "tests/launcher-direct-install-precondition.test.mjs"
+      - "mcp/package.json"
+      - "mcp/scripts/prepare-publish.cjs"
       - ".github/workflows/npm-launcher-ci.yml"
       - ".github/workflows/npm-launcher-nightly.yml"
       - ".github/workflows/npm-launcher-publish.yml"
@@ -42,3 +45,8 @@ jobs:
       - name: Run launcher tests
         working-directory: ./npm-launcher
         run: npm test
+
+      # Runs from the repo root: it reads mcp/ as well as npm-launcher/, so it
+      # cannot live in the launcher's own suite.
+      - name: Check direct-install precondition
+        run: node tests/launcher-direct-install-precondition.test.mjs

@@ -24,6 +24,8 @@ const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "nge-reason-"));
 const FAKE = path.join(ROOT, "fake-npm");
 const CLI = path.join(FAKE, "bin/npm-cli.js");
 
+const bucketOf = (reason) => String(reason || "").split("/")[0];
+
 const results = [];
 function check(ok, label, detail = "") {
   results.push(ok);
@@ -98,8 +100,8 @@ async function main() {
     'process.stderr.write("npm ERR! spawn ENOENT\\n"); process.exit(1);');
   const skipped = viewFail.events.find((e) => e.phase === "update" && e.result === "skipped");
   check(!!skipped, "update/skipped is emitted", JSON.stringify(viewFail.events.map((e) => `${e.phase}:${e.result}:${e.reason}`)));
-  check(skipped?.reason === "enoent", "reason is enoent, not the hard-coded registry", skipped?.reason);
-  check(!viewFail.events.some((e) => e.reason === "registry"), "no event is mislabelled registry");
+  check(bucketOf(skipped?.reason) === "enoent", "reason is enoent, not the hard-coded registry", skipped?.reason);
+  check(!viewFail.events.some((e) => bucketOf(e.reason) === "registry"), "no event is mislabelled registry");
   check(viewFail.stdout === "", "stdout stays empty on resolve failure");
 
   console.log("\n[3] half-present npm: install failure is classified");
@@ -109,15 +111,15 @@ async function main() {
     'process.exit(1);');
   const instFailed = half.events.find((e) => e.phase === "install" && e.result === "failed");
   check(!!instFailed, "install/failed is emitted", JSON.stringify(half.events.map((e) => `${e.phase}:${e.result}:${e.reason}`)));
-  check(instFailed?.reason === "npm-incomplete", "reason is npm-incomplete, not other", instFailed?.reason);
-  check(half.events.some((e) => e.phase === "update" && e.result === "failed" && e.reason === "npm-incomplete"),
+  check(bucketOf(instFailed?.reason) === "npm-incomplete", "reason is npm-incomplete, not other", instFailed?.reason);
+  check(half.events.some((e) => e.phase === "update" && e.result === "failed" && bucketOf(e.reason) === "npm-incomplete"),
     "update/failed carries the same real reason");
   check(half.stdout === "", "stdout stays empty on install failure");
 
   console.log("\n[4] empty npm output is not lumped into other");
   const empty = await runScene("empty-output", 'process.exit(1);');
   const emptySkip = empty.events.find((e) => e.phase === "update" && e.result === "skipped");
-  check(emptySkip?.reason === "empty-output", "empty stderr/stdout yields empty-output", emptySkip?.reason);
+  check(bucketOf(emptySkip?.reason) === "empty-output", "empty stderr/stdout yields empty-output", emptySkip?.reason);
   check(empty.stdout === "", "stdout stays empty on silent failure");
 
   console.log("\n[5] a failed spawn is distinct from an error printed by npm");

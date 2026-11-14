@@ -1,6 +1,6 @@
 {
   "name": "@cloudbase/npm-launcher",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Install an npm package into a per-version directory and run its bin without touching the shared npx cache",
   "license": "MIT",
   "repository": {
@@ -21,7 +21,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node tests/concurrency.test.mjs && node tests/behaviour.test.mjs && node tests/telemetry.test.mjs && node tests/hardening.test.mjs && node tests/stdout-guard.test.mjs && node tests/updater-env.test.mjs && node tests/npm-cli.test.mjs && node tests/failure-reason.test.mjs && node tests/device-id.test.mjs && node tests/device-id-parity.test.mjs"
+    "test": "node tests/concurrency.test.mjs && node tests/behaviour.test.mjs && node tests/telemetry.test.mjs && node tests/hardening.test.mjs && node tests/stdout-guard.test.mjs && node tests/updater-env.test.mjs && node tests/npm-cli.test.mjs && node tests/failure-reason.test.mjs && node tests/device-id.test.mjs && node tests/device-id-parity.test.mjs && node tests/direct-install.test.mjs && node tests/cold-start-timing.test.mjs"
   },
   "publishConfig": {
     "access": "public"
