@@ -11,7 +11,7 @@ When the user specifies a model that is not in the main managed group (`cloudbas
 Point the user to the CloudBase console AI model page:
 
 ```
-https://tcb.cloud.tencent.com/dev?envId={envId}#/ai
+https://tcb.tencentcloud.com/dev?envId={envId}#/ai
 ```
 
 Replace `{envId}` with the real environment ID and let the user fill in model name, endpoint, API key, etc.
