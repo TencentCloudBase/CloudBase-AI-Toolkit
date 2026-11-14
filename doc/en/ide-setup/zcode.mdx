@@ -68,7 +68,7 @@ If you are not using the built-in plugin, add a CloudBase MCP server in ZCode:
 | Type | stdio (local command) |
 | Timeout (ms) | `150000` |
 | Command | `npx` |
-| Args (space-separated) | `-y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest` |
+| Args (space-separated) | `-y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest` |
 | Env (optional) | `INTEGRATION_IDE=ZCode` |
 
 ### JSON configuration
@@ -80,7 +80,7 @@ In JSON mode, you can use:
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "ZCode"
       }

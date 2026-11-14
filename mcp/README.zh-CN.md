@@ -38,7 +38,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -77,7 +77,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
 
 按环境所在站点选择地址——两个站点账号与凭证相互独立。
 
-**本地**：在本机运行 `npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest`，功能最全（含本地文件上传、模板下载）。需 Node.js v18.15.0+。
+**本地**：在本机运行 `npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest`，功能最全（含本地文件上传、模板下载）。需 Node.js v18.15.0+。
 
 ```json
 {
@@ -190,7 +190,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -206,7 +206,7 @@ IDE 支持时优先用 Plugin；只需 MCP 配置时用本包即可。
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }

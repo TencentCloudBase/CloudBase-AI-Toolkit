@@ -62,7 +62,7 @@ AI IDE（Cursor、Claude Code、Codex、CodeBuddy 等）擅长生成代码。真
 
 | 仓库 | 内容 | 常用入口 |
 |------|------|----------|
-| [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit)（本仓库） | MCP Server 源码；Claude Code / Codex 等原生 marketplace 来源 | `npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest` |
+| [CloudBase-AI-Toolkit](https://github.com/TencentCloudBase/CloudBase-AI-Toolkit)（本仓库） | MCP Server 源码；Claude Code / Codex 等原生 marketplace 来源 | `npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest` |
 | [cloudbase-plugin](https://github.com/TencentCloudBase/cloudbase-plugin) | Open Plugin Spec 发布仓（由本仓库 CI 同步）：MCP + Skills + Hooks | `npx plugins add TencentCloudBase/cloudbase-plugin` |
 | [cloudbase-sites-plugin](https://github.com/TencentCloudBase/cloudbase-sites-plugin) | Sites 插件：Vite Web 创建与部署 | `npx plugins add TencentCloudBase/cloudbase-sites-plugin` |
 | [cloudbase-skills](https://github.com/TencentCloudBase/cloudbase-skills) | Agent Skills 合集 | `npx skills add TencentCloudBase/cloudbase-skills` |
@@ -111,7 +111,7 @@ npx plugins add TencentCloudBase/cloudbase-plugin
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -207,7 +207,7 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -223,7 +223,7 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"]
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"]
     }
   }
 }
@@ -285,7 +285,7 @@ Skills 负责写法与结构；MCP 负责环境与资源操作。完成后应能
 
 > 静态密钥不轮换、不删除就一直有效；OAuth 会话则可以靠退出登录结束。只在浏览器授权走不通的场景才用静态凭证，并且不要把它提交进仓库。
 
-**本地模式**：本机 `npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest` 启动，功能最全（含依赖本地文件系统的上传、模板等）。
+**本地模式**：本机 `npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest` 启动，功能最全（含依赖本地文件系统的上传、模板等）。
 
 远端的取舍：依赖本地文件系统的能力（上传、模板下载）不可用；国际站暂未提供 NoSQL（文档数据库）工具。
 

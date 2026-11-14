@@ -213,7 +213,7 @@ AI 会自动完成 MCP 配置和授权对接，无需手动编写环境变量。
   "mcp_servers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "Codex",
         "TCB_AUTH_OAUTH_ENDPOINT": "https://{your-gateway-domain}/{path-prefix}"

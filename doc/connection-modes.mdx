@@ -93,7 +93,7 @@ tcb config set isIntl true
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "intl",
         "TCB_REGION": "ap-singapore"
@@ -313,7 +313,7 @@ export CLOUDBASE_MCP_CLOUD_MODE=true
 export MCP_CLOUD_MODE=true
 
 # 方式 3：CLI 参数
-npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest --cloud-mode
+npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest --cloud-mode
 ```
 
 启用后对外提供 Streamable HTTP 接口，涉及本地文件系统读写和本地进程启动的工具将被逐一禁用（清单见[远端模式的能力边界](#remote-mode-capabilities)），确保远程调用方无法通过这些工具操作服务器本地资源。
@@ -361,7 +361,7 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {}
     }
   }
@@ -442,7 +442,7 @@ CloudBase MCP 针对不同部署场景提供分层安全保护：
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "CLOUDBASE_API_KEY": "<your-api-key>",
         "CLOUDBASE_ENV_ID": "<your-env-id>"

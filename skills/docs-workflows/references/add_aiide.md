@@ -138,7 +138,7 @@ const IDES: IDE[] = [
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "INTEGRATION_IDE": "New IDE"
       }

@@ -93,7 +93,7 @@ tcb config set isIntl true
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "intl",
         "TCB_REGION": "ap-singapore"
@@ -313,7 +313,7 @@ export CLOUDBASE_MCP_CLOUD_MODE=true
 export MCP_CLOUD_MODE=true
 
 # Method 3: CLI argument
-npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest --cloud-mode
+npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest --cloud-mode
 ```
 
 The server then exposes a Streamable HTTP endpoint. Tools that read or write local files or start local processes are disabled individually; see [Remote Mode capability boundaries](#remote-mode-capabilities). This prevents remote callers from accessing the server's local resources through these tools.
@@ -362,7 +362,7 @@ Add this to your IDE's MCP configuration (for example, Cursor or WindSurf):
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {}
     }
   }
@@ -443,7 +443,7 @@ When using account-level login, `auth(action="set_env", envId="<EnvId>")` can bi
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "CLOUDBASE_API_KEY": "<your-api-key>",
         "CLOUDBASE_ENV_ID": "<your-env-id>"
