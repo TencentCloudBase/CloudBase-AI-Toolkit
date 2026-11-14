@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 "use strict";
 
-const { spawn, spawnSync } = require("child_process");
+const { spawn, spawnSync, execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const http = require("http");
 const https = require("https");
+const crypto = require("crypto");
 
 // A Windows first-run updater started through WMI (see spawnOutsideJob) does
 // not inherit our environment. Its variables arrive in a dot-prefixed file that
@@ -112,6 +113,8 @@ const log = (c, msg) => {
 // ---- telemetry ------------------------------------------------------------
 // Only these 12 keys are reported. They are registered on the beacon side as
 // toolkit_launcher; any extra key would be silently dropped by the gateway.
+// Device identity lives in common.A2 (the beacon `uin` column), so no extra
+// parameter needs registering to join launcher and MCP events.
 const MAP_KEYS = [
   "phase", "result", "launcherVersion", "spec", "targetVersion", "fromVersion",
   "osPlatform", "nodeMajor", "client", "coldStart", "reason", "elapsedMs",
@@ -129,6 +132,12 @@ function safeClient() {
 // broad /registry/i match must stay last or it swallows auth/integrity errors.
 function classify(text) {
   const s = String(text || "");
+  // An incomplete bundled npm can still answer `npm view` but has no install
+  // command module. Keep this ahead of the broad /registry/ match: npm error
+  // text usually includes the registry URL and would otherwise swallow it.
+  if (/Cannot find module/i.test(s) &&
+      /(?:npm[\\/]|lib[\\/]commands|node_modules[\\/]npm)/i.test(s)) return "npm-incomplete";
+  if (/ENOENT/i.test(s)) return "enoent";
   if (/ENOTEMPTY/i.test(s)) return "enotempty";
   if (/EPERM/i.test(s)) return "eperm";
   if (/EBUSY/i.test(s)) return "ebusy";
@@ -145,6 +154,99 @@ function classify(text) {
   return "other";
 }
 
+// ---- device id ------------------------------------------------------------
+// Byte-for-byte port of mcp/src/utils/device-id.ts. Keeping the same algorithm
+// means toolkit_launcher and toolkit_lifecycle / toolkit_tool_call rows carry
+// the same value in the beacon `uin` column and can be joined directly.
+// Anchors are system-level immutable ids, never a random fallback: a random
+// value would make one machine look like a new device on every launch.
+const ANCHOR_TIMEOUT_MS = 1000;
+const VIRTUAL_NIC_PREFIXES = [
+  "awdl", "llw", "bridge", "utun", "tun", "tap", "veth", "docker", "br-",
+  "vmnet", "vboxnet", "vether", "zt", "tailscale", "wg", "lo",
+];
+const sha256Short = (v) => crypto.createHash("sha256").update(v).digest("hex").substring(0, 32);
+
+function execQuietly(file, args) {
+  try {
+    return execFileSync(file, args, {
+      timeout: ANCHOR_TIMEOUT_MS, encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"], windowsHide: true,
+    });
+  } catch { return undefined; }
+}
+function readFileQuietly(file) {
+  try { return fs.readFileSync(file, "utf8").trim(); } catch { return undefined; }
+}
+const isUsableMachineId = (v) => /^[0-9a-f]{16,64}$/i.test(v) && !/^0+$/.test(v);
+
+function readSystemAnchor(platform = process.platform) {
+  if (platform === "darwin") {
+    const out = execQuietly("ioreg", ["-rd1", "-c", "IOPlatformExpertDevice"]);
+    const m = out && /"IOPlatformUUID"\s*=\s*"([^"]+)"/.exec(out);
+    if (m && m[1]) return { value: m[1].trim(), source: "platform-uuid" };
+    return undefined;
+  }
+  if (platform === "win32") {
+    const out = execQuietly("reg", ["query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid"]);
+    const m = out && /MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]{8,})/.exec(out);
+    if (m && m[1]) return { value: m[1].trim().toLowerCase(), source: "machine-guid" };
+    return undefined;
+  }
+  for (const candidate of ["/etc/machine-id", "/var/lib/dbus/machine-id"]) {
+    const raw = readFileQuietly(candidate);
+    if (raw && isUsableMachineId(raw)) return { value: raw.toLowerCase(), source: "machine-id" };
+  }
+  return undefined;
+}
+
+function physicalMacAddresses(interfaces = os.networkInterfaces()) {
+  const macs = new Set();
+  for (const [name, list] of Object.entries(interfaces)) {
+    if (!list) continue;
+    const lower = name.toLowerCase();
+    if (VIRTUAL_NIC_PREFIXES.some((prefix) => lower.startsWith(prefix))) continue;
+    for (const nic of list) {
+      const mac = nic && nic.mac && nic.mac.toLowerCase();
+      if (!nic || nic.internal || !mac) continue;
+      if (mac === "00:00:00:00:00:00" || mac === "ff:ff:ff:ff:ff:ff") continue;
+      macs.add(mac);
+    }
+  }
+  return [...macs].sort();
+}
+
+function collectHostSignal() {
+  let hostname = "unknown-host";
+  try { hostname = os.hostname() || hostname; } catch {}
+  let cpu = "";
+  try { cpu = os.cpus().map((x) => x.model).join(","); } catch {}
+  let macs = [];
+  try { macs = physicalMacAddresses(); } catch {}
+  const parts = [hostname, cpu, ...macs].filter(Boolean);
+  return { value: parts.join("|"), source: macs.length > 0 ? "host-fallback" : "host-only" };
+}
+
+function computeDeviceId(platform = process.platform) {
+  const anchor = readSystemAnchor(platform) || collectHostSignal();
+  return { deviceId: sha256Short(anchor.value), source: anchor.source };
+}
+
+// Keep the id in process memory, exactly like the MCP reporter does with its
+// `deviceId` field: one launcher process serves one client connection, so the
+// lifetimes match. Persisting it would freeze the value across OS reinstalls or
+// hardware changes while the MCP side recomputes from the current anchor, and
+// the two rows would stop sharing a uin. Reading the anchor costs about 10ms
+// (the 1s timeout is only a worst-case guard), and nothing is written to disk.
+let cachedDeviceId = "";
+function deviceId() {
+  if (cachedDeviceId) return cachedDeviceId;
+  let fresh;
+  try { fresh = computeDeviceId().deviceId; }
+  catch { fresh = sha256Short("cloudbase-mcp|no-device-signal"); }
+  return (cachedDeviceId = fresh);
+}
+
 function sendTelemetry(e) {
   try {
     const mapValue = {};
@@ -156,9 +258,10 @@ function sendTelemetry(e) {
       mainAppKey: "0WEB0AD0GM4PUUU1",
       platformId: 3,
       common: {
-        // A fixed source marker, not a device fingerprint. A2 is optional on
-        // v2_upload but a non-empty value keeps the gateway from dropping rows.
-        A2: "cloudbase-npm-launcher",
+        // Same device id as the MCP reporter, so both events share the uin
+        // column. A2 is optional on v2_upload; a non-empty value keeps the
+        // gateway from dropping rows.
+        A2: cachedDeviceId || "cloudbase-npm-launcher",
         A101: `cloudbase-npm-launcher/${LAUNCHER_VERSION}`,
         from: "cloudbase-npm-launcher",
         xDeployEnv: "production",
@@ -194,6 +297,12 @@ function sendTelemetry(e) {
 }
 
 function emit(c, phase, fields = {}) {
+  // Respect the opt-out: with telemetry off we never even read the anchor.
+  // Reading the anchor is a telemetry side effect, so a failure there must not
+  // abort an install that would otherwise succeed.
+  if (TELEMETRY_ENABLED) {
+    try { deviceId(); } catch {}
+  }
   const e = {
     ts: new Date().toISOString(),
     phase,
@@ -233,6 +342,15 @@ function readCurrent(c) {
   } catch { return null; }
 }
 
+// npm-cli.js alone is not enough: some clients ship an npm shim that can
+// answer `npm view` but is missing the install command. Treat such a candidate
+// as unusable so npm() falls through to the next one / the npm command on PATH,
+// instead of failing deep inside install with an unclassifiable error.
+function npmCliComplete(cli) {
+  const root = path.dirname(path.dirname(cli));
+  return fs.existsSync(path.join(root, "lib/commands/install.js"));
+}
+
 function npmCli() {
   const candidates = [];
   const p = process.env.npm_execpath;
@@ -243,7 +361,18 @@ function npmCli() {
   // where spawnSync's timeout only kills cmd.exe and leaves npm holding pipes.
   candidates.push(path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"));
   candidates.push(path.join(path.dirname(process.execPath), "../lib/node_modules/npm/bin/npm-cli.js"));
-  return candidates.find((x) => /npm-cli\.js$/.test(x) && fs.existsSync(x)) || null;
+  return candidates.find((x) => /npm-cli\.js$/.test(x) && fs.existsSync(x) && npmCliComplete(x)) || null;
+}
+
+// A failed spawn is its own category: the npm process never started, so there
+// is no stderr for classify() to read. A timeout beats the spawn error because
+// spawnSync reports both on a timed-out child. Exported for the contract tests.
+function npmFailureReason(r) {
+  const timedOut = !!r.signal || !!(r.error && /ETIMEDOUT|TIMED?OUT/i.test(`${r.error.code || ""} ${r.error.message || ""}`));
+  if (timedOut) return "timeout";
+  if (r.error) return "spawn-failed";
+  const text = String(r.stderr || "");
+  return text.trim() ? classify(text) : "empty-output";
 }
 
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
@@ -255,22 +384,25 @@ function npm(c, args, cwd) {
   const r = cli
     ? spawnSync(process.execPath, [cli, ...full], opts)
     : spawnSync(isWin ? "npm.cmd" : "npm", full, { ...opts, shell: isWin });
-  const timedOut = !!r.signal || !!(r.error && /ETIMEDOUT|TIMED?OUT/i.test(`${r.error.code || ""} ${r.error.message || ""}`));
-  log(c, `npm ${args.join(" ")} -> ${r.status} [platform=${process.platform} node=${process.version} npm=${process.env.npm_execpath || "npm"}]\n${r.stdout || ""}${r.stderr || ""}${r.error ? r.error.message : ""}`);
-  return {
-    ok: r.status === 0 && !r.error,
-    out: r.stdout || "",
-    errText: `${r.stderr || ""}${r.error ? r.error.message : ""}${timedOut ? " ETIMEDOUT" : ""}`,
-  };
+  const ok = r.status === 0 && !r.error;
+  const reason = ok ? "none" : npmFailureReason(r);
+  const errText = `${r.stderr || ""}${r.error ? r.error.message : ""}`;
+  log(c, `npm ${args.join(" ")} -> ${r.status} [platform=${process.platform} node=${process.version} npm=${process.env.npm_execpath || "npm"} npmCli=${cli || "none"}${ok ? "" : ` reason=${reason}`}]\n${r.stdout || ""}${r.stderr || ""}${r.error ? r.error.message : ""}`);
+  return { ok, out: r.stdout || "", errText, reason };
 }
 
+// Return the real failure category alongside the version. The caller must not
+// hard-code "registry": `npm view` can fail for ENOENT, an incomplete npm, a
+// network error, or an empty response, and each needs a different fix.
 function resolveVersion(c) {
   const r = npm(c, ["view", `${c.name}@${c.range}`, "version", "--json"], c.base);
-  if (!r.ok) return null;
+  if (!r.ok) return { version: null, reason: r.reason };
   try {
     const v = JSON.parse(r.out);
-    return Array.isArray(v) ? v[v.length - 1] : v;
-  } catch { return null; }
+    const version = Array.isArray(v) ? v[v.length - 1] : v;
+    if (!version || typeof version !== "string") return { version: null, reason: "empty-output" };
+    return { version, reason: "none" };
+  } catch { return { version: null, reason: "empty-output" }; }
 }
 
 // Returns { ok, reason } so the caller can report the real failure category
@@ -288,7 +420,7 @@ function install(c, version, coldStart = false) {
   fs.writeFileSync(path.join(tmp, "package.json"), '{"private":true}');
   const r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp);
   if (!r.ok) {
-    const reason = classify(r.errText);
+    const reason = r.reason;
     emit(c, "install", { result: "failed", targetVersion: version, reason, coldStart, elapsedMs: elapsed() });
     rm(tmp);
     return { ok: false, reason };
@@ -435,11 +567,13 @@ function update(c) {
   const from = readCurrent(c);
   const fromVersion = from ? from.version : "";
   const coldStart = !from;
-  const version = resolveVersion(c);
+  const resolved = resolveVersion(c);
+  const version = resolved.version;
   if (!version) {
-    emit(c, "update", { result: "skipped", reason: "registry", fromVersion, coldStart, elapsedMs: elapsed() });
+    const reason = resolved.reason;
+    emit(c, "update", { result: "skipped", reason, fromVersion, coldStart, elapsedMs: elapsed() });
     if (fromVersion) {
-      emit(c, "fallback", { result: "fallback", reason: "registry", targetVersion: fromVersion, coldStart, elapsedMs: elapsed() });
+      emit(c, "fallback", { result: "fallback", reason, targetVersion: fromVersion, coldStart, elapsedMs: elapsed() });
     }
     return log(c, "resolve failed, keep current");
   }
@@ -692,4 +826,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { collectUpdaterEnv, stripUserinfo, npmCli };
+module.exports = { collectUpdaterEnv, stripUserinfo, npmCli, classify, npmFailureReason, computeDeviceId, deviceId };

@@ -24,18 +24,20 @@ alwaysApply: true
 6. **删除前先改名**：Windows 上文件被占用时 rename 会失败，跳过即可，别删出半个目录。
 7. **用 `process.execPath` 启动目标包**，不碰 `.cmd` / `.ps1` shim；并转发 SIGINT / SIGTERM / SIGHUP。
 8. `KEEP` 不要设太小：长跑的窗口可能在用到旧版本，目录被清掉后懒加载模块会报错。
-9. **遥测**：默认开启，`NGE_TELEMETRY=0` 只关网络上报，`events.jsonl` 始终写本地。只报灯塔已登记的 12 个键（事件 `toolkit_launcher`）——**新增字段必须先登记**，否则被网关静默丢弃。上报 fire-and-forget、1 秒超时、前台退出路径不等网络；测试与 CI 一律关闭对外上报，遥测专项只发本地接收端（`NGE_TELEMETRY_ENDPOINT`）。
+9. **npm 完整性校验**：`npmCli()` 命中 `npm-cli.js` 后还要确认同前缀 `lib/commands/install.js` 存在。客户端可能打包一个能跑 `npm view`、却缺 install 命令的半残 npm；只用 `existsSync` 判存在会让它一路走到 install 才以 `other` 失败。候选不完整就跳过，让后面的候选或 PATH 上的 npm 接管。失败原因由 `npmFailureReason()` 统一裁决：`spawnSync` 自己没拉起 npm 记 `spawn-failed`，npm 自己打印的 `ENOENT` 仍是 `enoent`，超时优先于两者。
+10. **遥测**：默认开启，`NGE_TELEMETRY=0` 只关网络上报，`events.jsonl` 始终写本地。只报灯塔已登记的 12 个键（事件 `toolkit_launcher`）——**新增字段必须先登记**，否则被网关静默丢弃。上报 fire-and-forget、1 秒超时、前台退出路径不等网络；测试与 CI 一律关闭对外上报，遥测专项只发本地接收端（`NGE_TELEMETRY_ENDPOINT`）。
+   `common.A2` 现在放**与 `mcp/src/utils/device-id.ts` 逐字同算法的设备标识**（灯塔落到 `uin` 列），使本包事件与 MCP 的 lifecycle / tool_call 可直接按 `uin` 串联、按设备去重；**不新增登记参数，仍是 12 键**。锚点只在遥测开启时读一次，结果留在进程内存里（与 MCP 侧 `private deviceId` 同生命周期）；**不落盘**——把首次的值写进文件会固化它，系统锚点一变（换主板、重装系统、容器重建），MCP 侧重算拿新值、launcher 还读旧值，`uin` 就串不起来。实测 `ioreg` 约 10 ms，1 s 只是子进程超时上限，不值得为省这 10 ms 新增持久化文件；目录契约表里也因此没有这个文件。关闭 `NGE_TELEMETRY=0` / `DO_NOT_TRACK` 时连锚点都不读；读锚点是遥测副作用，`emit()` 里包了 `try/catch`，不能让安装主流程跟着失败。**改算法必须两侧同步**，门禁是公开仓 `tests/device-id-parity.test.mjs`（真机行为对拍，纯 Node 内置模块、三平台 CI 可跑）与 `tests/device-id.test.mjs`（源码要素一致）；本地对拍脚本只作额外复核，**不进门禁、也不能写进 PR 验收项**。
 
-10. **在用的版本不能删**：每次启动给当前版本登记 pid 租约，prune 跳过仍有存活进程的租约；进程退出或 pid 已死就回收。锁目录也写 pid，进程已退出立刻抢锁，不再等满 10 分钟 mtime。
-11. **首装是「后台装、前台等」**：前台只 spawn detached 的 `--nge-update` 并轮询 `current`，绝不自己跑 npm；客户端杀掉前台后下载继续，重连接着等。`FIRST_RUN_TIMEOUT` 是前台等待上限，后台每次 npm 调用固定 5 分钟；预算内最多重试 2 次（仅当锁空闲且距上次拉起超过 10 秒）。
-12. **子进程也要登记租约**：`run()` 里给 MCP 子进程再写一份 `leases/<child pid>`。launcher 被 `kill -9` 时子进程仍握着客户端的 stdio 管道继续跑，只有它自己的租约能保护正在用的版本。
-13. **失败退出要给上报留时间**：首装失败分支设 `FLUSH_ON_EXIT`（socket 不 unref）→ `process.exitCode=1` → `setTimeout(..., TELEMETRY_TIMEOUT+200)` → **必须 `return`**，否则会继续读 `cur.version`（null）抛异常，请求一条都发不出去。
-14. **只有 `NGE_CHECK_INTERVAL` 允许为 0**：其余数字配置取 0 会让首装循环直接跳过、锁永远判为过期；`num(v,d,allowZero)` 默认下限 1。
-15. **移走残缺目录前先查租约**：目标版本目录存在但 `binOf()` 读不到时，先确认 `versionsInUse()` 里没有它、停 200ms 再读一次，才改名到 `.trash-*`。Windows 杀软短暂占用 `package.json` 也会让 `binOf()` 返回 null。
-16. **磁盘文件只读第一行**：`current` / `leases/<pid>` / `lock/pid` / `last-check` 一律走 `firstLine()`，以后可以在后面追加行而不破坏 1.0.0。
-17. **prune 只删版本目录**：`VERSION_DIR` 正则之外的目录（例如未来的 `versions/meta`）一律不动；`setCurrent()` 的临时文件改成 `.current.<pid>` 放在 base 下，按 `TMP_TTL` 回收。
-18. **遥测口径**：首装失败没有旧版本，记 `start:failed` 而不是 `fallback`；reason 从本地事件日志取真实值，**只看本次启动（`t0`）之后的事件**，旧会话的失败原因不能串过来；只有真超时才写 `timeout`；`coldStart` 由 `update()` 的 `!from` 一路传到 `install()`；`fallback` 只在 `fromVersion` 非空时发。
-19. **Windows 首装要逃出客户端的 Job 对象**：Electron 类客户端常把 MCP 进程放进带 KILL_ON_JOB_CLOSE 的 Job，`detached: true` 不会脱离 Job，客户端一关后台安装就跟着死。首装（仅首装，热启动的更新检查不走这里）用 PowerShell `Invoke-CimMethod Win32_Process Create` 拉起 `--nge-update`，父进程是 WMI 宿主，不在 Job 里。WMI 进程不继承环境变量，所以把 `NGE_*` / `npm_*` / 代理 / PATH 等写进 `.updater-env-<pid>-<ts>.json`（base 下、点开头、0600），`--nge-update <spec> <envFile>` 读到后立刻删除，读不到就直接退出；残留按 `TMP_TTL` 由 prune 回收。写文件前用 `SECRET_KEY` 过滤凭据变量名（`npm_` 也会匹配 `NPM_TOKEN` 和 .npmrc 派生的 auth 键）、用 `stripUserinfo()` 剥掉代理地址里的 `user:pass@`；`collectUpdaterEnv()` 在文件末尾导出供单测直接验证。WMI 失败（被策略或安全软件拦截、20 秒超时）就退回普通 spawn，并在 `install.log` 记一行。`NGE_WIN_BREAKAWAY=0` 可关掉。
+11. **在用的版本不能删**：每次启动给当前版本登记 pid 租约，prune 跳过仍有存活进程的租约；进程退出或 pid 已死就回收。锁目录也写 pid，进程已退出立刻抢锁，不再等满 10 分钟 mtime。
+12. **首装是「后台装、前台等」**：前台只 spawn detached 的 `--nge-update` 并轮询 `current`，绝不自己跑 npm；客户端杀掉前台后下载继续，重连接着等。`FIRST_RUN_TIMEOUT` 是前台等待上限，后台每次 npm 调用固定 5 分钟；预算内最多重试 2 次（仅当锁空闲且距上次拉起超过 10 秒）。
+13. **子进程也要登记租约**：`run()` 里给 MCP 子进程再写一份 `leases/<child pid>`。launcher 被 `kill -9` 时子进程仍握着客户端的 stdio 管道继续跑，只有它自己的租约能保护正在用的版本。
+14. **失败退出要给上报留时间**：首装失败分支设 `FLUSH_ON_EXIT`（socket 不 unref）→ `process.exitCode=1` → `setTimeout(..., TELEMETRY_TIMEOUT+200)` → **必须 `return`**，否则会继续读 `cur.version`（null）抛异常，请求一条都发不出去。
+15. **只有 `NGE_CHECK_INTERVAL` 允许为 0**：其余数字配置取 0 会让首装循环直接跳过、锁永远判为过期；`num(v,d,allowZero)` 默认下限 1。
+16. **移走残缺目录前先查租约**：目标版本目录存在但 `binOf()` 读不到时，先确认 `versionsInUse()` 里没有它、停 200ms 再读一次，才改名到 `.trash-*`。Windows 杀软短暂占用 `package.json` 也会让 `binOf()` 返回 null。
+17. **磁盘文件只读第一行**：`current` / `leases/<pid>` / `lock/pid` / `last-check` 一律走 `firstLine()`，以后可以在后面追加行而不破坏 1.0.0。
+18. **prune 只删版本目录**：`VERSION_DIR` 正则之外的目录（例如未来的 `versions/meta`）一律不动；`setCurrent()` 的临时文件改成 `.current.<pid>` 放在 base 下，按 `TMP_TTL` 回收。
+19. **遥测口径**：首装失败没有旧版本，记 `start:failed` 而不是 `fallback`；reason 从本地事件日志取真实值，**只看本次启动（`t0`）之后的事件**，旧会话的失败原因不能串过来；只有真超时才写 `timeout`；`coldStart` 由 `update()` 的 `!from` 一路传到 `install()`；`fallback` 只在 `fromVersion` 非空时发。
+20. **Windows 首装要逃出客户端的 Job 对象**：Electron 类客户端常把 MCP 进程放进带 KILL_ON_JOB_CLOSE 的 Job，`detached: true` 不会脱离 Job，客户端一关后台安装就跟着死。首装（仅首装，热启动的更新检查不走这里）用 PowerShell `Invoke-CimMethod Win32_Process Create` 拉起 `--nge-update`，父进程是 WMI 宿主，不在 Job 里。WMI 进程不继承环境变量，所以把 `NGE_*` / `npm_*` / 代理 / PATH 等写进 `.updater-env-<pid>-<ts>.json`（base 下、点开头、0600），`--nge-update <spec> <envFile>` 读到后立刻删除，读不到就直接退出；残留按 `TMP_TTL` 由 prune 回收。写文件前用 `SECRET_KEY` 过滤凭据变量名（`npm_` 也会匹配 `NPM_TOKEN` 和 .npmrc 派生的 auth 键）、用 `stripUserinfo()` 剥掉代理地址里的 `user:pass@`；`collectUpdaterEnv()` 在文件末尾导出供单测直接验证。WMI 失败（被策略或安全软件拦截、20 秒超时）就退回普通 spawn，并在 `install.log` 记一行。`NGE_WIN_BREAKAWAY=0` 可关掉。
 
 ## 发布后冻结的目录契约
 
@@ -67,7 +69,7 @@ alwaysApply: true
 
 ## 验证
 
-`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs` + `tests/updater-env.test.mjs` + `tests/npm-cli.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 29/29 + 37/37 + 10/10 + 11/11 + 7/7 通过（125 项；Windows 上 hardening 另有 Job 对象专项 5 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
+`npm test` 跑 `tests/concurrency.test.mjs` + `tests/behaviour.test.mjs` + `tests/telemetry.test.mjs` + `tests/hardening.test.mjs` + `tests/stdout-guard.test.mjs` + `tests/updater-env.test.mjs` + `tests/npm-cli.test.mjs` + `tests/failure-reason.test.mjs` + `tests/device-id.test.mjs` + `tests/device-id-parity.test.mjs`（都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端）。本机 macOS 实测 11/11 + 20/20 + 30/30 + 37/37 + 10/10 + 11/11 + 11/11 + 24/24 + 20/20 + 10/10 通过（184 项；Windows 上 hardening 另有 Job 对象专项 5 项）（含 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起）。CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
 
 ## 发布
 

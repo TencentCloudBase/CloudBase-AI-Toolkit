@@ -48,10 +48,10 @@
 | `nodeMajor` | Node 主版本 |
 | `client` | 宿主来源（`CLOUDBASE_MCP_CLIENT`） |
 | `coldStart` | 是否首次安装 |
-| `reason` | 失败原因类别 |
+| `reason` | 失败原因类别（归一后的类别名，不含命令输出原文） |
 | `elapsedMs` | 耗时（毫秒） |
 
-上报字段只有上表 12 项，不含账号标识、设备指纹、本地路径、目标包参数或命令输出原文。
+上报字段只有上表 12 项，不含账号标识、本地路径、目标包参数或命令输出原文。事件的公共字段另带一个**设备标识**：与 CloudBase MCP 使用同一算法，优先取系统级不可变标识（macOS `IOPlatformUUID`、Windows `MachineGuid`、Linux `machine-id`），取不到才用主机名、CPU 型号与物理网卡地址，SHA256 取前 32 位。它让启动、安装事件与 MCP 运行事件能按设备关联，也用于按设备统计规模；不读取账号、路径或命令输出。每次启动时按当前系统锚点实时计算，进程内只算一次；不写入磁盘，也不保存锚点原文。
 
 **关闭方式**：设置 `NGE_TELEMETRY=0` 或社区通用的 `DO_NOT_TRACK=1`。关闭后不再发出网络请求；事件仍会写入本地 `events.jsonl`，供 `--nge-diag` 排障时使用。
 

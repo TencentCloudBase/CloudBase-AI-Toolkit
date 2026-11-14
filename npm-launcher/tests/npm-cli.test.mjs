@@ -3,10 +3,10 @@
 
 // npmCli() decides how the launcher invokes npm: it prefers npm_execpath, then
 // looks beside the running Node, then returns null so npm() falls back to the
-// `npm` command on PATH. These checks pin that contract. They run entirely on
-// a stubbed existsSync, so they hold on any machine regardless of how its
-// bundled Node lays out npm — which is exactly the layout a client update can
-// change. No product behaviour is changed to make these pass.
+// `npm` command on PATH. It also rejects an npm that is present but incomplete
+// (no lib/commands/install.js) — a bundled npm shim that can answer `npm view`
+// but cannot install. These checks run on a stubbed existsSync, so they hold on
+// any machine regardless of how its bundled Node lays out npm.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -29,11 +29,24 @@ const dir = path.dirname(process.execPath);
 const besideNode = path.join(dir, "node_modules/npm/bin/npm-cli.js");
 const besidePrefix = path.join(dir, "../lib/node_modules/npm/bin/npm-cli.js");
 
-// Run npmCli() with exactly the given set of existing paths.
-function withPaths(existing, npmExecPath) {
+// The completeness marker lives at <npmRoot>/lib/commands/install.js,
+// where npmRoot is two levels above bin/npm-cli.js.
+function marker(cli) {
+  return path.join(path.dirname(path.dirname(cli)), "lib/commands/install.js");
+}
+
+// Run npmCli() with exactly the given set of existing paths. `complete` adds
+// the completeness marker for each npm-cli.js candidate; pass false to model
+// a half-present npm.
+function withPaths(existing, npmExecPath, complete = true) {
   if (npmExecPath === undefined) delete process.env.npm_execpath;
   else process.env.npm_execpath = npmExecPath;
   const allow = new Set(existing);
+  if (complete) {
+    for (const p of existing) {
+      if (/npm-cli\.js$/.test(p)) allow.add(marker(p));
+    }
+  }
   fs.existsSync = (p) => allow.has(p);
   try {
     return npmCli();
@@ -75,6 +88,27 @@ try {
   check(
     withPaths([], undefined) === null,
     "returns null when no candidate exists (npm() then spawns npm on PATH)",
+  );
+
+  // Completeness checks — the direct fix for the install/failed:other cluster.
+  check(
+    withPaths([sibling], sibling, false) === null,
+    "npm-cli.js without lib/commands/install.js is rejected (half-present npm)",
+  );
+
+  check(
+    withPaths([sibling, besideNode, marker(besideNode)], sibling, false) === besideNode,
+    "an incomplete first candidate falls through to a complete one",
+  );
+
+  check(
+    withPaths([besideNode, besidePrefix], undefined, false) === null,
+    "all candidates incomplete returns null instead of picking a broken npm",
+  );
+
+  check(
+    marker(sibling) !== sibling && /lib/.test(marker(sibling)),
+    "completeness marker is derived from the npm root, not the bin directory",
   );
 
   check(
