@@ -74,7 +74,7 @@ export const SITE_IDS: SiteId[] = ['domestic', 'intl'];
 export const MCP_PACKAGE = '@cloudbase/cloudbase-mcp';
 
 /** 本地 stdio 启动器：按版本目录装包，避开共享 npx 缓存。版本固定，不用 @latest。 */
-export const LAUNCHER_PACKAGE = '@cloudbase/npm-launcher@1.0.0';
+export const LAUNCHER_PACKAGE = '@cloudbase/npm-launcher@1.1.0';
 
 /** 本地模式启动命令 */
 export const LOCAL_RUN_COMMAND = `npx -y ${LAUNCHER_PACKAGE} ${MCP_PACKAGE}@latest`;

@@ -9,7 +9,7 @@
 ```json
 {
   "command": "npx",
-  "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest", "..."]
+  "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest", "..."]
 }
 ```
 
@@ -145,7 +145,7 @@ npm test
 在客户机器的终端里手动运行（只用于排障，不要写进 MCP 配置）：
 
 ```bash
-npx -y @cloudbase/npm-launcher@1.0.0 --nge-diag "@cloudbase/cloudbase-mcp@latest"
+npx -y @cloudbase/npm-launcher@1.1.0 --nge-diag "@cloudbase/cloudbase-mcp@latest"
 ```
 
 输出平台、Node 版本、npm 路径、当前版本、可用版本、锁状态、上次检查时间、遥测开关，以及 `install.log` 和 `events.jsonl` 的路径与最近 50 条运行事件。每次 npm 调用也会把环境写进日志，报障时只需这一个文件。

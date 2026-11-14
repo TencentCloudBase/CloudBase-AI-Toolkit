@@ -45,7 +45,7 @@ claude mcp add --transport http cloudbase https://tcb-api.cloud.tencent.com/mcp/
 Agent 改不了这类客户端的配置，把参数给用户：
 
 - 远程：设置 → MCP → 新增 → 类型 `HTTP` / `Streamable HTTP` → 地址填上面的 `/mcp/v1`
-- 本地：类型 `stdio` → 命令 `npx` → 参数 `-y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest`
+- 本地：类型 `stdio` → 命令 `npx` → 参数 `-y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest`
 
 **C. 客户端不支持 MCP，但有终端**（兜底，实测可用）
 
@@ -53,10 +53,10 @@ Agent 改不了这类客户端的配置，把参数给用户：
 
 ```bash
 # 列工具（42 个）
-npx -y mcporter@0.16.1 list --stdio "npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest"
+npx -y mcporter@0.16.1 list --stdio "npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest"
 
 # 调工具
-npx -y mcporter@0.16.1 call --stdio "npx -y @cloudbase/npm-launcher@1.0.0 @cloudbase/cloudbase-mcp@latest" auth action=status
+npx -y mcporter@0.16.1 call --stdio "npx -y @cloudbase/npm-launcher@1.1.0 @cloudbase/cloudbase-mcp@latest" auth action=status
 ```
 
 注意：mcporter 走远程地址会失败（它先用 SSE GET 探测，CloudBase 的 `/mcp/v1` 只收 POST，报 `SSE error: Non-200 status code (405)`），所以这条只走 stdio。

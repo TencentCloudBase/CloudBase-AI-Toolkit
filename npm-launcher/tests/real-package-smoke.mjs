@@ -6,7 +6,7 @@
 // It downloads ~20 MB, so keep it out of PRs.
 //
 // Default: run the local index.js with node.
-// NGE_SMOKE_LAUNCHER_SPEC="@cloudbase/npm-launcher@1.0.0": install the just
+// NGE_SMOKE_LAUNCHER_SPEC="@cloudbase/npm-launcher@1.1.0": install the just
 // published launcher through npx and run that instead. This is the only mode
 // that also covers the launcher's own npx cold start.
 import { removeTempRoot } from "./cleanup.mjs";

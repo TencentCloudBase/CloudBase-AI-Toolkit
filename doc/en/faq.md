@@ -400,7 +400,7 @@ Tencent CloudBase comes in a domestic site and an international site. Without an
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "intl"
       }
@@ -422,7 +422,7 @@ The domestic site now supports the Singapore region (`ap-singapore`). Both sites
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.0.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.1.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "TCB_SITE": "domestic",
         "TCB_REGION": "ap-singapore"
