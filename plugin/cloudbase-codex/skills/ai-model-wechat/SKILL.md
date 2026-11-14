@@ -11,6 +11,7 @@ alwaysApply: false
 Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../auth-tool-cloudbase/SKILL.md`.
 
 If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
+
 ## When to use this skill
 
 Use this skill for **calling AI models in WeChat Mini Program** using `wx.cloud.extend.AI`.
@@ -29,6 +30,7 @@ Use this skill for **calling AI models in WeChat Mini Program** using `wx.cloud.
 - Image generation → use `ai-model-nodejs` skill (not available in Mini Program)
 - Runtimes without a CloudBase SDK (native apps, Python, etc.) → use `http-api-cloudbase` skill (it now includes the `ai_model` OpenAPI spec for direct HTTP calls)
 
+---
 
 ## ⛔ STOP — `wx.cloud.extend.AI.createModel(provider)` argument is **not** a vendor / model name
 
@@ -77,6 +79,7 @@ await model.streamText({
 
 > If you are about to type `wx.cloud.extend.AI.createModel(` and the thing inside the parentheses is a vendor name or a model id — **stop**. It is almost certainly one of the four legal values above.
 
+---
 
 ## Mandatory Two-Step Preflight
 
@@ -176,6 +179,7 @@ callCloudApi({
 >
 > **API casing tip:** `tcb` public-service Actions officially use PascalCase (`EnvId`, `GroupName`, `ActivityNames`); some docs show camelCase. On the first call, if you hit `InvalidParameter`, switch casing and retry, then freeze the working form in your project's wrapper.
 
+---
 
 ## Available Providers and Models
 
@@ -201,23 +205,339 @@ The `"cloudbase"` GroupName is backed by **Tencent Cloud TokenHub**, a unified m
 
 ### C. Not in the managed catalog → Custom onboarding
 
-Models involving third-party / self-hosted / OpenAI-compatible endpoints (anything not appearing in A/B) do NOT go through the billing paths above. You must register a `Type=custom` GroupName via "Custom onboarding" first. See `./references/custom-onboarding.md`.
+Models involving third-party / self-hosted / OpenAI-compatible endpoints (anything not appearing in A/B) do NOT go through the billing paths above. You must register a `Type=custom` GroupName via "Custom onboarding" first. See the next section.
 
-## Reference files
+---
 
-`SKILL.md` keeps the guardrails and the mandatory preflight. Detailed examples live under `./references/`.
+## Custom Onboarding (when not in the managed catalog)
 
-Read the matching file before writing code:
+When the user specifies a model that is not in the main managed group (`cloudbase`) catalog (e.g. enterprise-hosted OpenAI-compatible endpoints, third-party model services), pick one of the two paths below. Use neutral phrasing such as "third-party / self-hosted / OpenAI-compatible endpoint" — **do not name specific competitor brands**.
 
-| Task | Read |
-| --- | --- |
-| Model outside the managed catalog | `./references/custom-onboarding.md` |
-| `generateText` / `streamText` / initialization / error handling | `./references/api-usage.md` |
-| Image input, OCR, form extraction | `./references/multimodal.md` |
-| TypeScript shapes for messages, streams, responses | `./references/type-definitions.md` |
-| Index of all references | `./references.md` |
+**Path 1 · Register in the console**
 
-Complete the two-step preflight before using any example. Keep the four legal `createModel(provider)` values and the `model` field rule from the STOP section above.
+Point the user to the CloudBase console AI model page:
+
+```
+https://tcb.cloud.tencent.com/dev?envId={envId}#/ai
+```
+
+Replace `{envId}` with the real environment ID and let the user fill in model name, endpoint, API key, etc.
+
+**Path 2 · Register via `callCloudApi` + `CreateAIModel`**
+
+The `tcb` Action `CreateAIModel` (Version `2018-06-08`) creates a `Type=custom` AI model group in the current environment:
+
+```ts
+callCloudApi({
+  service: "tcb",
+  action: "CreateAIModel",
+  params: {
+    EnvId: "<current envId>",
+    GroupName: "custom-openai-compat",  // ⚠️ MUST start with "custom-" (e.g. custom-kimi, custom-moonshot) to avoid colliding with built-in / vendor GroupNames; this becomes the value passed to createModel(provider)
+    BaseUrl: "https://api.example.com/v1",
+    Models: [
+      { Model: "gpt-4o-mini", EnableMCP: false },
+      { Model: "gpt-4o",       EnableMCP: false },
+    ],
+    Remark: "Internal OpenAI-compatible endpoint",
+    Status: 1,                         // 1=on, 2=off
+    Secret: {
+      // Key / ApiKey: pick one; OpenAI-compatible endpoints usually use ApiKey
+      ApiKey: "<vendor-api-key>",
+    },
+  },
+})
+```
+
+After registration:
+- Run `DescribeAIModels` to confirm the `GroupName` exists with `Status=1` and the target `Model` appears in `Models[]`.
+- In the Mini Program, call `wx.cloud.extend.AI.createModel("custom-openai-compat")` and pass a registered model name (e.g. `"gpt-4o-mini"`) as the `model` field.
+- To add or modify models later, use `UpdateAIModel` (remember `Models` is a **full replacement**; `Status` uses 1/2 as on/off). To delete an entire custom group, use `DeleteAIModel` (custom groups only; batch via `GroupNames.N`).
+- All calls still hit the environment's billing path. If such custom models also need Token settlement, eligibility must be verified first.
+
+---
+
+## Prerequisites
+
+- WeChat base library **3.15.1+**
+- No extra SDK installation needed
+
+---
+
+## Initialization
+
+```js
+// app.js
+App({
+  onLaunch: function() {
+    wx.cloud.init({ env: "<YOUR_ENV_ID>" });
+  }
+})
+```
+
+---
+
+## generateText() - Non-streaming
+
+⚠️ **Different from JS/Node SDK:** the return value is the raw model response.
+
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed **and** the target model has been confirmed enabled via `DescribeAIModels` (or enabled via `UpdateAIModel` if missing). The example below assumes the current environment is enrolled in 小程序成长计划 and uses `createModel("cloudbase")` + `deepseek-v4.1-flash`. If the target is a different managed model, keep the provider and set the `model` to whatever the user chose and you have just enabled via `UpdateAIModel` — never assume a model is already on.
+
+```js
+const model = wx.cloud.extend.AI.createModel("cloudbase");
+
+const res = await model.generateText({
+  model: "deepseek-v4.1-flash",  // plan default, also accepts images
+  messages: [{ role: "user", content: "hi" }],
+});
+
+// ⚠️ Return value is the RAW model response, NOT wrapped like JS/Node SDK
+console.log(res.choices[0].message.content);  // access via choices array
+console.log(res.usage);                        // token usage
+```
+
+---
+
+## Multimodal Image Input (OCR / form extraction)
+
+Images go through the same `generateText` call — only `content` changes, from a string to an array of blocks.
+
+**Pick a vision-capable model first.** Not every model accepts images. In 小程序成长计划 only `deepseek-v4.1-flash` does; `hy4-preview` and `hy3` are text-only and will ignore or reject the image. Check the 「图片」column in `https://docs.cloudbase.net/ai/available-models` before choosing.
+
+```js
+const model = wx.cloud.extend.AI.createModel("cloudbase");
+
+const PROMPT = "...";  // your field spec, see rule 2 below
+
+const res = await model.generateText({
+  model: "deepseek-v4.1-flash",          // must be a vision-capable model
+  messages: [{
+    role: "user",
+    content: [
+      { type: "image_url", image_url: { url: imageUrl } },  // image first
+      { type: "text", text: PROMPT },                        // instruction second
+    ],
+  }],
+});
+
+const raw = res.choices[0].message.content;  // same contract as the text path — no `data` wrapper
+```
+
+⚠️ **Image first, text second.** With the order reversed, some models ignore the image and answer the text alone.
+
+### Three rules that decide whether this ships
+
+**1. Upload first, hand over a URL.**
+
+```js
+const { tempFiles } = await wx.chooseMedia({ count: 1, mediaType: ["image"] });
+
+// Compress for cost and latency, not for the size limit — recognition quality barely
+// changes, while token spend and upload time drop sharply.
+const { tempFilePath } = await wx.compressImage({ src: tempFiles[0].tempFilePath, quality: 70 });
+
+const { fileID } = await wx.cloud.uploadFile({
+  cloudPath: `expenses/${Date.now()}.jpg`,
+  filePath: tempFilePath,
+});
+
+// The model needs a public HTTPS URL; it cannot read a cloud:// fileID.
+const { fileList } = await wx.cloud.getTempFileURL({ fileList: [fileID] });
+const imageUrl = fileList[0].tempFileURL;
+```
+
+Keep the original image — finance review and the user's own re-check both need it. Uploading first sends the image upstream once (Base64 plus `uploadFile` would send it twice) and keeps the call log readable: a URL instead of megabytes of Base64. Store the `fileID` in the database, never the temporary URL — it expires.
+
+**2. Put the enumerations and the output shape in the prompt.**
+
+"Extract the department" is not enough — the model may answer 呼吸内科 when the system only accepts 内科. List the allowed values, state the business rule, and demand JSON only:
+
+```
+Output JSON only. No explanation, no Markdown fence.
+- dept: one of 内科 / 外科 / 儿科 / 口腔科 / 眼科 / 皮肤科 / 其他
+- amount: number only, no currency symbol or unit
+- visitDate: YYYY-MM-DD
+- use null when a field cannot be confirmed; never invent a value
+- add a _confidence object keyed by field name, values high / medium / low
+```
+
+Parse defensively even so — models occasionally wrap the JSON in a Markdown fence:
+
+```js
+let parsed;
+try {
+  parsed = JSON.parse(raw.replace(/`{3}(?:json)?/g, "").trim());
+} catch (err) {
+  wx.setStorageSync("aiDraft", { fileID, raw });  // keep the draft so the user can retry
+  throw err;
+}
+```
+
+**3. Never write the result straight into the database.**
+
+Handwriting, stamps and glare all break extraction. Render the parsed fields into an editable form **beside the image**, let the user correct them, and only then insert:
+
+```js
+await db.collection("expenses").add({
+  data: { ...parsed, imageFileID: fileID, createdAt: db.serverDate() },
+});
+```
+
+Use `_confidence` to mark only the low-confidence inputs with 「请核对」 — asking the user to re-read all eight fields defeats the purpose. For anything containing names, diagnoses or amounts, set the collection permission to 「仅创建者可读写」; CloudBase filters reads and writes by `_openid` automatically.
+
+---
+
+## streamText() - Streaming
+
+⚠️ **Different from JS/Node SDK:** parameters MUST be wrapped in a `data` object; callbacks are supported.
+
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed and the target model has been enabled. The example below uses the 成长计划 branch (`cloudbase` + `deepseek-v4.1-flash`); for another managed model, keep the provider and set the `model` to whatever the user chose and you have just enabled via `UpdateAIModel` (no model is enabled by default).
+
+```js
+const model = wx.cloud.extend.AI.createModel("cloudbase");
+
+// ⚠️ Parameters MUST be wrapped in a `data` object
+const res = await model.streamText({
+  data: {                              // ⚠️ Required wrapper
+    model: "deepseek-v4.1-flash",  // plan default
+    messages: [{ role: "user", content: "hi" }]
+  },
+  onText: (text) => {                  // Optional: incremental text callback
+    console.log("New text:", text);
+  },
+  onEvent: ({ data }) => {             // Optional: raw event callback
+    console.log("Event:", data);
+  },
+  onFinish: (fullText) => {            // Optional: completion callback
+    console.log("Done:", fullText);
+  }
+});
+
+// Async iteration is also available
+for await (let str of res.textStream) {
+  console.log(str);
+}
+
+// Check for completion via eventStream
+for await (let event of res.eventStream) {
+  console.log(event);
+  if (event.data === "[DONE]") {       // ⚠️ Check for [DONE] to stop
+    break;
+  }
+}
+```
+
+---
+
+## Error Handling Pattern
+
+> **Prerequisite:** the "Mandatory Two-Step Preflight" has been completed. For the resource pack branch, use `"cloudbase"` + the specific text model you just verified/enabled via `DescribeAIModels` / `UpdateAIModel` — no model is enabled by default.
+
+```js
+const model = wx.cloud.extend.AI.createModel("cloudbase");
+
+try {
+  const res = await model.generateText({
+    model: "deepseek-v4.1-flash",
+    messages: [{ role: "user", content: "Write a welcome message" }],
+  });
+
+  console.log(res.choices[0].message.content);
+} catch (error) {
+  console.error("Mini Program AI request failed", error);
+}
+```
+
+---
+
+## API Comparison: JS/Node SDK vs WeChat Mini Program
+
+| Feature | JS/Node SDK | WeChat Mini Program |
+|---------|-------------|---------------------|
+| **Namespace** | `app.ai()` | `wx.cloud.extend.AI` |
+| **generateText params** | Direct object | Direct object |
+| **generateText return** | `{ text, usage, messages }` | Raw: `{ choices, usage }` |
+| **streamText params** | Direct object | ⚠️ Wrapped in `data: {...}` |
+| **streamText return** | `{ textStream, dataStream }` | `{ textStream, eventStream }` |
+| **Callbacks** | Not supported | `onText`, `onEvent`, `onFinish` |
+| **Image input (multimodal)** | Supported — `content` blocks | Supported — `content` blocks, vision-capable models only |
+| **Image generation** | Node SDK only | Not available |
+
+---
+
+## Type Definitions
+
+### Multimodal message content
+
+Used by `generateText` when a message carries images. `system` / `assistant` messages stay plain strings.
+
+```ts
+type WxContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+interface WxMultimodalMessage {
+  role: "user";
+  content: string | WxContentBlock[];
+}
+```
+
+### streamText() Input
+
+```ts
+interface WxStreamTextInput {
+  data: {                              // ⚠️ Required wrapper object
+    model: string;
+    messages: Array<{
+      role: "user" | "system" | "assistant";
+      content: string;
+    }>;
+  };
+  onText?: (text: string) => void;     // incremental text callback
+  onEvent?: (prop: { data: string }) => void;  // raw event callback
+  onFinish?: (text: string) => void;   // completion callback
+}
+```
+
+### streamText() Return
+
+```ts
+interface WxStreamTextResult {
+  textStream: AsyncIterable<string>;   // incremental text stream
+  eventStream: AsyncIterable<{         // raw event stream
+    event?: unknown;
+    id?: unknown;
+    data: string;                      // "[DONE]" when complete
+  }>;
+}
+```
+
+### generateText() Return
+
+```ts
+// Raw model response (OpenAI-compatible format)
+interface WxGenerateTextResponse {
+  id: string;
+  object: "chat.completion";
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: "assistant";
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+```
+
+---
 
 ## Best Practices
 
