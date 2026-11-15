@@ -29,6 +29,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ["20"]
+        include:
+          # Node 22.21+ has built-in http/https proxy support; Node 20 ignores
+          # NODE_USE_ENV_PROXY, so the proxy path needs a job of its own.
+          - os: ubuntu-latest
+            node: "22"
     runs-on: ${{ matrix.os }}
     env:
       NGE_REGISTRY: https://registry.npmjs.org
@@ -40,7 +46,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
 
       - name: Run launcher tests
         working-directory: ./npm-launcher

@@ -478,11 +478,15 @@ function failureDetail(r, text, bucket) {
 //
 // Only Node built-ins are used, matching the zero-dependency rule.
 const DIRECT_HTTP = `
+const CONNECT_MS=2500;
 const get=(url,headers,n=0)=>new Promise((res,rej)=>{
   let u; try{u=new URL(url);}catch{return rej(new Error("bad-url"));}
   if(u.protocol!=="https:"&&u.protocol!=="http:")return rej(new Error("bad-scheme"));
   const mod=u.protocol==="http:"?http:https;
+  let connectTimer=null;
+  const clearConnect=()=>{if(connectTimer){clearTimeout(connectTimer);connectTimer=null;}};
   const req=mod.get({hostname:u.hostname,port:u.port||undefined,path:u.pathname+u.search,headers,timeout:30000},(r)=>{
+    clearConnect();
     if(r.statusCode>=300&&r.statusCode<400&&r.headers.location&&n<5){r.resume();return get(new URL(r.headers.location,url).href,headers,n+1).then(res,rej);}
     if(r.statusCode!==200){r.resume();return rej(new Error("http-"+r.statusCode));}
     const b=[];let s=0;
@@ -490,8 +494,9 @@ const get=(url,headers,n=0)=>new Promise((res,rej)=>{
     r.on("end",()=>res(Buffer.concat(b)));
     r.on("error",rej);
   });
-  req.on("error",rej);
-  req.on("timeout",()=>{try{req.destroy(new Error("net-timeout"));}catch{}});
+  connectTimer=setTimeout(()=>{clearConnect();try{req.destroy();}catch{};rej(new Error("net-timeout"));},CONNECT_MS);
+  req.on("error",(e)=>{clearConnect();rej(e);});
+  req.on("timeout",()=>{clearConnect();try{req.destroy(new Error("net-timeout"));}catch{}});
 });
 `;
 // Resolve a tag or exact version through the registry's abbreviated packument.
@@ -589,34 +594,82 @@ function directError(tmp) {
   return "failed";
 }
 
-function directResolve(c) {
+// Node 22.21+/24.5+ can tunnel http/https requests through the proxy named by
+// HTTP_PROXY / HTTPS_PROXY / NO_PROXY, including CONNECT and credentials in
+// the proxy URL. Older runtimes ignore NODE_USE_ENV_PROXY, so a second attempt
+// there would only add another timeout.
+function envProxySupported() {
+  const [maj, min] = process.versions.node.split(".").map(Number);
+  return maj > 24 || (maj === 24 && min >= 5) || (maj === 22 && min >= 21);
+}
+function proxyConfigured() {
+  return !!(process.env.HTTPS_PROXY || process.env.https_proxy ||
+    process.env.HTTP_PROXY || process.env.http_proxy ||
+    process.env.ALL_PROXY || process.env.all_proxy);
+}
+// Direct first, proxy second. Never skip the direct attempt just because a
+// proxy variable exists: stale settings, NO_PROXY overrides and split-tunnel
+// setups can still reach the registry directly, and skipping would send them
+// back to the slower npm road.
+function directProxyPlan() {
+  return proxyConfigured() && envProxySupported() ? [false, true] : [false];
+}
+function directSpawnOpts(useProxy, timeout) {
+  const opts = { encoding: "utf8", stdio: ["ignore", "ignore", "ignore"], windowsHide: true, timeout };
+  if (useProxy) opts.env = { ...process.env, NODE_USE_ENV_PROXY: "1" };
+  return opts;
+}
+
+function directResolve(c, useProxy = false) {
   const out = path.join(c.base, `.direct-resolve-${process.pid}`);
+  try { fs.rmSync(out, { force: true }); } catch {}
   const r = spawnSync(process.execPath, ["-e", DIRECT_RESOLVE_SCRIPT, c.name, c.range, REGISTRY, out],
-    { encoding: "utf8", stdio: ["ignore", "ignore", "ignore"], windowsHide: true, timeout: 60e3 });
+    directSpawnOpts(useProxy, 60e3));
   let v = "";
   try { v = firstLine(fs.readFileSync(out, "utf8")); } catch {}
   try { fs.rmSync(out, { force: true }); } catch {}
   if (r.status === 0 && /^\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?$/.test(v)) return v;
-  log(c, `direct resolve failed (${r.status === 0 ? "bad-version" : "exit " + r.status})`);
+  log(c, `direct resolve failed (${r.status === 0 ? "bad-version" : "exit " + r.status}${useProxy ? " via proxy" : ""})`);
+  return null;
+}
+function directResolveBoth(c) {
+  for (const useProxy of directProxyPlan()) {
+    const v = directResolve(c, useProxy);
+    if (v) return v;
+  }
   return null;
 }
 
-function directInstall(c, version, tmp) {
+function directInstall(c, version, tmp, useProxy = false) {
+  // Sentinels belong to one attempt only. Without clearing them the proxy
+  // retry could read the first attempt's stamp or error.
+  for (const name of [".direct-ok", ".direct-err"]) {
+    try { fs.rmSync(path.join(tmp, name), { force: true }); } catch {}
+  }
   const r = spawnSync(process.execPath, ["-e", DIRECT_INSTALL_SCRIPT, c.name, REGISTRY, tmp, version],
-    { encoding: "utf8", stdio: ["ignore", "ignore", "ignore"], windowsHide: true, timeout: 5 * 60e3 });
+    directSpawnOpts(useProxy, 5 * 60e3));
   const stamp = path.join(tmp, ".direct-ok");
   const ok = r.status === 0 && fs.existsSync(stamp);
   if (ok) {
     let detail = "";
     try { detail = firstLine(fs.readFileSync(stamp, "utf8")); } catch {}
     try { fs.rmSync(stamp, { force: true }); } catch {}
-    log(c, `direct install ok: ${detail}`);
+    log(c, `direct install ok${useProxy ? " via proxy" : ""}: ${detail}`);
     return { ok: true, reason: "none" };
   }
   const reason = directError(tmp);
   try { fs.rmSync(path.join(tmp, ".direct-err"), { force: true }); } catch {}
-  log(c, `direct install failed: ${reason}`);
+  log(c, `direct install failed${useProxy ? " via proxy" : ""}: ${reason}`);
   return { ok: false, reason };
+}
+function directInstallBoth(c, version, tmp) {
+  let last = { ok: false, reason: "none" };
+  for (const useProxy of directProxyPlan()) {
+    const r = directInstall(c, version, tmp, useProxy);
+    if (r.ok) return r;
+    last = r;
+  }
+  return last;
 }
 
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
@@ -645,7 +698,7 @@ function npm(c, args, cwd) {
 // version to fall back on, so the fastest working road wins.
 function resolveVersion(c, directFirst = false) {
   if (directFirst) {
-    const direct = directResolve(c);
+    const direct = directResolveBoth(c);
     if (direct) return { version: direct, reason: "none" };
   }
   const r = npm(c, ["view", `${c.name}@${c.range}`, "version", "--json"], c.base);
@@ -653,7 +706,7 @@ function resolveVersion(c, directFirst = false) {
     // npm could not answer. Ask the registry ourselves before giving up,
     // unless that was already tried above.
     if (!directFirst) {
-      const direct = directResolve(c);
+      const direct = directResolveBoth(c);
       if (direct) return { version: direct, reason: "none" };
     }
     return { version: null, reason: r.reason };
@@ -685,14 +738,14 @@ function install(c, version, coldStart = false) {
   let r = { ok: false, reason: "none" };
   let via = "npm";
   if (coldStart) {
-    const direct = directInstall(c, version, tmp);
+    const direct = directInstallBoth(c, version, tmp);
     if (direct.ok) { r = { ok: true, reason: "none", out: "", errText: "" }; via = "direct"; }
   }
   if (!r.ok) r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp);
   if (!r.ok) {
     // npm failed. Try the direct road before reporting a failure, so a broken
     // npm on a warm start cannot stop an update either.
-    const direct = coldStart ? { ok: false, reason: "none" } : directInstall(c, version, tmp);
+    const direct = coldStart ? { ok: false, reason: "none" } : directInstallBoth(c, version, tmp);
     if (direct.ok) {
       r = { ok: true, reason: "none", out: "", errText: "" };
       via = "direct-after-npm";
@@ -1116,12 +1169,6 @@ function main() {
   // from scratch.
   //
   // Waiting out the full budget only makes sense while an install might still
-  // be in flight. When every updater we started has already failed -- which it
-  // can do in under a second -- there is nothing left to wait for, and holding
-  // the client for the remaining two minutes turns a fast failure into a
-  // timeout, hiding the real reason behind `elapsedMs` near the budget.
-  // So: exhaust the retries, then stop as soon as the last one has failed.
-  // Waiting out the full budget only makes sense while an install might still
   // be in flight. An updater can fail in under a second; holding the client for
   // the remaining two minutes then turns a fast, specific failure into a slow,
   // vague one -- the field showed start/failed at 120,419 ms sitting behind
@@ -1185,4 +1232,5 @@ module.exports = {
   collectUpdaterEnv, stripUserinfo, npmCli, classify, npmFailureReason,
   computeDeviceId, deviceId, failureDetail, exitFact, detailPhrase,
   startFailureMessage, DIRECT_INSTALL_SCRIPT, DIRECT_RESOLVE_SCRIPT,
+  envProxySupported, proxyConfigured, directProxyPlan, directSpawnOpts,
 };

@@ -57,6 +57,14 @@ alwaysApply: true
     - `reason` 是**已登记的键**、取值自由（1.1.0 已经这样上了 `empty-output`），所以**不新增登记参数，仍是 12 键**。安装成功时 `reason` 记哪个安装器干的活（`direct` / `npm` / `direct-after-npm`），退路效果不用新键就能量。
     - 门禁：`direct-install.test.mjs` 用 192 例含密钥/路径/URL/CJK/控制字符的恶意输入断言「每个 token 都在词表内」+「输出不含路径/token/URL/CJK/控制字符」。
 
+24. **配了代理也要能装上，且不能因此拖慢直连用户**（1.2.0）：冷启动直装走**三档**，由 `directProxyPlan()` 统一给档位：
+    - **第 1 档**直连，`DIRECT_HTTP` 的 `get()` 带 `CONNECT_MS=2500` 的连接级超时 —— 只管「发请求到收到响应头」，收到响应头立刻 `clearConnect()`，下载阶段仍由 `timeout:30000`（socket 空闲）兜底。`https.get` 的 `timeout` 不是 TCP 连接超时，别拿它当连接超时用。超时记 `net-timeout`（复用已有词表，不扩词表）。
+    - **第 2 档**只在第 1 档失败、且环境里有 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`、且 `envProxySupported()` 为真时重跑：`spawnSync` 传 `env: { ...process.env, NODE_USE_ENV_PROXY: "1" }`。Node **22.21+/24.5+** 自带 CONNECT 隧道、`NO_PROXY` 豁免和代理 URL 里的凭据，**不要自己写隧道、不要解析代理 URL**；Node 18/20 忽略该变量，`envProxySupported()` 会跳过这一档，免得白等一次超时。
+    - **第 3 档**是 `index.js` 原有的 npm 回退（npm 自己认代理变量）。
+    - 🔴 **绝不按「代理变量存在」跳过第 1 档**：变量残留、只代理部分域名、`NO_PROXY` 覆盖时直连照样通，一刀切会把这类用户从 0.7s 退回 3.2s。「坏代理但直连可用」由 `tests/direct-proxy.test.mjs` 守着。
+    - 两次直装共用同一个 tmp，重跑前必须清 `.direct-ok` / `.direct-err` 哨兵，否则会读到上一档的结果；传 `env` 时保留 `process.env`。热启动分支不动。
+    - CI 三平台跑 Node 20，另加一组 **Ubuntu + Node 22** 才能真正跑到代理路径；Node 20 的 job 里该场景显式跳过但检查数不变。门禁 `tests/direct-proxy.test.mjs`（21 项）。
+
 ## 发布后冻结的目录契约
 
 1.0.0 会被客户端长期固定引用，`.nge` 里的格式**以后不能再改**，新版本必须能读懂旧版本写下的目录：
@@ -87,15 +95,15 @@ alwaysApply: true
 
 ## 验证
 
-`npm test` 跑 12 个测试文件：`concurrency` + `behaviour` + `telemetry` + `hardening` + `stdout-guard` + `updater-env` + `npm-cli` + `failure-reason` + `device-id` + `device-id-parity` + `direct-install`（1.2.0 新增）+ `cold-start-timing`（1.2.0 新增）。都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端。
+`npm test` 跑 13 个测试文件：`concurrency` + `behaviour` + `telemetry` + `hardening` + `stdout-guard` + `updater-env` + `npm-cli` + `failure-reason` + `device-id` + `device-id-parity` + `direct-install`（1.2.0 新增）+ `cold-start-timing`（1.2.0 新增）+ `direct-proxy`（1.2.0 新增）。都用 `NGE_ROOT` 指到临时目录；`mock-registry.mjs` 用纯 JS 生成 tarball，不依赖系统 `tar` 或外网；遥测专项用本地 HTTP 接收端。
 
-本机 macOS 实测 **231 项全绿**（11 + 20 + 30 + 37 + 10 + 11 + 11 + 24 + 20 + 10 + 36 + 11；1.1.0 基线 184 项，1.2.0 新增 47 项）；Windows 上 hardening 另有 Job 对象专项 5 项。覆盖 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起 + 直装 10 例逃逸样本 + 192 例恶意 stderr 的词表约束 + 冷启动快速失败。
+本机 macOS 实测 **252 项全绿**（11 + 20 + 30 + 37 + 10 + 11 + 11 + 24 + 20 + 10 + 36 + 11 + 21；1.1.0 基线 184 项，1.2.0 新增 68 项），用的是 Node v22.23.4。经 `npm test` 跑是 **250 项**：npm 自带的 Node 是 v22.17.1（< 22.21.0），`direct-proxy.test.mjs` 的代理段显式跳过 2 条。两个数都对，差别只来自 Node 版本，不是缺陷。；Windows 上 hardening 另有 Job 对象专项 5 项。覆盖 20 并发 + 中途发版 + kill -9 后子进程租约仍保护版本 + 只读第一行 + 首装失败真实原因 + 杀掉前台后台仍装完并重连秒起 + 直装 10 例逃逸样本 + 192 例恶意 stderr 的词表约束 + 冷启动快速失败 + 代理唯一通路 / 坏代理不回归 / 连接超时封顶。
 
 仓库根另有 `tests/launcher-direct-install-precondition.test.mjs`（5 项）：盯住直装的前提（`prepublishOnly` 仍跑 strip、webpack 仍打包、两条拒绝仍在）。它要读 `mcp/`，所以不在本包的 `npm test` 里，CI 单独一步跑。
 
-**测试计数口径**：只把 `npm-launcher/` 单独 checkout 出来跑会少 6 项 —— `device-id.test.mjs` 有 6 条检查要读 `mcp/src/utils/device-id.ts` 做对拍，目录不存在就静默跳过（14 而不是 20）。**核基线数字必须在完整仓库里跑**，否则会把 184 误记成 178。
+**测试计数口径**：只把 `npm-launcher/` 单独 checkout 出来跑会少 6 项 —— `device-id.test.mjs` 有 6 条检查要读 `mcp/src/utils/device-id.ts` 做对拍，目录不存在就静默跳过（14 而不是 20）。**核基线数字必须在完整仓库里跑**，否则会把 184 误记成 178。同理 `direct-proxy.test.mjs` 在 Node < 22.21 / < 24.5 上是 19 项（代理段跳过）、在 ≥22.21 / ≥24.5 上是 21 项；CI 的 Ubuntu + Node 22 job 负责跑满 21 项。
 
-CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台，Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
+CI 见 `.github/workflows/npm-launcher-ci.yml`：ubuntu / macOS / Windows 三平台跑 Node 20，另加一组 Ubuntu + Node 22 覆盖内置代理路径（Node 20 不认 `NODE_USE_ENV_PROXY`），Windows 跳过 POSIX 信号转发，job 级 `NGE_TELEMETRY=0` 防止测试产生真实上报。另有 `.github/workflows/npm-launcher-nightly.yml`（手动 + 每周一）：三平台 × npm 10/11 跑 `tests/real-package-smoke.mjs`，真实下载 `@cloudbase/cloudbase-mcp@latest` 验冷启动；**nightly 不进 PR 门禁**，包未发布前脚本用 `node index.js` 直跑，publish 后要切到 npx 路径再验一次。发布前仍建议在真实 Windows 客户端上验一次 EPERM / EBUSY，以及新版 npm 并发锁的重试行为。
 
 ## 发布
 
