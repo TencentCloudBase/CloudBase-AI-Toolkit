@@ -255,7 +255,9 @@ const result = await app.uploadFile({
 - On local dev origins, confirm the exact frontend origin already exists in environment security domains before assuming the upload path is usable.
 - Match against the whitelist entry format returned by `queryEnv(action="domains")`, which is typically `host:port` instead of a full `http://...` URL.
 - If the environment has no storage bucket or the SDK returns `STORAGE_NOT_EXIST` / `STORAGE_BUCKET_NOT_FOUND`, use CloudBase management/MCP storage tools to create or choose a bucket before retrying. Do not treat this as a successful optional upload.
-- After `app.uploadFile()` succeeds, do **not** fabricate a public-looking URL by concatenating `envId`, bucket domain, or `cloudPath`. Use the returned `fileID` with `app.getTempFileURL()` and store or display the SDK-resolved URL instead.
+- After `app.uploadFile()` succeeds, do **not** fabricate a public-looking URL by concatenating `envId`, bucket domain, or `cloudPath`. Keep the returned `fileID` as the canonical reference and resolve a URL when the UI needs to display or download the file.
+- In classic (NoSQL) mode, `getPublicUrl()` returns a temporary signed URL, despite its name. The Web SDK v3 changelog documents a fixed 600-second (10-minute) lifetime with no custom TTL; do not persist this URL as a permanent file address. Store the `fileID` and request a fresh URL when needed. [Web SDK v3 changelog](https://docs.cloudbase.net/api-reference/webv3/changelog).
+- In PG / pgstore mode, `getPublicUrl()` is a direct URL only for a public bucket whose RLS policy allows anonymous reads; use `createSignedUrl()` for private files.
 
 ### Progress example
 
