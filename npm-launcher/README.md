@@ -166,6 +166,25 @@ npm test
 
 六组测试都用 `NGE_ROOT` 指到临时目录，不碰真实用户目录；mock registry 用纯 JS 生成 tarball，不依赖系统 `tar`。测试与 CI 显式关闭对外上报，遥测专项只往本地接收端发。CI 在 ubuntu / macOS / Windows 三平台跑 `npm test`，Windows 跳过 POSIX 信号转发那一项。
 
+## npx 拉不起来时
+
+从程序坞或 Finder 打开的 IDE 可能继承不到终端的 PATH，报 `spawn npx ENOENT`；`~/.npm/_npx` 缓存损坏会报 ENOTEMPTY / EACCES。这两种情况都发生在 launcher 启动之前，launcher 自己修不了。
+
+手动退路是把 launcher 单独装到一个固定目录，配置里直接调用 Node，不经过 npx：
+
+```bash
+npm install --prefix ~/cloudbase-mcp/launcher @cloudbase/npm-launcher@<固定版本>
+```
+
+```json
+{
+  "command": "/绝对路径/node",
+  "args": ["/绝对路径/cloudbase-mcp/launcher/node_modules/@cloudbase/npm-launcher/index.js", "@cloudbase/cloudbase-mcp@latest"]
+}
+```
+
+两处都写绝对路径：IDE 不继承 PATH 时，`node` 和相对路径都找不到。先确认 `node --version` 不低于 18；Node 的绝对路径用 `command -v node`（macOS / Linux）或 `where node`（Windows）查。清理 `~/.npm/_npx` 前先关掉所有 MCP 客户端，只删对应的缓存目录，不要清整个 npm 缓存，会打断其他工具。
+
 ## 诊断
 
 在客户机器的终端里手动运行（只用于排障，不要写进 MCP 配置）：
