@@ -188,8 +188,11 @@ console.log("[1] proxy plan and spawn options");
   const proxied = directSpawnOpts(true, 1000);
   check(proxied.env && proxied.env.NODE_USE_ENV_PROXY === "1",
     "the proxy attempt sets NODE_USE_ENV_PROXY=1");
-  check(proxied.env && proxied.env.PATH === process.env.PATH,
-    "the proxy attempt keeps the rest of the environment");
+  // Windows process.env is case-insensitive, but a spread into a plain object
+  // is not: comparing PATH against an object that holds Path would fail there.
+  const keepKey = Object.keys(process.env).find((k) => k !== "NODE_USE_ENV_PROXY");
+  check(proxied.env && keepKey && proxied.env[keepKey] === process.env[keepKey],
+    "the proxy attempt keeps the rest of the environment", `key=${keepKey}`);
 }
 
 // ---- [2] a broken proxy variable must not break a working direct path -----
