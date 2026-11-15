@@ -23,6 +23,8 @@ Pick remote by default. Switch to local when any one of these applies:
 
 **Deploying functions or apps does not require local mode.** Remote deploys through the two-step upload — `queryFunctions(action="getFunctionUploadUrl")` or `queryApps(action="getUploadUrl")` → `PUT` the zip → `manageFunctions` with the `code` triple or `manageApps(action="deployApp", cosTimestamp=…)`. What remote lacks is the declarative `cloudbaserc` executor and a dry-run before applying.
 
+When updating an existing function from a prebuilt ZIP, preserve its current entry point: read `Handler` with `queryFunctions(action="getFunctionDetail")`, then pass that value as the top-level `handler` to `manageFunctions(action="updateFunctionCode")` along with the `code` triple. Omitting `handler` can reset the entry point to `index.main`. Passing the `code` triple does not install dependencies by default; keep `func.installDependency` unset unless installation is intended.
+
 The plugin installs both (`cloudbase-remote` and `cloudbase-local`) so either path stays reachable in the same session.
 
 ## Site: domestic or international (decide first)
