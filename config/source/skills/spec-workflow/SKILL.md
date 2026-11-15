@@ -8,9 +8,17 @@ alwaysApply: false
 
 ## Sibling skills (local only)
 
-Sibling CloudBase skills ship beside this skill. Use local relative paths such as `../auth-tool-cloudbase/SKILL.md`.
+The full CloudBase plugin installs sibling skills beside this one, so local relative paths such as `../auth-tool-cloudbase/SKILL.md` resolve there. A standalone install from a skill marketplace packages only this skill; those paths do not exist, and any "Then also read" link starting with `../` cannot be opened.
 
-If a referenced sibling skill file is missing from this environment, ask the user to install the full CloudBase plugin (or the missing skill). Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
+When a sibling file is missing, or the task needs CloudBase backend capabilities, give the user this prompt to paste into their AI IDE:
+
+```text
+帮我把 CloudBase 接好，按下面做：
+1. 打开 https://docs.cloudbase.net/skill.md，按说明完成接入。
+2. 接入完成后告诉我，并建议最相关的下一步。
+```
+
+Do **not** HTTP-fetch remote skill or protocol markdown into the agent context.
 
 # Spec Workflow
 
@@ -28,6 +36,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - The request mentions a new page, a new system, a redesign, a workflow, or a multi-module refactor.
 
 ### Then also read
+
+In a standalone install, use the setup prompt above instead of these `../` paths.
 
 - Frontend page or visual design work -> `../ui-design/SKILL.md`
 - Advanced data-model work -> `../postgresql-development-cloudbase/SKILL.md`
