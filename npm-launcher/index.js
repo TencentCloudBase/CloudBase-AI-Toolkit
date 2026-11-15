@@ -24,7 +24,26 @@ if (process.argv[2] === "--nge-update" && process.argv[4]) {
   } catch { process.exit(0); }
 }
 
-const REGISTRY = process.env.NGE_REGISTRY || "https://mirrors.cloud.tencent.com/npm/";
+// Registries, in the order they are tried on a cold start. The default mirror
+// stays first so the normal path for users in China is unchanged; the others
+// are only asked after it has failed. Every source serves the same tarball, and
+// the direct installer verifies `dist.integrity`, so a mirror cannot alter it.
+// An explicit NGE_REGISTRY means "use exactly this" (intranet mirrors,
+// compliance): no fallback. NGE_REGISTRIES replaces the default chain.
+const DEFAULT_REGISTRIES = [
+  "https://mirrors.cloud.tencent.com/npm/",
+  "https://registry.npmmirror.com/",
+  "https://registry.npmjs.org/",
+];
+const REGISTRIES = (() => {
+  if (process.env.NGE_REGISTRY) return [process.env.NGE_REGISTRY];
+  const list = String(process.env.NGE_REGISTRIES || "").split(",")
+    .map((x) => x.trim()).filter((x) => /^https?:\/\//i.test(x));
+  return list.length ? list : DEFAULT_REGISTRIES;
+})();
+const REGISTRY = REGISTRIES[0];
+// Success rows record which source did the work: direct, direct-m2, direct-m3.
+const viaFor = (i) => (i === 0 ? "direct" : `direct-m${i + 1}`);
 const ROOT = process.env.NGE_ROOT || path.join(os.homedir(), "cloudbase-mcp", ".nge");
 const isWin = process.platform === "win32";
 
@@ -41,6 +60,22 @@ const LOCK_STALE = num(process.env.NGE_LOCK_STALE, 10 * 60 * 1000);
 const KEEP = Math.max(1, num(process.env.NGE_KEEP, 5));
 const FIRST_RUN_TIMEOUT = num(process.env.NGE_FIRST_RUN_TIMEOUT, 120e3);
 const TMP_TTL = num(process.env.NGE_TMP_TTL, 10 * 60 * 1000);
+// Cold-start budgets per road, so one stuck road cannot eat the whole wait.
+const COLD_RESOLVE_MS = num(process.env.NGE_COLD_RESOLVE_MS, 15e3);
+const COLD_INSTALL_MS = num(process.env.NGE_COLD_INSTALL_MS, 90e3);
+const COLD_NPM_MS = num(process.env.NGE_COLD_NPM_MS, 90e3);
+// A cold start still waiting after this long reports `start/slow` once. If no
+// start/ok or start/failed follows, the client gave up before we were ready.
+const SLOW_MS = num(process.env.NGE_SLOW_MS, 8000);
+// How long a cold start keeps retrying while every attempt fails fast and
+// nothing is installing. An install in flight is always waited for.
+const FAIL_BUDGET = num(process.env.NGE_FAIL_BUDGET, Math.min(30e3, FIRST_RUN_TIMEOUT / 2));
+// A child that exits non-zero this soon after spawn counts as a crash.
+const CRASH_WINDOW = num(process.env.NGE_CRASH_WINDOW, 5000);
+// Self-update: follow the `stable` dist-tag of this package, same major only,
+// and only versions published at least this long ago.
+const SELF_UPDATE = process.env.NGE_SELF_UPDATE !== "0";
+const SELF_MIN_AGE = num(process.env.NGE_SELF_MIN_AGE, 72 * 3600e3);
 
 // Telemetry is on by default. NGE_TELEMETRY=0 / DO_NOT_TRACK turn off the
 // network call only; local events.jsonl is always written for --nge-diag.
@@ -61,6 +96,7 @@ const LAUNCHER_VERSION = (() => {
   catch { return "1.0.0"; }
 })();
 const LAUNCHER_PKG = "@cloudbase/npm-launcher";
+const LAUNCHER_STABLE_SPEC = `${LAUNCHER_PKG}@stable`;
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const rm = (p) => { try { fs.rmSync(p, { recursive: true, force: true }); } catch {} };
@@ -75,6 +111,9 @@ function rotate(file, max = 1 << 20) {
   } catch {}
 }
 
+// Directory name for a spec; a frozen on-disk contract.
+const slugOf = (spec) => String(spec).replace(/[@/\\:]/g, "_");
+
 function context(spec) {
   const at = spec.lastIndexOf("@");
   const name = at > 0 ? spec.slice(0, at) : spec;
@@ -86,7 +125,7 @@ function context(spec) {
     console.error(`Unsupported version range: ${range}`);
     process.exit(1);
   }
-  const base = path.join(ROOT, `${name}@${range}`.replace(/[@/\\:]/g, "_"));
+  const base = path.join(ROOT, slugOf(`${name}@${range}`));
   const c = {
     name, range, base, rawSpec: spec,
     versions: path.join(base, "versions"),
@@ -96,6 +135,9 @@ function context(spec) {
     leases: path.join(base, "leases"),
     logFile: path.join(base, "install.log"),
     eventsFile: path.join(base, "events.jsonl"),
+    quarantine: path.join(base, "quarantine"),
+    crashes: path.join(base, "crashes"),
+    cooldown: path.join(base, "cooldown"),
   };
   try { fs.mkdirSync(c.versions, { recursive: true }); }
   catch (err) {
@@ -503,16 +545,17 @@ const get=(url,headers,n=0)=>new Promise((res,rej)=>{
 const DIRECT_RESOLVE_SCRIPT = `
 const fs=require("fs"),https=require("https"),http=require("http");
 const MAX_BYTES=16*1024*1024;
-const [,NAME,RANGE,REGISTRY,OUT]=process.argv;
+const [,NAME,RANGE,REGISTRY,OUT,MODE]=process.argv;
 ${DIRECT_HTTP}
 (async()=>{
   const base=REGISTRY.endsWith("/")?REGISTRY:REGISTRY+"/";
+  // MODE=time asks for the full packument, which carries publish times.
   const pk=JSON.parse((await get(new URL(NAME.replace("/","%2f"),base).href,
-    {accept:"application/vnd.npm.install-v1+json"})).toString("utf8"));
+    {accept:MODE==="time"?"application/json":"application/vnd.npm.install-v1+json"})).toString("utf8"));
   const tags=pk["dist-tags"]||{};
   const v=tags[RANGE]||((pk.versions&&pk.versions[RANGE])?RANGE:null);
   if(!v||!/^\\d+\\.\\d+\\.\\d+/.test(v))throw new Error("unresolved");
-  fs.writeFileSync(OUT,v);
+  fs.writeFileSync(OUT,MODE==="time"?v+" "+String((pk.time&&pk.time[v])||""):v);
 })().catch(()=>process.exit(1));
 `;
 // Download, verify and unpack. Every guard npm would normally give us has to
@@ -620,34 +663,40 @@ function directSpawnOpts(useProxy, timeout) {
   return opts;
 }
 
-function directResolve(c, useProxy = false) {
+// Returns the raw first line written by the resolve script, or null.
+function directResolveRaw(c, registry, useProxy, timeout, mode) {
   const out = path.join(c.base, `.direct-resolve-${process.pid}`);
   try { fs.rmSync(out, { force: true }); } catch {}
-  const r = spawnSync(process.execPath, ["-e", DIRECT_RESOLVE_SCRIPT, c.name, c.range, REGISTRY, out],
-    directSpawnOpts(useProxy, 60e3));
-  let v = "";
-  try { v = firstLine(fs.readFileSync(out, "utf8")); } catch {}
+  const args = ["-e", DIRECT_RESOLVE_SCRIPT, c.name, c.range, registry, out];
+  if (mode) args.push(mode);
+  const r = spawnSync(process.execPath, args, directSpawnOpts(useProxy, timeout));
+  let line = "";
+  try { line = firstLine(fs.readFileSync(out, "utf8")); } catch {}
   try { fs.rmSync(out, { force: true }); } catch {}
-  if (r.status === 0 && /^\d+\.\d+\.\d+([-+][0-9A-Za-z.-]+)?$/.test(v)) return v;
-  log(c, `direct resolve failed (${r.status === 0 ? "bad-version" : "exit " + r.status}${useProxy ? " via proxy" : ""})`);
+  if (r.status === 0 && line) return line;
+  log(c, `direct resolve failed (exit ${r.status}${useProxy ? " via proxy" : ""}) @ ${registry}`);
   return null;
 }
-function directResolveBoth(c) {
+function directResolve(c, useProxy = false, registry = REGISTRY, timeout = 60e3) {
+  const v = directResolveRaw(c, registry, useProxy, timeout);
+  return v && VERSION_DIR.test(v) ? v : null;
+}
+function directResolveBoth(c, registry = REGISTRY, timeout = 60e3) {
   for (const useProxy of directProxyPlan()) {
-    const v = directResolve(c, useProxy);
+    const v = directResolve(c, useProxy, registry, timeout);
     if (v) return v;
   }
   return null;
 }
 
-function directInstall(c, version, tmp, useProxy = false) {
+function directInstall(c, version, tmp, useProxy = false, registry = REGISTRY, timeout = 5 * 60e3) {
   // Sentinels belong to one attempt only. Without clearing them the proxy
   // retry could read the first attempt's stamp or error.
   for (const name of [".direct-ok", ".direct-err"]) {
     try { fs.rmSync(path.join(tmp, name), { force: true }); } catch {}
   }
-  const r = spawnSync(process.execPath, ["-e", DIRECT_INSTALL_SCRIPT, c.name, REGISTRY, tmp, version],
-    directSpawnOpts(useProxy, 5 * 60e3));
+  const r = spawnSync(process.execPath, ["-e", DIRECT_INSTALL_SCRIPT, c.name, registry, tmp, version],
+    directSpawnOpts(useProxy, timeout));
   const stamp = path.join(tmp, ".direct-ok");
   const ok = r.status === 0 && fs.existsSync(stamp);
   if (ok) {
@@ -662,10 +711,10 @@ function directInstall(c, version, tmp, useProxy = false) {
   log(c, `direct install failed${useProxy ? " via proxy" : ""}: ${reason}`);
   return { ok: false, reason };
 }
-function directInstallBoth(c, version, tmp) {
+function directInstallBoth(c, version, tmp, registry = REGISTRY, timeout = 5 * 60e3) {
   let last = { ok: false, reason: "none" };
   for (const useProxy of directProxyPlan()) {
-    const r = directInstall(c, version, tmp, useProxy);
+    const r = directInstall(c, version, tmp, useProxy, registry, timeout);
     if (r.ok) return r;
     last = r;
   }
@@ -673,8 +722,7 @@ function directInstallBoth(c, version, tmp) {
 }
 
 // stdout belongs to the MCP JSON-RPC channel. All npm output goes to the log file.
-function npm(c, args, cwd) {
-  const budget = 5 * 60 * 1000;
+function npm(c, args, cwd, budget = 5 * 60 * 1000) {
   const full = [...args, `--registry=${REGISTRY}`, "--no-audit", "--no-fund", "--loglevel=error"];
   const opts = { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true, timeout: budget };
   const cli = npmCli();
@@ -696,18 +744,26 @@ function npm(c, args, cwd) {
 // network error, or an empty response, and each needs a different fix.
 // On a cold start the registry is asked directly first: there is no installed
 // version to fall back on, so the fastest working road wins.
+// On a cold start every registry in the chain is asked in turn; the index of
+// the one that answered is returned so the install uses the same source (a
+// lagging mirror may not have the version another one resolved yet).
 function resolveVersion(c, directFirst = false) {
   if (directFirst) {
-    const direct = directResolveBoth(c);
-    if (direct) return { version: direct, reason: "none" };
+    for (let i = 0; i < REGISTRIES.length; i++) {
+      const direct = directResolveBoth(c, REGISTRIES[i], COLD_RESOLVE_MS);
+      if (direct) return { version: direct, reason: "none", registryIndex: i };
+    }
   }
-  const r = npm(c, ["view", `${c.name}@${c.range}`, "version", "--json"], c.base);
+  const r = npm(c, ["view", `${c.name}@${c.range}`, "version", "--json"], c.base,
+    directFirst ? COLD_NPM_MS : undefined);
   if (!r.ok) {
     // npm could not answer. Ask the registry ourselves before giving up,
     // unless that was already tried above.
     if (!directFirst) {
-      const direct = directResolveBoth(c);
-      if (direct) return { version: direct, reason: "none" };
+      for (let i = 0; i < REGISTRIES.length; i++) {
+        const direct = directResolveBoth(c, REGISTRIES[i]);
+        if (direct) return { version: direct, reason: "none", registryIndex: i };
+      }
     }
     return { version: null, reason: r.reason };
   }
@@ -721,7 +777,7 @@ function resolveVersion(c, directFirst = false) {
 
 // Returns { ok, reason } so the caller can report the real failure category
 // instead of hard-coding one on the update / fallback events.
-function install(c, version, coldStart = false) {
+function install(c, version, coldStart = false, firstRegistry = 0) {
   const t0 = Date.now();
   const elapsed = () => Date.now() - t0;
   if (binOf(c, version)) {
@@ -738,17 +794,23 @@ function install(c, version, coldStart = false) {
   let r = { ok: false, reason: "none" };
   let via = "npm";
   if (coldStart) {
-    const direct = directInstallBoth(c, version, tmp);
-    if (direct.ok) { r = { ok: true, reason: "none", out: "", errText: "" }; via = "direct"; }
+    // Start at the registry that resolved the version, then the rest in order.
+    for (let i = Math.max(0, firstRegistry); i < REGISTRIES.length && !r.ok; i++) {
+      const direct = directInstallBoth(c, version, tmp, REGISTRIES[i], COLD_INSTALL_MS);
+      if (direct.ok) { r = { ok: true, reason: "none", out: "", errText: "" }; via = viaFor(i); }
+    }
   }
-  if (!r.ok) r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp);
-  if (!r.ok) {
+  if (!r.ok) r = npm(c, ["install", `${c.name}@${version}`, "--no-package-lock"], tmp,
+    coldStart ? COLD_NPM_MS : undefined);
+  if (!r.ok && !coldStart) {
     // npm failed. Try the direct road before reporting a failure, so a broken
     // npm on a warm start cannot stop an update either.
-    const direct = coldStart ? { ok: false, reason: "none" } : directInstallBoth(c, version, tmp);
-    if (direct.ok) {
-      r = { ok: true, reason: "none", out: "", errText: "" };
-      via = "direct-after-npm";
+    for (let i = 0; i < REGISTRIES.length && !r.ok; i++) {
+      const direct = directInstallBoth(c, version, tmp, REGISTRIES[i]);
+      if (direct.ok) {
+        r = { ok: true, reason: "none", out: "", errText: "" };
+        via = i === 0 ? "direct-after-npm" : `direct-m${i + 1}-after-npm`;
+      }
     }
   }
   if (!r.ok) {
@@ -895,7 +957,72 @@ function tryLock(c) {
   return false;
 }
 
+// ---- quarantine, crash rollback, cooldown -------------------------------------
+// All three live in new files next to the frozen layout; 1.0.0-1.2.0 never read
+// them, so an older launcher on the same machine is unaffected.
+
+// Versions that crashed on start or failed their self-test. One per line.
+function quarantined(c) {
+  try {
+    return new Set(fs.readFileSync(c.quarantine, "utf8").split(/\r?\n/).map((x) => x.trim()).filter(Boolean));
+  } catch { return new Set(); }
+}
+function addQuarantine(c, version) {
+  try {
+    const keep = [...quarantined(c)].filter((v) => v !== version).slice(-19);
+    fs.writeFileSync(c.quarantine, [...keep, version].join("\n") + "\n");
+  } catch {}
+}
+
+// Installed, runnable and not quarantined, newest first.
+function usableVersions(c, except) {
+  const bad = quarantined(c);
+  let dirs = [];
+  try { dirs = fs.readdirSync(c.versions); } catch { return []; }
+  return dirs
+    .filter((d) => VERSION_DIR.test(d) && d !== except && !bad.has(d) && binOf(c, d))
+    .map((d) => { try { return { d, t: fs.statSync(path.join(c.versions, d)).mtimeMs }; } catch { return null; } })
+    .filter(Boolean)
+    .sort((a, b) => b.t - a.t)
+    .map((x) => x.d);
+}
+
+// Numeric x.y.z compare; a prerelease sorts below its release.
+function cmpVersion(a, b) {
+  const pa = String(a).split(/[-+]/)[0].split(".").map(Number);
+  const pb = String(b).split(/[-+]/)[0].split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d;
+  }
+  const ra = /-/.test(a), rb = /-/.test(b);
+  return ra === rb ? 0 : ra ? -1 : 1;
+}
+const majorOf = (v) => Number(String(v).split(".")[0]);
+
+function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
+}
+
+// Consecutive failed cold-start connections on this machine (counted by the
+// foreground when it gives up, not per attempt). From the third one on, a
+// reconnect gets one attempt instead of a backoff loop: a machine that cannot
+// install must not hammer the registry (one device logged 1,552 failures in
+// 20 hours), while a recovered network still heals on the next reconnect.
+function coolingDown(c) {
+  const s = readJson(c.cooldown);
+  return !!(s && Number(s.until) > Date.now());
+}
+function recordColdFailure(c) {
+  const s = readJson(c.cooldown) || { failures: 0, until: 0 };
+  const failures = (Number(s.failures) || 0) + 1;
+  const until = failures >= 3 ? Date.now() + Math.min(30 * 60e3, 60e3 * 2 ** (failures - 3)) : 0;
+  try { fs.writeFileSync(c.cooldown, JSON.stringify({ failures, until })); } catch {}
+}
+function clearColdFailures(c) { rm(c.cooldown); }
+
 function update(c) {
+  if (c.name === LAUNCHER_PKG) return selfUpdate(c);
   const t0 = Date.now();
   const elapsed = () => Date.now() - t0;
   const from = readCurrent(c);
@@ -911,12 +1038,20 @@ function update(c) {
     }
     return log(c, "resolve failed, keep current");
   }
+  // A version that crashed on start here is not switched back to; the next
+  // release clears the way. The cold path has nothing to fall back on, so it
+  // still installs (otherwise the machine could never start at all).
+  if (!coldStart && quarantined(c).has(version)) {
+    try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
+    emit(c, "update", { result: "skipped", reason: "quarantined", targetVersion: version, fromVersion, elapsedMs: elapsed() });
+    return log(c, `${version} is quarantined, keep current`);
+  }
   // Nothing to install: refresh the check stamp and leave the metrics alone.
   if (version === fromVersion) {
     try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
     return;
   }
-  const installed = install(c, version, coldStart);
+  const installed = install(c, version, coldStart, resolved.registryIndex || 0);
   if (!installed.ok) {
     emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: installed.reason, coldStart, elapsedMs: elapsed() });
     if (fromVersion) {
@@ -934,8 +1069,102 @@ function update(c) {
     emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason, coldStart, elapsedMs: elapsed() });
     return log(c, `setCurrent ${version} failed, keep current`);
   }
+  clearColdFailures(c);
   emit(c, "update", { result: "ok", targetVersion: version, fromVersion, coldStart, elapsedMs: elapsed() });
   prune(c, version);
+}
+
+// ---- self-update -------------------------------------------------------------
+// The launcher installs a newer copy of itself the same way it installs the
+// target package, into ROOT/@cloudbase_npm-launcher_stable/. The pinned copy a
+// client starts then hands over to it (see delegate()). This is what lets a
+// launcher fix reach users without rewriting every pinned config again.
+//
+// Guard rails, all checked here before anything is switched:
+//   * only the `stable` dist-tag, which maintainers move by hand after a
+//     release has proven itself; moving it back rolls every machine back;
+//   * same major version only;
+//   * published at least SELF_MIN_AGE ago (72 h by default);
+//   * never a version quarantined on this machine;
+//   * the new copy must pass `--nge-selftest` before `current` points at it.
+function selfUpdate(c) {
+  const t0 = Date.now();
+  const elapsed = () => Date.now() - t0;
+  try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
+  const from = readCurrent(c);
+  const fromVersion = from ? from.version : "";
+  let raw = null, idx = 0;
+  for (; idx < REGISTRIES.length && !raw; idx++) raw = directResolveRaw(c, REGISTRIES[idx], false, COLD_RESOLVE_MS, "time");
+  idx -= 1;
+  const [version, published] = String(raw || "").split(" ");
+  if (!version || !VERSION_DIR.test(version)) {
+    emit(c, "update", { result: "skipped", reason: "unresolved", fromVersion, elapsedMs: elapsed() });
+    return log(c, "self-update: stable tag not resolved");
+  }
+  const age = Date.now() - Date.parse(published || "");
+  const hold = majorOf(version) !== majorOf(LAUNCHER_VERSION) || !(age >= SELF_MIN_AGE)
+    || quarantined(c).has(version);
+  // `stable` moved back to (or below) the copy the client started: stop
+  // delegating. Nothing needs installing for that.
+  if (!hold && cmpVersion(version, LAUNCHER_VERSION) <= 0) {
+    if (fromVersion) { rm(c.current); emit(c, "update", { result: "ok", targetVersion: version, fromVersion, elapsedMs: elapsed() }); }
+    return log(c, `self-update: stable ${version} is not newer than ${LAUNCHER_VERSION}`);
+  }
+  if (hold) {
+    emit(c, "update", { result: "skipped", reason: "self-hold", targetVersion: version, fromVersion, elapsedMs: elapsed() });
+    return log(c, `self-update: holding ${version} (age ${Math.round(age / 3600e3)}h)`);
+  }
+  if (version === fromVersion) return;
+  const installed = install(c, version, true, idx);
+  if (!installed.ok) {
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: installed.reason, elapsedMs: elapsed() });
+    return log(c, `self-update: install ${version} failed`);
+  }
+  const bin = binOf(c, version);
+  const r = bin ? spawnSync(process.execPath, [bin, "--nge-selftest"], {
+    encoding: "utf8", stdio: ["ignore", "ignore", "pipe"], windowsHide: true, timeout: 5000,
+    env: { ...process.env, NGE_DELEGATED: LAUNCHER_VERSION },
+  }) : null;
+  if (!r || r.status !== 0 || !String(r.stderr || "").includes(`nge-selftest-ok ${version}`)) {
+    addQuarantine(c, version);
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: "selftest", elapsedMs: elapsed() });
+    return log(c, `self-update: ${version} failed its self-test, quarantined`);
+  }
+  try { setCurrent(c, version); } catch (err) {
+    emit(c, "update", { result: "failed", targetVersion: version, fromVersion, reason: classify(`${err.code || ""}`), elapsedMs: elapsed() });
+    return;
+  }
+  emit(c, "update", { result: "ok", targetVersion: version, fromVersion, elapsedMs: elapsed() });
+  prune(c, version);
+}
+
+// Hand this run over to a newer self-updated launcher, if one is ready.
+// Returns true when the delegate took over. A delegate that throws while
+// loading or starting is quarantined and this copy carries on: the pinned
+// launcher is always the floor.
+function delegate() {
+  if (!SELF_UPDATE || process.env.NGE_DELEGATED) return false;
+  // Cheap existence check first: no self-updated copy means nothing to do, and
+  // context() would create directories on every launch.
+  if (!fs.existsSync(path.join(ROOT, slugOf(LAUNCHER_STABLE_SPEC), "current"))) return false;
+  let lc;
+  try { lc = context(LAUNCHER_STABLE_SPEC); } catch { return false; }
+  const cur = readCurrent(lc);
+  if (!cur || cmpVersion(cur.version, LAUNCHER_VERSION) <= 0
+    || majorOf(cur.version) !== majorOf(LAUNCHER_VERSION) || quarantined(lc).has(cur.version)) return false;
+  process.env.NGE_DELEGATED = LAUNCHER_VERSION;
+  try {
+    const mod = require(cur.bin);
+    if (!mod || typeof mod.main !== "function") throw new Error("no main");
+    mod.main();
+    return true;
+  } catch (err) {
+    delete process.env.NGE_DELEGATED;
+    addQuarantine(lc, cur.version);
+    log(lc, `delegate ${cur.version} failed, quarantined: ${err && err.message}`);
+    emit(lc, "fallback", { result: "fallback", reason: "delegate-failed", targetVersion: cur.version });
+    return false;
+  }
 }
 
 function lockedUpdate(c, opts = {}) {
@@ -1101,12 +1330,88 @@ function run(c, version, bin, args) {
   for (const s of ["SIGINT", "SIGTERM", "SIGHUP"]) {
     process.on(s, () => { try { child.kill(s); } catch {} });
   }
-  child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
+  // Crash detection. A child that exits non-zero within CRASH_WINDOW of being
+  // spawned never got going (a clean client disconnect exits 0, a signal has no
+  // code). Twice in a row for the same version and it is quarantined and
+  // `current` goes back to the newest other usable version, so the next
+  // connection starts something that works. The client's stdin is already
+  // consumed by the dead child, so this connection cannot be retried in place.
+  const spawnedAt = Date.now();
+  const settle = setTimeout(() => {
+    const s = readJson(c.crashes);
+    if (s && s.version === version) rm(c.crashes);
+  }, CRASH_WINDOW);
+  try { settle.unref(); } catch {}
+  child.on("exit", (code, signal) => {
+    const status = code ?? (signal ? 1 : 0);
+    if (typeof code === "number" && code !== 0 && Date.now() - spawnedAt < CRASH_WINDOW
+        && crashedAgain(c, version)) {
+      FLUSH_ON_EXIT = true;
+      setTimeout(() => process.exit(status), TELEMETRY_TIMEOUT + 200);
+      return;
+    }
+    process.exit(status);
+  });
   child.on("error", (e) => { console.error(e.message); process.exit(1); });
+}
+
+// Returns true when this crash triggered a rollback (and telemetry must flush).
+function crashedAgain(c, version) {
+  const s = readJson(c.crashes);
+  const n = s && s.version === version ? (Number(s.n) || 0) + 1 : 1;
+  if (n < 2) {
+    try { fs.writeFileSync(c.crashes, JSON.stringify({ version, n })); } catch {}
+    return false;
+  }
+  rm(c.crashes);
+  const prev = usableVersions(c, version)[0];
+  // Without an older working copy there is nothing to roll back to; quarantining
+  // would only turn the next start into a cold install of the same version.
+  if (!prev) return false;
+  addQuarantine(c, version);
+  try { setCurrent(c, prev); } catch { return false; }
+  log(c, `${version} crashed on start twice, rolled back to ${prev}`);
+  emit(c, "fallback", { result: "fallback", reason: "crash-rollback", targetVersion: prev, fromVersion: version });
+  console.error(`${c.name}@${version} exited right after starting, twice. Switched back to ${prev}; reconnect to use it.`);
+  return true;
+}
+
+// Node < 18 is outside `engines`. Say so plainly instead of failing somewhere
+// deep inside an install, and report it at most once a day per machine.
+function nodeUnsupported(spec) {
+  if (Number(process.versions.node.split(".")[0]) >= 18) return false;
+  console.error(`${LAUNCHER_PKG} needs Node.js 18 or newer; this is ${process.version}. Upgrade Node.js and reconnect.`);
+  try {
+    const c = context(spec);
+    const day = new Date().toISOString().slice(0, 10);
+    const mark = path.join(c.base, ".node-unsupported-day");
+    let last = "";
+    try { last = firstLine(fs.readFileSync(mark, "utf8")); } catch {}
+    if (last !== day) {
+      try { fs.writeFileSync(mark, day); } catch {}
+      FLUSH_ON_EXIT = true;
+      emit(c, "start", { result: "failed", reason: "node-unsupported", coldStart: !readCurrent(c) });
+    }
+  } catch {}
+  process.exitCode = 1;
+  setTimeout(() => process.exit(1), TELEMETRY_TIMEOUT + 200);
+  return true;
 }
 
 function main() {
   const [spec, ...args] = process.argv.slice(2);
+  // Contract with a bootstrapping launcher (see selfUpdate): prove this copy
+  // loads and runs on this machine.
+  if (spec === "--nge-selftest") {
+    process.stderr.write(`nge-selftest-ok ${LAUNCHER_VERSION}\n`);
+    return;
+  }
+  // Only a normal launch is handed over. The updater and diagnostics run in the
+  // copy that was started (the WMI updater's env file is single-use).
+  if (spec && !spec.startsWith("--")) {
+    if (nodeUnsupported(spec)) return;
+    if (delegate()) return;
+  }
   if (!spec) {
     console.error("Usage: npm-launcher <package>[@tag] [args...]");
     process.exit(1);
@@ -1147,6 +1452,16 @@ function main() {
   const c = context(spec);
   const t0 = Date.now();
   let cur = readCurrent(c);
+  // `current` unreadable, pointing at a damaged directory, or at a quarantined
+  // version: an older working copy is still a warm start, not a cold install.
+  if (!cur || quarantined(c).has(cur.version)) {
+    const alt = usableVersions(c, cur && cur.version)[0];
+    if (alt) {
+      try { setCurrent(c, alt); } catch {}
+      cur = readCurrent(c) || { version: alt, bin: binOf(c, alt) };
+      log(c, `current unusable, starting ${alt} instead`);
+    }
+  }
   const hadCurrent = !!cur;
 
   if (cur) {
@@ -1155,6 +1470,16 @@ function main() {
     if (needCheck(c)) {
       try { fs.writeFileSync(c.stamp, String(Date.now())); } catch {}
       spawnUpdater(c, spec);
+    }
+    // Keep the launcher itself current too (same schedule, own stamp).
+    if (SELF_UPDATE && !process.env.NGE_DELEGATED) {
+      try {
+        const lc = context(LAUNCHER_STABLE_SPEC);
+        if (needCheck(lc)) {
+          try { fs.writeFileSync(lc.stamp, String(Date.now())); } catch {}
+          spawnUpdater(lc, LAUNCHER_STABLE_SPEC);
+        }
+      } catch {}
     }
     emit(c, "start", {
       result: "ok", targetVersion: cur.version,
@@ -1168,47 +1493,66 @@ function main() {
   // running and the next reconnect continues waiting instead of downloading
   // from scratch.
   //
-  // Waiting out the full budget only makes sense while an install might still
-  // be in flight. An updater can fail in under a second; holding the client for
-  // the remaining two minutes then turns a fast, specific failure into a slow,
-  // vague one -- the field showed start/failed at 120,419 ms sitting behind
-  // update/skipped rows that had failed in 1-2 s.
+  // Retries are driven by the updater's own outcome: as soon as this session
+  // records a terminal failure, the next attempt is scheduled. 1.2.0 stopped
+  // after three attempts, which could be five seconds in: a network that came
+  // back ten seconds later, or a slow fallback road that would have worked,
+  // found the client already told "failed". The attempts are now spread out
+  // over time instead (BACKOFF), and only stop when FAIL_BUDGET has passed
+  // with every attempt failed and nothing installing -- so a machine that
+  // genuinely cannot install still gets a specific error well before the
+  // full wait budget. An install that is actually in flight is always waited
+  // for, up to FIRST_RUN_TIMEOUT.
   //
-  // Retries are therefore driven by the updater's own outcome rather than by a
-  // fixed delay: as soon as this session records a terminal failure, either
-  // start the next attempt or, once they are spent, report that reason.
+  // In cooldown (repeated cold failures on this machine) a connection gets one
+  // attempt and no backoff, so reconnect loops cannot turn into a retry storm.
   const deadline = Date.now() + FIRST_RUN_TIMEOUT;
-  const MAX_ATTEMPTS = 3;
+  const cooling = coolingDown(c);
+  const BACKOFF = [2000, 5000, 10000];
+  const MAX_ATTEMPTS = cooling ? 1 : 10;
+  const failDeadline = t0 + (cooling ? 0 : FAIL_BUDGET);
   let attempts = 0;
   let giveUp = null;
+  let nextAttemptAt = 0;
+  let slowReported = false;
   // Failures already in the log belong to earlier sessions; only ones recorded
   // after this timestamp describe the attempt being waited on.
   let since = t0;
   if (spawnUpdater(c, spec, { outsideJob: true })) attempts = 1;
-  // `cur` is null here (the branch above returned), and the loop breaks as soon
-  // as readCurrent() succeeds, so only the deadline needs re-testing.
   while (Date.now() < deadline) {
     sleep(500);
     cur = readCurrent(c);
     if (cur) break;
+    if (!slowReported && Date.now() - t0 >= SLOW_MS) {
+      // Reported once. A connection with start/slow and neither start/ok nor
+      // start/failed afterwards is one the client abandoned before we were
+      // ready -- otherwise invisible.
+      slowReported = true;
+      emit(c, "start", { result: "slow", coldStart: true, reason: cooling ? "cooldown" : "none", elapsedMs: Date.now() - t0 });
+    }
     // An installer holding the lock is still working: leave it alone.
     if (installerBusy(c)) continue;
-    const failure = failureSince(c, since);
-    if (!failure) continue;        // nothing has failed yet, keep waiting
-    if (attempts < MAX_ATTEMPTS) {
-      // That attempt is done and it failed. Start the next one and only count
-      // failures recorded from here on.
-      since = failure.ts + 1;
+    if (nextAttemptAt) {
+      if (Date.now() < nextAttemptAt) continue;
+      nextAttemptAt = 0;
       if (spawnUpdater(c, spec, { outsideJob: true })) attempts += 1;
-      else { giveUp = failure.reason; break; }
+      else break;
       continue;
     }
+    const failure = failureSince(c, since);
+    if (!failure) continue;        // nothing has failed yet, keep waiting
+    since = failure.ts + 1;
     giveUp = failure.reason;
-    break;
+    const next = Date.now() + BACKOFF[Math.min(attempts - 1, BACKOFF.length - 1)];
+    // Do not schedule an attempt that would start after the budget: report now.
+    if (attempts >= MAX_ATTEMPTS || next > failDeadline) break;
+    nextAttemptAt = next;
   }
   if (!cur) {
     FLUSH_ON_EXIT = true;
-    const reason = giveUp || lastFailureReason(c, t0);
+    recordColdFailure(c);
+    const base = giveUp || lastFailureReason(c, t0);
+    const reason = cooling ? `cooldown/${base}`.slice(0, 80) : base;
     // No old version exists, so this is a start failure, not a fallback.
     emit(c, "start", {
       result: "failed", reason,
@@ -1229,6 +1573,7 @@ function main() {
 
 if (require.main === module) main();
 module.exports = {
+  main, cmpVersion, REGISTRIES, viaFor,
   collectUpdaterEnv, stripUserinfo, npmCli, classify, npmFailureReason,
   computeDeviceId, deviceId, failureDetail, exitFact, detailPhrase,
   startFailureMessage, DIRECT_INSTALL_SCRIPT, DIRECT_RESOLVE_SCRIPT,

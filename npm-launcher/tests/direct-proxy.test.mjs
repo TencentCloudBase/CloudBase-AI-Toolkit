@@ -261,10 +261,11 @@ console.log("\n[5] resolve and install both go through the two-attempt plan");
   const src = fs.readFileSync(INDEX, "utf8");
   const calls = (needle) => src.split("\n").filter((l) =>
     l.includes(needle) && !l.trimStart().startsWith("function ")).length;
-  check(calls("directResolveBoth(c)") === 2,
-    "both resolve paths call directResolveBoth", `calls=${calls("directResolveBoth(c)")}`);
-  check(calls("directInstallBoth(c, version, tmp)") === 2,
-    "both install paths call directInstallBoth", `calls=${calls("directInstallBoth(c, version, tmp)")}`);
+  // 1.3.0 walks a registry chain, so each call site passes a registry too.
+  check(calls("directResolveBoth(c, REGISTRIES[i]") === 2,
+    "both resolve paths call directResolveBoth", `calls=${calls("directResolveBoth(c, REGISTRIES[i]")}`);
+  check(calls("directInstallBoth(c, version, tmp, REGISTRIES[i]") === 2,
+    "both install paths call directInstallBoth", `calls=${calls("directInstallBoth(c, version, tmp, REGISTRIES[i]")}`);
   check(/for \(const useProxy of directProxyPlan\(\)\)/.test(src),
     "the attempts are driven by directProxyPlan");
   check(/NODE_USE_ENV_PROXY/.test(src), "the built-in proxy switch is referenced");

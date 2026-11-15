@@ -15,7 +15,33 @@
 
 第一个参数是本包，第二个参数是要运行的包，其后的参数原样转给目标包的 bin。
 
-引用本包时请写固定版本号。本包保持零依赖、单文件，并且尽量不再发版；每次发版都会让所有客户端重写自己的 npx 缓存目录。
+引用本包时请写固定版本号。本包保持零依赖、单文件。1.3.0 起 launcher 可以在后台自更新，客户端配置里的固定版本号不用跟着改。
+
+## 1.3.0 新增行为
+
+冷启动不再三次失败就退出：后台安装连续失败时按退避（2s / 5s / 10s）继续尝试，直到等待预算用完；正在安装的版本一律等到装完。等待超过 8 秒会上报一次 `start/slow`；如果之后没有 `start/ok` 或 `start/failed`，说明客户端在就绪前就断开了连接。
+
+安装按源依次尝试：腾讯镜像（默认）→ npmmirror → registry.npmjs.org，每档有独立的解析与下载超时，成功后在 `reason` 里记下实际走的源。设置 `NGE_REGISTRY` 时只用该源，不自动切换，供企业内网使用。
+
+热启动增加三道兜底：某个版本连续两次在启动后 5 秒内非 0 退出，就隔离该版本并回退到上一个可用版本；`current` 指向的目录缺 bin 或包描述损坏时，直接用次新可用版本启动；连续冷启动失败进入冷却，冷却期内每个连接只尝试一次，装成功后自动解除。Node 低于 18 时不安装，直接在 stderr 提示升级。
+
+自更新在热启动时后台进行，只采用 `stable` 标签下**同主版本、发布满 72 小时、通过自检**的版本；维护者把 `stable` 拨回旧版本即可回滚。设置 `NGE_SELF_UPDATE=0` 可关闭。
+
+### 新增环境变量
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `NGE_REGISTRIES` | 未设置 | 逗号分隔的备用源链，覆盖默认三档 |
+| `NGE_COLD_RESOLVE_MS` | `15000` | 单档解析版本的最长等待（毫秒） |
+| `NGE_COLD_INSTALL_MS` | `90000` | 单档直装的最长等待（毫秒） |
+| `NGE_COLD_NPM_MS` | `90000` | 冷启动时 npm 回退的最长等待（毫秒） |
+| `NGE_SLOW_MS` | `8000` | 超过这个时间上报一次 `start/slow` |
+| `NGE_FAIL_BUDGET` | `30000` | 每次尝试都秒级失败时，继续重试的总时长 |
+| `NGE_CRASH_WINDOW` | `5000` | 启动后这个时间内非 0 退出算崩溃 |
+| `NGE_SELF_UPDATE` | `1` | 设为 `0` 关闭自更新 |
+| `NGE_SELF_MIN_AGE` | `259200000` | 自更新只采用发布满这个毫秒数的版本 |
+
+遥测仍用原来的 12 个字段，只新增枚举值：`result=slow`，`reason=crash-rollback` / `node-unsupported` / `cooldown` / `quarantined` / `selftest`；成功行的 `reason` 记为 `direct` / `direct-m2` / `direct-m3` / `npm`。目录里新增 `quarantine`、`crashes`、`cooldown` 三个记录文件，含义发布后同样冻结。`tests/resilience.test.mjs` 与 `tests/self-update.test.mjs` 覆盖上述行为。
 
 ## 行为
 

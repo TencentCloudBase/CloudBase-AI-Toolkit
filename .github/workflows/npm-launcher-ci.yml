@@ -56,3 +56,32 @@ jobs:
       # cannot live in the launcher's own suite.
       - name: Check direct-install precondition
         run: node tests/launcher-direct-install-precondition.test.mjs
+
+  # Node 16 is outside `engines`, but the launcher must still load there and
+  # tell the user to upgrade instead of crashing with a SyntaxError.
+  node16:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "16"
+
+      - name: Node 16 gets a clear upgrade message
+        working-directory: ./npm-launcher
+        env:
+          NGE_TELEMETRY: "0"
+        run: |
+          set +e
+          export NGE_ROOT="$RUNNER_TEMP/nge16"
+          out=$(node index.js @cloudbase/cloudbase-mcp@latest 2>&1 </dev/null)
+          code=$?
+          set -e
+          echo "$out"
+          test "$code" = "1"
+          echo "$out" | grep -q "needs Node.js 18 or newer"
+          # Nothing was installed or downloaded.
+          test -z "$(ls -A "$NGE_ROOT/_cloudbase_cloudbase-mcp_latest/versions" 2>/dev/null)"
