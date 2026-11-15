@@ -53,6 +53,7 @@
     "test:gateway:cloud": "node ./scripts/verify-gateway-route-cloud-smoke.mjs",
     "test:cli:cloud-mode": "node ./scripts/verify-cli-cloud-mode-smoke.mjs",
     "test:npm:tarball-smoke": "node ./scripts/verify-npm-tarball-smoke.mjs",
+    "test:lib:minify-parity": "node ./scripts/verify-lib-minify-parity.mjs",
     "check:i18n": "node ./scripts/check-i18n-coverage.mjs",
     "update:i18n-baseline": "node ./scripts/check-i18n-coverage.mjs --update",
     "test:inspector": "npm run build && npx @modelcontextprotocol/inspector node ./dist/cli.cjs",
@@ -61,6 +62,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.map",
     "README.md",
     "server.json"
   ],

@@ -67,6 +67,13 @@ jobs:
         # workflow (Test package + Test hooks).
         run: pnpm exec vitest run src
 
+      - name: Library minify parity
+        # dist/index.cjs is imported by code (enterprise wrappers, hosted
+        # services). Rebuild an unminified copy and prove the export surface,
+        # tool list and a sample tool call are identical.
+        working-directory: ./mcp
+        run: PARITY_REUSE_DIST=1 pnpm run test:lib:minify-parity
+
       - name: Smoke CLI cloud-mode
         working-directory: ./mcp
         run: pnpm run test:cli:cloud-mode
@@ -112,6 +119,15 @@ jobs:
             exit 0
           fi
           exit "$CODE"
+
+      - name: Upload library source maps
+        # Source maps are excluded from the npm package (see package.json
+        # "files") to keep the download small; keep them with the run instead.
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cloudbase-mcp-sourcemaps-${{ steps.pkg_version.outputs.version }}
+          path: mcp/dist/*.map
+          retention-days: 90
 
       - name: Publish to npm
         working-directory: ./mcp

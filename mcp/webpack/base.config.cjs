@@ -64,7 +64,8 @@ function createBaseConfig() {
       }),
     ],
     optimization: {
-      minimize: false, // 启用压缩来减小文件体积
+      // 默认不压缩；库入口（library.config.cjs / terser.cjs）与 CLI（cli.config.cjs）各自开启
+      minimize: false,
     },
     stats: {
       warnings: false, // 忽略循环依赖警告
