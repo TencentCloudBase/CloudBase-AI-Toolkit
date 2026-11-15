@@ -316,6 +316,15 @@ Key points:
 - Store only the bucket + key (or the resolved URL) in the business table; never concatenate URLs by hand in browser code.
 - Add an `onerror` fallback in the display layer (e.g. degrade to a signed URL if the direct link is blocked) instead of hard-depending on one flow. See `cloud-storage-web/SKILL.md`.
 
+### Signed downloads: object metadata and response cache headers
+
+Do not assume that `storage.objects` metadata read by `info()` determines the final response headers of a private signed download. Object metadata and edge-cache headers are separate: an object may report `cacheControl: "no-store"` while a signed GET response carries an edge `s-maxage` value.
+
+- `cacheNonce` makes a signed URL unique so a request does not reuse the same edge-cache entry. It changes the URL, not the response's `Cache-Control` header. See the [Web v3 Storage API](https://docs.cloudbase.net/api-reference/webv3/storage).
+- The HTTP Gateway `CacheTime` option maps to `s-maxage`; `MaxAgeTime` maps to browser `max-age`. These rules apply to configured custom domains, not as a general override for the final response of every signed storage URL. The `NoCache` gateway option returns `no-cache`, which is different from `no-store`. See [HTTP Gateway cache configuration](https://docs.cloudbase.net/service/cache).
+- The public SDK/API documentation does not define an option to override the final signed-download response to `Cache-Control: no-store`. Do not treat `fetch(..., { cache: "no-store" })` as a response-header override; it controls the browser's local cache behavior.
+- If the **file response itself** must include `Cache-Control: no-store`, proxy the private object through your backend: authorize the caller, fetch the object using server-side credentials, then set the response header on the backend response. Keep `service_role` credentials server-side. This adds an application hop and does not provide a direct signed URL.
+
 ## Typical Pattern: Upload + Register Metadata
 
 这是你在 CRM 等业务中需要完整遵循的「三步走」模式（对应 Supabase 的 storage + 业务表分离模式）：
