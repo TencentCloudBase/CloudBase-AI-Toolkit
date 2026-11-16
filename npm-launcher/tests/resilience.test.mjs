@@ -10,6 +10,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { startMockRegistry } from "./mock-registry.mjs";
 import { removeTempRoot } from "./cleanup.mjs";
@@ -208,6 +209,15 @@ try {
     const ok = await launch(root, [SPEC, "--sleep", "10"], { NGE_REGISTRY: a.url });
     check(ok.code === 0 && /TARGET_OK/.test(ok.out), "a working network still heals in cooldown");
     check(!fs.existsSync(path.join(base(root), "cooldown")), "success clears the cooldown");
+  }
+  console.log("\n[9] only a real non-zero exit counts as a crash");
+  {
+    const { crashExit } = createRequire(import.meta.url)(INDEX);
+    check(crashExit(1, null, 100) === true, "a fast non-zero exit counts");
+    check(crashExit(0, null, 100) === false, "a clean exit does not count");
+    check(crashExit(null, "SIGKILL", 100) === false, "a signal exit does not count");
+    check(crashExit(1, "SIGKILL", 100) === false, "a code alongside a signal does not count");
+    check(crashExit(1, null, 6000) === false, "a late exit does not count", "CRASH_WINDOW=5000");
   }
 } finally {
   a.close();

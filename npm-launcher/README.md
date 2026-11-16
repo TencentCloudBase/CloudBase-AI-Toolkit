@@ -15,7 +15,7 @@
 
 第一个参数是本包，第二个参数是要运行的包，其后的参数原样转给目标包的 bin。
 
-引用本包时请写固定版本号。本包保持零依赖、单文件。1.3.0 起 launcher 可以在后台自更新，客户端配置里的固定版本号不用跟着改。
+引用本包时请写固定版本号。本包保持零依赖、单文件。设备升级到 1.3.0 之后，后续 launcher 修复由后台自更新送达，配置里的固定版本号不用再改；从 1.0.0 / 1.1.0 / 1.2.0 首次升级仍需修改配置。
 
 ## 1.3.0 新增行为
 
@@ -25,7 +25,7 @@
 
 热启动增加三道兜底：某个版本连续两次在启动后 5 秒内非 0 退出，就隔离该版本并回退到上一个可用版本；`current` 指向的目录缺 bin 或包描述损坏时，直接用次新可用版本启动；连续冷启动失败进入冷却，冷却期内每个连接只尝试一次，装成功后自动解除。Node 低于 18 时不安装，直接在 stderr 提示升级。
 
-自更新在热启动时后台进行，只采用 `stable` 标签下**同主版本、发布满 72 小时、通过自检**的版本；维护者把 `stable` 拨回旧版本即可回滚。设置 `NGE_SELF_UPDATE=0` 可关闭。
+自更新在热启动时后台进行，只采用 `stable` 标签下**同主版本、发布满 72 小时、通过自检**的版本；维护者把 `stable` 拨回旧版本即可回滚。设置 `NGE_SELF_UPDATE=0` 可关闭。`stable` 标签由维护者在版本发布后手动提升，还没建立时后台检查会跳过，隔 6 小时再试。
 
 ### 新增环境变量
 
@@ -39,9 +39,10 @@
 | `NGE_FAIL_BUDGET` | `30000` | 每次尝试都秒级失败时，继续重试的总时长 |
 | `NGE_CRASH_WINDOW` | `5000` | 启动后这个时间内非 0 退出算崩溃 |
 | `NGE_SELF_UPDATE` | `1` | 设为 `0` 关闭自更新 |
+| `NGE_SELF_CHECK_MS` | `21600000` | 检查 launcher 自身 `stable` 标签的间隔（毫秒），默认 6 小时 |
 | `NGE_SELF_MIN_AGE` | `259200000` | 自更新只采用发布满这个毫秒数的版本 |
 
-遥测仍用原来的 12 个字段，只新增枚举值：`result=slow`，`reason=crash-rollback` / `node-unsupported` / `cooldown` / `quarantined` / `selftest`；成功行的 `reason` 记为 `direct` / `direct-m2` / `direct-m3` / `npm`。目录里新增 `quarantine`、`crashes`、`cooldown` 三个记录文件，含义发布后同样冻结。`tests/resilience.test.mjs` 与 `tests/self-update.test.mjs` 覆盖上述行为。
+遥测仍用原来的 12 个字段，只新增枚举值：`result=slow`，`reason=crash-rollback` / `node-unsupported` / `cooldown` / `quarantined` / `selftest`；成功行的 `reason` 记为 `direct` / `direct-m2` / `direct-m3` / `npm`。目录里新增 `quarantine`、`crashes`、`cooldown` 三个记录文件，含义发布后同样冻结。`tests/resilience.test.mjs` 与 `tests/self-update.test.mjs` 覆盖上述行为。`start/slow` 表示还在安装，不是失败：同一次连接随后还会写 `start/ok` 或 `start/failed`，按设备统计失败时只数 `result=failed`。
 
 ## 行为
 

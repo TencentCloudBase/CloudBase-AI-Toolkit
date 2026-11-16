@@ -76,6 +76,10 @@ const CRASH_WINDOW = num(process.env.NGE_CRASH_WINDOW, 5000);
 // and only versions published at least this long ago.
 const SELF_UPDATE = process.env.NGE_SELF_UPDATE !== "0";
 const SELF_MIN_AGE = num(process.env.NGE_SELF_MIN_AGE, 72 * 3600e3);
+// The launcher's own `stable` tag changes rarely, and an absent tag would
+// otherwise cause a registry lookup plus an update/skipped row every few
+// minutes on every machine. Check it on a much longer cadence.
+const SELF_CHECK_INTERVAL = num(process.env.NGE_SELF_CHECK_MS, 6 * 3600e3, true);
 
 // Telemetry is on by default. NGE_TELEMETRY=0 / DO_NOT_TRACK turn off the
 // network call only; local events.jsonl is always written for --nge-diag.
@@ -1315,11 +1319,19 @@ function startFailureMessage(c, spec, reason) {
   ].join("\n");
 }
 
-function needCheck(c) {
+function needCheck(c, interval = CHECK_INTERVAL) {
   let last = NaN;
   try { last = Number(firstLine(fs.readFileSync(c.stamp, "utf8"))); } catch {}
   const now = Date.now();
-  return !Number.isFinite(last) || now - last > CHECK_INTERVAL || last > now + 60e3;
+  return !Number.isFinite(last) || now - last > interval || last > now + 60e3;
+}
+
+// Only a child that really exits non-zero inside the crash window is a broken
+// release. A signal (SIGKILL, Ctrl-C, a client killing the process) has no
+// numeric code, and a clean disconnect exits 0; neither may quarantine a
+// working version.
+function crashExit(code, signal, elapsedMs) {
+  return typeof code === "number" && code !== 0 && !signal && elapsedMs < CRASH_WINDOW;
 }
 
 function run(c, version, bin, args) {
@@ -1344,8 +1356,7 @@ function run(c, version, bin, args) {
   try { settle.unref(); } catch {}
   child.on("exit", (code, signal) => {
     const status = code ?? (signal ? 1 : 0);
-    if (typeof code === "number" && code !== 0 && Date.now() - spawnedAt < CRASH_WINDOW
-        && crashedAgain(c, version)) {
+    if (crashExit(code, signal, Date.now() - spawnedAt) && crashedAgain(c, version)) {
       FLUSH_ON_EXIT = true;
       setTimeout(() => process.exit(status), TELEMETRY_TIMEOUT + 200);
       return;
@@ -1475,7 +1486,7 @@ function main() {
     if (SELF_UPDATE && !process.env.NGE_DELEGATED) {
       try {
         const lc = context(LAUNCHER_STABLE_SPEC);
-        if (needCheck(lc)) {
+        if (needCheck(lc, SELF_CHECK_INTERVAL)) {
           try { fs.writeFileSync(lc.stamp, String(Date.now())); } catch {}
           spawnUpdater(lc, LAUNCHER_STABLE_SPEC);
         }
@@ -1578,4 +1589,5 @@ module.exports = {
   computeDeviceId, deviceId, failureDetail, exitFact, detailPhrase,
   startFailureMessage, DIRECT_INSTALL_SCRIPT, DIRECT_RESOLVE_SCRIPT,
   envProxySupported, proxyConfigured, directProxyPlan, directSpawnOpts,
+  crashExit,
 };

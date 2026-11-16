@@ -59,7 +59,7 @@ reg.publishLauncher(V_THROWS, newer(V_THROWS).replace(/(function main\(\) \{\n[^
 function env(root, extra = {}) {
   return {
     ...process.env, NGE_ROOT: root, NGE_REGISTRY: reg.url, NGE_TELEMETRY: "0",
-    NGE_CHECK_INTERVAL: "3600000", NGE_SELF_UPDATE: "1",
+    NGE_CHECK_INTERVAL: "3600000", NGE_SELF_CHECK_MS: "0", NGE_SELF_UPDATE: "1",
     npm_config_cache: path.join(root, ".npmcache"), ...extra,
   };
 }
