@@ -7,7 +7,7 @@ export const gateway = defineModule(
       "CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路径路由及其上游：WEB_SCF/SCF=云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器。主键为 Domain + Path；listRoutes / getRoute / listCustomDomains / getPrivilege / cachePurgeTask。getPrivilege 查询 HTTP 网关总开关（enableService）与访问鉴权（enableAuth）状态。cachePurgeTask 查询域名缓存清除任务（先 manageGateway purgeCache 拿 TaskId）。实现自定义域名访问前，先 listCustomDomains：若已有自定义域名，优先 createRoute 挂路由（无需证书 ID）；仅在没有可用自定义域名时才 bindCustomDomain。",
     "manage.title": "管理 CloudBase 网关",
     "manage.description":
-      "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）。未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.{region}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action=\"disableRoute\", domain=该域名, path=\"/\")；勿用 manageHosting。创建后可用 queryGateway(action=\"listRoutes\") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器；配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore/云存储实例名）。createRoute 只建网关入口，不改上游权限。enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain（certificateId 可选：未传时按域名自动检索证书，单证书自动选用、多证书返回选择指引）。createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名（浏览器跨域白名单，与本工具的网关自定义域名无关）用 manageEnv(action=addSecurityDomain/removeSecurityDomain)。enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。purgeCache：清除域名缓存（CDN/EO，按 URL/前缀/整站），返回 TaskId 后用 queryGateway cachePurgeTask 查进度。路由级还支持 enableSafeDomain（跨域/合法域名校验）、pathRewrite（路径重写）、qpsPolicy（限频）、extension（自定义请求/响应头与缓存规则）；域名级支持 protocol 与 domainExtension。updateRoute 只传要改的字段即可，未传的 CORS/重写/限频/扩展配置会保持原值。",
+      "CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权；purgeCache 清除域名缓存（返回 TaskId 后用 queryGateway cachePurgeTask 查进度）。未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.{region}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action=\"disableRoute\", domain=该域名, path=\"/\")；勿用 manageHosting。创建后可用 queryGateway(action=\"listRoutes\") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器；配合 targetName 或 route.serviceName 指定上游实例。createRoute 只建网关入口，不改上游权限。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain。createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名（浏览器跨域白名单，与本工具的网关自定义域名无关）用 manageEnv(action=addSecurityDomain/removeSecurityDomain)。createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。updateRoute 只传要改的字段即可，未传的 CORS/重写/限频/扩展配置会保持原值。",
     "verify.failWithDns":
       "HTTP 服务域名配置预检未通过：域名归属权校验失败。请按 data.checks 中 ownership.dnsRecords 配置 DNS TXT 记录后重试。",
     "verify.fail":
@@ -177,17 +177,7 @@ export const gateway = defineModule(
     "schema.query.offset": "分页偏移（仅 cachePurgeTask，可选）",
     "schema.query.limit": "返回数量上限（仅 cachePurgeTask，可选）",
     "schema.manage.action":
-      "写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）；" +
-      "bindCustomDomain/deleteCustomDomain 管理自定义域名；" +
-      "enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。" +
-      "createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 会先 listRoutes 定位已有路由，通常不必重填上游。" +
-      "updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。" +
-      "关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path=\"/\"。" +
-      "已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；" +
-      "bindCustomDomain 仅用于首次绑定新域名（certificateId 可选，未传则按域名自动检索；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。" +
-      "createRoute/bindCustomDomain 创建前会 VerifyHTTPServiceRoute 预检；失败时按返回的 DNS TXT 指引配置后重试。" +
-      "purgeCache 清除域名缓存：需 domain 与 targets（配 purgeType=PURGE_URL|PURGE_PREFIX|PURGE_HOST，可选 cacheType=CDN|EO）。" +
-      "接入说明：https://docs.cloudbase.net/service/custom-domain",
+      "写操作。createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 需 path（建议显式传 domain），会先定位已有路由，通常不必重填上游；enableService/authSwitch 需配合 enable；purgeCache 需 domain 与 targets。自定义域名接入说明：https://docs.cloudbase.net/service/custom-domain",
     "schema.manage.targetName":
       "上游资源名称（UpstreamResourceName），与 route.serviceName 二选一（route 优先）。" +
       "云函数=函数名；云托管=服务名；静态托管=实例名（常见 staticstore）。不会自动推断上游类型。",
@@ -195,10 +185,7 @@ export const gateway = defineModule(
       "触发路径（网关匹配前缀），默认 /{上游名}。例：云函数 /api/hello、云托管 /api、静态托管 / 或 /app。" +
       "只建网关入口；与 enablePathTransmission 共同决定上游实际收到的路径。",
     "schema.manage.upstreamResourceType":
-      "上游类型（与 route.upstreamResourceType 二选一，route 优先）。" +
-      "WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器。" +
-      "STORAGE 的 UpstreamResourceName 是云存储实例名，可先用 queryStorage 查实例。" +
-      "createRoute/updateRoute 必填其一；勿把 manageFunctions 的 type=HTTP|Event 传到本字段。",
+      "上游类型（与 route.upstreamResourceType 二选一，route 优先）。STORAGE 的上游名是云存储实例名，可先用 queryStorage 查实例。勿把 manageFunctions 的 type=HTTP|Event 传到本字段。",
     "schema.manage.auth":
       "网关路径鉴权（EnableAuth）。匿名/浏览器公网访问通常 false。" +
       "只控制网关入口；云函数安全规则、云托管鉴权、静态托管权限需各自工具另行配置。",
@@ -219,28 +206,20 @@ export const gateway = defineModule(
       "限频（QPSPolicy），即控制台的「频限」。{total:总 QPS, perClient:{limitBy:\"ClientIP\"|\"UserID\", limitValue:单客户端 QPS}}。" +
       "不传则不限频；也可用 route.qpsPolicy（route 优先）。",
     "schema.manage.extension":
-      "路由级扩展（Extension），可配自定义请求/响应头与缓存规则。" +
-      "{headersHandler:{requestHeadersToAdd,requestHeadersToRemove,responseHeadersToAdd,responseHeadersToRemove}," +
-      "cache:{rules:[{description,enable,condition:{target,matchType,values},actions:[{type:\"Cache\"|\"CacheKey\",cache,cacheKey}]}]}}。" +
-      "⚠️ 默认域（*.{region}.app.tcloudbase.com）不支持自定义响应头，后端会拒绝（实测 2026-10-21），需要自定义域名才能配。" +
-      "也可用 route.extension（route 优先）。",
+      "路由级扩展：自定义请求/响应头与缓存规则。⚠️ 默认域（*.{region}.app.tcloudbase.com）不支持自定义响应头，需要自定义域名。也可用 route.extension（route 优先）。",
     "schema.manage.extension.header.key": "请求/响应头名称，如 X-Frame-Options",
     "schema.manage.extension.header.value": "请求/响应头取值，如 SAMEORIGIN",
     "schema.manage.extension.header.action":
-      "写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；" +
-      "OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的",
+      "写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的",
     "schema.manage.extension.cacheCondition":
-      "缓存规则匹配条件：target=url_path/file_extension/full_uri，matchType=prefix/suffix/contains/exact，values=匹配值数组",
+      "缓存规则匹配条件，values 为匹配值数组",
     "schema.manage.extension.cacheActions":
       "缓存动作数组：type=Cache 配 cache{followOrigin,noCache,cacheTime,maxAgeTime}（三者互斥，需开启其一）；" +
       "type=CacheKey 配 cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}",
     "schema.manage.domainExtension":
-      "域名级扩展（Extension），作用于整个域名（含该域名下所有路径）的自定义头与缓存规则，结构同 extension。" +
-      "缓存规则通常配在域名级；仅 createRoute/updateRoute/bindCustomDomain 生效。" +
-      "⚠️ 同 extension：默认域不支持自定义响应头，需自定义域名。",
+      "域名级扩展，作用于整个域名（含所有路径），结构同 extension。缓存规则通常配在域名级；仅 createRoute/updateRoute/bindCustomDomain 生效。⚠️ 同 extension：默认域不支持自定义响应头。",
     "schema.manage.protocol":
-      "域名协议（Protocol），仅 createRoute/updateRoute/bindCustomDomain 生效：" +
-      "HTTP / HTTPS / HTTP_AND_HTTPS / HTTP_TO_HTTPS / HTTPS_TO_HTTP。省略则沿用域名现有配置。",
+      "域名协议，仅 createRoute/updateRoute/bindCustomDomain 生效。省略则沿用域名现有配置。",
     "schema.manage.route.serviceName":
       "上游实例名：云函数名 / 云托管服务名 / 静态托管实例名（常见 staticstore）/ LH 实例。优先于顶层 targetName。",
     "schema.manage.route.upstreamResourceType":
@@ -248,10 +227,7 @@ export const gateway = defineModule(
     "schema.manage.route.enablePathTransmission":
       "同顶层 enablePathTransmission。route 内设置时优先于顶层。",
     "schema.manage.route.enable":
-      "路由级开关（Routes[].Enable / Route.Enable）。createRoute/updateRoute 可用：" +
-      "enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；" +
-      "enable=true 重新启用。updateRoute 也可用顶层 enable 表达同一语义；" +
-      "也可用专用 action enableRoute/disableRoute。route.enable 优先于顶层 enable。",
+      "路由级开关。enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；enable=true 重新启用。优先于顶层 enable。",
     "schema.manage.route.enableSafeDomain":
       "同顶层 enableSafeDomain（跨域/合法域名校验）。route 内设置时优先于顶层。",
     "schema.manage.route.pathRewrite":
@@ -266,11 +242,7 @@ export const gateway = defineModule(
       "静态托管 {upstreamResourceType:\"STATIC_STORE\",serviceName:\"staticstore\",path:\"/\"}；" +
       "禁用路由 {path:\"/\",enable:false}（配合 updateRoute，或直接用 disableRoute）。",
     "schema.manage.domain":
-      "域名。省略时自动使用环境 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（*.{region}.app.tcloudbase.com），不会回退到静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）；也不是 STATIC_STORE 上游绑定。" +
-      "可用 queryGateway(action=\"listRoutes\") 核对实际 Domain / DomainType。" +
-      "enableRoute/disableRoute 操作 *.tcloudbaseapp.com 时必须显式传入该域名。" +
-      "已有自定义域名时请显式传入该域名并 createRoute/updateRoute/deleteRoute，即可实现自定义域名访问且无需证书 ID；" +
-      "仅 bindCustomDomain 时表示要新绑定的域名。",
+      "域名。省略时自动使用环境 DomainType=HTTPSERVICE 的默认 HTTP 域名（*.{region}.app.tcloudbase.com），可用 queryGateway(action=\"listRoutes\") 核对。enableRoute/disableRoute 操作 *.tcloudbaseapp.com 时必须显式传入该域名。已有自定义域名时显式传入该域名即可配路由，无需证书 ID；仅 bindCustomDomain 时表示要新绑定的域名。",
     "schema.manage.certificateId":
       "证书 ID。仅 bindCustomDomain 使用：显式传入时跳过自动检索；" +
       "省略时按 domain 调用 describeCertificates(SearchKey=domain)——" +
@@ -285,11 +257,7 @@ export const gateway = defineModule(
       "不是 DNS 里用户域名要解析到的那个 CNAME；DIRECT/CDN 不要传。" +
       "详见 https://docs.cloudbase.net/service/custom-domain",
     "schema.manage.enable":
-      "开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；" +
-      "bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）；" +
-      "updateRoute 可选：映射到 Routes[].Enable（也可用 route.enable，route 优先；" +
-      "也可用专用 action enableRoute/disableRoute）。" +
-      "省略或非布尔值在 enableService/authSwitch 会返回参数错误。",
+      "开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；bindCustomDomain 可选，false 表示绑定后禁用域名；updateRoute 可选，映射到 Routes[].Enable（route.enable 优先）。",
     "schema.manage.cacheType":
       "缓存层（仅 purgeCache）：CDN 或 EO。省略时按域名接入方式自动匹配（EO→EO、CDN→CDN）；" +
       "DIRECT / CUSTOM / NONE 的域没有 CloudBase 托管的缓存，会直接拒绝并说明原因。",
@@ -304,7 +272,7 @@ export const gateway = defineModule(
       "Unified read-only entry for the CloudBase HTTP gateway (Domain/Route). Query path routes under a domain and their upstreams: WEB_SCF/SCF=cloud functions, CBR=CloudRun, STATIC_STORE=static hosting, STORAGE=cloud storage, LH=Lighthouse. The primary key is Domain + Path; listRoutes / getRoute / listCustomDomains / getPrivilege / cachePurgeTask. getPrivilege queries the HTTP gateway master switch (enableService) and access auth (enableAuth) status. cachePurgeTask queries cache purge tasks for a domain (use the TaskId from manageGateway purgeCache). Before setting up custom domain access, run listCustomDomains first: if a custom domain already exists, prefer createRoute to attach a route (no certificate ID needed); use bindCustomDomain only when no usable custom domain exists.",
     "manage.title": "Manage CloudBase Gateway",
     "manage.description":
-      "Unified write entry for the CloudBase HTTP gateway (Domain/Route). createRoute/updateRoute/deleteRoute forward a path under a domain to an upstream; enableRoute/disableRoute enable or disable existing routes (Routes[].Enable of ModifyHTTPServiceRoute underneath, not ModifyGatewayRoute). When domain is omitted, the IsDefault default HTTP domain with DomainType=HTTPSERVICE (like *.{region}.app.tcloudbase.com) is used; static-hosting CDN domains (*.tcloudbaseapp.com, DomainType=STATIC_STORE) are never used. These are path routes on the gateway default domain, not STATIC_STORE upstream bindings; a STATIC_STORE upstream must pass upstreamResourceType=STATIC_STORE explicitly. To disable the static-hosting default domain (*.tcloudbaseapp.com): first queryGateway(listRoutes) to find the domain with DomainType=STATIC_STORE and IsDefault=true, then manageGateway(action=\"disableRoute\", domain=that domain, path=\"/\"); do not use manageHosting. After creation, verify Domain / DomainType / Path / UpstreamResourceType via queryGateway(action=\"listRoutes\"). The upstream type uses a single parameter upstreamResourceType (or route.upstreamResourceType, route wins): WEB_SCF=HTTP cloud function, SCF=Event cloud function, CBR=CloudRun, STATIC_STORE=static hosting, STORAGE=cloud storage, LH=Lighthouse; together with targetName or route.serviceName (function name / CloudRun service name / static-hosting instance name, commonly staticstore / cloud storage instance name). createRoute only creates the gateway entry and does not change upstream permissions. enablePathTransmission: default false strips the trigger path prefix; true forwards the full path (CBR multi-route and WEB_SCF self-managed sub-paths often need true; STATIC_STORE custom trigger path mapping to site root usually false). ⚠️ Custom domain access: if the env already has a custom domain (queryGateway listCustomDomains first), prefer createRoute with that domain explicitly, no certificateId needed; use bindCustomDomain only when binding a brand-new custom domain for the first time (certificateId optional: when omitted, certificates are auto-searched by domain — a single cert is auto-selected, multiple certs return selection guidance). createRoute / bindCustomDomain call VerifyHTTPServiceRoute for ownership pre-checks before creation (probe → create); on failure, data.checks and DNS TXT guidance are returned; configure and retry. CORS/security domains (browser cross-origin allowlist, unrelated to the gateway custom domains of this tool) use manageEnv(action=addSecurityDomain/removeSecurityDomain). enableService/authSwitch: HTTP gateway master switch and access auth switch; if access returns HTTPSERVICE_NONACTIVATED after createRoute, the master switch is usually off (query via queryGateway getPrivilege, enable via enableService). purgeCache clears domain cache (CDN/EO by URL/prefix/host) and returns a TaskId; check progress with queryGateway cachePurgeTask. Route-level extras: enableSafeDomain (CORS / legit-domain check), pathRewrite (path rewriting), qpsPolicy (rate limiting), extension (custom request/response headers and cache rules); domain-level: protocol and domainExtension. updateRoute only needs the fields you want to change — untouched CORS/rewrite/QPS/extension settings are carried over from the live route.",
+      "Unified write entry for the CloudBase HTTP gateway (Domain/Route). createRoute/updateRoute/deleteRoute forward a path under a domain to an upstream; enableRoute/disableRoute enable or disable existing routes (Routes[].Enable of ModifyHTTPServiceRoute underneath, not ModifyGatewayRoute); bindCustomDomain/deleteCustomDomain manage custom domains; enableService/authSwitch toggle the HTTP gateway master switch and access auth; purgeCache clears domain cache (returns a TaskId; check progress with queryGateway cachePurgeTask). When domain is omitted, the IsDefault default HTTP domain with DomainType=HTTPSERVICE (like *.{region}.app.tcloudbase.com) is used; static-hosting CDN domains (*.tcloudbaseapp.com, DomainType=STATIC_STORE) are never used. These are path routes on the gateway default domain, not STATIC_STORE upstream bindings; a STATIC_STORE upstream must pass upstreamResourceType=STATIC_STORE explicitly. To disable the static-hosting default domain (*.tcloudbaseapp.com): first queryGateway(listRoutes) to find the domain with DomainType=STATIC_STORE and IsDefault=true, then manageGateway(action=\"disableRoute\", domain=that domain, path=\"/\"); do not use manageHosting. After creation, verify Domain / DomainType / Path / UpstreamResourceType via queryGateway(action=\"listRoutes\"). The upstream type uses a single parameter upstreamResourceType (or route.upstreamResourceType, route wins), together with targetName or route.serviceName for the upstream instance. createRoute only creates the gateway entry and does not change upstream permissions. ⚠️ Custom domain access: if the env already has a custom domain (queryGateway listCustomDomains first), prefer createRoute with that domain explicitly, no certificateId needed; use bindCustomDomain only when binding a brand-new custom domain for the first time. createRoute / bindCustomDomain run VerifyHTTPServiceRoute ownership pre-checks before creation; on failure, data.checks and DNS TXT guidance are returned; configure and retry. CORS/security domains (browser cross-origin allowlist, unrelated to the gateway custom domains of this tool) use manageEnv(action=addSecurityDomain/removeSecurityDomain). If access returns HTTPSERVICE_NONACTIVATED after createRoute, the master switch is usually off (query via queryGateway getPrivilege, enable via enableService). updateRoute only needs the fields you want to change — untouched CORS/rewrite/QPS/extension settings are carried over from the live route.",
     "verify.failWithDns":
       "HTTP service domain pre-check failed: domain ownership verification failed. Configure the DNS TXT records per ownership.dnsRecords in data.checks, then retry.",
     "verify.fail":
@@ -483,17 +451,7 @@ export const gateway = defineModule(
     "schema.query.offset": "Pagination offset (cachePurgeTask only, optional)",
     "schema.query.limit": "Max records to return (cachePurgeTask only, optional)",
     "schema.manage.action":
-      "Write actions: createRoute/updateRoute/deleteRoute manage routes; enableRoute/disableRoute enable or disable an existing route (path required, passing domain explicitly is recommended); " +
-      "bindCustomDomain/deleteCustomDomain manage custom domains; " +
-      "enableService/authSwitch toggle the HTTP gateway master switch and access auth (requires the enable parameter). " +
-      "createRoute/updateRoute must provide upstreamResourceType; enableRoute/disableRoute run listRoutes first to locate the existing route, so the upstream usually does not need to be repeated. " +
-      "updateRoute can also pass enable/route.enable to change Routes[].Enable directly. " +
-      "To disable the default static-hosting domain *.tcloudbaseapp.com: disableRoute + domain=that STATIC_STORE IsDefault domain + path=\"/\". " +
-      "When a custom domain already exists, prefer createRoute(domain=existing domain) for access instead of calling bindCustomDomain / passing certificateId again; " +
-      "bindCustomDomain is only for binding a new domain the first time (certificateId is optional — when omitted, certificates are searched by domain; optional accessType=DIRECT|CDN|CUSTOM, CUSTOM requires customCname; use the default DIRECT for normal cases). " +
-      "createRoute/bindCustomDomain run a VerifyHTTPServiceRoute pre-check before creation; on failure, follow the returned DNS TXT guidance and retry. " +
-      "purgeCache clears domain cache: requires domain and targets (with purgeType=PURGE_URL|PURGE_PREFIX|PURGE_HOST, optional cacheType=CDN|EO). " +
-      "Setup guide: https://docs.cloudbase.net/service/custom-domain",
+      "Write action. createRoute/updateRoute must provide upstreamResourceType; enableRoute/disableRoute need path (passing domain explicitly is recommended) and locate the existing route first, so the upstream usually does not need to be repeated; enableService/authSwitch require enable; purgeCache requires domain and targets. Custom domain setup guide: https://docs.cloudbase.net/service/custom-domain",
     "schema.manage.targetName":
       "Upstream resource name (UpstreamResourceName); use either this or route.serviceName (route wins). " +
       "Cloud function=function name; CloudRun=service name; static hosting=instance name (commonly staticstore). The upstream type is never inferred automatically.",
@@ -501,10 +459,7 @@ export const gateway = defineModule(
       "Trigger path (the gateway match prefix), defaults to /{upstream name}. Examples: cloud function /api/hello, CloudRun /api, static hosting / or /app. " +
       "This only creates the gateway entry; together with enablePathTransmission it determines the path the upstream actually receives.",
     "schema.manage.upstreamResourceType":
-      "Upstream type (use either this or route.upstreamResourceType, route wins). " +
-      "WEB_SCF=HTTP cloud function, SCF=Event cloud function, CBR=CloudRun, STATIC_STORE=static hosting, STORAGE=cloud storage, LH=Lighthouse. " +
-      "For STORAGE, UpstreamResourceName is the cloud storage instance name — look it up with queryStorage first. " +
-      "One of them is required for createRoute/updateRoute; do not pass the manageFunctions type=HTTP|Event value into this field.",
+      "Upstream type (use either this or route.upstreamResourceType, route wins). For STORAGE, the upstream name is the cloud storage instance name — look it up with queryStorage first. Do not pass the manageFunctions type=HTTP|Event value into this field.",
     "schema.manage.auth":
       "Gateway path auth (EnableAuth). Usually false for anonymous/browser public access. " +
       "It only controls the gateway entry; cloud function security rules, CloudRun auth, and static hosting permissions must be configured with their own tools.",
@@ -526,28 +481,20 @@ export const gateway = defineModule(
       "Rate limiting (QPSPolicy), the console's \"frequency limit\". {total: total QPS, perClient:{limitBy:\"ClientIP\"|\"UserID\", limitValue: per-client QPS}}. " +
       "Omit for no limit; route.qpsPolicy also works (route wins).",
     "schema.manage.extension":
-      "Route-level extension (Extension): custom request/response headers and cache rules. " +
-      "{headersHandler:{requestHeadersToAdd,requestHeadersToRemove,responseHeadersToAdd,responseHeadersToRemove}," +
-      "cache:{rules:[{description,enable,condition:{target,matchType,values},actions:[{type:\"Cache\"|\"CacheKey\",cache,cacheKey}]}]}}. " +
-      "⚠️ The default domain (*.{region}.app.tcloudbase.com) rejects custom response headers (verified 2026-10-21); a custom domain is required. " +
-      "route.extension also works (route wins).",
+      "Route-level extension: custom request/response headers and cache rules. ⚠️ The default domain (*.{region}.app.tcloudbase.com) rejects custom response headers; a custom domain is required. route.extension also works (route wins).",
     "schema.manage.extension.header.key": "Header name, e.g. X-Frame-Options",
     "schema.manage.extension.header.value": "Header value, e.g. SAMEORIGIN",
     "schema.manage.extension.header.action":
-      "Write strategy (optional): APPEND_IF_EXISTS_OR_ADD appends; ADD_IF_ABSENT only adds when missing; " +
-      "OVERWRITE_IF_EXISTS_OR_ADD overwrites or adds; OVERWRITE_IF_EXISTS only overwrites existing",
+      "Write strategy: APPEND_IF_EXISTS_OR_ADD appends; ADD_IF_ABSENT only adds when missing; OVERWRITE_IF_EXISTS_OR_ADD overwrites or adds; OVERWRITE_IF_EXISTS only overwrites existing",
     "schema.manage.extension.cacheCondition":
-      "Cache rule match condition: target=url_path/file_extension/full_uri, matchType=prefix/suffix/contains/exact, values=match value list",
+      "Cache rule match condition; values is the list of match values",
     "schema.manage.extension.cacheActions":
       "Cache action list: type=Cache with cache{followOrigin,noCache,cacheTime,maxAgeTime} (mutually exclusive — enable one); " +
       "type=CacheKey with cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}",
     "schema.manage.domainExtension":
-      "Domain-level extension (Extension) applied to the whole domain (all paths): custom headers and cache rules, same shape as extension. " +
-      "Cache rules usually belong here; only effective for createRoute/updateRoute/bindCustomDomain. " +
-      "⚠️ Same as extension: the default domain rejects custom response headers; a custom domain is required.",
+      "Domain-level extension applied to the whole domain (all paths), same shape as extension. Cache rules usually belong here; only effective for createRoute/updateRoute/bindCustomDomain. ⚠️ Same as extension: the default domain rejects custom response headers.",
     "schema.manage.protocol":
-      "Domain protocol (Protocol), effective for createRoute/updateRoute/bindCustomDomain only: " +
-      "HTTP / HTTPS / HTTP_AND_HTTPS / HTTP_TO_HTTPS / HTTPS_TO_HTTP. Omit to keep the domain's current setting.",
+      "Domain protocol, effective for createRoute/updateRoute/bindCustomDomain only. Omit to keep the domain's current setting.",
     "schema.manage.route.serviceName":
       "Upstream instance name: cloud function name / CloudRun service name / static-hosting instance name (commonly staticstore) / LH instance. Takes precedence over the top-level targetName.",
     "schema.manage.route.upstreamResourceType":
@@ -555,10 +502,7 @@ export const gateway = defineModule(
     "schema.manage.route.enablePathTransmission":
       "Same as the top-level enablePathTransmission. When set inside route, it takes precedence over the top level.",
     "schema.manage.route.enable":
-      "Route-level switch (Routes[].Enable / Route.Enable). Available for createRoute/updateRoute: " +
-      "enable=false disables this Domain+Path (access returns GATEWAY_ROUTE_DISABLED); " +
-      "enable=true re-enables it. updateRoute can express the same semantics with the top-level enable; " +
-      "the dedicated actions enableRoute/disableRoute also work. route.enable takes precedence over the top-level enable.",
+      "Route-level switch. enable=false disables this Domain+Path (access returns GATEWAY_ROUTE_DISABLED); enable=true re-enables it. Takes precedence over the top-level enable.",
     "schema.manage.route.enableSafeDomain":
       "Same as the top-level enableSafeDomain (CORS / legit-domain check). When set inside route, it takes precedence.",
     "schema.manage.route.pathRewrite":
@@ -573,11 +517,7 @@ export const gateway = defineModule(
       "static hosting {upstreamResourceType:\"STATIC_STORE\",serviceName:\"staticstore\",path:\"/\"}; " +
       "disable a route {path:\"/\",enable:false} (with updateRoute, or use disableRoute directly).",
     "schema.manage.domain":
-      "Domain. When omitted, the env IsDefault default HTTP domain with DomainType=HTTPSERVICE (*.{region}.app.tcloudbase.com) is used; it never falls back to the static-hosting CDN domain (*.tcloudbaseapp.com, DomainType=STATIC_STORE), and it is not a STATIC_STORE upstream binding. " +
-      "Use queryGateway(action=\"listRoutes\") to verify the actual Domain / DomainType. " +
-      "When enableRoute/disableRoute targets *.tcloudbaseapp.com, this domain must be passed explicitly. " +
-      "If a custom domain already exists, pass it explicitly with createRoute/updateRoute/deleteRoute to serve custom domain access without a certificate ID; " +
-      "for bindCustomDomain only, it means the new domain to bind.",
+      "Domain. When omitted, the env default HTTP domain with DomainType=HTTPSERVICE (*.{region}.app.tcloudbase.com) is used; verify it with queryGateway(action=\"listRoutes\"). When enableRoute/disableRoute targets *.tcloudbaseapp.com, this domain must be passed explicitly. With an existing custom domain, pass it explicitly to configure routes without a certificate ID; for bindCustomDomain only, it means the new domain to bind.",
     "schema.manage.certificateId":
       "Certificate ID. Used only by bindCustomDomain: passing it explicitly skips the automatic search; " +
       "when omitted, describeCertificates(SearchKey=domain) is called by domain — " +
@@ -592,11 +532,7 @@ export const gateway = defineModule(
       "This is not the CNAME the user domain should resolve to in DNS; do not pass it for DIRECT/CDN. " +
       "See https://docs.cloudbase.net/service/custom-domain",
     "schema.manage.enable":
-      "Target switch state: required for enableService / authSwitch (true to turn on / false to turn off); " +
-      "optional for bindCustomDomain: enable=false disables the domain after binding (enabled by default); " +
-      "optional for updateRoute: maps to Routes[].Enable (route.enable also works and wins; " +
-      "the dedicated actions enableRoute/disableRoute are available too). " +
-      "Omitting it or passing a non-boolean returns a parameter error for enableService/authSwitch.",
+      "Target switch state: required for enableService / authSwitch (true on / false off); optional for bindCustomDomain, where false disables the domain after binding; optional for updateRoute, mapping to Routes[].Enable (route.enable wins).",
     "schema.manage.cacheType":
       "Cache layer (purgeCache only): CDN or EO. When omitted it is matched from the domain access type (EO→EO, CDN→CDN); " +
       "DIRECT / CUSTOM / NONE domains have no CloudBase-hosted cache and are rejected with an explanation.",
