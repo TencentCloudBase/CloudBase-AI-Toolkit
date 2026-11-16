@@ -160,11 +160,16 @@ export function budgetOf(surface: ToolSurface): BudgetMetrics {
  * must stay verbatim in the tool-level description.
  */
 const CONSTRAINT_PATTERN =
-  /禁止|不要|不得|勿|必须|务必|不能|不可|不应|改用|请用|请改|优先|仅限|仅用于|只能|不适用|不涉及|拒绝|⚠️|confirm|危险|不可恢复|反复重试|轮询|\bdo not\b|\bdon't\b|\bnever\b|\bmust\b|\binstead\b|\bonly\b|\bavoid\b|\bwarning\b|\brequired\b|\breject/i;
+  /禁止|不要|不得|勿|必须|务必|不能|不可|不应|不支持|改用|请用|请改|优先|仅限|仅用于|只能|不适用|不涉及|拒绝|⚠️|confirm|危险|不可恢复|反复重试|轮询|\bdo not\b|\bdon't\b|\bnever\b|\bmust\b|\binstead\b|\bavoid\b|\bcannot\b|\bcan't\b|\bnot supported\b|\breject|\brefuse/i;
 
+/**
+ * Clause-level split: Chinese full stops and semicolons, English sentence ends
+ * and semicolons, and line breaks. Locking at clause granularity keeps the
+ * constraint itself fixed while leaving surrounding explanatory text editable.
+ */
 export function splitSentences(text: string): string[] {
   return text
-    .split(/(?<=[。；！？\n])|(?<=[.;!?])\s+(?=[A-Z`*(\["'⚠])/u)
+    .split(/(?<=[。；！？\n])|(?<=[.;!?])\s+/u)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
 }

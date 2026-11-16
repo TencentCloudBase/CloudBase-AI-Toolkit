@@ -35,6 +35,7 @@
       "⚠️ 部分更新嵌套字段须使用点号路径，如 `$set: {\"shipping.city\": \"guangzhou\"}`，直接传嵌套对象会覆盖整个字段。"
     ],
     "modifyDataModel": [
+      "当前仅支持创建新模型，不支持更新现有模型结构。",
       "内置异步任务监控，自动轮询直至完成或超时。"
     ],
     "queryPgDatabase": [
@@ -113,8 +114,7 @@
       "app / hosting 的计划项带 buildHint = { buildCommand, outputDir, artifactReady }（机器可读，不要去解析 details 里的中文文案）：artifactReady=false 表示产物目录缺失或为空，此时 deployApply 必定失败（BUILD_OUTPUT_NOT_FOUND）。",
       "构建完成后重新 deployPlan 确认 artifactReady=true，不要改配置绕过。",
       "单资源临时直传请用 manageFunctions/manageHosting/manageApps。",
-      "- envId：目标环境 ID，优先级高于 cloudbaserc 中的 envId；",
-      "- only：仅计算指定资源类型的计划"
+      "- envId：目标环境 ID，优先级高于 cloudbaserc 中的 envId；"
     ],
     "deployApply": [
       "这是 deployPlan 的执行对仗工具（plan 预演 / deployApply 执行同一份 cloudbaserc），属于本地形态的 apply（读本地 cloudbaserc 并把本地产物上传到云端），是会变更云端资源的写操作，必须显式传 confirm=true 才会执行。",
@@ -124,8 +124,7 @@
       "- confirm：必须显式传 true 才执行部署，否则直接拒绝",
       "- confirmDestructive：当本次待执行的数据库迁移含破坏性语句（DROP/TRUNCATE/DELETE、ALTER…DROP/RENAME）时，除 confirm 外还必须显式传 confirmDestructive=true 才会执行；",
       "否则拒绝并列出命中的迁移与语句。",
-      "- envId：目标环境 ID，优先级高于 cloudbaserc 中的 envId；",
-      "- only：仅部署指定资源类型"
+      "- envId：目标环境 ID，优先级高于 cloudbaserc 中的 envId；"
     ],
     "queryGateway": [
       "实现自定义域名访问前，先 listCustomDomains：若已有自定义域名，优先 createRoute 挂路由（无需证书 ID）；"
@@ -194,221 +193,185 @@
   },
   "en": {
     "auth": [
-      "Call auth(status) first (read-only, no arguments) to confirm the login state and the current environment.",
-      "Supports: status, start_auth (login), login_by_api_key, set_env (bind env), logout. auth(status) returns credential_scope (account / single_env API Key) and current region; a single-env API Key can only see its bound envId — missing other-region envs is a permission boundary, not a missing environment."
+      "Call auth(status) first (read-only, no arguments) to confirm the login state and the current environment."
     ],
     "queryEnv": [
-      "(Former names: envQuery, listEnvs, getEnvInfo, getEnvAuthDomains) When action=list, listing/filtering follows DescribeEnvs semantics; the standard returned fields are EnvId, Alias, Status, EnvType, Region, PackageId, PackageName, IsDefault, and those fields can be trimmed via the fields whitelist; aliasExact=true filters by exact alias so environments with similar prefixes are not mistaken for candidates; even when envId is passed, action=list still returns only a summary, never full resource details or expiry.",
-      "Account-level logins may pass region (ap-shanghai/ap-guangzhou/ap-singapore) to query that region, matching CLI `tcb env list -r <region>`; an env-level credential (API Key / hosted authorization token) can only see its bound envId and returns credential_scope=single_env; in that case region plays no part in the query and is reported as such in ignored_params (AppliedFilters.region is null) — do not mistake that for a missing environment or a region filter that failed to apply.",
-      "To query details of a known EnvId (including resource fields and billing info), you must use action=info and pass the target environment's envId. action=info appends BillingInfo when available (billing fields such as ExpireTime, PayMode, IsAutoRenew).",
-      "📊 action=usage matches tcb env usage/info: it passes through Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail and returns the billing cycle and per-module resource-point usage (FLEXDB/SCF/COS, etc.). envId is required; type optionally filters modules; when startDate/endDate are omitted the current billing cycle is used.",
-      "📈 action=metrics matches TCB DescribeCurveData (manager.monitor.describeCurveData, not Cloud Monitor GetMonitorData): query time series for env/gateway QPS, cloud function invocations and errors, database CPU/memory/disk, CloudRun CPU/QPS, and more. envId and metricName are required; startTime/endTime use the format YYYY-MM-DD HH:mm:ss and must be passed as a pair, defaulting to the last 24 hours when omitted; period only supports 300/3600/86400.",
+      "even when envId is passed, action=list still returns only a summary, never full resource details or expiry.",
+      "in that case region plays no part in the query and is reported as such in ignored_params (AppliedFilters.region is null) — do not mistake that for a missing environment or a region filter that failed to apply.",
+      "To query details of a known EnvId (including resource fields and billing info), you must use action=info and pass the target environment's envId.",
+      "startTime/endTime use the format YYYY-MM-DD HH:mm:ss and must be passed as a pair, defaulting to the last 24 hours when omitted;",
       "CloudRun Tke* metrics must pass the service name as resourceID.",
       "Do not use callCloudApi to guess monitoring Actions.",
-      "- `EnvInfo.PostgreSQL[].TenantType`: the PG instance form — `SHARED` (SDK / gateway access only) or `DEDICATED` (has the private host / TCP endpoint).",
       "`false` means the default static domain root route is disabled (requests return GATEWAY_ROUTE_DISABLED) — do not treat the nominal domain as a reachable URL.",
-      "Before writing business/permission/storage code, AI must check these three items first: in PG mode, new work should prefer `app.rdb()` + RLS (`managePgDatabase action=execute` running `CREATE POLICY`) + pgstore; existing NoSQL collections / legacy storage / `managePermissions(resourceType=\"noSqlDatabase\")` remain valid in a classic PG environment.",
+      "Before writing business/permission/storage code, AI must check these three items first: in PG mode, new work should prefer `app.rdb()` + RLS (`managePgDatabase action=execute` running `CREATE POLICY`) + pgstore;",
       "**Exception (pgdoc)**: when the document-database API is carried by PostgreSQL and client SDK calls stay unchanged, CUSTOM collection security rules do not take effect — use the four basic permissions or move validation into a cloud function.",
       "Do not rewrite existing document-database code into `app.rdb()`, and do not assume data was migrated automatically.",
-      "`RuntimeBackends` lists provisioned resources only; it does not say who carries document requests, so confirm the enablement state with the user.",
-      "`manageDataModel` / `modifyDataModel` only work in classic mode and have no PG counterpart."
+      "it does not say who carries document requests, so confirm the enablement state with the user."
     ],
     "envDomainManagement": [
       "⚠️ DEPRECATED: This tool is deprecated and has been folded into manageEnv.",
       "Use manageEnv(action=\"addSecurityDomain\") / manageEnv(action=\"removeSecurityDomain\") instead (the domains parameter is identical).",
-      "It only performs CORS origin validation; it does not provide an access domain and does not involve HTTPS certificates.",
-      "⚠️ This is completely independent from [gateway custom domains] — the two are unrelated: to bind your own domain as an HTTPS access entry (CloudRun / gateway service), that is manageGateway's job — first queryGateway(listCustomDomains); if a domain already exists, use manageGateway(createRoute) with an explicit domain (no certificate needed); only use bindCustomDomain when binding a brand-new domain for the first time (certificateId required).",
+      "⚠️ This is completely independent from [gateway custom domains] — the two are unrelated: to bind your own domain as an HTTPS access entry (CloudRun / gateway service), that is manageGateway's job — first queryGateway(listCustomDomains);",
       "Do not use this tool for that.",
-      "After adding or deleting, poll queryEnv(action=domains) about every 10 seconds to confirm the state has converged; do not sleep a full 10 minutes at once — most environments converge within a few minutes."
+      "After adding or deleting, poll queryEnv(action=domains) about every 10 seconds to confirm the state has converged;",
+      "do not sleep a full 10 minutes at once — most environments converge within a few minutes."
     ],
     "manageEnv": [
       "Supports: listPackages=query available packages, create=create a new environment (confirmation required), modifyPlan=change the package (upgrade/downgrade, confirmation required), renew=renew the environment (confirmation required), addSecurityDomain=add an environment security domain (browser CORS allowlist, not billed, no confirmation needed), removeSecurityDomain=remove an environment security domain (not billed, no confirmation needed).",
-      "⚠️ For billed operations (create/modifyPlan/renew) you must show the configuration summary and wait for the user to confirm with confirm=\"yes\" before executing; security domain operations (addSecurityDomain/removeSecurityDomain) are not billed and need no confirm."
+      "⚠️ For billed operations (create/modifyPlan/renew) you must show the configuration summary and wait for the user to confirm with confirm=\"yes\" before executing;",
+      "security domain operations (addSecurityDomain/removeSecurityDomain) are not billed and need no confirm."
     ],
     "readNoSqlDatabaseContent": [
-      "Supports filtering, pagination, and sorting for admin-side data queries and operations.limit defaults to 100 with a maximum of 1000; use offset pagination beyond that.projection only supports a { field: 1|0 } object (example {\"_id\":1,\"name\":1,\"createdAt\":1}); do not pass field arrays."
+      "do not pass field arrays."
     ],
     "writeNoSqlDatabaseContent": [
-      "Supports insert, update (with $set/$inc/$push and other operators), delete, upsert, and more for admin-side data writes and operations.⚠️ Server-side writes do not include _openid: if the collection relies on client-side SDK (@cloudbase/js-sdk or WeChat Mini Program wx.cloud.database()) row-level security rules (e.g. doc._openid == auth.openid), you must manually add the _openid field on server-side writes, or clients will not be able to read the data.⚠️ Partial updates of nested fields must use dot paths, e.g."
-    ],
-    "manageDataModel": [
-      "Data model query tool that supports querying and listing data models (read-only)."
-    ],
-    "modifyDataModel": [
-      "For compatibility, the tool name remains modifyDataModel; currently only creating new models is supported, not updating existing model structures."
+      "Supports insert, update (with $set/$inc/$push and other operators), delete, upsert, and more for admin-side data writes and operations.⚠️ Server-side writes do not include _openid: if the collection relies on client-side SDK (@cloudbase/js-sdk or WeChat Mini Program wx.cloud.database()) row-level security rules (e.g.",
+      "doc._openid == auth.openid), you must manually add the _openid field on server-side writes, or clients will not be able to read the data.⚠️ Partial updates of nested fields must use dot paths, e.g."
     ],
     "queryPgDatabase": [
       "⚠️ Read-only tool: only accepts read-only SQL such as SELECT.",
-      "CREATE / ALTER / DROP / INSERT / UPDATE / DELETE are rejected outright (and a 42703/42P01 usually means a guessed table or column name — run action=objects to see the real structure instead of assuming names like schema_migrations).",
-      "Query the CloudBase PostgreSQL database: get the current PG context, list schema-qualified database objects, read lightweight metadata, inspect a single object schema, and run read-only SQL."
+      "CREATE / ALTER / DROP / INSERT / UPDATE / DELETE are rejected outright (and a 42703/42P01 usually means a guessed table or column name — run action=objects to see the real structure instead of assuming names like schema_migrations)."
     ],
     "managePgDatabase": [
       "Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, manage migrations, and manage Realtime settings.",
-      "Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/<version>_<name>.sql file is written or verified automatically before success, matching the CLI tcb db pg migration).",
-      "Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS.",
-      "Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call on an unprovisioned environment provisions it automatically, and it is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops all live WebSocket connections of the environment, globally)."
+      "Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion;",
+      "Do not use execute by default.",
+      "modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops all live WebSocket connections of the environment, globally)."
     ],
     "queryPgStorage": [
-      "Returns a bucket/config capability summary, object metadata query plans, and upload implementation plans based on the HTTP API or SDK; it never reads local files and does not emit bulk signed URLs by default."
+      "it never reads local files and does not emit bulk signed URLs by default."
     ],
     "queryMysqlDatabase": [
-      "Supports running read-only SQL, checking the result of an instance-creation task started in the console, querying MySQL task status, getting the current instance lifecycle context, and querying instance slow queries / error logs (aligned with Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs).",
-      "Standard getInstanceInfo/describeInstance never returns connection credentials; only getConnectionInfo passes through the raw connection/cluster payload (possibly including credentials), and only for explicit TCP migration."
+      "Standard getInstanceInfo/describeInstance never returns connection credentials;"
     ],
     "queryFunctions": [
-      "Unified read-only entry for CloudBase cloud functions.",
-      "- Without startTime/endTime it queries the last day; the span must not exceed 1 day and a single call returns at most 100 entries",
-      "- `hasMore=true` means older logs exist: pass the returned `context` back unchanged to fetch the next page (`offset` only works within the first 100 entries)",
-      "Do not reuse the same bare layer name across environments; check with `listLayers` before creating"
+      "the span must not exceed 1 day and a single call returns at most 100 entries",
+      "Do not reuse the same bare layer name across environments;"
     ],
     "manageFunctions": [
       "The deployment package has a hard size ceiling — do not bundle static content: media files (video, large images, fonts), user uploads, and frequently-updated static resources belong in cloud storage referenced by URL, otherwise every change forces a full function redeploy and the package can exceed the limit.",
-      "HTTP function image build & deploy: createFunction / updateFunctionCode distinguish via func.buildStrategy. func.buildStrategy=image (existing image, set func.imageConfig.imageUri) creates/updates the HTTP function directly; func.buildStrategy=local (local Docker build & push) and cloud (CloudApp cloud build) go through the image build/deploy orchestration (func.imageConfig required; build optional — missing registry coordinates are auto-filled: namespace defaults to envId, repository defaults to the function name), and only a dry-run plan is generated by default; pass dryRun=false with confirm=true to execute the real deployment.",
-      "A real deployment may pass wait=false to return a taskId immediately; query progress and results via getFunctionDeployStatus of queryFunctions. wait=false only means this tool call does not wait for the full deployment; the caller must not finish while status=running and must keep polling until succeeded/failed before reporting to the user, unless the polling limit is reached. local always requires local MCP mode; the real execution of cloud also requires local MCP mode because it reads the local build context; cloud mode only supports cloud dry-run and the image strategy.",
+      "pass dryRun=false with confirm=true to execute the real deployment.",
+      "the caller must not finish while status=running and must keep polling until succeeded/failed before reporting to the user, unless the polling limit is reached.",
       "Dangerous operations require explicit confirm=true.",
       "Do not ask users for plaintext passwords, and do not put passwords into tool parameters.",
-      "Note this env channel only works with **local stdio MCP and clients whose mcp.json supports a custom env block**: some GUI clients do not inherit shell exports, and IDE built-in MCPs usually inject credentials through a hardcoded whitelist (e.g. only TENCENTCLOUD_*), so those users have no channel to configure a custom env — telling them to \"set it in the MCP config env\" is ineffective guidance.",
+      "Note this env channel only works with **local stdio MCP and clients whose mcp.json supports a custom env block**: some GUI clients do not inherit shell exports, and IDE built-in MCPs usually inject credentials through a hardcoded whitelist (e.g.",
       "For built-in MCP users, guide them instead to use the enterprise edition (imageType=enterprise, instance temporary tokens, no fixed password) or to use buildStrategy=image to deploy an already-pushed image.",
-      "Environment-level API keys and temporary credentials from OAuth carry no CAM policy and will be blocked up front with a hint to switch to account-level keys or the image strategy; personal edition logs in directly with a static password via docker login without CAM, and is in fact the only build path that works for API-key users.",
-      "Do not reuse the same bare layer name across environments; check with `listLayers` before creating",
-      "- Related actions: `createLayerVersion` / `deleteLayerVersion` / `attachLayer` / `detachLayer` / `updateFunctionLayers` (read-only queries: listLayers / listLayerVersions / getLayerVersionDetail of queryFunctions)"
-    ],
-    "queryHosting": [
-      "Read-only information about CloudBase static hosting."
+      "Do not reuse the same bare layer name across environments;"
     ],
     "manageHosting": [
-      "Mutation operations for CloudBase static hosting. action=upload uploads local build artifacts to the shared domain (domain format: <envId>-<appId>.tcloudbaseapp.com/<cloudPath>); action=delete deletes hosted files or directories (confirm=true required); action=setWebsiteDocument sets the index/error document and routing rules; action=enableService enables static hosting; action=bindDomain / unbindDomain / updateDomain manage custom domains; action=downloadFile / downloadDirectory download hosted content to local disk.",
-      "⚠️ Every hosting operation calls the DescribeStaticStore control-plane API underneath (20 req/s QPS limit): when deleting multiple files, call sequentially with intervals (no more than 10 calls per second recommended); for multiple files in the same directory, prefer isDir=true to delete the whole directory in one call.",
-      "If the error contains \"frequency limit\", rate limiting was triggered — wait 1-2 seconds and retry; do not retry in rapid succession.",
-      "⚠️ This tool has no action to disable the default domain (*.tcloudbaseapp.com); to disable that default public domain, use manageGateway(action=\"disableRoute\", domain=the STATIC_STORE IsDefault domain, path=\"/\") (backed by ModifyHTTPServiceRoute, not ModifyGatewayRoute).",
-      "⚠️ For new projects prefer manageApps (deploys to a dedicated subdomain); this tool suits existing legacy projects or as a fallback for manageApps. manageApps and manageHosting use different domains, so switching invalidates old links.",
+      "action=delete deletes hosted files or directories (confirm=true required);",
+      "⚠️ Every hosting operation calls the DescribeStaticStore control-plane API underneath (20 req/s QPS limit): when deleting multiple files, call sequentially with intervals (no more than 10 calls per second recommended);",
+      "do not retry in rapid succession.",
+      "⚠️ This tool has no action to disable the default domain (*.tcloudbaseapp.com);",
+      "⚠️ For new projects prefer manageApps (deploys to a dedicated subdomain);",
       "If the task is only inspecting config, files, or domain status, use queryHosting instead."
     ],
     "queryStorage": [
       "⚠️ For PG-mode environments use queryPgStorage instead of this tool (pgstore and the legacy COS are two separate systems).",
-      "Query CloudBase cloud storage info: list directory files, get file details, get temporary download URLs, and other read-only operations.",
-      "Note: the temporaryUrl returned by action=url is a temporary signed link whose validity is determined by the maxAge parameter (default 1 hour); do not treat it as a permanent public URL.",
-      "⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read; with the default private-read-write bucket the returned publicUrl will 403 — keep using temporaryUrl, or first set the target path to public-read via the console/SDK.",
-      "Use this tool for regular storage; when preparing a bucket for PG browser uploads, confirm the target bucket is usable by the pgstore backend, otherwise the browser `app.storage.from().upload(...)` will fail with `STORAGE_BUCKET_NOT_FOUND` and a `PUT https://undefined/` request."
+      "do not treat it as a permanent public URL.",
+      "⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read;",
+      "when preparing a bucket for PG browser uploads, confirm the target bucket is usable by the pgstore backend, otherwise the browser `app.storage.from().upload(...)` will fail with `STORAGE_BUCKET_NOT_FOUND` and a `PUT https://undefined/` request."
     ],
     "manageStorage": [
       "⚠️ For PG-mode environments use queryPgStorage instead of this tool (pgstore and the legacy COS are two separate systems).",
-      "Manage CloudBase cloud storage files — for COS/Storage objects only, not for static website hosting.",
       "Delete operations require force=true as confirmation to prevent accidental deletion.",
-      "Note: the temporaryUrl returned after upload is a temporary signed link that expires in 1 hour; do not write it into configuration or persistent storage as a permanent public URL.",
-      "⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read; with the default private-read-write bucket the returned publicUrl will 403 — keep using temporaryUrl, or first set the target path to public-read via the console/SDK.",
+      "do not write it into configuration or persistent storage as a permanent public URL.",
+      "⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read;",
       "📦 CloudBase PG / pgstore buckets must be created before use (same as Supabase Storage: the bucket must exist before upload).",
       "If the browser sees `STORAGE_BUCKET_NOT_FOUND` or `PUT https://undefined/` during upload (shown as `net::ERR_NAME_NOT_RESOLVED` in DevTools), first confirm / create the corresponding pgstore bucket with this tool or the console, then have the frontend retry the upload — do not let the frontend silently swallow the upload failure.",
-      "Legacy NoSQL buckets returned by `DescribeEnvs.Storages[]` (shaped like `<hash>-<envId>-<appId>`) are not usable pgstore buckets; never use them as the default target."
+      "never use them as the default target."
     ],
     "downloadTemplate": [
-      "- rules: AI editor configuration files only (Cursor, CodeBuddy, Claude Code and other mainstream editors), suitable for adding AI editor configuration to an existing project",
-      "- roocode: RooCode AI editor (MCP config only, no rule files)",
-      "- kiro: Kiro AI editor (MCP config only, no rule files)",
-      "- iflow-cli: iFlow CLI (MCP config only, no rule files)"
+      "Note: if the ide parameter is not provided and the IDE cannot be detected from environment variables, an error will be returned asking for the ide parameter"
     ],
     "searchKnowledgeBase": [
-      "Look up the official meaning and guidance of the error code before acting; do not retry on guesses.",
+      "do not retry on guesses.",
       "⚠️ Important: when CloudBase skills are disabled or the current IDE does not support reading skill files, use searchKnowledgeBase(mode=skill, skillName=...) to get CloudBase skill doc content instead of trying to read skill files directly.",
-      "Relative links outside code fences are rewritten to absolute URLs; when the skill is absent from the remote repo only the inline content is returned and that is stated explicitly, so no dead links are handed out.",
-      "Note: OpenAPI doc (openapi) queries only need mode=\"openapi\" and apiName; do not pass action — action is only for mode=\"docs\"."
-    ],
-    "queryCloudRun": [
-      "Query CloudRun service info: list services, get service details, list available templates, get build logs (getDeployLog, cloud source builds only / depends on CODING), get runtime logs (getProcessLog, works for both image and source deploys / no CODING needed), get deploy records, and check the env's CloudRun provisioning status (envStatus)."
+      "do not pass action — action is only for mode=\"docs\"."
     ],
     "manageCloudRun": [
-      "Manage CloudRun services, in development order: provision the CloudRun env (initEnv), initialize a project (optionally from a template; list templates via queryCloudRun), download service code, run locally (function services only), deploy code, update config only (updateConfig, no code upload needed), and delete the service. deploy supports two modes: 1) source build (pass targetPath; local code is packaged and uploaded, the default); 2) existing image deploy (pass imageUrl, e.g. ccr.ccs.tencentyun.com/ns/img:v1;",
-      "DeployType=image container deploy, targetPath optional). deploy means \"trigger deploy + lightweight wait for task registration\" (up to ~45s; pass waitRegistration=false to skip the wait when you don't need the buildId).",
+      "pass waitRegistration=false to skip the wait when you don't need the buildId).",
       "If the user explicitly specifies an image or no rebuild is needed, you must pass imageUrl instead of falling back to a source build just because a local source directory exists.",
-      "Deletion requires confirmation; set force=true."
+      "Deletion requires confirmation;"
     ],
     "deployBuild": [
-      "Parses cloudbaserc and runs a local build for every hosting[] item that declares a buildCommand (only buildCommand runs — no dependency install, no upload).",
       "It only handles hosting[] and does NOT handle the cloudbaserc app resource — app artifacts must be built by you in the project directory (read the build command and output directory from deployPlan's buildHint), or use the CLI `tcb app deploy` for a cloud build instead.",
       "The build is a purely local operation: it resolves no environment, requires no login and needs no confirm."
     ],
     "deployPlan": [
-      "⚠️ app / hosting plan items are always a direct upload of existing artifacts: declarative deploy deploys but never builds; buildCommand / framework in cloudbaserc are only used to infer the output directory and are never executed.",
+      "⚠️ app / hosting plan items are always a direct upload of existing artifacts: declarative deploy deploys but never builds;",
+      "buildCommand / framework in cloudbaserc are only used to infer the output directory and are never executed.",
       "app / hosting plan items carry buildHint = { buildCommand, outputDir, artifactReady } (machine-readable — do not parse the localized text in details): artifactReady=false means the output directory is missing or empty, and deployApply is guaranteed to fail (BUILD_OUTPUT_NOT_FOUND).",
-      "Re-run deployPlan afterwards to confirm artifactReady=true; do not edit the config to work around it.",
-      "- only: compute the plan for the specified resource types only"
+      "Re-run deployPlan afterwards to confirm artifactReady=true;",
+      "do not edit the config to work around it."
     ],
     "deployApply": [
       "It is a write operation that changes cloud resources and requires an explicit confirm=true to execute.",
       "It is recommended to preview with deployPlan first and execute after confirming the plan.",
-      "⚠️ Deploys but never builds: this tool runs no build command at all (neither app nor hosting). buildCommand / installCommand / framework in cloudbaserc are only used to infer the output directory and are never executed.",
-      "A missing or empty output directory fails with BUILD_OUTPUT_NOT_FOUND — for hosting call deployBuild first, for app ask the user to run its build command in the project directory, then retry; do not edit the config to work around it.",
+      "⚠️ Deploys but never builds: this tool runs no build command at all (neither app nor hosting).",
+      "buildCommand / installCommand / framework in cloudbaserc are only used to infer the output directory and are never executed.",
+      "do not edit the config to work around it.",
       "- confirm: must be explicitly true to execute the deployment, otherwise it is rejected",
-      "- confirmDestructive: when the pending database migrations contain destructive statements (DROP/TRUNCATE/DELETE, ALTER…DROP/RENAME), besides confirm, confirmDestructive=true must also be explicitly passed to execute; otherwise it is rejected and the matched migrations and statements are listed.",
-      "- only: deploy only the specified resource types"
-    ],
-    "queryGateway": [
-      "Unified read-only entry for the CloudBase HTTP gateway (Domain/Route).",
-      "Before setting up custom domain access, run listCustomDomains first: if a custom domain already exists, prefer createRoute to attach a route (no certificate ID needed); use bindCustomDomain only when no usable custom domain exists."
+      "- confirmDestructive: when the pending database migrations contain destructive statements (DROP/TRUNCATE/DELETE, ALTER…DROP/RENAME), besides confirm, confirmDestructive=true must also be explicitly passed to execute;",
+      "otherwise it is rejected and the matched migrations and statements are listed."
     ],
     "manageGateway": [
-      "When domain is omitted, the IsDefault default HTTP domain with DomainType=HTTPSERVICE (like *.{region}.app.tcloudbase.com) is used; static-hosting CDN domains (*.tcloudbaseapp.com, DomainType=STATIC_STORE) are never used.",
-      "These are path routes on the gateway default domain, not STATIC_STORE upstream bindings; a STATIC_STORE upstream must pass upstreamResourceType=STATIC_STORE explicitly.",
-      "To disable the static-hosting default domain (*.tcloudbaseapp.com): first queryGateway(listRoutes) to find the domain with DomainType=STATIC_STORE and IsDefault=true, then manageGateway(action=\"disableRoute\", domain=that domain, path=\"/\"); do not use manageHosting.",
-      "The upstream type uses a single parameter upstreamResourceType (or route.upstreamResourceType, route wins): WEB_SCF=HTTP cloud function, SCF=Event cloud function, CBR=CloudRun, STATIC_STORE=static hosting, STORAGE=cloud storage, LH=Lighthouse; together with targetName or route.serviceName (function name / CloudRun service name / static-hosting instance name, commonly staticstore / cloud storage instance name). createRoute only creates the gateway entry and does not change upstream permissions. enablePathTransmission: default false strips the trigger path prefix; true forwards the full path (CBR multi-route and WEB_SCF self-managed sub-paths often need true;",
-      "⚠️ Custom domain access: if the env already has a custom domain (queryGateway listCustomDomains first), prefer createRoute with that domain explicitly, no certificateId needed; use bindCustomDomain only when binding a brand-new custom domain for the first time (certificateId optional: when omitted, certificates are auto-searched by domain — a single cert is auto-selected, multiple certs return selection guidance). createRoute / bindCustomDomain call VerifyHTTPServiceRoute for ownership pre-checks before creation (probe → create); on failure, data.checks and DNS TXT guidance are returned; configure and retry.",
-      "Route-level extras: enableSafeDomain (CORS / legit-domain check), pathRewrite (path rewriting), qpsPolicy (rate limiting), extension (custom request/response headers and cache rules); domain-level: protocol and domainExtension. updateRoute only needs the fields you want to change — untouched CORS/rewrite/QPS/extension settings are carried over from the live route."
+      "static-hosting CDN domains (*.tcloudbaseapp.com, DomainType=STATIC_STORE) are never used.",
+      "a STATIC_STORE upstream must pass upstreamResourceType=STATIC_STORE explicitly.",
+      "do not use manageHosting.",
+      "⚠️ Custom domain access: if the env already has a custom domain (queryGateway listCustomDomains first), prefer createRoute with that domain explicitly, no certificateId needed;"
     ],
     "queryAppAuth": [
-      "Read-only entry for CloudBase app-side authentication configuration.",
-      "⚠️ This is a management-side config query tool; it does not perform user login.",
-      "\"login with the JS SDK\"), first confirm the configuration via this tool, then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in.",
-      "If the app should accept plain username-style identifiers, query action=getLoginConfig first; if usernamePassword=false, immediately call manageAppAuth(action=patchLoginStrategy, patch={ usernamePassword: true }) next — do not write email login APIs directly."
+      "⚠️ This is a management-side config query tool;",
+      "\"login with the JS SDK\"), first confirm the configuration via this tool, then write @cloudbase/js-sdk client login code (e.g.",
+      "auth.signInWithPassword()) in the project code instead of using this tool to log in.",
+      "if usernamePassword=false, immediately call manageAppAuth(action=patchLoginStrategy, patch={ usernamePassword: true }) next — do not write email login APIs directly."
     ],
     "manageAppAuth": [
-      "⚠️ This is a management-side config tool; it does not perform user login.",
-      "\"login with the JS SDK\"), first complete the configuration here (e.g. enable usernamePassword, obtain the publishable key), then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in.",
-      "⚠️ SMS verification code login (patch={ phone: true }) uses the CloudBase default SMS channel; once enabled you can send/receive verification codes without configuring SMS signature/template/custom providers; only configure SmsVerificationConfig or a custom SMS channel if you need custom templates/signatures or a different SMS provider.",
+      "⚠️ This is a management-side config tool;",
+      "auth.signInWithPassword()) in the project code instead of using this tool to log in.",
+      "⚠️ SMS verification code login (patch={ phone: true }) uses the CloudBase default SMS channel;",
       "⚠️ The created field in the action=createApiKey response indicates whether a key was really created: created=false means an existing key in the environment was reused — the keyName/expireIn inputs take no effect, the returned keyName/expireAt are the server's real values, and warnings are attached.",
       "Never distribute it as a temporary credential."
     ],
     "queryApps": [
-      "action=getUploadUrl (read-only) returns a pre-signed upload URL: without a local filesystem (cloud mode), fetch the uploadUrl, PUT the code zip yourself, then call manageApps(action=deployApp, cosTimestamp) with the returned unixTimestamp to trigger deployment.",
-      "The uploadUrl is a one-time upload credential; do not forward it or paste it into tickets."
+      "do not forward it or paste it into tickets."
     ],
     "manageApps": [
-      "and only run tcb hosting deploy.",
       "⚠️ Compatibility note:",
-      "⚠️ If the manageApps build fails, check logs with queryApps(action=\"getBuildLog\") first; if it still fails, fall back to manageHosting."
+      "⚠️ If the manageApps build fails, check logs with queryApps(action=\"getBuildLog\") first;"
     ],
     "queryPermissions": [
-      "- List legacy gateway policies: `action=\"listPolicy\"` (an empty list only means \"no policy\" when the query really ran; on PG / OPA engine environments the query is skipped and returns `skipped=true` with an empty list, which does **not** mean there is no policy — use getPolicy instead)",
+      "on PG / OPA engine environments the query is skipped and returns `skipped=true` with an empty list, which does **not** mean there is no policy — use getPolicy instead)",
       "To query PG table RLS, use `queryPgDatabase(action=\"sql\", sql=\"SELECT * FROM pg_policies WHERE tablename=...\")` instead.",
       "⚠️ PostgreSQL environments: the platform `DescribeResourcePermission` API rejects PG environments outright.",
       "⚠️ Role actions (`listRoles` / `getRole`) are rejected outright by the platform on **PostgreSQL environments** (`The current API does not support PostgreSQL type environments.`).",
-      "This is a platform capability boundary, not a configuration problem — **do not keep retrying on PG**; use RLS (`managePgDatabase(action=\"execute\")` with `CREATE POLICY`) or the console to manage permissions instead."
+      "This is a platform capability boundary, not a configuration problem — **do not keep retrying on PG**;",
+      "use RLS (`managePgDatabase(action=\"execute\")` with `CREATE POLICY`) or the console to manage permissions instead."
     ],
     "managePermissions": [
       "- Set user Rego directly: `action=\"setPolicy\", regoContent=\"package authz.user\\n\\ndefault allow := false\\n\", confirm=true` (⚠️ immediately disables legacy gateway authorization)",
-      "Creating username/password users directly in the browser with `auth.signUp` depends on SDK/provider support and must be verified before use; if unsupported, go through a backend or management API boundary and never expose keys in the browser.",
-      "The detailed semantics of `securityRule` depend on `resourceType`: `doc._openid`, `auth.openid`, query-condition subset validation, and the `create` / `update` / `delete` JSON templates only apply to document database security rules with `resourceType=\"noSqlDatabase\"`; when configuring `function` or `storage`, refer to their official security rule docs instead of reusing NoSQL templates.",
-      "- `resourceType=\"noSqlDatabase\"` only affects CloudBase NoSQL document database collections; row-level permissions of CloudBase PostgreSQL (PG) tables are **not** controlled by it — for PG tables use RLS instead: run `ALTER TABLE ...",
+      "Creating username/password users directly in the browser with `auth.signUp` depends on SDK/provider support and must be verified before use;",
+      "if unsupported, go through a backend or management API boundary and never expose keys in the browser.",
+      "when configuring `function` or `storage`, refer to their official security rule docs instead of reusing NoSQL templates.",
+      "row-level permissions of CloudBase PostgreSQL (PG) tables are **not** controlled by it — for PG tables use RLS instead: run `ALTER TABLE ...",
       "ENABLE ROW LEVEL SECURITY` and `CREATE POLICY ...` via `managePgDatabase(action=\"execute\", confirm=true)`.",
       "⚠️ PostgreSQL environments: the platform `ModifyResourcePermission` API rejects PG environments outright.",
-      "Setting Rego replaces the environment-wide user policy document (it applies to the whole environment, not a single function/resource); legacy gateway authorization is disabled immediately and never rolls back, same as the CLI.",
+      "legacy gateway authorization is disabled immediately and never rolls back, same as the CLI.",
       "⚠️ Role actions (`createRole` / `deleteRoles` / `updateRole`) are rejected outright by the platform on **PostgreSQL environments** (`The current API does not support PostgreSQL type environments.`).",
-      "This is a platform capability boundary, not a configuration problem — **do not keep retrying on PG**; use RLS (`managePgDatabase(action=\"execute\")` with `CREATE POLICY`) or the console to manage permissions instead."
+      "This is a platform capability boundary, not a configuration problem — **do not keep retrying on PG**;",
+      "use RLS (`managePgDatabase(action=\"execute\")` with `CREATE POLICY`) or the console to manage permissions instead."
     ],
     "queryLogs": [
-      "Unified read-only entry for the CloudBase logs domain.",
       "- Enable the CLS log service: use `manageLogs(action=\"createLogService\", confirm=true)`"
     ],
     "manageLogs": [
       "- Enable CLS log service: `action=\"createLogService\", confirm=true`"
     ],
-    "queryAgents": [
-      "Unified read-only entry for the CloudBase Agents domain."
-    ],
     "callCloudApi": [
-      "**Read the API index first** https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md (a daily-synced Action-level index including rate limits; confirm service/Action/params there before calling instead of guessing Action names; for products not covered by the index, check the product's official API docs).",
+      "confirm service/Action/params there before calling instead of guessing Action names;",
       "If your goal is to integrate CloudBase business APIs such as auth/functions/cloudrun/storage/mysqldb directly over HTTP, prefer the corresponding OpenAPI / Swagger instead of callCloudApi.",
-      "⚠️ CloudRun (CloudBase Run) must use the tcbr service (CreateCloudRunEnv / CreateCloudRunServer / DescribeEnvBaseInfo / DescribeCloudRunEnvs, version=\"2022-02-17\"); legacy tcb small-tenant APIs such as CreateCloudBaseRunResource are disabled; use manageCloudRun for deploys.",
-      "Use DescribeEnvBaseInfo (EnvId required) to query a single env's base info / CloudRun provisioning, and DescribeCloudRunEnvs (EnvId optional filter) to query env list / resource info.",
+      "⚠️ CloudRun (CloudBase Run) must use the tcbr service (CreateCloudRunEnv / CreateCloudRunServer / DescribeEnvBaseInfo / DescribeCloudRunEnvs, version=\"2022-02-17\");",
       "⚠️ Region must be passed as the tool-level `region` parameter (mapped to X-TC-Region / regional endpoint), not inside params."
     ],
     "prepareFeedback": [
