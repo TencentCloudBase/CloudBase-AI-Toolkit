@@ -9,7 +9,10 @@ import crypto from "node:crypto";
 import zlib from "node:zlib";
 
 const NAME = "@cloudbase/nge-testpkg";
-const VERSIONS = ["1.0.0", "2.0.0", "3.0.0", "4.0.0"];
+const VERSIONS = ["1.0.0", "2.0.0", "3.0.0", "4.0.0", "5.0.0"];
+// 5.0.0 exits 1 immediately: a release that crashes on start.
+const CRASH_VERSION = "5.0.0";
+const LAUNCHER = "@cloudbase/npm-launcher";
 
 const BIN = `#!/usr/bin/env node
 "use strict";
@@ -61,10 +64,17 @@ function tarball(version) {
     name: NAME, version, private: true,
     bin: { "nge-testpkg": "bin.js" },
   });
-  const buf = tarGz([
+  const bin = version === CRASH_VERSION
+    ? '#!/usr/bin/env node\nprocess.stderr.write("boom\\n"); process.exit(1);\n'
+    : BIN;
+  return pack([
     { name: "package/package.json", data: Buffer.from(packageJson) },
-    { name: "package/bin.js", data: Buffer.from(BIN) },
+    { name: "package/bin.js", data: Buffer.from(bin) },
   ]);
+}
+
+function pack(files) {
+  const buf = tarGz(files);
   return {
     buf,
     shasum: crypto.createHash("sha1").update(buf).digest("hex"),
@@ -72,14 +82,63 @@ function tarball(version) {
   };
 }
 
+// Launcher copies for self-update tests: { version: indexJsSource }.
+function launcherTarball(version, source) {
+  const packageJson = JSON.stringify({
+    name: LAUNCHER, version, main: "index.js", bin: { "npm-launcher": "index.js" },
+  });
+  return pack([
+    { name: "package/package.json", data: Buffer.from(packageJson) },
+    { name: "package/index.js", data: Buffer.from(source) },
+  ]);
+}
+
 export function startMockRegistry() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nge-registry-"));
   const tars = Object.fromEntries(VERSIONS.map((v) => [v, tarball(v)]));
-  const state = { latest: "1.0.0", failVersion: null, offline: false, tarballDelay: 0 };
+  // mode: "ok" | "empty" (200 with empty body) | "500"
+  const state = { latest: "1.0.0", failVersion: null, offline: false, tarballDelay: 0, mode: "ok", hits: 0 };
+  const launcher = { stable: null, versions: {}, tars: {}, time: {} };
 
   const server = http.createServer((req, res) => {
     const url = decodeURIComponent((req.url || "").split("?")[0]);
+    state.hits += 1;
     if (state.offline) { res.writeHead(503); res.end("offline"); return; }
+    if (state.mode === "empty") { res.writeHead(200, { "content-type": "application/json" }); res.end(""); return; }
+    if (state.mode === "500") { res.writeHead(500); res.end("server error"); return; }
+
+    const ltgz = url.match(/npm-launcher-([0-9.]+)\.tgz$/);
+    if (ltgz) {
+      const t = launcher.tars[ltgz[1]];
+      if (!t) { res.writeHead(404); res.end(); return; }
+      res.writeHead(200, { "content-type": "application/octet-stream" });
+      res.end(t.buf);
+      return;
+    }
+    if (url.includes("npm-launcher")) {
+      const port = server.address().port;
+      const versions = {};
+      for (const v of Object.keys(launcher.tars)) {
+        versions[v] = {
+          name: LAUNCHER, version: v, bin: { "npm-launcher": "index.js" }, dependencies: {},
+          dist: {
+            tarball: `http://127.0.0.1:${port}/@cloudbase/npm-launcher/-/npm-launcher-${v}.tgz`,
+            shasum: launcher.tars[v].shasum, integrity: launcher.tars[v].integrity,
+          },
+        };
+      }
+      const single = url.match(/npm-launcher\/([0-9][^/]*)$/);
+      if (single) {
+        if (!versions[single[1]]) { res.writeHead(404); res.end(); return; }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(versions[single[1]]));
+        return;
+      }
+      const tags = launcher.stable ? { stable: launcher.stable, latest: launcher.stable } : {};
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ name: LAUNCHER, "dist-tags": tags, versions, time: launcher.time }));
+      return;
+    }
 
     const tgz = url.match(/nge-testpkg-([0-9.]+)\.tgz$/);
     if (tgz) {
@@ -104,6 +163,13 @@ export function startMockRegistry() {
           },
         };
       }
+      const single = url.match(/nge-testpkg\/([0-9][^/]*)$/);
+      if (single) {
+        if (!versions[single[1]]) { res.writeHead(404); res.end(); return; }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(versions[single[1]]));
+        return;
+      }
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ name: NAME, "dist-tags": { latest: state.latest }, versions }));
       return;
@@ -120,6 +186,15 @@ export function startMockRegistry() {
         failTarball: (v) => { state.failVersion = v; },
         setOffline: (v) => { state.offline = v; },
         setTarballDelay: (ms) => { state.tarballDelay = ms; },
+        setMode: (m) => { state.mode = m; },
+        hits: () => state.hits,
+        resetHits: () => { state.hits = 0; },
+        // Publish a launcher copy; `ageMs` back-dates its publish time.
+        publishLauncher: (version, source, ageMs = 0) => {
+          launcher.tars[version] = launcherTarball(version, source);
+          launcher.time[version] = new Date(Date.now() - ageMs).toISOString();
+        },
+        setLauncherStable: (v) => { launcher.stable = v; },
         close: () => { server.close(); fs.rmSync(dir, { recursive: true, force: true }); },
       });
     });

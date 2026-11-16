@@ -15,7 +15,34 @@
 
 第一个参数是本包，第二个参数是要运行的包，其后的参数原样转给目标包的 bin。
 
-引用本包时请写固定版本号。本包保持零依赖、单文件，并且尽量不再发版；每次发版都会让所有客户端重写自己的 npx 缓存目录。
+引用本包时请写固定版本号。本包保持零依赖、单文件。设备升级到 1.3.0 之后，后续 launcher 修复由后台自更新送达，配置里的固定版本号不用再改；从 1.0.0 / 1.1.0 / 1.2.0 首次升级仍需修改配置。
+
+## 1.3.0 新增行为
+
+冷启动不再三次失败就退出：后台安装连续失败时按退避（2s / 5s / 10s）继续尝试，直到等待预算用完；正在安装的版本一律等到装完。等待超过 8 秒会上报一次 `start/slow`；如果之后没有 `start/ok` 或 `start/failed`，说明客户端在就绪前就断开了连接。
+
+安装按源依次尝试：腾讯镜像（默认）→ npmmirror → registry.npmjs.org，每档有独立的解析与下载超时，成功后在 `reason` 里记下实际走的源。设置 `NGE_REGISTRY` 时只用该源，不自动切换，供企业内网使用。
+
+热启动增加三道兜底：某个版本连续两次在启动后 5 秒内非 0 退出，就隔离该版本并回退到上一个可用版本；`current` 指向的目录缺 bin 或包描述损坏时，直接用次新可用版本启动；连续冷启动失败进入冷却，冷却期内每个连接只尝试一次，装成功后自动解除。Node 低于 18 时不安装，直接在 stderr 提示升级。
+
+自更新在热启动时后台进行，只采用 `stable` 标签下**同主版本、发布满 72 小时、通过自检**的版本；维护者把 `stable` 拨回旧版本即可回滚。设置 `NGE_SELF_UPDATE=0` 可关闭。`stable` 标签由维护者在版本发布后手动提升，还没建立时后台检查会跳过，隔 6 小时再试。
+
+### 新增环境变量
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `NGE_REGISTRIES` | 未设置 | 逗号分隔的备用源链，覆盖默认三档 |
+| `NGE_COLD_RESOLVE_MS` | `15000` | 单档解析版本的最长等待（毫秒） |
+| `NGE_COLD_INSTALL_MS` | `90000` | 单档直装的最长等待（毫秒） |
+| `NGE_COLD_NPM_MS` | `90000` | 冷启动时 npm 回退的最长等待（毫秒） |
+| `NGE_SLOW_MS` | `8000` | 超过这个时间上报一次 `start/slow` |
+| `NGE_FAIL_BUDGET` | `30000` | 每次尝试都秒级失败时，继续重试的总时长 |
+| `NGE_CRASH_WINDOW` | `5000` | 启动后这个时间内非 0 退出算崩溃 |
+| `NGE_SELF_UPDATE` | `1` | 设为 `0` 关闭自更新 |
+| `NGE_SELF_CHECK_MS` | `21600000` | 检查 launcher 自身 `stable` 标签的间隔（毫秒），默认 6 小时 |
+| `NGE_SELF_MIN_AGE` | `259200000` | 自更新只采用发布满这个毫秒数的版本 |
+
+遥测仍用原来的 12 个字段，只新增枚举值：`result=slow`，`reason=crash-rollback` / `node-unsupported` / `cooldown` / `quarantined` / `selftest`；成功行的 `reason` 记为 `direct` / `direct-m2` / `direct-m3` / `npm`。目录里新增 `quarantine`、`crashes`、`cooldown` 三个记录文件，含义发布后同样冻结。`tests/resilience.test.mjs` 与 `tests/self-update.test.mjs` 覆盖上述行为。`start/slow` 表示还在安装，不是失败：同一次连接随后还会写 `start/ok` 或 `start/failed`，按设备统计失败时只数 `result=failed`。
 
 ## 行为
 
@@ -139,6 +166,25 @@ npm test
 - `tests/telemetry.test.mjs`：本地 HTTP 接收端，检查上报字段与登记一致、四个阶段都产生事件、关闭开关生效、上报超时不阻塞启动、客户端标识被清洗。
 
 六组测试都用 `NGE_ROOT` 指到临时目录，不碰真实用户目录；mock registry 用纯 JS 生成 tarball，不依赖系统 `tar`。测试与 CI 显式关闭对外上报，遥测专项只往本地接收端发。CI 在 ubuntu / macOS / Windows 三平台跑 `npm test`，Windows 跳过 POSIX 信号转发那一项。
+
+## npx 拉不起来时
+
+从程序坞或 Finder 打开的 IDE 可能继承不到终端的 PATH，报 `spawn npx ENOENT`；`~/.npm/_npx` 缓存损坏会报 ENOTEMPTY / EACCES。这两种情况都发生在 launcher 启动之前，launcher 自己修不了。
+
+手动退路是把 launcher 单独装到一个固定目录，配置里直接调用 Node，不经过 npx：
+
+```bash
+npm install --prefix ~/cloudbase-mcp/launcher @cloudbase/npm-launcher@<固定版本>
+```
+
+```json
+{
+  "command": "/绝对路径/node",
+  "args": ["/绝对路径/cloudbase-mcp/launcher/node_modules/@cloudbase/npm-launcher/index.js", "@cloudbase/cloudbase-mcp@latest"]
+}
+```
+
+两处都写绝对路径：IDE 不继承 PATH 时，`node` 和相对路径都找不到。先确认 `node --version` 不低于 18；Node 的绝对路径用 `command -v node`（macOS / Linux）或 `where node`（Windows）查。清理 `~/.npm/_npx` 前先关掉所有 MCP 客户端，只删对应的缓存目录，不要清整个 npm 缓存，会打断其他工具。
 
 ## 诊断
 
