@@ -1,8 +1,8 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 201528,
-    "toolDescriptionChars": 29431,
+    "wireBytes": 201542,
+    "toolDescriptionChars": 29459,
     "paramDescriptionChars": 46397,
     "perTool": {
       "auth": {
@@ -161,8 +161,8 @@
         "paramDescriptionChars": 155
       },
       "manageAppAuth": {
-        "bytes": 3703,
-        "toolDescriptionChars": 677,
+        "bytes": 3717,
+        "toolDescriptionChars": 705,
         "paramDescriptionChars": 479
       },
       "queryApps": {
@@ -219,8 +219,8 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 215525,
-    "toolDescriptionChars": 56021,
+    "wireBytes": 215520,
+    "toolDescriptionChars": 56016,
     "paramDescriptionChars": 91269,
     "perTool": {
       "auth": {
@@ -379,8 +379,8 @@
         "paramDescriptionChars": 290
       },
       "manageAppAuth": {
-        "bytes": 3973,
-        "toolDescriptionChars": 1472,
+        "bytes": 3968,
+        "toolDescriptionChars": 1467,
         "paramDescriptionChars": 915
       },
       "queryApps": {
