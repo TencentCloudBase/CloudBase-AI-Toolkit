@@ -27,30 +27,7 @@ export const functions = defineModule(
       "\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
     manageTitle: "管理 CloudBase 云函数",
     manageDescription:
-      "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、发布版本、配置流量别名、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。部署包体积有硬上限：请勿把静态内容打进包里——媒体文件（视频、大图、字体）、用户上传的文件、以及频繁更新的静态资源都应放云存储按 URL 引用，否则每次改动都要重新部署函数，包还可能超限。" +
-      "如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。" +
-      "版本发布：`publishVersion` 对齐 tcb fn publish-version / SDK publishVersion；灰度/切流：`updateFunctionAliasConfig` 对齐 tcb fn config-route / SDK updateFunctionAliasConfig（aliasName 默认 `$DEFAULT`）。" +
-      "HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。" +
-      "func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；" +
-      "func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），" +
-      "默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。" +
-      "local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。" +
-      "func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。" +
-      "\n\n**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。" +
-      "若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），" +
-      "则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。" +
-      "不要向用户索要密码明文，也不要把密码写进工具参数。" +
-      "\n注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：" +
-      "部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），" +
-      "这类用户没有配置自定义 env 的通道，「在 MCP 配置的 env 中设置」对他们是无效指引。" +
-      "面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。" +
-      "\n**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，" +
-      "环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；" +
-      "个人版走静态密码直接 docker login，不经过 CAM，反而是 API Key 用户唯一能走通的构建路径。" +
-      "\n\n**层（Layer）说明**：" +
-      "\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数" +
-      "\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重" +
-      "\n- 相关 action：`createLayerVersion` / `deleteLayerVersion` / `attachLayer` / `detachLayer` / `updateFunctionLayers`（只读查询见 queryFunctions 的 listLayers / listLayerVersions / getLayerVersionDetail）",
+      "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、发布版本、配置流量别名、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。部署包体积有硬上限：请勿把静态内容打进包里——媒体文件（视频、大图、字体）、用户上传的文件、以及频繁更新的静态资源都应放云存储按 URL 引用，否则每次改动都要重新部署函数，包还可能超限。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器，deleteFunctionTrigger 删除触发器。版本发布用 `publishVersion`，灰度/切流用 `updateFunctionAliasConfig`。HTTP 云函数镜像部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分（image=已有镜像直接部署，local / cloud=先构建再部署，省略或 zip=传统代码包）。local / cloud 默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。危险操作需要显式 confirm=true。\n\n**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD，请求参数里的 registryCredential 留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数。\n注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），这类用户没有配置自定义 env 的通道。面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。\n**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；个人版走静态密码直接 docker login，是 API Key 用户唯一能走通的构建路径。\n\n**层（Layer）**：层为 SCF 账号级共享命名空间，不同环境创建同名层会共享同一版本序列，删除某版本会影响所有绑定该版本的环境。- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重\n只读查询见 queryFunctions 的 listLayers / listLayerVersions / getLayerVersionDetail。",
 
     // ---- Layer 软提示 ----
     "layerWarn.createNameFormat": "建议使用 {layerName}_{envId} 格式，当前名称可能与其他环境共享版本序列",
@@ -279,9 +256,9 @@ export const functions = defineModule(
     "schema.query.order": "`listVersionByFunction` 排序方向，仅支持 ASC / DESC",
     "schema.query.orderBy": "`listVersionByFunction` 排序字段，仅支持 AddTime / ModTime",
     "schema.query.aliasName": "`getFunctionAlias` 的别名名称。省略时默认 `$DEFAULT`（与 tcb fn get-route 一致）",
-    "schema.manage.action": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers、publishVersion（发布新版本，对齐 tcb fn publish-version）、updateFunctionAliasConfig（更新别名/流量路由，对齐 tcb fn config-route）。层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）",
+    "schema.manage.action": "写操作类型。createFunctionTrigger / deleteFunctionTrigger 管理定时任务（cron / timer）；publishVersion 发布新版本；updateFunctionAliasConfig 更新别名/流量路由；incrementalDeployFunction 只上传单个变更文件。",
     "schema.manage.func": "createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，镜像相关字段收敛在 func.imageConfig 命名空间下。",
-    "schema.manage.functionRootPath": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
+    "schema.manage.functionRootPath": "创建或更新函数代码时默认推荐的本地目录方式。传直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions，其下为 <functionName>/index.js），不要传项目根目录，也不要传到函数名子目录。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
     "schema.manage.force": "createFunction 时是否覆盖",
     "schema.manage.functionName": "目标函数名称（顶层）。updateFunctionCode / updateFunctionConfig / invokeFunction / publishVersion / updateFunctionAliasConfig 等 action 使用此字段。不要只写在 func.name：createFunction 用 func.name，其它 action 用顶层 functionName。若误传 func.name，也会被识别为 functionName。",
     "schema.manage.zipFile": "仅兼容特殊场景：预先准备好的代码包 base64 编码。普通 createFunction/updateFunctionCode 默认不要先压缩 zip，优先使用 functionRootPath。",
@@ -306,11 +283,11 @@ export const functions = defineModule(
     "schema.manage.layers": "updateFunctionLayers 的目标层列表，顺序即最终顺序",
     "schema.manage.codeSecret": "层绑定时的代码保护密钥",
     "schema.manage.dryRun": "镜像构建部署（func.buildStrategy=cloud/local）是否只生成部署计划。默认 true；传 false 时必须同时传 confirm=true。",
-    "schema.manage.wait": "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。默认 true 是为了兼容既有调用方，但同步等待最长可达约 15 分钟，很容易先撞上 MCP Client 的请求超时——客户端超时只是断开这次请求，云端部署仍在继续，却拿不到 taskId 追踪。因此执行真实构建部署（buildStrategy=cloud/local，dryRun=false）时建议显式传 wait=false。",
+    "schema.manage.wait": "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。默认 true，但同步等待最长约 15 分钟，容易先撞上 MCP Client 请求超时且拿不到 taskId，因此真实构建部署（buildStrategy=cloud/local，dryRun=false）建议显式传 wait=false。",
     "schema.manage.autoGrant": "镜像部署是否允许 manager-node 自动补齐固定白名单 CAM 策略。默认 false；仅在明确确认权限变更时设为 true。",
     "schema.manage.confirm": "危险操作确认开关。deleteFunction、deleteFunctionTrigger、deleteLayerVersion、detachLayer 等删除类操作以及镜像构建部署（func.buildStrategy=cloud/local）真实执行需要显式传入 confirm=true",
     "schema.manage.incrementalFile": "incrementalDeployFunction 增量部署时的变更文件路径",
-    "schema.manage.aliasName": "`updateFunctionAliasConfig` 的别名名称。省略时默认 `$DEFAULT`（与 tcb fn config-route 一致）",
+    "schema.manage.aliasName": "`updateFunctionAliasConfig` 的别名名称。省略时默认 `$DEFAULT`",
     "schema.manage.functionVersion": "`updateFunctionAliasConfig` 的主版本。可为具体版本号或 `$LATEST`",
     "schema.manage.routingConfig": "`updateFunctionAliasConfig` 的流量路由配置。AdditionalVersionWeights 用于灰度权重；AddtionVersionMatchs 为 SCF/SDK 历史字段名（含拼写）",
     "schema.routing.version": "附加流量版本号",
@@ -348,30 +325,7 @@ export const functions = defineModule(
       "\n- The `queryLogs` tool searches the CLS log service (cross-service log aggregation)",
     manageTitle: "Manage CloudBase Cloud Functions",
     manageDescription:
-      "Unified write entry for CloudBase cloud functions. Supports creating functions, updating code, updating configuration, invoking functions, publishing versions, configuring traffic aliases, and managing timer triggers (scheduled jobs / cron) and layer bindings. The deployment package has a hard size ceiling — do not bundle static content: media files (video, large images, fonts), user uploads, and frequently-updated static resources belong in cloud storage referenced by URL, otherwise every change forces a full function redeploy and the package can exceed the limit." +
-      " To create a cron scheduled task, first create the function with createFunction, then create the timer trigger with createFunctionTrigger (7-field cron expression supported), and delete triggers with deleteFunctionTrigger." +
-      " Version publish: `publishVersion` aligns with tcb fn publish-version / SDK publishVersion; canary / traffic shift: `updateFunctionAliasConfig` aligns with tcb fn config-route / SDK updateFunctionAliasConfig (aliasName defaults to `$DEFAULT`)." +
-      " HTTP function image build & deploy: createFunction / updateFunctionCode distinguish via func.buildStrategy." +
-      " func.buildStrategy=image (existing image, set func.imageConfig.imageUri) creates/updates the HTTP function directly;" +
-      " func.buildStrategy=local (local Docker build & push) and cloud (CloudApp cloud build) go through the image build/deploy orchestration (func.imageConfig required; build optional — missing registry coordinates are auto-filled: namespace defaults to envId, repository defaults to the function name)," +
-      " and only a dry-run plan is generated by default; pass dryRun=false with confirm=true to execute the real deployment. A real deployment may pass wait=false to return a taskId immediately; query progress and results via getFunctionDeployStatus of queryFunctions. wait=false only means this tool call does not wait for the full deployment; the caller must not finish while status=running and must keep polling until succeeded/failed before reporting to the user, unless the polling limit is reached." +
-      " local always requires local MCP mode; the real execution of cloud also requires local MCP mode because it reads the local build context; cloud mode only supports cloud dry-run and the image strategy." +
-      " When func.buildStrategy is omitted or zip, traditional code package deployment applies. Dangerous operations require explicit confirm=true." +
-      "\n\n**Personal-edition TCR credentials**: local/cloud builds with imageType=personal need push credentials." +
-      " If TCB_TCR_USERNAME and TCB_TCR_PASSWORD are already set in the env of the MCP configuration (configured the same way as TENCENTCLOUD_SECRETID and other keys)," +
-      " there is no need to pass func.imageConfig.build.registryCredential in request parameters — leave it empty and it will be read automatically." +
-      " Do not ask users for plaintext passwords, and do not put passwords into tool parameters." +
-      "\nNote this env channel only works with **local stdio MCP and clients whose mcp.json supports a custom env block**:" +
-      " some GUI clients do not inherit shell exports, and IDE built-in MCPs usually inject credentials through a hardcoded whitelist (e.g. only TENCENTCLOUD_*)," +
-      " so those users have no channel to configure a custom env — telling them to \"set it in the MCP config env\" is ineffective guidance." +
-      " For built-in MCP users, guide them instead to use the enterprise edition (imageType=enterprise, instance temporary tokens, no fixed password) or to use buildStrategy=image to deploy an already-pushed image." +
-      "\n**Enterprise-edition login requirements**: cloud/local builds for enterprise require minting a TCR temporary token via CAM." +
-      " Environment-level API keys and temporary credentials from OAuth carry no CAM policy and will be blocked up front with a hint to switch to account-level keys or the image strategy;" +
-      " personal edition logs in directly with a static password via docker login without CAM, and is in fact the only build path that works for API-key users." +
-      "\n\n**Layers**:" +
-      "\n- Layers are account-level shared namespaces in SCF: same-named layers created in different environments share one version sequence; deleting a version affects functions in every environment bound to it" +
-      "\n- When creating a layer, use a unique name with the environment suffix, in the fixed format `{layerName}_{current envId}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Do not reuse the same bare layer name across environments; check with `listLayers` before creating" +
-      "\n- Related actions: `createLayerVersion` / `deleteLayerVersion` / `attachLayer` / `detachLayer` / `updateFunctionLayers` (read-only queries: listLayers / listLayerVersions / getLayerVersionDetail of queryFunctions)",
+      "Unified write entry for CloudBase cloud functions. Supports creating functions, updating code, updating configuration, invoking functions, publishing versions, configuring traffic aliases, and managing timer triggers (scheduled jobs / cron) and layer bindings. The deployment package has a hard size ceiling — do not bundle static content: media files (video, large images, fonts), user uploads, and frequently-updated static resources belong in cloud storage referenced by URL, otherwise every change forces a full function redeploy and the package can exceed the limit. To create a cron scheduled task, first create the function with createFunction, then create the timer trigger with createFunctionTrigger, and delete triggers with deleteFunctionTrigger. Publish versions with `publishVersion`; shift traffic (canary) with `updateFunctionAliasConfig`. HTTP function image deployment: createFunction / updateFunctionCode choose the path via func.buildStrategy (image = deploy an existing image, local / cloud = build then deploy, omitted or zip = traditional code package). local / cloud only produce a dry-run plan by default; pass dryRun=false with confirm=true to execute the real deployment. A real deployment may pass wait=false to return a taskId immediately; query progress and results via getFunctionDeployStatus of queryFunctions. wait=false only means this tool call does not wait for the full deployment; the caller must not finish while status=running and must keep polling until succeeded/failed before reporting to the user, unless the polling limit is reached. local always requires local MCP mode; the real execution of cloud also requires local MCP mode because it reads the local build context; cloud mode only supports cloud dry-run and the image strategy. Dangerous operations require explicit confirm=true.\n\n**Personal-edition TCR credentials**: local/cloud builds with imageType=personal need push credentials. If TCB_TCR_USERNAME and TCB_TCR_PASSWORD are set in the env of the MCP configuration, leave registryCredential empty and it is read automatically. Do not ask users for plaintext passwords, and do not put passwords into tool parameters.\nNote this env channel only works with **local stdio MCP and clients whose mcp.json supports a custom env block**: some GUI clients do not inherit shell exports, and IDE built-in MCPs usually inject credentials through a hardcoded whitelist (e.g. only TENCENTCLOUD_*), so those users have no channel to configure a custom env. For built-in MCP users, guide them instead to use the enterprise edition (imageType=enterprise, instance temporary tokens, no fixed password) or to use buildStrategy=image to deploy an already-pushed image.\n**Enterprise-edition login requirements**: cloud/local builds for enterprise require minting a TCR temporary token via CAM. Environment-level API keys and temporary credentials from OAuth carry no CAM policy and will be blocked up front with a hint to switch to account-level keys or the image strategy; personal edition logs in directly with a static password via docker login without CAM, and is the only build path that works for API-key users.\n\n**Layers** are account-level shared namespaces in SCF: same-named layers created in different environments share one version sequence, and deleting a version affects every environment bound to it. When creating a layer, use a unique name with the environment suffix, in the fixed format `{layerName}_{current envId}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Do not reuse the same bare layer name across environments; check with `listLayers` before creating. Read-only queries: listLayers / listLayerVersions / getLayerVersionDetail of queryFunctions.",
 
     // ---- Layer soft warnings ----
     "layerWarn.createNameFormat": "Consider using the {layerName}_{envId} format; the current name may share a version sequence with other environments",
@@ -600,9 +554,9 @@ export const functions = defineModule(
     "schema.query.order": "Sort direction for `listVersionByFunction`; only ASC / DESC are supported.",
     "schema.query.orderBy": "Sort field for `listVersionByFunction`; only AddTime / ModTime are supported.",
     "schema.query.aliasName": "Alias name for `getFunctionAlias`. Defaults to `$DEFAULT` when omitted (same as tcb fn get-route).",
-    "schema.manage.action": "Write action type, such as createFunction, updateFunctionCode, incrementalDeployFunction, invokeFunction, deleteFunction, createFunctionTrigger (scheduled task / cron / timer), deleteFunctionTrigger, createLayerVersion, deleteLayerVersion, attachLayer, detachLayer, updateFunctionLayers, publishVersion (publish a new version; aligns with tcb fn publish-version), or updateFunctionAliasConfig (update alias / traffic routing; aligns with tcb fn config-route). Use the fixed layer naming format `{layerName}_{current envId}` (for example, common_cloud1-d9ghadgak3edf6b36).",
+    "schema.manage.action": "Write action type. createFunctionTrigger / deleteFunctionTrigger manage scheduled tasks (cron / timer); publishVersion publishes a new version; updateFunctionAliasConfig updates alias / traffic routing; incrementalDeployFunction uploads a single changed file.",
     "schema.manage.func": "Function configuration for createFunction / updateFunctionCode. Image/build deployment is selected by func.buildStrategy (zip/cloud/local/image), with image fields under func.imageConfig.",
-    "schema.manage.functionRootPath": "Recommended local-directory input for creating or updating function code. It must be the absolute directory that directly contains function folders (for example, /abs/path/cloudfunctions or /abs/path/functions), not the project root or the function subdirectory. Local layout should be cloudfunctions/<functionName>/index.js or functions/<functionName>/index.js. Pass the absolute cloudfunctions/functions directory; the SDK appends the function subdirectory. Do not precompress ZIP or base64 content.",
+    "schema.manage.functionRootPath": "Recommended local-directory input for creating or updating function code. Pass the absolute directory that directly contains function folders (e.g. /abs/path/cloudfunctions, containing <functionName>/index.js), not the project root or the function subdirectory. The SDK appends the function subdirectory; do not precompress ZIP or base64 content.",
     "schema.manage.force": "Whether createFunction overwrites an existing function.",
     "schema.manage.functionName": "Target function name at the top level. Used by updateFunctionCode, updateFunctionConfig, invokeFunction, publishVersion, updateFunctionAliasConfig, and similar actions. createFunction uses func.name; other actions use top-level functionName. A mistakenly supplied func.name is also recognized as functionName.",
     "schema.manage.zipFile": "Compatibility only: base64-encoded prebuilt code package. For ordinary createFunction/updateFunctionCode, do not create a ZIP first; prefer functionRootPath.",
@@ -627,11 +581,11 @@ export const functions = defineModule(
     "schema.manage.layers": "Target layer list for updateFunctionLayers; array order becomes final order.",
     "schema.manage.codeSecret": "Code protection secret used when binding a layer.",
     "schema.manage.dryRun": "Whether image build deployment (func.buildStrategy=cloud/local) only generates a deployment plan. Defaults to true; false also requires confirm=true.",
-    "schema.manage.wait": "Whether a real image deployment waits for completion. false returns a taskId immediately and continues in the background. true remains the default for compatibility, but synchronous waiting can take about 15 minutes and exceed the MCP Client timeout. A client timeout only disconnects the request while cloud deployment continues, leaving no taskId to track. For a real build deployment (buildStrategy=cloud/local, dryRun=false), explicitly use wait=false.",
+    "schema.manage.wait": "Whether a real image deployment waits for completion; false returns a taskId immediately and continues in the background. Defaults to true, but synchronous waiting can take about 15 minutes and hit the MCP Client timeout without a taskId to track, so pass wait=false explicitly for a real build deployment (buildStrategy=cloud/local, dryRun=false).",
     "schema.manage.autoGrant": "Whether manager-node may automatically add the fixed allowlist of CAM policies for image deployment. Defaults to false; set true only after explicitly confirming permission changes.",
     "schema.manage.confirm": "Dangerous-operation confirmation. deleteFunction, deleteFunctionTrigger, deleteLayerVersion, detachLayer, other delete actions, and real image build deployment (func.buildStrategy=cloud/local) require confirm=true.",
     "schema.manage.incrementalFile": "Changed-file path for incrementalDeployFunction incremental deployment.",
-    "schema.manage.aliasName": "Alias name for `updateFunctionAliasConfig`. Defaults to `$DEFAULT` when omitted (same as tcb fn config-route).",
+    "schema.manage.aliasName": "Alias name for `updateFunctionAliasConfig`. Defaults to `$DEFAULT`",
     "schema.manage.functionVersion": "Primary version for `updateFunctionAliasConfig`. May be a concrete version number or `$LATEST`.",
     "schema.manage.routingConfig": "Traffic routing config for `updateFunctionAliasConfig`. AdditionalVersionWeights is used for canary weights; AddtionVersionMatchs keeps the SCF/SDK historical field name (including the typo).",
     "schema.routing.version": "Additional traffic version number",
