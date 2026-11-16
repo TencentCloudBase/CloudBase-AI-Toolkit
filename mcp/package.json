@@ -56,6 +56,8 @@
     "test:lib:minify-parity": "node ./scripts/verify-lib-minify-parity.mjs",
     "check:i18n": "node ./scripts/check-i18n-coverage.mjs",
     "update:i18n-baseline": "node ./scripts/check-i18n-coverage.mjs --update",
+    "test:tool-surface": "vitest run src/tool-surface",
+    "update:tool-surface": "UPDATE_TOOL_SURFACE=1 vitest run src/tool-surface",
     "test:inspector": "npm run build && npx @modelcontextprotocol/inspector node ./dist/cli.cjs",
     "prepublishOnly": "npm run build && node scripts/prepare-publish.cjs",
     "postpublish": "node scripts/restore-deps.cjs"
