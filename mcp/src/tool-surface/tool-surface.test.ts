@@ -8,6 +8,8 @@
  *   UPDATE_TOOL_SURFACE_CONSTRAINTS=1 ...                     # constraint sentence list (rare)
  *   UPDATE_TOOL_SURFACE_SAMPLES=1 ...                         # argument acceptance (contract change)
  *
+ *   TOOL_SURFACE_DUMP=/tmp/surface ...                         # also write raw tools/list per language
+ *
  * A structural change to an input schema must also be declared in
  * `mcp/tool-surface/contract-allowed-diff.json` before the contract is refreshed;
  * the contract check refuses undeclared changes even in update mode.
@@ -59,6 +61,14 @@ const surfaces = {} as Record<Lang, ToolSurface>;
 
 beforeAll(async () => {
   for (const lang of LANGS) surfaces[lang] = await readToolSurface(lang);
+  // TOOL_SURFACE_DUMP=<dir> writes the raw tools/list per language for review.
+  const dumpDir = process.env.TOOL_SURFACE_DUMP;
+  if (dumpDir) {
+    fs.mkdirSync(dumpDir, { recursive: true });
+    for (const lang of LANGS) {
+      fs.writeFileSync(path.join(dumpDir, `tools-${lang}.json`), `${JSON.stringify(surfaces[lang].tools, null, 2)}\n`);
+    }
+  }
 }, 120_000);
 
 describe("tool surface contract", () => {
