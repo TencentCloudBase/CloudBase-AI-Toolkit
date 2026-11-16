@@ -155,10 +155,7 @@ export const gateway = defineModule(
       "域名 {domain} 的接入方式是 {accessType}，不能按 cacheType={requested} 刷新。省略 cacheType 就会按接入方式自动匹配。",
     // Input schema parameter descriptions
     "schema.query.action":
-      "只读操作类型：listRoutes、getRoute、listCustomDomains、getPrivilege、cachePurgeTask。" +
-      "getPrivilege 无需其他参数，直接返回 HTTP 网关总开关与访问鉴权状态。" +
-      "cachePurgeTask 需要 domain（可选 cacheType/taskId/purgeType/startTime/endTime/offset/limit）。" +
-      "自定义域名访问场景先 listCustomDomains 确认是否已有域名可复用。",
+      "只读操作类型。getPrivilege 无需其他参数，直接返回 HTTP 网关总开关与访问鉴权状态。cachePurgeTask 需要 domain。自定义域名访问场景先 listCustomDomains 确认是否已有域名可复用。",
     "schema.query.targetName":
       "上游资源名过滤（UpstreamResourceName）：云函数名、云托管服务名，或静态托管实例名（常见 staticstore）。",
     "schema.query.routeId": "路由 ID。getRoute 时可选",
@@ -210,7 +207,7 @@ export const gateway = defineModule(
     "schema.manage.extension.header.key": "请求/响应头名称，如 X-Frame-Options",
     "schema.manage.extension.header.value": "请求/响应头取值，如 SAMEORIGIN",
     "schema.manage.extension.header.action":
-      "写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的",
+      "写入策略：APPEND_IF_EXISTS_OR_ADD=追加；ADD_IF_ABSENT=不存在才加；OVERWRITE_IF_EXISTS_OR_ADD=覆盖或新增；OVERWRITE_IF_EXISTS=仅覆盖已存在的",
     "schema.manage.extension.cacheCondition":
       "缓存规则匹配条件，values 为匹配值数组",
     "schema.manage.extension.cacheActions":
@@ -428,10 +425,7 @@ export const gateway = defineModule(
       "Domain {domain} uses access type {accessType} and cannot be purged with cacheType={requested}. Omit cacheType to match the access type automatically.",
     // Input schema parameter descriptions
     "schema.query.action":
-      "Read-only action: listRoutes, getRoute, listCustomDomains, getPrivilege, cachePurgeTask. " +
-      "getPrivilege needs no other parameter and returns the HTTP gateway master switch and access auth status directly. " +
-      "cachePurgeTask requires domain (optional cacheType/taskId/purgeType/startTime/endTime/offset/limit). " +
-      "For custom domain access, run listCustomDomains first to check whether an existing domain can be reused.",
+      "Read-only action. getPrivilege needs no other parameter and returns the HTTP gateway master switch and access auth status directly. cachePurgeTask requires domain. For custom domain access, run listCustomDomains first to check whether an existing domain can be reused.",
     "schema.query.targetName":
       "Upstream resource name filter (UpstreamResourceName): a cloud function name, CloudRun service name, or static-hosting instance name (commonly staticstore).",
     "schema.query.routeId": "Route ID. Optional for getRoute",
@@ -485,7 +479,7 @@ export const gateway = defineModule(
     "schema.manage.extension.header.key": "Header name, e.g. X-Frame-Options",
     "schema.manage.extension.header.value": "Header value, e.g. SAMEORIGIN",
     "schema.manage.extension.header.action":
-      "Write strategy: APPEND_IF_EXISTS_OR_ADD appends; ADD_IF_ABSENT only adds when missing; OVERWRITE_IF_EXISTS_OR_ADD overwrites or adds; OVERWRITE_IF_EXISTS only overwrites existing",
+      "Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only",
     "schema.manage.extension.cacheCondition":
       "Cache rule match condition; values is the list of match values",
     "schema.manage.extension.cacheActions":
