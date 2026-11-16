@@ -27,7 +27,7 @@
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.2.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.3.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": {
         "CLOUDBASE_ENV_ID": "<本项目的环境 ID>",
         "CLOUDBASE_API_KEY": "<本项目的环境 API Key>"

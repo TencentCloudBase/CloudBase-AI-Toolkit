@@ -110,7 +110,7 @@ Add the cloudbase MCP server to your project:
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.2.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.3.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": { "INTEGRATION_IDE": "Claude" }
     }
   }
@@ -145,7 +145,7 @@ Add to your OpenCode config:
   "mcpServers": {
     "cloudbase": {
       "command": "npx",
-      "args": ["-y", "@cloudbase/npm-launcher@1.2.0", "@cloudbase/cloudbase-mcp@latest"],
+      "args": ["-y", "@cloudbase/npm-launcher@1.3.0", "@cloudbase/cloudbase-mcp@latest"],
       "env": { "INTEGRATION_IDE": "OpenCode" }
     }
   }
