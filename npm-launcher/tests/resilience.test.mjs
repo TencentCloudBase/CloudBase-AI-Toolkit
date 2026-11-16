@@ -25,7 +25,6 @@ function check(ok, label, detail = "") {
   results.push(ok);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? ` — ${detail}` : ""}`);
 }
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let n = 0;
 const mkRoot = () => { const d = path.join(TMP, `r${++n}`); fs.mkdirSync(d); return d; };
 const base = (root) => path.join(root, SLUG);
