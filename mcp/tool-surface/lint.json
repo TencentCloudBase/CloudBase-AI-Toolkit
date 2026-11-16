@@ -1,7 +1,7 @@
 {
   "counts": {
     "A": 1,
-    "B": 23,
+    "B": 19,
     "C": 25,
     "D": 16,
     "E": 12,
@@ -14,8 +14,6 @@
     "B deployPlan only",
     "B deployPlan skip",
     "B manageApps framework",
-    "B manageEnv region",
-    "B manageFunctions action",
     "B manageGateway action",
     "B manageGateway domainExtension.headersHandler.requestHeadersToAdd.items.action",
     "B manageGateway domainExtension.headersHandler.responseHeadersToAdd.items.action",
@@ -24,9 +22,7 @@
     "B manageGateway protocol",
     "B manageGateway route.extension.headersHandler.requestHeadersToAdd.items.action",
     "B manageGateway route.extension.headersHandler.responseHeadersToAdd.items.action",
-    "B managePermissions resourceType",
     "B queryEnv fields",
-    "B queryEnv metricName",
     "B queryEnv type",
     "B queryFunctions action",
     "B queryGateway action",

@@ -260,7 +260,9 @@ export function lintTool(tool: WireTool): LintFinding[] {
         const explained = enumValues.filter((v) =>
           new RegExp(`${String(v).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*[=：:（(]`).test(description),
         );
-        if (listed.length / enumValues.length >= 0.6 && explained.length / enumValues.length < 0.3) {
+        // Every value repeated without meaning = a bare copy of the enum. Partial
+        // mentions are usually constraints ("86400 cannot be used for ...").
+        if (listed.length === enumValues.length && explained.length / enumValues.length < 0.3) {
           findings.push({ category: "B", tool: tool.name, path, detail: `re-lists ${listed.length}/${enumValues.length} enum values` });
         }
       }
