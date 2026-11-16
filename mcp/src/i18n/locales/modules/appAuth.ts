@@ -7,7 +7,7 @@ export const appAuth = defineModule(
       "CloudBase 应用侧认证配置只读入口。用于查询登录方式、provider、publishable key、API key、client 配置和静态域名等认证准备状态。⚠️ 本工具为管理端配置查询工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具确认配置状态，再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若业务要接受普通用户名样式标识符，先查询 action=getLoginConfig；若 usernamePassword=false，下一步应立即调用 manageAppAuth(action=patchLoginStrategy, patch={ usernamePassword: true })，不要直接写 email 登录 API。",
     manageTitle: "管理 CloudBase 应用认证配置",
     manageDescription:
-      "CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch={ usernamePassword: true }，再实现对应前端登录逻辑。⚠️ 短信验证码登录（patch={ phone: true }）使用云开发默认短信通道，开启后即可收发验证码，不需要配置短信签名/模板/自定义 Provider；仅当需要自定义模板/签名或更换短信服务商时才需配置 SmsVerificationConfig 或自定义短信通道。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。",
+      "CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch={ usernamePassword: true }，再实现对应前端登录逻辑。⚠️ 手机号短信验证码登录（patch={ phone: true }）开启后还需自行接入短信服务商，验证码才会发出；仅打开开关不能收发短信。跑通登录流程优先使用邮箱验证码登录。短信通道配置见 https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。",
     mustBeObject: "{label} 必须是对象",
     mustBeStringOrObject: "{label} 必须是字符串或对象",
     noActiveEnv: "未选择当前环境",
@@ -19,9 +19,9 @@ export const appAuth = defineModule(
     unknownEnv: "(当前环境)",
     paramRequired: "action={action} 时必须提供 {param}",
     smsHint:
-      "短信验证码登录已开启，可直接使用云开发默认短信通道收发验证码，无需配置短信签名/模板/自定义 Provider。" +
-      "前端调用 auth.getVerification({ phone_number }) 发送验证码、auth.signInWithSms({ verificationInfo, verificationCode, phoneNum }) 登录。" +
-      "仅当需要自定义短信模板/签名或更换短信服务商时，才需要配置 SmsVerificationConfig 或接入自定义短信通道。",
+      "手机号短信验证码登录已开启，但仅打开开关不会收发验证码：还需自行接入短信服务商并配置签名与模板，配置完成后验证码才会发出。" +
+      "跑通登录流程优先改用邮箱验证码登录（前端写法见 auth-web-cloudbase）。" +
+      "短信通道按官方文档配置：https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider（该文档也说明可通过云函数接入其他短信服务商）。配置完成前不要认为短信登录已可用。",
     webSdkBlockedReason: "普通用户名样式的标识符需要启用 usernamePassword 认证",
     webSdkRegisterHint:
       "直接使用用户名/密码 signUp 取决于 SDK/provider 的支持情况，使用前必须验证；否则请通过后端或管理端 API 边界创建用户。",
@@ -55,7 +55,7 @@ export const appAuth = defineModule(
       "Read-only entry for CloudBase app-side authentication configuration. Queries login methods, providers, publishable key, API keys, client config, and static domain to check auth readiness. ⚠️ This is a management-side config query tool; it does not perform user login. When a task asks you to write client login code (e.g. \"login with the JS SDK\"), first confirm the configuration via this tool, then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in. If the app should accept plain username-style identifiers, query action=getLoginConfig first; if usernamePassword=false, immediately call manageAppAuth(action=patchLoginStrategy, patch={ usernamePassword: true }) next — do not write email login APIs directly.",
     manageTitle: "Manage CloudBase app authentication config",
     manageDescription:
-      "Write entry for CloudBase app-side authentication configuration. Modifies login methods, providers, and client config, ensures the publishable key, and creates or deletes API keys and custom login keys. ⚠️ This is a management-side config tool; it does not perform user login. When a task asks you to write client login code (e.g. \"login with the JS SDK\"), first complete the configuration here (e.g. enable usernamePassword, obtain the publishable key), then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in. If the frontend should accept plain username-style identifiers, run action=patchLoginStrategy with patch={ usernamePassword: true } first, then implement the corresponding frontend login logic. ⚠️ SMS verification code login (patch={ phone: true }) uses the CloudBase default SMS channel; once enabled you can send/receive verification codes without configuring SMS signature/template/custom providers; only configure SmsVerificationConfig or a custom SMS channel if you need custom templates/signatures or a different SMS provider. ⚠️ The created field in the action=createApiKey response indicates whether a key was really created: created=false means an existing key in the environment was reused — the keyName/expireIn inputs take no effect, the returned keyName/expireAt are the server's real values, and warnings are attached. Never distribute it as a temporary credential.",
+      "Write entry for CloudBase app-side authentication configuration. Modifies login methods, providers, and client config, ensures the publishable key, and creates or deletes API keys and custom login keys. ⚠️ This is a management-side config tool; it does not perform user login. When a task asks you to write client login code (e.g. \"login with the JS SDK\"), first complete the configuration here (e.g. enable usernamePassword, obtain the publishable key), then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in. If the frontend should accept plain username-style identifiers, run action=patchLoginStrategy with patch={ usernamePassword: true } first, then implement the corresponding frontend login logic. ⚠️ Phone SMS verification code login (patch={ phone: true }) only turns the switch on: you still need to integrate your own SMS provider before any code is delivered. Prefer email verification code login to get a login flow working. See https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider for the SMS channel setup. ⚠️ The created field in the action=createApiKey response indicates whether a key was really created: created=false means an existing key in the environment was reused — the keyName/expireIn inputs take no effect, the returned keyName/expireAt are the server's real values, and warnings are attached. Never distribute it as a temporary credential.",
     mustBeObject: "{label} must be an object",
     mustBeStringOrObject: "{label} must be a string or an object",
     noActiveEnv: "no active environment selected",
@@ -67,9 +67,9 @@ export const appAuth = defineModule(
     unknownEnv: "(current environment)",
     paramRequired: "{param} is required when action={action}",
     smsHint:
-      "SMS verification code login is enabled; the CloudBase default SMS channel can send/receive codes without configuring SMS signature/template/custom providers. " +
-      "The frontend calls auth.getVerification({ phone_number }) to send codes and auth.signInWithSms({ verificationInfo, verificationCode, phoneNum }) to log in. " +
-      "Only configure SmsVerificationConfig or a custom SMS channel if you need custom templates/signatures or a different SMS provider.",
+      "Phone SMS verification code login is enabled, but enabling the switch alone does not send or receive codes: you still need to integrate your own SMS provider with an approved signature and template before any code is delivered. " +
+      "Prefer email verification code login to get a login flow working (see auth-web-cloudbase for the client-side calls). " +
+      "Configure the SMS channel per the official guide: https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider (it also covers integrating other SMS providers through a cloud function). Do not treat SMS login as usable until that configuration is done.",
     webSdkBlockedReason: "plain username-style identifiers require usernamePassword auth",
     webSdkRegisterHint:
       "direct username/password signUp is SDK/provider dependent; verify before use, otherwise create users through a backend or management API boundary",

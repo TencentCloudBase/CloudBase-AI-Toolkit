@@ -60,7 +60,7 @@ Parameter mapping for downstream Web auth code:
 - `UserNameLogin` controls username/password Web login flows used by `auth-web-cloudbase` `auth.signInWithPassword({ username, password })`; direct username/password `signUp` support is SDK/provider dependent and must be verified before use
 - If the account identifier is a plain username string, do not route it through email-only helpers such as `signInWithEmailAndPassword`
 - `UserNameLogin` also enables the broader password-login surface exposed by `auth.signInWithPassword({ username|email|phone, password })`
-- `SmsVerificationConfig.Type = "apis"` requires both `Name` and `Method`
+- SMS channel fields follow the official guide at https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider; do not copy channel parameters from older API examples
 - `EnvId` is always the CloudBase environment ID, not the publishable key
 - If the conversation only contains an environment alias, nickname, or other shorthand, resolve it to the canonical full `EnvId` first before generating auth config, SDK init examples, or console links
 
@@ -122,11 +122,11 @@ Preferred MCP tool path: `manageAppAuth(action="patchLoginStrategy")`
 
 Use `patch.phone = true/false` for the login method itself.
 
-**Default SMS channel is ready out of the box.** After `patch.phone = true`, the CloudBase default SMS channel sends and receives verification codes without any extra setup — no SMS signature, template, or custom provider configuration is required. Frontend flow: `auth.getVerification({ phone_number })` to send the code, then `auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })` to sign in. Note: SMS login is only supported in the `ap-shanghai` region, and phone numbers must include a country code (e.g. `+86 13800000000`).
+**Enabling the switch does not send codes.** Phone SMS login needs the user's own SMS provider: after `patch.phone = true`, configure a custom SMS channel with an approved signature and template before any verification code can be delivered. Follow the official guide and use it as the source of truth for channel parameters: https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider — it covers Tencent Cloud SMS and also integrating other SMS providers through a cloud function. Do not copy channel parameters from older API examples.
 
-Only when you need custom SMS templates, custom signatures, or a different SMS vendor should you configure a custom SMS channel (or raw API fields such as `SmsVerificationConfig`). Do not block SMS login on provider/signature setup — the default channel already works.
+**Default path for getting a login flow working: email verification code login.** Enable `patch.email = true` and use `auth.signInWithOtp({ email })` + `data.verifyOtp({ token })` from `../auth-web-cloudbase/SKILL.md`. Reach for SMS only when the app genuinely needs a phone number, and confirm the custom SMS channel is configured before generating phone OTP code.
 
-Short MCP example:
+Short MCP example (only after the custom SMS channel is configured):
 
 ```json
 {

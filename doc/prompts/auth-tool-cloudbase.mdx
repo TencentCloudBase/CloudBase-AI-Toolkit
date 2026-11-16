@@ -94,6 +94,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 
 Configure CloudBase authentication providers: Anonymous, Username/Password, SMS, Email, WeChat, Google, and more.
 
+**Default login path**: use email verification-code login to get a login flow working. Phone SMS login requires the user to bring their own SMS provider — enabling `patch.phone = true` alone will not deliver codes. Point the user to https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider for the SMS channel setup (the guide also covers other SMS providers through a cloud function). See `references/extended-guide.md` §4.
+
 **Prerequisites**: CloudBase environment ID (`env`)
 
 ## MCP Tool Boundary

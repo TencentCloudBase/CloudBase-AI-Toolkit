@@ -52,12 +52,13 @@ categoryId: "02-Engineering"
 
 任何界面代码动手前，先按 `ui-design` skill 输出设计规范（美学方向、配色、字体、布局），确认后再写界面。禁止 generic AI layouts：**库存表不是灰格子后台表格、营业日报不是 BI 看板截图**——这些页面店里每天都要打开，看得清、点得顺就是效率。
 
-### 固件环节 B —— 多人协作默认手机验证码登录 + 按角色隔离
+### 固件环节 B —— 多人协作默认邮箱验证码登录 + 按角色隔离
 
 凡涉及「老板之外还有人要用」（店员录入、多人对账、多门店）：
 
-- 服务端：MCP app-auth 工具 `action=patchLoginStrategy, patch={ phone: true }`，走云开发**默认短信通道**，无需配置短信签名/模板/自定义 Provider
-- 前端：`auth.getVerification({ phone_number })` 发码 → `auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })` 登录
+- 服务端：MCP app-auth 工具 `action=patchLoginStrategy, patch={ email: true }`
+- 前端：`auth.signInWithOtp({ email })` 发码 → `data.verifyOtp({ token })` 登录
+- 要用手机验证码：先让用户按官方文档配自定义短信通道（自有签名/模板，或云函数接其他服务商）https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider；只打开 `patch={ phone: true }` 不会发出验证码
 - **按角色隔离数据**：业务表加 `created_by`（录入人）与必要的 `role` / `store_id`，RLS 默认「老板看全部、店员只看自己或本店」；共享类表（商品目录、排班表）放开全员可读
 
 只有老板一个人用的纯记录场景才免登录，并在交付说明里注明「数据仅存本机浏览器，清缓存会丢」。
@@ -116,5 +117,5 @@ categoryId: "02-Engineering"
 
 - MCP 工具报错 → 按 `{ ok: false, error }` 信息排查，参考 `cloudbase-platform` 的故障排查指引
 - 部署失败 → 检查环境状态与构建产物，按 `cloudbase-sites-runtime` 的排查步骤走
-- 短信验证码收不到 → 先确认登录策略已 patch（`phone: true`）、手机号带国际区号格式，再查默认短信通道的发送限制
+- 验证码收不到 → 默认改用邮箱验证码；若确要用短信，先确认自定义短信通道（自有签名/模板）已按官方文档配置，再查手机号格式与该通道的每日发送上限
 - 官方 skill 缺失时，如实告知并给出基于官方文档的最小可行路径，不凭记忆编造 API

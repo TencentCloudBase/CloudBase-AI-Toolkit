@@ -360,11 +360,15 @@ describe("app auth tools", () => {
         phone: true,
       },
       smsHint: {
-        defaultChannelReady: true,
+        defaultChannelReady: false,
+        requiresCustomSmsProvider: true,
       },
     });
-    expect(payload.smsHint.message).toContain("无需配置短信签名");
-    expect(payload.smsHint.message).toContain("auth.getVerification");
+    expect(payload.smsHint.message).toContain("接入短信服务商");
+    expect(payload.smsHint.message).toContain("邮箱验证码");
+    expect(payload.smsHint.message).toContain(
+      "docs.cloudbase.net/authentication-v2/auth/custom-sms-provider"
+    );
   });
 
   it("queryAppAuth(action=getLoginConfig) should omit smsHint when phone login is off", async () => {

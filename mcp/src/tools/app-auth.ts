@@ -252,9 +252,8 @@ function buildLoginConfigNextStep(loginMethods: ReturnType<typeof buildLoginMeth
 }
 
 /**
- * 短信验证码默认通道提示：开启 phone 登录后即可用云开发默认短信通道收发验证码，
- * 不需要配置短信签名/模板/自定义 Provider。仅当需要自定义模板、签名或更换短信服务商时，
- * 才需要配置 SmsVerificationConfig / 自定义短信通道。
+ * 短信验证码通道提示：开启 phone 登录只打开登录开关，验证码仍需用户自行接入短信服务商后才能发出。
+ * 默认引导先用邮箱验证码跑通登录流程；需要短信时给出官方文档指引，不代填通道参数。
  */
 function buildSmsHint(loginMethods: ReturnType<typeof buildLoginMethods>) {
   if (!loginMethods.phone) {
@@ -262,7 +261,8 @@ function buildSmsHint(loginMethods: ReturnType<typeof buildLoginMethods>) {
   }
 
   return {
-    defaultChannelReady: true,
+    defaultChannelReady: false,
+    requiresCustomSmsProvider: true,
     message: t("appAuth.smsHint"),
   };
 }
