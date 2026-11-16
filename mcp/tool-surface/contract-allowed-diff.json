@@ -1,1 +1,7 @@
-[]
+[
+  {
+    "tool": "manageCloudRun",
+    "path": "/properties/serverConfig/properties/InternalAccess",
+    "reason": "InternalAccess is a String enum open | close in the CloudBase Run ServerBaseConfig data structure; the schema now states it"
+  }
+]

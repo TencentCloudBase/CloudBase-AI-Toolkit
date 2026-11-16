@@ -284,7 +284,7 @@ export const cloudrun = defineModule(
     "schema.manage.serverConfig.buildDir":
       "构建目录配置，指定代码构建的目录路径。当代码结构与标准不同时使用，默认为项目根目录",
     "schema.manage.serverConfig.internalAccess":
-      "内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）",
+      "内网访问开关：open=启用内网访问（可通过云开发 SDK 直接调用），close=关闭内网访问",
     "schema.manage.serverConfig.internalDomain":
       "内网域名配置，用于配置服务的内网访问域名。仅在启用内网访问时有效",
     "schema.manage.serverConfig.entryPoint":
@@ -663,7 +663,7 @@ export const cloudrun = defineModule(
     "schema.manage.serverConfig.buildDir":
       "Build directory config, specifying the directory used to build the code. Use it when the code layout differs from the standard; defaults to the project root",
     "schema.manage.serverConfig.internalAccess":
-      "Internal access switch, controlling whether internal network access is enabled. true=enable internal access (callable directly via the CloudBase SDK), false=disable internal access (public access only)",
+      "Internal access switch: open=enable internal access (callable directly through the CloudBase SDK), close=disable internal access",
     "schema.manage.serverConfig.internalDomain":
       "Internal domain config, used to configure the internal access domain of the service. Effective only when internal access is enabled",
     "schema.manage.serverConfig.entryPoint":

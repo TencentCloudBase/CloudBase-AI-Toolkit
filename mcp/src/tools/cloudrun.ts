@@ -160,7 +160,7 @@ export const ManageCloudRunInputSchema = {
     EnvParams: z.string().optional().describe('cloudrun.schema.manage.serverConfig.envParams'),
     Dockerfile: z.string().optional().describe('cloudrun.schema.manage.serverConfig.dockerfile'),
     BuildDir: z.string().optional().describe('cloudrun.schema.manage.serverConfig.buildDir'),
-    InternalAccess: z.string().optional().describe('cloudrun.schema.manage.serverConfig.internalAccess'),
+    InternalAccess: z.enum(['open', 'close']).optional().describe('cloudrun.schema.manage.serverConfig.internalAccess'),
     InternalDomain: z.string().optional().describe('cloudrun.schema.manage.serverConfig.internalDomain'),
     EntryPoint: z.array(z.string()).max(100).optional().describe('cloudrun.schema.manage.serverConfig.entryPoint'),
     Cmd: z.array(z.string()).max(100).optional().describe('cloudrun.schema.manage.serverConfig.cmd'),
