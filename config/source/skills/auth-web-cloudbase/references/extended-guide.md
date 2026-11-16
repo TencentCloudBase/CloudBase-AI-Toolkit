@@ -6,20 +6,20 @@
 
 > ⚠️ **OTP verification must go through the `data.verifyOtp({ token })` callback returned by `signInWithOtp` / `signUp`.** Do NOT invent a standalone `auth.verifyOtp({ token })` call — the standalone form additionally requires `messageId` and fails with `"messageId is required"` when it is missing. The full flow is three steps: send code → keep the returned `data` (or its `verifyOtp` callback) → verify with `data.verifyOtp({ token })`.
 
-**1. Phone OTP (Recommended)**
-- Automatically use `auth-tool-cloudbase` to turn on `SMS Login` through `manageAppAuth`
-- Send the phone number to `auth.signInWithOtp({ phone, ... })`, then call the returned `verifyOtp({ token })`.
+**1. Email OTP (Recommended)**
+- Use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth` (`patch.email = true`)
+- This is the default path for getting a login flow working — no third-party sender setup needed
+```js
+const { data, error } = await auth.signInWithOtp({ email: 'user@example.com' })
+const { data: loginData, error: loginError } = await data.verifyOtp({ token: '654321' })
+```
+
+**2. Phone OTP (requires a custom SMS channel)**
+- Before writing phone OTP code, make sure the user has configured their own SMS provider (approved signature and template). Enabling `patch.phone = true` alone does not deliver codes — see https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider (the guide also covers other SMS providers through a cloud function)
 - `signInWithOtp` can automatically create a new user if the user does not exist; control this via `shouldCreateUser` parameter (default `true`).
 ```js
 const { data, error } = await auth.signInWithOtp({ phone: '13800138000' })
 const { data: loginData, error: loginError } = await data.verifyOtp({ token: '123456' })
-```
-
-**2. Email OTP**
-- Automatically use `auth-tool-cloudbase` to turn on `Email Login` through `manageAppAuth`
-```js
-const { data, error } = await auth.signInWithOtp({ email: 'user@example.com' })
-const { data: loginData, error: loginError } = await data.verifyOtp({ token: '654321' })
 ```
 
 **3. Password**

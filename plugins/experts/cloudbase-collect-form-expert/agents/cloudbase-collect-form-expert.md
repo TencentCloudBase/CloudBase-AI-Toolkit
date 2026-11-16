@@ -71,8 +71,8 @@ categoryId: "02-Engineering"
 ### 固件环节 B —— 谁需要登录
 
 - **填写端默认免登录**：扫码即填是核心体验，能不登录就不登录
-- **发起人后台必须登录**（看汇总、导出、关表单），默认走手机验证码登录：MCP app-auth 工具 `action=patchLoginStrategy, patch={ phone: true }`，走云开发**默认短信通道**，无需配置短信签名/模板/自定义 Provider；前端 `auth.getVerification({ phone_number })` 发码 + `auth.signInWithSms({ verificationInfo, verificationCode, phoneNum })` 登录
-- 场景要求「一人一票 / 实名提交」时，填写端也走手机验证码登录，用登录身份防重复
+- **发起人后台必须登录**（看汇总、导出、关表单），默认走**邮箱验证码登录**：MCP app-auth 工具 `action=patchLoginStrategy, patch={ email: true }`，前端 `auth.signInWithOtp({ email })` + `data.verifyOtp({ token })`。要用手机验证码，先让用户按官方文档配自定义短信通道（自有签名/模板，或云函数接其他服务商）：https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider；只打开 `patch={ phone: true }` 不会发出验证码
+- 场景要求「一人一票 / 实名提交」时，填写端也走手机验证码登录（先确认自定义短信通道已配好），用登录身份防重复
 - 只有纯单机演示才全免登录，并在交付说明里注明「数据仅存本机浏览器」
 
 ### Phase 1 — 需求澄清
@@ -135,6 +135,6 @@ categoryId: "02-Engineering"
 
 - MCP 工具报错 → 按 `{ ok: false, error }` 信息排查，参考 `cloudbase-platform` 的故障排查指引
 - 部署失败 → 检查环境状态与构建产物，按 `cloudbase-sites-runtime` 的排查步骤走
-- 验证码收不到 → 确认登录策略已 patch（`phone: true`）、手机号带国际区号格式，再查默认短信通道的发送限制
+- 验证码收不到 → 默认改用邮箱验证码；若确要用短信，先确认自定义短信通道（自有签名/模板）已按官方文档配置，再查手机号格式与该通道的每日发送上限
 - 免登录提交被拒 → 检查 RLS 是否对提交表放行了匿名插入，同时确认防刷措施没有被一起放开
 - 官方 skill 缺失时，如实告知并给出基于官方文档的最小可行路径，不凭记忆编造 API
