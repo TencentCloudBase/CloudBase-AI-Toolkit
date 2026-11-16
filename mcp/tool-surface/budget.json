@@ -1,9 +1,9 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 208522,
-    "toolDescriptionChars": 31132,
-    "paramDescriptionChars": 49262,
+    "wireBytes": 201528,
+    "toolDescriptionChars": 29431,
+    "paramDescriptionChars": 46397,
     "perTool": {
       "auth": {
         "bytes": 3701,
@@ -11,9 +11,9 @@
         "paramDescriptionChars": 954
       },
       "queryEnv": {
-        "bytes": 11606,
-        "toolDescriptionChars": 2571,
-        "paramDescriptionChars": 2757
+        "bytes": 9090,
+        "toolDescriptionChars": 1859,
+        "paramDescriptionChars": 1930
       },
       "envDomainManagement": {
         "bytes": 2240,
@@ -81,14 +81,14 @@
         "paramDescriptionChars": 363
       },
       "queryFunctions": {
-        "bytes": 9156,
-        "toolDescriptionChars": 1404,
-        "paramDescriptionChars": 3045
+        "bytes": 6774,
+        "toolDescriptionChars": 1422,
+        "paramDescriptionChars": 1501
       },
       "manageFunctions": {
-        "bytes": 23742,
-        "toolDescriptionChars": 2283,
-        "paramDescriptionChars": 7281
+        "bytes": 22226,
+        "toolDescriptionChars": 1721,
+        "paramDescriptionChars": 6787
       },
       "queryHosting": {
         "bytes": 1960,
@@ -116,8 +116,8 @@
         "paramDescriptionChars": 44
       },
       "searchKnowledgeBase": {
-        "bytes": 4963,
-        "toolDescriptionChars": 1602,
+        "bytes": 4397,
+        "toolDescriptionChars": 1185,
         "paramDescriptionChars": 486
       },
       "queryCloudRun": {
@@ -161,8 +161,8 @@
         "paramDescriptionChars": 155
       },
       "manageAppAuth": {
-        "bytes": 3717,
-        "toolDescriptionChars": 705,
+        "bytes": 3703,
+        "toolDescriptionChars": 677,
         "paramDescriptionChars": 479
       },
       "queryApps": {
@@ -219,9 +219,9 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 222538,
-    "toolDescriptionChars": 58236,
-    "paramDescriptionChars": 95952,
+    "wireBytes": 215525,
+    "toolDescriptionChars": 56021,
+    "paramDescriptionChars": 91269,
     "perTool": {
       "auth": {
         "bytes": 4139,
@@ -229,9 +229,9 @@
         "paramDescriptionChars": 2017
       },
       "queryEnv": {
-        "bytes": 12861,
-        "toolDescriptionChars": 4667,
-        "paramDescriptionChars": 5909
+        "bytes": 10247,
+        "toolDescriptionChars": 3669,
+        "paramDescriptionChars": 4354
       },
       "envDomainManagement": {
         "bytes": 2513,
@@ -299,14 +299,14 @@
         "paramDescriptionChars": 637
       },
       "queryFunctions": {
-        "bytes": 9627,
-        "toolDescriptionChars": 2513,
-        "paramDescriptionChars": 5440
+        "bytes": 7249,
+        "toolDescriptionChars": 2680,
+        "paramDescriptionChars": 2931
       },
       "manageFunctions": {
-        "bytes": 25441,
-        "toolDescriptionChars": 4645,
-        "paramDescriptionChars": 13458
+        "bytes": 23870,
+        "toolDescriptionChars": 3704,
+        "paramDescriptionChars": 12839
       },
       "queryHosting": {
         "bytes": 2030,
@@ -334,8 +334,8 @@
         "paramDescriptionChars": 160
       },
       "searchKnowledgeBase": {
-        "bytes": 5000,
-        "toolDescriptionChars": 2542,
+        "bytes": 4545,
+        "toolDescriptionChars": 2094,
         "paramDescriptionChars": 876
       },
       "queryCloudRun": {
@@ -379,8 +379,8 @@
         "paramDescriptionChars": 290
       },
       "manageAppAuth": {
-        "bytes": 3968,
-        "toolDescriptionChars": 1467,
+        "bytes": 3973,
+        "toolDescriptionChars": 1472,
         "paramDescriptionChars": 915
       },
       "queryApps": {

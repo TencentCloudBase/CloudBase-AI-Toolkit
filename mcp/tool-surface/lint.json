@@ -1,11 +1,10 @@
 {
   "counts": {
     "A": 1,
-    "B": 19,
-    "C": 25,
+    "B": 16,
+    "C": 20,
     "D": 16,
-    "E": 12,
-    "F": 1
+    "E": 11
   },
   "findings": [
     "A manageCloudRun template",
@@ -22,9 +21,6 @@
     "B manageGateway protocol",
     "B manageGateway route.extension.headersHandler.requestHeadersToAdd.items.action",
     "B manageGateway route.extension.headersHandler.responseHeadersToAdd.items.action",
-    "B queryEnv fields",
-    "B queryEnv type",
-    "B queryFunctions action",
     "B queryGateway action",
     "B queryMysqlDatabase logLevels",
     "B queryMysqlDatabase orderBy",
@@ -34,11 +30,9 @@
     "C manageCloudRun targetPath",
     "C manageEnv packageId",
     "C manageEnv region",
-    "C manageFunctions action",
     "C manageFunctions code",
     "C manageFunctions func.imageConfig.imageUri",
     "C manageFunctions func.runtime",
-    "C manageFunctions functionRootPath",
     "C manageGateway action",
     "C manageGateway domain",
     "C manageGateway extension",
@@ -46,11 +40,8 @@
     "C managePgDatabase action",
     "C modifyDataModel mermaidDiagram",
     "C queryCloudRun action",
-    "C queryEnv action",
     "C queryEnv metricName",
     "C queryEnv needUsageDetails",
-    "C queryEnv region",
-    "C queryFunctions action",
     "C queryLogs queryString",
     "C writeNoSqlDatabaseContent update",
     "D manageFunctions triggers.items",
@@ -79,8 +70,6 @@
     "E manageHosting files",
     "E managePgDatabase action",
     "E queryEnv action",
-    "E queryFunctions action",
-    "E queryGateway action",
-    "F queryEnv period"
+    "E queryGateway action"
   ]
 }

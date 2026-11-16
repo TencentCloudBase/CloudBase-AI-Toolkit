@@ -88,7 +88,7 @@
     },
     {
       "name": "queryEnv",
-      "description": "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。（曾用名：envQuery、listEnvs、getEnvInfo、getEnvAuthDomains）当 action=list 时，会按 DescribeEnvs 语义做列表/筛选，标准返回字段为 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，并支持通过 fields 白名单裁剪这些字段；aliasExact=true 时会按别名精确筛选，避免把前缀相近的环境误当作候选；即使传入 envId，action=list 也只返回摘要，不会返回完整资源明细或 expiry。账号级登录可传 region（ap-shanghai/ap-guangzhou/ap-singapore）查询对应地域，对齐 CLI `tcb env list -r <region>`；环境级凭证（API Key / 托管授权 token）只能看到绑定的 envId，返回 credential_scope=single_env，此时 region 不参与查询会在 ignored_params 中如实说明（AppliedFilters.region 为 null），不要误判为环境不存在或地域过滤失效。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 对齐 tcb env usage/info：透传 Manager SDK describeEnvAccountCircle + describeCreditsUsageDetail，返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。envId 必填；type 可选过滤模块；未传 startDate/endDate 时自动使用当前计费周期。\n\n📈 action=metrics 对齐 TCB DescribeCurveData（manager.monitor.describeCurveData，不是云监控 GetMonitorData）：查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序。envId 与 metricName 必填；startTime/endTime 格式 YYYY-MM-DD HH:mm:ss，须成对传入，不传则默认最近 24 小时；period 仅 300/3600/86400。GatewayTraceEnvQPS 未传 resourceID 时自动填环境级 all|:|all|:|all|:|all；云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段（PG 环境另附实例形态）：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n- `EnvInfo.PostgreSQL[].TenantType`：PG 实例形态 —— `SHARED`（仅支持 SDK / 网关访问）或 `DEDICATED`（有私网 host / TCP 直连）。\n\n🌐 action=info 还会在不改写 `StaticStorages[].StaticDomain`（云 API 名义域名）的前提下，投影网关路由 Enable 状态：`StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在普通 PG 环境下仍然有效。**例外（pgdoc）**：当文档型数据库请求由 PostgreSQL 承载、客户端 SDK 调用保持不变时，集合的 CUSTOM 安全规则不生效，只能用四种基础权限或把校验放到云函数；此时不要把已有文档型代码改写成 `app.rdb()`，也不要假设数据会自动搬迁。`RuntimeBackends` 只列环境里有哪些数据库资源，不表示文档型请求由谁承载，启用状态以使用者说明为准。真正不适用的是 MySQL 与数据模型：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用；`manageDataModel` / `modifyDataModel` 只在传统模式下可用，PG 环境没有对应功能。",
+      "description": "查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。action=list 只返回摘要（即使传入 envId），不含完整资源明细与 expiry。环境级凭证（API Key / 托管授权 token）只能看到绑定的 envId，返回 credential_scope=single_env，此时 region 不参与查询会在 ignored_params 中如实说明（AppliedFilters.region 为 null），不要误判为环境不存在或地域过滤失效。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。\n\n📊 action=usage 返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。\n\n📈 action=metrics 查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序（云开发自带监控，不是云监控 GetMonitorData）。云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。\n\n🔍 action=info 还会派生三个用于后端选型的字段（PG 环境另附实例形态）：\n- `EnvInfo.RuntimeMode`：'postgresql' 或 'nosql'，表示新业务建议默认使用的后端（PG 已开通时为 postgresql，否则为 nosql）。\n- `EnvInfo.RuntimeBackends`：`{postgresql, nosql, mysql}` 三个布尔值，描述当前环境实际并存的后端。\n- `EnvInfo.RuntimeModeHints`：每个后端对应的 API/工具/skill 提示。\n- `EnvInfo.PostgreSQL[].TenantType`：PG 实例形态 —— `SHARED`（仅支持 SDK / 网关访问）或 `DEDICATED`（有私网 host / TCP 直连）。\n\n🌐 action=info 还返回默认静态域名的路由状态 `StaticStorages[].staticDomainRouteEnabled` 与 `EnvInfo.staticDomainRouteEnabled`（与 queryHosting websiteConfig 同源）；`StaticStorages[].StaticDomain` 仍是名义域名。`false` 表示默认静态域名根路由已禁用（访问会返回 GATEWAY_ROUTE_DISABLED），勿把名义域名当成可达 URL。\n\nAI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业务推荐 `app.rdb()` + RLS（`managePgDatabase action=execute` 跑 `CREATE POLICY`）+ pgstore；已存在的 NoSQL 集合 / 旧 storage / `managePermissions(resourceType=\"noSqlDatabase\")` 在普通 PG 环境下仍然有效。**例外（pgdoc）**：当文档型数据库请求由 PostgreSQL 承载、客户端 SDK 调用保持不变时，集合的 CUSTOM 安全规则不生效，只能用四种基础权限或把校验放到云函数；此时不要把已有文档型代码改写成 `app.rdb()`，也不要假设数据会自动搬迁。`RuntimeBackends` 只列环境里有哪些数据库资源，不表示文档型请求由谁承载，启用状态以使用者说明为准。真正不适用的是 MySQL 与数据模型：当 `RuntimeBackends.mysql === false` 时，`manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill 都不该使用；`manageDataModel` / `modifyDataModel` 只在传统模式下可用，PG 环境没有对应功能。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -101,22 +101,22 @@
               "usage",
               "metrics"
             ],
-            "description": "查询类型：list=环境列表/摘要筛选（按 DescribeEnvs 语义筛选，支持通过 envId / region 筛选，返回 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault，不支持 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId，对齐 tcb env usage/info），metrics=环境监控时序（必须传入 envId 与 metricName，对齐 TCB DescribeCurveData）"
+            "description": "查询类型：list=环境列表/摘要筛选（可按 envId / region 筛选，不含 expiry），info=指定环境的详细信息（必须传入 envId，返回资源字段和计费信息），domains=安全域名列表，usage=环境资源用量（必须传入 envId），metrics=环境监控时序（必须传入 envId 与 metricName）"
           },
           "alias": {
             "description": "按环境别名筛选。action=list 时可选",
             "type": "string"
           },
           "aliasExact": {
-            "description": "按环境别名精确筛选。action=list 时可选；与 alias 配合使用",
+            "description": "按环境别名精确筛选，避免把前缀相近的环境误当作候选。action=list 时可选；与 alias 配合使用",
             "type": "boolean"
           },
           "envId": {
-            "description": "环境 ID。action=list 时可选（仅按 DescribeEnvs 语义做筛选，仍返回摘要）；action=info / action=usage / action=metrics 时必填；action=domains 时可选（不传则查当前绑定环境，传了则查该环境的安全域名）。",
+            "description": "环境 ID。action=list 时可选（只做筛选，仍返回摘要）；action=info / usage / metrics 时必填；action=domains 时可选（不传则查当前绑定环境）。",
             "type": "string"
           },
           "region": {
-            "description": "查询地域。仅 action=list 时有效。账号级凭据会把该值透传到 DescribeEnvs（X-TC-Region），例如 ap-singapore。等价 CLI：tcb env list -r <region> --json。环境级凭据（API Key / 托管授权 token）为单环境权限，该参数会被忽略：结果恒为绑定环境，响应的 AppliedFilters.region 为 null、query_region 取该环境自身的 Region、ignored_params 说明忽略原因——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时会被判定为国际站（site=intl）：若两站都登录过，传该地域会静默查国际站账号，请先用 auth(site=\"domestic\") 或设置 TCB_SITE=domestic 明确站点。",
+            "description": "查询地域。仅 action=list 时有效，账号级凭据按该地域查询。环境级凭据（API Key / 托管授权 token）会忽略该参数，结果恒为绑定环境——不要据此判定该地域没有环境。⚠️ ap-singapore 同时属于国内站与国际站，未显式指定站点时按国际站（site=intl）查询；要查国内站请先 auth(site=\"domestic\") 或设置 TCB_SITE=domestic。",
             "type": "string",
             "enum": [
               "ap-shanghai",
@@ -137,7 +137,7 @@
             "maximum": 9007199254740991
           },
           "fields": {
-            "description": "返回字段白名单。仅支持 EnvId、Alias、Status、EnvType、Region、PackageId、PackageName、IsDefault。action=list 时可选",
+            "description": "返回字段白名单。action=list 时可选",
             "maxItems": 8,
             "type": "array",
             "items": {
@@ -155,7 +155,7 @@
             }
           },
           "type": {
-            "description": "用量模块过滤。仅 action=usage 时有效；不传则查询全部模块。⚠️ 传入后只统计所选模块：`credits.total` 不下发，面板不再判断是否充足；套餐仍照实返回。要对比全量配额就别传本参数。可选值：FLEXDB、TDSQL、PostgreSQL、SCF、CBF、EKS、COS、AI、Token、HOSTING、Auth、Gateway、Workflow、CLS、EO、STORAGE_EO、CI、VM、Other（与控制台用量页一致）。",
+            "description": "用量模块过滤（与控制台用量页一致）。仅 action=usage 时有效；不传则查询全部模块。⚠️ 传入后只统计所选模块：`credits.total` 不下发，面板不再判断是否充足；套餐仍照实返回。要对比全量配额就别传本参数。",
             "maxItems": 19,
             "type": "array",
             "items": {
@@ -192,7 +192,7 @@
             "type": "string"
           },
           "needUsageDetails": {
-            "description": "是否返回四层用量明细。仅 action=usage 时有效；默认 false。默认返回只到模块一层：每个模块一条（Module、CreditsValue 为总消耗、DeductValue 为套餐内用量），另附 DailyTotals（近 7 天逐日合计，与卡片柱子同源）。传 true 才拿全四层：模块 → 指标 → 资源类型（ResourceType，如 NAT / Gateway）→ 天（ValueDetailList[].CalcTime）。默认关掉，是因为全模块查询在这个深度下 4.5 万–5.4 万字符（4 个环境实测，2026-11-05），只在需要逐日对账时才值这个代价；默认这一份只有几百字符。指标名是接口原始码（Capacity / Flux / CU / InputToken.<model>），官方没有中文名表：跟用户讲的时候按模块语境翻成人话（容量、流量、调用次数、模型输入 Token），不要直接把码念给用户；拿不准就说这是接口字段名，不要猜。卡片上只有模块合计，所以「卡片上简单、返回里有明细」是正常的——指标与资源类型这两层只在传 true 时出现。普通版与平台版环境都返回这个深度（本 API 不收 PlatformId，收它的是另一个 action DescribePlatformCreditsUsageDetail）。最细粒度是「指标 × 天」：没有单次请求或单条记录流水，也没有金额与单价。",
+            "description": "是否返回四层用量明细。仅 action=usage 时有效；默认 false，只返回模块一层（Module、CreditsValue 总消耗、DeductValue 套餐内用量）和近 7 天 DailyTotals，只有几百字符。传 true 返回模块 → 指标 → 资源类型（ResourceType）→ 天（ValueDetailList[].CalcTime），全模块约 5 万字符，只在需要逐日对账时传。指标名是接口原始码（Capacity / Flux / CU / InputToken.<model>），跟用户讲时按模块语境翻成人话（容量、流量、调用次数、模型输入 Token），不要直接把码念给用户；拿不准就说这是接口字段名，不要猜。最细粒度是「指标 × 天」，没有单次请求流水，也没有金额与单价。",
             "type": "boolean"
           },
           "metricName": {
@@ -232,20 +232,12 @@
             "type": "string"
           },
           "period": {
-            "description": "统计周期（秒）。仅 action=metrics 时有效；仅支持 300、3600、86400。不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。",
-            "anyOf": [
-              {
-                "type": "number",
-                "const": 300
-              },
-              {
-                "type": "number",
-                "const": 3600
-              },
-              {
-                "type": "number",
-                "const": 86400
-              }
+            "description": "统计周期（秒）。仅 action=metrics 时有效；不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。",
+            "type": "number",
+            "enum": [
+              300,
+              3600,
+              86400
             ]
           },
           "resourceID": {
@@ -1299,7 +1291,7 @@
     },
     {
       "name": "queryFunctions",
-      "description": "CloudBase 云函数统一只读入口。通过更自解释的 action 查询 CloudBase 云函数列表、函数详情、执行日志、层、触发器、代码下载地址、已发布版本与流量别名。\n\n**分页说明**：`listFunctions`、`listLayers`、`listVersionByFunction` 支持 `limit` 和 `offset` 参数。\n- `limit`: 分页数量，默认值由后端决定\n- `offset`: 分页偏移，从 0 开始\n- 示例：`queryFunctions(action=\"listFunctions\", offset=10, limit=10)`\n\n**查询 CloudBase 云函数日志**：`action=\"listFunctionLogs\"`，需要提供 `functionName`。日志从 CLS 检索（底层 GetFunctionLogs 接口已下线）。\n- 示例：`queryFunctions(action=\"listFunctionLogs\", functionName=\"my-function\")`\n- 不传 startTime/endTime 时默认查最近 1 天；跨度不能超过 1 天，单次最多返回 100 条\n- 返回 `hasMore=true` 表示还有更早的日志：把返回的 `context` 原样传回取下一页（`offset` 只在前 100 条内生效）\n- `logs[]` 已解析成 requestId / log / statusCode / retCode / durationMs / memoryMb / timestamp\n- 想看某一次调用的完整过程（START、业务日志、REPORT）：`queryFunctions(action=\"getFunctionLogDetail\", requestId=\"xxx\")`\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。\n\n**版本与流量路由**：`listVersionByFunction` 列出已发布版本（对齐 tcb fn list-function-versions）；`getFunctionAlias` 查看别名/灰度配置（对齐 tcb fn get-route，aliasName 默认 `$DEFAULT`）。\n\n**层（Layer）说明**：\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重\n- `listLayers` / `listLayerVersions` / `getLayerVersionDetail` 返回账号级视图，可能含其他环境创建的层\n\n**区分 `queryLogs` 工具**：\n- 本工具用于查询特定 CloudBase 云函数的执行日志\n- `queryLogs` 工具用于搜索 CLS 日志服务（跨服务日志聚合）",
+      "description": "CloudBase 云函数统一只读入口：查询函数列表与详情、执行日志、层、触发器、代码下载地址、已发布版本与流量别名、异步部署状态，以及代码包上传地址。\n\n**云函数日志**：`listFunctionLogs` 从 CLS 检索，不传 startTime/endTime 时默认查最近 1 天；跨度不能超过 1 天，单次最多返回 100 条\n- 返回 `hasMore=true` 表示还有更早的日志：把返回的 `context` 原样传回取下一页（`offset` 只在前 100 条内生效）\n- `logs[]` 已解析成 requestId / log / statusCode / retCode / durationMs / memoryMb / timestamp\n- 想看某一次调用的完整过程（START、业务日志、REPORT）用 `getFunctionLogDetail`\n- 本工具查特定云函数的执行日志；跨服务的 CLS 日志搜索用 `queryLogs`\n\n**定时任务 / cron / 定时跑**：使用 `listFunctionTriggers` 查询函数的 timer 触发器配置。\n\n**异步部署状态**：`getFunctionDeployStatus` 返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中、按环境隔离，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，image 策略走同步部署不产生 taskId。\n\n**代码包上传**：`getFunctionUploadUrl` 获取 COS 预签名上传地址（ZIP 两段式部署阶段 A）：PUT 代码 zip 到 uploadUrl（uploadHeaders 非空时须随请求携带对应请求头），再调用 manageFunctions 的 createFunction/updateFunctionCode 并传 code 三元组（阶段 B）。返回的 uploadUrl 含凭据签名，不得写入日志或持久化；只能用于取到它的那个环境，默认 300 秒内有效。\n\n**层（Layer）**：层为 SCF 账号级共享命名空间，`listLayers` / `listLayerVersions` / `getLayerVersionDetail` 返回账号级视图，可能含其他环境创建的层。\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1321,7 +1313,7 @@
               "getFunctionAlias",
               "getFunctionUploadUrl"
             ],
-            "description": "只读操作类型：\n- `listFunctions`: 列出所有 CloudBase 云函数\n- `getFunctionDetail`: 获取 CloudBase 云函数详情（需要 functionName）\n- `listFunctionLogs`: 查询云函数执行日志（需要 functionName；走 CLS 检索，默认最近 1 天，单次最多 100 条，翻页传 context）\n- `getFunctionLogDetail`: 获取某次调用的完整日志序列（需要 requestId，取自 listFunctionLogs 的 logs[].requestId）\n- `listFunctionLayers`: 列出函数绑定的层\n- `listLayers`: 列出所有层（账号级视图，含其他环境创建的层）\n- `listLayerVersions`: 列出层的版本（注意：是 Versions 不是 Version；账号级视图）\n- `getLayerVersionDetail`: 获取层版本详情（账号级视图）\n- `listFunctionTriggers`: 列出函数触发器（用于查看定时任务 / cron / timer 配置）\n- `getFunctionDownloadUrl`: 获取函数代码下载地址\n- `getFunctionDeployStatus`: 按 taskId 查询异步部署状态、阶段进度和最终结果。返回 data.build（构建子状态）、data.deploy（部署子状态）、data.progress（阶段事件）；status=running 时 data.result 与 data.error 一律为 null，不得报告部署完成。调用方必须持续轮询直到 status=succeeded/failed；status=expired 表示任务超过最长保留时间（2 小时）被终结，云端可能仍在部署，需用 getFunctionDetail 确认。任务只保存在 MCP 进程内存中，过期或 MCP Server 重启后返回 errorCode=DEPLOY_TASK_NOT_FOUND；任务按环境隔离，只能查到当前环境自己发起的部署。cloud mode 下本 action 不可用：异步任务只由 buildStrategy=cloud/local 的真实部署创建，而这两种策略在 cloud mode 下都不支持真实执行，image 策略则走同步部署不产生 taskId。\n- `listVersionByFunction`: 列出函数已发布版本（对齐 tcb fn list-function-versions / SDK listVersionByFunction；需要 functionName）\n- `getFunctionAlias`: 查询函数别名与流量路由（对齐 tcb fn get-route / SDK getFunctionAlias；需要 functionName；aliasName 默认 $DEFAULT）\n- `getFunctionUploadUrl`: 获取函数代码包的 COS 预签名上传地址（ZIP 两段式部署阶段 A）：PUT 代码 zip 到 uploadUrl（uploadHeaders 非空时须随请求携带对应请求头），再调用 manageFunctions 的 createFunction/updateFunctionCode 并传 code 三元组（阶段 B）。functionName 可选，仅用于生成上传对象 key。返回的 uploadUrl 含凭据签名，不得写入日志或持久化；阶段 B 会校验三元组的桶与地域必须是本环境自有存储桶，因此该地址只能用于取到它的那个环境；地址默认 300 秒内有效"
+            "description": "只读操作类型。注意层版本列表是 `listLayerVersions`（复数 Versions）；各 action 的用法与限制见工具说明，所需参数见对应参数说明。"
           },
           "functionName": {
             "description": "CloudBase 云函数名称。`getFunctionDetail`、`listFunctionLogs`、`listFunctionLayers`、`listFunctionTriggers`、`getFunctionDownloadUrl`、`listVersionByFunction`、`getFunctionAlias` 时必填；`getFunctionUploadUrl` 可选（仅用于生成上传对象 key）",
@@ -1400,7 +1392,7 @@
             ]
           },
           "aliasName": {
-            "description": "`getFunctionAlias` 的别名名称。省略时默认 `$DEFAULT`（与 tcb fn get-route 一致）",
+            "description": "`getFunctionAlias` 的别名名称。省略时默认 `$DEFAULT`",
             "type": "string"
           }
         },
@@ -1412,7 +1404,7 @@
     },
     {
       "name": "manageFunctions",
-      "description": "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、发布版本、配置流量别名、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。部署包体积有硬上限：请勿把静态内容打进包里——媒体文件（视频、大图、字体）、用户上传的文件、以及频繁更新的静态资源都应放云存储按 URL 引用，否则每次改动都要重新部署函数，包还可能超限。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器（支持7段cron表达式），deleteFunctionTrigger 删除触发器。版本发布：`publishVersion` 对齐 tcb fn publish-version / SDK publishVersion；灰度/切流：`updateFunctionAliasConfig` 对齐 tcb fn config-route / SDK updateFunctionAliasConfig（aliasName 默认 `$DEFAULT`）。HTTP 云函数镜像构建部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分。func.buildStrategy=image（已有镜像，填 func.imageConfig.imageUri）直接创建/更新 HTTP 函数；func.buildStrategy=local（本地 Docker 构建推送）、cloud（CloudApp 云端构建）走镜像构建部署编排（需要 func.imageConfig；build 非必填，缺省仓库坐标自动补齐：namespace 默认 envId、repository 默认函数名），默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。func.buildStrategy 省略或为 zip 时按传统代码包部署。危险操作需要显式 confirm=true。\n\n**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD（与 TENCENTCLOUD_SECRETID 等密钥同样的配置方式），则不需要在请求参数中传递 func.imageConfig.build.registryCredential，留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数。\n注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），这类用户没有配置自定义 env 的通道，「在 MCP 配置的 env 中设置」对他们是无效指引。面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。\n**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；个人版走静态密码直接 docker login，不经过 CAM，反而是 API Key 用户唯一能走通的构建路径。\n\n**层（Layer）说明**：\n- 层为 SCF 账号级共享命名空间：不同环境创建同名层会共享同一层的版本序列；删除某版本会影响所有绑定该版本的环境的函数\n- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重\n- 相关 action：`createLayerVersion` / `deleteLayerVersion` / `attachLayer` / `detachLayer` / `updateFunctionLayers`（只读查询见 queryFunctions 的 listLayers / listLayerVersions / getLayerVersionDetail）",
+      "description": "CloudBase 云函数统一写入口。支持创建函数、更新代码、更新配置、调用函数、发布版本、配置流量别名、管理定时跑 / 定时任务 / scheduled job 的 timer 触发器和层绑定。部署包体积有硬上限：请勿把静态内容打进包里——媒体文件（视频、大图、字体）、用户上传的文件、以及频繁更新的静态资源都应放云存储按 URL 引用，否则每次改动都要重新部署函数，包还可能超限。如果要创建 cron 定时任务，先用 createFunction 创建函数，再用 createFunctionTrigger 创建 timer 触发器，deleteFunctionTrigger 删除触发器。版本发布用 `publishVersion`，灰度/切流用 `updateFunctionAliasConfig`。HTTP 云函数镜像部署：createFunction / updateFunctionCode 通过 func.buildStrategy 区分（image=已有镜像直接部署，local / cloud=先构建再部署，省略或 zip=传统代码包）。local / cloud 默认仅生成 dry-run 计划；传入 dryRun=false 且 confirm=true 后执行真实部署。真实部署可传 wait=false 立即返回 taskId，再通过 queryFunctions 的 getFunctionDeployStatus 查询进度和结果。wait=false 仅表示当前 Tool 不等待完整部署；调用方不得在 status=running 时结束流程，必须自动轮询到 succeeded/failed 后再向用户汇报，除非达到轮询上限。local 始终要求本地 MCP 模式；cloud 的真实执行需要读取本地构建上下文，也要求本地 MCP 模式；cloud mode 仅支持 cloud dry-run 和 image 策略。危险操作需要显式 confirm=true。\n\n**个人版 TCR 凭证**：imageType=personal 的 local/cloud 构建需要推送凭证。若 MCP 配置的 env 中已设置 TCB_TCR_USERNAME 与 TCB_TCR_PASSWORD，请求参数里的 registryCredential 留空即可自动读取。不要向用户索要密码明文，也不要把密码写进工具参数。\n注意这条 env 通道只在**本地 stdio MCP、且客户端的 mcp.json 支持自定义 env 块**时可用：部分 GUI 客户端不继承 shell 的 export，IDE 内置型 MCP 的凭据注入通常是硬编码白名单（例如只放行 TENCENTCLOUD_*），这类用户没有配置自定义 env 的通道。面向内置 MCP 用户应改为引导：使用企业版（imageType=enterprise，走实例临时令牌，不需要固定密码），或改用 buildStrategy=image 直接部署已推送的镜像。\n**企业版登录态要求**：enterprise 的 cloud/local 构建要经 CAM 铸造 TCR 临时令牌，环境级 API Key 与 OAuth 换出的临时凭据都不带 CAM 策略，会被前置拦截并提示改用账号级密钥或 image 策略；个人版走静态密码直接 docker login，是 API Key 用户唯一能走通的构建路径。\n\n**层（Layer）**：层为 SCF 账号级共享命名空间，不同环境创建同名层会共享同一版本序列，删除某版本会影响所有绑定该版本的环境。- 创建层必须用带环境标识的唯一层名，固定格式：`{layerName}_{当前envId}`（如 `common_cloud1-d9ghadgak3edf6b36`）。不要在不同环境使用相同裸层名，创建前先 `listLayers` 查重\n只读查询见 queryFunctions 的 listLayers / listLayerVersions / getLayerVersionDetail。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1435,7 +1427,7 @@
               "updateFunctionAliasConfig",
               "incrementalDeployFunction"
             ],
-            "description": "写操作类型，例如 createFunction、updateFunctionCode、incrementalDeployFunction、invokeFunction、deleteFunction、createFunctionTrigger（定时任务 / cron / timer）、deleteFunctionTrigger、createLayerVersion、deleteLayerVersion、attachLayer、detachLayer、updateFunctionLayers、publishVersion（发布新版本，对齐 tcb fn publish-version）、updateFunctionAliasConfig（更新别名/流量路由，对齐 tcb fn config-route）。层名推荐固定格式 `{layerName}_{当前envId}`（如 common_cloud1-d9ghadgak3edf6b36）"
+            "description": "写操作类型。createFunctionTrigger / deleteFunctionTrigger 管理定时任务（cron / timer）；publishVersion 发布新版本；updateFunctionAliasConfig 更新别名/流量路由；incrementalDeployFunction 只上传单个变更文件。"
           },
           "func": {
             "description": "createFunction / updateFunctionCode 的函数配置。镜像/构建部署通过 func.buildStrategy（zip/cloud/local/image）区分，镜像相关字段收敛在 func.imageConfig 命名空间下。",
@@ -1761,7 +1753,7 @@
             ]
           },
           "functionRootPath": {
-            "description": "创建或更新函数代码时默认推荐的本地目录方式。必须是直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions 或 /abs/path/functions），不要传项目根目录（如 /abs/path），也不要传到函数名子目录（如 /abs/path/cloudfunctions/hello）。本地应按 cloudfunctions/<functionName>/index.js 或 functions/<functionName>/index.js 布局，此参数传 cloudfunctions 或 functions 目录的绝对路径。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
+            "description": "创建或更新函数代码时默认推荐的本地目录方式。传直接包含函数文件夹的目录绝对路径（如 /abs/path/cloudfunctions，其下为 <functionName>/index.js），不要传项目根目录，也不要传到函数名子目录。SDK 会自动拼接函数名子目录，无需预先压缩 zip 或 base64 编码。",
             "type": "string"
           },
           "force": {
@@ -1942,7 +1934,7 @@
           },
           "wait": {
             "default": true,
-            "description": "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。默认 true 是为了兼容既有调用方，但同步等待最长可达约 15 分钟，很容易先撞上 MCP Client 的请求超时——客户端超时只是断开这次请求，云端部署仍在继续，却拿不到 taskId 追踪。因此执行真实构建部署（buildStrategy=cloud/local，dryRun=false）时建议显式传 wait=false。",
+            "description": "真实镜像部署是否等待完整部署；设为 false 立即返回 taskId 并后台执行。默认 true，但同步等待最长约 15 分钟，容易先撞上 MCP Client 请求超时且拿不到 taskId，因此真实构建部署（buildStrategy=cloud/local，dryRun=false）建议显式传 wait=false。",
             "type": "boolean"
           },
           "autoGrant": {
@@ -1959,7 +1951,7 @@
             "type": "string"
           },
           "aliasName": {
-            "description": "`updateFunctionAliasConfig` 的别名名称。省略时默认 `$DEFAULT`（与 tcb fn config-route 一致）",
+            "description": "`updateFunctionAliasConfig` 的别名名称。省略时默认 `$DEFAULT`",
             "type": "string"
           },
           "functionVersion": {
@@ -2484,7 +2476,7 @@
     },
     {
       "name": "searchKnowledgeBase",
-      "description": "云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。\n\n      按场景选择 mode：\n      - 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试\n      - 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs（传 query 关键词）\n      - 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName（传 input）或 action=readDoc（传 docPath）\n      - 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName\n      - 需要 HTTP API 的接口定义时：mode=openapi + apiName\n\n      ⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：\n      - 需要最小 Web+数据库 Demo 路径时：searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)\n      - 需要 auth-tool-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)\n      - 需要 auth-web-cloudbase 指南时：searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)\n      - 需要 cloudbase-agent 指南时：searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)\n      - 需要 MCP 接入方式（本地 / 远程）、用 mcporter 在命令行调用工具、或站点 / 插件开关时：searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)\n\n      返回内容包含该 skill 的 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中的全部 .md 文件地址清单（SKILL.md 与 references/ 等，可直接 HTTP 抓取）。正文中代码栅栏之外的相对链接也会改写为绝对地址；若该 skill 在远端仓中不存在，则只返回内联内容并明确标注，不返回失效链接。\n\n      不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介，再带上名称重新调用即可。可选名称也见本工具的 skillName / apiName 枚举（skill 共 31 个，API 共 8 个）。\n\n      注意：OpenAPI 文档 (openapi) 查询只需要传 mode=\"openapi\" 和 apiName，不要传 action；action 仅用于 mode=\"docs\"。",
+      "description": "云开发知识库检索工具，支持 CloudBase 官方文档 (docs)、固定技能文档 (skill) 和 OpenAPI 文档 (openapi) 查询。\n\n按场景选择 mode：\n- 工具调用报错且错误信息含具体错误码（如 OperationDenied.FreePackageDenied）时：mode=docs + action=searchDocs（query=错误码），先查错误码官方含义与处理指引再行动，不要凭猜测重试\n- 不确定答案在哪、需要对官方文档做全文检索时：mode=docs + action=searchDocs\n- 已知文档标题、层级路径或 URL 时：mode=docs + action=findByName 或 action=readDoc\n- 需要某个场景的落地指南 / 最佳实践时：mode=skill + skillName\n- 需要 HTTP API 的接口定义时：mode=openapi + apiName\n\n⚠️ 重要：当 CloudBase skills 处于禁用状态或当前 IDE 不支持 skill 文件读取时，必须使用 searchKnowledgeBase(mode=skill, skillName=...) 来获取 CloudBase 技能文档内容，而不是尝试直接读取 skill 文件。直接读取可能返回 400 错误。示例：最小 Web+数据库 Demo 用 searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)；登录方式配置用 skillName=auth-tool-cloudbase；Web 前端登录用 skillName=auth-web-cloudbase；Agent 开发用 skillName=cloudbase-agent；MCP 接入方式（本地 / 远程）、用 mcporter 在命令行调用工具、站点 / 插件开关用 skillName=cloudbase-mcp。\n\nskill 返回 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中全部 .md 文件的地址清单（可直接 HTTP 抓取）；正文里的相对链接已改写为绝对地址，远端仓不存在该 skill 时只返回内联内容并明确标注。\n\n不确定该选哪个时：mode=skill 下不传 skillName、mode=openapi 下不传 apiName 直接调用，会返回当前可用清单及各自的适用场景 / 接口简介（skill 共 31 个，API 共 8 个）。\n\n注意：OpenAPI 文档 (openapi) 查询只需要传 mode=\"openapi\" 和 apiName，不要传 action；action 仅用于 mode=\"docs\"。",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4308,7 +4300,7 @@
     },
     {
       "name": "manageAppAuth",
-      "description": "CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch={ usernamePassword: true }，再实现对应前端登录逻辑。⚠️ 手机号短信验证码登录（patch={ phone: true }）开启后还需自行接入短信服务商，验证码才会发出；仅打开开关不能收发短信。跑通登录流程优先使用邮箱验证码登录。短信通道配置见 https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。",
+      "description": "CloudBase 应用侧认证配置写入口。用于修改登录方式、provider、client 配置，确保 publishable key，以及创建或删除 API key、自定义登录密钥。⚠️ 本工具为管理端配置工具，不执行用户登录。当任务要求编写客户端登录代码时（例如「用 JS SDK 登录」），应先通过本工具完成配置（如启用 usernamePassword、获取 publishable key），再在项目代码中编写 @cloudbase/js-sdk 客户端登录代码（如 auth.signInWithPassword()），而非使用本工具完成登录。若前端要接受普通用户名样式标识符，应先执行 action=patchLoginStrategy 并传入 patch={ usernamePassword: true }，再实现对应前端登录逻辑。⚠️ 短信验证码登录（patch={ phone: true }）使用云开发默认短信通道，开启后即可收发验证码，不需要配置短信签名/模板/自定义 Provider；仅当需要自定义模板/签名或更换短信服务商时才需配置 SmsVerificationConfig 或自定义短信通道。⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。",
       "inputSchema": {
         "type": "object",
         "properties": {

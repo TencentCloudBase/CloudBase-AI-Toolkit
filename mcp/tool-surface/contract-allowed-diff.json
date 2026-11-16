@@ -1,7 +1,1 @@
-[
-  {
-    "tool": "queryEnv",
-    "path": "/properties/period",
-    "reason": "closed value set 300/3600/86400 is emitted as enum instead of anyOf of const; accepted values unchanged"
-  }
-]
+[]
