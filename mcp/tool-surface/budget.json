@@ -1,9 +1,9 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 196636,
-    "toolDescriptionChars": 29151,
-    "paramDescriptionChars": 43599,
+    "wireBytes": 195710,
+    "toolDescriptionChars": 28788,
+    "paramDescriptionChars": 43227,
     "perTool": {
       "auth": {
         "bytes": 3701,
@@ -71,9 +71,9 @@
         "paramDescriptionChars": 269
       },
       "queryMysqlDatabase": {
-        "bytes": 3491,
-        "toolDescriptionChars": 308,
-        "paramDescriptionChars": 733
+        "bytes": 3374,
+        "toolDescriptionChars": 236,
+        "paramDescriptionChars": 706
       },
       "manageMysqlDatabase": {
         "bytes": 2257,
@@ -126,8 +126,8 @@
         "paramDescriptionChars": 1503
       },
       "manageCloudRun": {
-        "bytes": 20102,
-        "toolDescriptionChars": 849,
+        "bytes": 20056,
+        "toolDescriptionChars": 825,
         "paramDescriptionChars": 5809
       },
       "deployBuild": {
@@ -136,19 +136,19 @@
         "paramDescriptionChars": 89
       },
       "deployPlan": {
-        "bytes": 3363,
+        "bytes": 3257,
         "toolDescriptionChars": 1076,
-        "paramDescriptionChars": 312
+        "paramDescriptionChars": 226
       },
       "deployApply": {
-        "bytes": 4402,
+        "bytes": 4296,
         "toolDescriptionChars": 1211,
-        "paramDescriptionChars": 524
+        "paramDescriptionChars": 438
       },
       "queryGateway": {
-        "bytes": 3154,
+        "bytes": 3008,
         "toolDescriptionChars": 432,
-        "paramDescriptionChars": 781
+        "paramDescriptionChars": 653
       },
       "manageGateway": {
         "bytes": 20126,
@@ -171,18 +171,18 @@
         "paramDescriptionChars": 365
       },
       "manageApps": {
-        "bytes": 5959,
+        "bytes": 5891,
         "toolDescriptionChars": 1184,
-        "paramDescriptionChars": 1451
+        "paramDescriptionChars": 1406
       },
       "queryPermissions": {
-        "bytes": 3347,
-        "toolDescriptionChars": 1226,
+        "bytes": 3193,
+        "toolDescriptionChars": 1103,
         "paramDescriptionChars": 229
       },
       "managePermissions": {
-        "bytes": 7209,
-        "toolDescriptionChars": 2364,
+        "bytes": 7026,
+        "toolDescriptionChars": 2220,
         "paramDescriptionChars": 1175
       },
       "queryLogs": {
@@ -219,9 +219,9 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 210027,
-    "toolDescriptionChars": 55172,
-    "paramDescriptionChars": 86638,
+    "wireBytes": 209112,
+    "toolDescriptionChars": 54693,
+    "paramDescriptionChars": 86217,
     "perTool": {
       "auth": {
         "bytes": 4139,
@@ -289,9 +289,9 @@
         "paramDescriptionChars": 535
       },
       "queryMysqlDatabase": {
-        "bytes": 3672,
-        "toolDescriptionChars": 639,
-        "paramDescriptionChars": 1362
+        "bytes": 3549,
+        "toolDescriptionChars": 556,
+        "paramDescriptionChars": 1322
       },
       "manageMysqlDatabase": {
         "bytes": 2367,
@@ -344,8 +344,8 @@
         "paramDescriptionChars": 3351
       },
       "manageCloudRun": {
-        "bytes": 21657,
-        "toolDescriptionChars": 1874,
+        "bytes": 21597,
+        "toolDescriptionChars": 1814,
         "paramDescriptionChars": 13939
       },
       "deployBuild": {
@@ -354,24 +354,24 @@
         "paramDescriptionChars": 193
       },
       "deployPlan": {
-        "bytes": 3718,
+        "bytes": 3646,
         "toolDescriptionChars": 2233,
-        "paramDescriptionChars": 659
+        "paramDescriptionChars": 587
       },
       "deployApply": {
-        "bytes": 4902,
+        "bytes": 4830,
         "toolDescriptionChars": 2646,
-        "paramDescriptionChars": 1161
+        "paramDescriptionChars": 1089
       },
       "queryGateway": {
-        "bytes": 3293,
+        "bytes": 3153,
         "toolDescriptionChars": 782,
-        "paramDescriptionChars": 1364
+        "paramDescriptionChars": 1224
       },
       "manageGateway": {
-        "bytes": 20884,
+        "bytes": 20854,
         "toolDescriptionChars": 2469,
-        "paramDescriptionChars": 8871
+        "paramDescriptionChars": 8841
       },
       "queryAppAuth": {
         "bytes": 1988,
@@ -389,18 +389,18 @@
         "paramDescriptionChars": 753
       },
       "manageApps": {
-        "bytes": 6398,
+        "bytes": 6330,
         "toolDescriptionChars": 2001,
-        "paramDescriptionChars": 3088
+        "paramDescriptionChars": 3021
       },
       "queryPermissions": {
-        "bytes": 3580,
-        "toolDescriptionChars": 2046,
+        "bytes": 3422,
+        "toolDescriptionChars": 1895,
         "paramDescriptionChars": 409
       },
       "managePermissions": {
-        "bytes": 7766,
-        "toolDescriptionChars": 3974,
+        "bytes": 7574,
+        "toolDescriptionChars": 3789,
         "paramDescriptionChars": 1946
       },
       "queryLogs": {

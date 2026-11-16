@@ -1,26 +1,13 @@
 {
   "counts": {
     "A": 1,
-    "B": 14,
+    "B": 1,
     "C": 15,
     "D": 14,
-    "E": 11
+    "E": 10
   },
   "findings": [
     "A manageCloudRun template",
-    "B deployApply only",
-    "B deployApply skip",
-    "B deployPlan only",
-    "B deployPlan skip",
-    "B manageApps framework",
-    "B manageGateway domainExtension.headersHandler.requestHeadersToAdd.items.action",
-    "B manageGateway domainExtension.headersHandler.responseHeadersToAdd.items.action",
-    "B manageGateway extension.headersHandler.requestHeadersToAdd.items.action",
-    "B manageGateway extension.headersHandler.responseHeadersToAdd.items.action",
-    "B manageGateway route.extension.headersHandler.requestHeadersToAdd.items.action",
-    "B manageGateway route.extension.headersHandler.responseHeadersToAdd.items.action",
-    "B queryGateway action",
-    "B queryMysqlDatabase logLevels",
     "B queryMysqlDatabase orderBy",
     "C manageCloudRun action",
     "C manageCloudRun serverConfig.VpcConf",
@@ -60,7 +47,6 @@
     "E manageGateway route",
     "E manageHosting files",
     "E managePgDatabase action",
-    "E queryEnv action",
-    "E queryGateway action"
+    "E queryEnv action"
   ]
 }
