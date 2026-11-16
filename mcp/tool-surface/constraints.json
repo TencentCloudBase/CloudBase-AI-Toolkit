@@ -141,7 +141,9 @@
     ],
     "manageAppAuth": [
       "⚠️ 本工具为管理端配置工具，不执行用户登录。",
-      "⚠️ 短信验证码登录（patch={ phone: true }）使用云开发默认短信通道，开启后即可收发验证码，不需要配置短信签名/模板/自定义 Provider；",
+      "⚠️ 手机号短信验证码登录（patch={ phone: true }）开启后还需自行接入短信服务商，验证码才会发出；",
+      "仅打开开关不能收发短信。",
+      "跑通登录流程优先使用邮箱验证码登录。",
       "⚠️ action=createApiKey 返回体中的 created 字段表示是否真正新建：created=false 说明复用了环境中已存在的 key，此时 keyName/expireIn 入参不会生效，返回的 keyName/expireAt 均为服务端真实值，并会附带 warnings，切勿把它当作临时凭证分发。"
     ],
     "queryApps": [
@@ -330,7 +332,7 @@
     "manageAppAuth": [
       "⚠️ This is a management-side config tool;",
       "auth.signInWithPassword()) in the project code instead of using this tool to log in.",
-      "⚠️ SMS verification code login (patch={ phone: true }) uses the CloudBase default SMS channel;",
+      "⚠️ Phone SMS verification code login (patch={ phone: true }) only turns the switch on: you still need to integrate your own SMS provider before any code is delivered.",
       "⚠️ The created field in the action=createApiKey response indicates whether a key was really created: created=false means an existing key in the environment was reused — the keyName/expireIn inputs take no effect, the returned keyName/expireAt are the server's real values, and warnings are attached.",
       "Never distribute it as a temporary credential."
     ],
