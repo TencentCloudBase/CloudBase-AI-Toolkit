@@ -327,8 +327,8 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     },
     {
       name: "period",
-      type: "number",
-      description: `统计周期（秒）。仅 action=metrics 时有效；仅支持 300、3600、86400。不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。 可填写的值: 300, 3600, 86400`,
+      type: "union",
+      description: `统计周期（秒）。仅 action=metrics 时有效；仅支持 300、3600、86400。不传则由后端按时间范围自动选择。时间范围 ≤1 天不可用 86400；>3 天不可用 300。`,
     },
     {
       name: "resourceID",
@@ -1717,8 +1717,22 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     },
     {
       name: "vpc",
-      type: "unknown",
+      type: "object",
       description: `配置更新时的 VPC 信息。非原生 TCP 连库场景必填真实 vpcId+subnetId；不要用占位符。`,
+      children: [
+        {
+          name: "vpcId",
+          type: "string",
+          required: true,
+          description: `VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.`,
+        },
+        {
+          name: "subnetId",
+          type: "string",
+          required: true,
+          description: `Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.`,
+        }
+      ],
     },
     {
       name: "params",
@@ -1727,8 +1741,28 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     },
     {
       name: "triggers",
-      type: "array of unknown",
+      type: "array of object",
       description: `createFunctionTrigger 的触发器列表，用于定时跑 / 定时任务 / scheduled job。timer 触发器使用7段 cron 表达式（秒 分 时 日 月 星期 年），如 "0 */5 * * * * *" 表示每5分钟执行一次`,
+      children: [
+        {
+          name: "name",
+          type: "string",
+          required: true,
+          description: `触发器名称`,
+        },
+        {
+          name: "type",
+          type: "string",
+          required: true,
+          description: `触发器类型 可填写的值: "timer"`,
+        },
+        {
+          name: "config",
+          type: "string",
+          required: true,
+          description: `触发器配置。timer 必须使用 CloudBase 7 段 cron 格式：秒 分 时 日 月 星期 年。⚠️ 不支持标准 5 段 cron（如 */5 * * * * 是错误的）。正确示例：0 */5 * * * * *（每5分钟）、0 0 2 1 * * *（每月1号2点）、0 30 9 * * * *（每天9:30）`,
+        }
+      ],
     },
     {
       name: "triggerName",
@@ -2334,7 +2368,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
     {
       name: "skillName",
       type: "string",
-      description: `mode=skill 时指定。技能名称。 可填写的值: "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "data-model-creation", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
+      description: `mode=skill 时指定。技能名称。 可填写的值: "cloudbase-all-in-one", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"`,
     },
     {
       name: "apiName",
@@ -2698,43 +2732,18 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
         },
         {
           name: "VolumesConf",
-          type: "array of object",
-          description: `存储卷配置数组，用于挂载云存储（如CFS）到服务实例中。可用于持久化数据或共享文件`,
-          children: [
-            {
-              name: "VolumeName",
-              type: "string",
-              required: true,
-              description: `存储卷名称`,
-            },
-            {
-              name: "VolumeType",
-              type: "string",
-              required: true,
-              description: `存储卷类型，如CFS表示云文件存储`,
-            },
-            {
-              name: "VolumePath",
-              type: "string",
-              required: true,
-              description: `存储卷挂载路径，服务代码中的目标路径`,
-            }
-          ],
+          type: "array of union",
+          description: `存储挂载配置数组，按 Type 二选一：COS（对象存储桶）或 CFS（文件存储实例），两者必填字段不同`,
         },
         {
           name: "PublicNetConf",
           type: "object",
-          description: `公网访问配置，用于控制服务的公网访问策略。可配置是否开启公网访问及访问路径`,
+          description: `公网访问配置`,
           children: [
             {
-              name: "PublicAccess",
-              type: "boolean",
-              description: `是否开启公网访问，true=开启公网访问，false=关闭公网访问`,
-            },
-            {
-              name: "PublicAccessPath",
+              name: "PublicNetStatus",
               type: "string",
-              description: `公网访问路径配置`,
+              description: `公网访问开关，取值 ENABLE=开启公网访问、DISABLE=关闭公网访问 可填写的值: "ENABLE", "DISABLE"`,
             }
           ],
         }
@@ -2821,7 +2830,7 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 ---
 
 ### `deployBuild`
-解析 cloudbaserc 并对 hosting[] 中配置了 buildCommand 的项目执行本地构建（仅执行 buildCommand，不安装依赖、不上传）。对应 CLI 的 tcb app build，但只处理 hosting[] 静态托管项，与 cloudbaserc 的 app 资源类型（云端构建管线）无关。声明式 hosting 部署拆分为「build → plan → apply」三步，本工具是第一步：先本地构建产物，再 deployPlan 预演，最后 deployApply 上传产物。deployApply 不再隐式本地构建 —— 带构建命令的 hosting 项在产物缺失时会报错引导先执行本工具。纯静态托管（未配置 buildCommand 且无法探测框架）自动跳过。构建为纯本地操作：不解析环境、不要求登录，也不需要 confirm。
+解析 cloudbaserc 并对 hosting[] 中配置了 buildCommand 的项目执行本地构建（仅执行 buildCommand，不安装依赖、不上传）。只处理 hosting[]，不处理 cloudbaserc 的 app 资源 —— app 的产物需要你自己在项目目录构建（产物目录与构建命令可从 deployPlan 的 buildHint 读取），或改用 CLI `tcb app deploy` 走云端构建。声明式 hosting 部署拆分为「build → plan → apply」三步，本工具是第一步：先本地构建产物，再 deployPlan 预演，最后 deployApply 上传产物。deployApply 对 app 与 hosting 都不构建 —— 产物缺失时报 BUILD_OUTPUT_NOT_FOUND，hosting 可用本工具补齐，app 需你自行构建。纯静态托管（未配置 buildCommand 且无法探测框架）自动跳过。构建为纯本地操作：不解析环境、不要求登录，也不需要 confirm。
 - cwd：项目根目录，默认当前工作目录
 - mode：环境名，命中 envOverrides.&lt;mode&gt; 时合并对应的多环境覆盖配置
 
@@ -2846,6 +2855,8 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 
 ### `deployPlan`
 解析 cloudbaserc 并计算声明式部署计划（dry-run，不产生任何变更）。这是 deployApply 的预演对仗工具：plan 计算、deployApply 执行同一份 cloudbaserc。返回每个资源的动作分类：create=新建，update=覆盖更新，skip=无变更/不会执行，conflict=检测到冲突需中断，deploy=直传覆盖。计划已按 yes 复算为「实际会发生的动作」：不传 yes=true 时，云端已存在的函数会标为 skip（并在 declaredStatus 保留 update），与 deployApply 的实际执行结果一致，避免预演与执行相反。
+⚠️ app / hosting 的计划项一律是「直传已有产物」：声明式部署只部署不构建，cloudbaserc 的 buildCommand / framework 只用于推断产物目录，不会被执行。
+app / hosting 的计划项带 buildHint = \{ buildCommand, outputDir, artifactReady \}（机器可读，不要去解析 details 里的中文文案）：artifactReady=false 表示产物目录缺失或为空，此时 deployApply 必定失败（BUILD_OUTPUT_NOT_FOUND）。正确做法是先构建再 apply —— hosting 可调用 deployBuild；app 需在项目目录执行 buildHint.buildCommand（为 null 则本就无需构建）。构建完成后重新 deployPlan 确认 artifactReady=true，不要改配置绕过。
 适用边界：本工具用于项目级声明式编排（一份 cloudbaserc 统一 plan/apply）；单资源临时直传请用 manageFunctions/manageHosting/manageApps。
 - cwd：项目根目录，默认当前工作目录
 - mode：环境名，命中 envOverrides.&lt;mode&gt; 时合并对应的多环境覆盖配置
@@ -2894,7 +2905,8 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
 ---
 
 ### `deployApply`
-解析 cloudbaserc 并按 database→functions→app→hosting→gateway 顺序执行声明式部署。这是 deployPlan 的执行对仗工具（plan 预演 / deployApply 执行同一份 cloudbaserc），属于本地形态的 apply（读本地 cloudbaserc 并在本地构建上传），是会变更云端资源的写操作，必须显式传 confirm=true 才会执行。建议先用 deployPlan 预演，确认计划无误后再执行。
+解析 cloudbaserc 并按 database→functions→app→hosting→gateway 顺序执行声明式部署。这是 deployPlan 的执行对仗工具（plan 预演 / deployApply 执行同一份 cloudbaserc），属于本地形态的 apply（读本地 cloudbaserc 并把本地产物上传到云端），是会变更云端资源的写操作，必须显式传 confirm=true 才会执行。建议先用 deployPlan 预演，确认计划无误后再执行。
+⚠️ 只部署不构建：本工具不会执行任何构建命令（app 与 hosting 都不会）。cloudbaserc 里的 buildCommand / installCommand / framework 只用于推断产物目录，不会被执行。产物目录不存在或为空时报 BUILD_OUTPUT_NOT_FOUND —— hosting 先调 deployBuild，app 需让用户在项目目录执行其构建命令，完成后重试，不要改配置绕过。构建前可用 deployPlan 读取 buildHint.buildCommand / outputDir / artifactReady 确认该跑什么。app 需要云端构建时用 CLI `tcb app deploy`（本工具不提供云端构建）。
 适用边界：本工具用于项目级声明式编排（一份 cloudbaserc 统一 plan/apply）；单资源临时直传请用 manageFunctions/manageHosting/manageApps。
 - confirm：必须显式传 true 才执行部署，否则直接拒绝
 - confirmDestructive：当本次待执行的数据库迁移含破坏性语句（DROP/TRUNCATE/DELETE、ALTER…DROP/RENAME）时，除 confirm 外还必须显式传 confirmDestructive=true 才会执行；否则拒绝并列出命中的迁移与语句。无破坏性迁移时该参数不生效
@@ -3161,7 +3173,26 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
             },
             {
               name: "responseHeadersToAdd",
-              type: "array of unknown",
+              type: "array of object",
+              children: [
+                {
+                  name: "key",
+                  type: "string",
+                  required: true,
+                  description: `请求/响应头名称，如 X-Frame-Options`,
+                },
+                {
+                  name: "value",
+                  type: "string",
+                  required: true,
+                  description: `请求/响应头取值，如 SAMEORIGIN`,
+                },
+                {
+                  name: "action",
+                  type: "string",
+                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                }
+              ],
             },
             {
               name: "responseHeadersToRemove",
@@ -3275,8 +3306,172 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     },
     {
       name: "domainExtension",
-      type: "unknown",
+      type: "object",
       description: `域名级扩展（Extension），作用于整个域名（含该域名下所有路径）的自定义头与缓存规则，结构同 extension。缓存规则通常配在域名级；仅 createRoute/updateRoute/bindCustomDomain 生效。⚠️ 同 extension：默认域不支持自定义响应头，需自定义域名。`,
+      children: [
+        {
+          name: "headersHandler",
+          type: "object",
+          children: [
+            {
+              name: "requestHeadersToAdd",
+              type: "array of object",
+              children: [
+                {
+                  name: "key",
+                  type: "string",
+                  required: true,
+                  description: `请求/响应头名称，如 X-Frame-Options`,
+                },
+                {
+                  name: "value",
+                  type: "string",
+                  required: true,
+                  description: `请求/响应头取值，如 SAMEORIGIN`,
+                },
+                {
+                  name: "action",
+                  type: "string",
+                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                }
+              ],
+            },
+            {
+              name: "requestHeadersToRemove",
+              type: "array of string",
+            },
+            {
+              name: "responseHeadersToAdd",
+              type: "array of object",
+              children: [
+                {
+                  name: "key",
+                  type: "string",
+                  required: true,
+                  description: `请求/响应头名称，如 X-Frame-Options`,
+                },
+                {
+                  name: "value",
+                  type: "string",
+                  required: true,
+                  description: `请求/响应头取值，如 SAMEORIGIN`,
+                },
+                {
+                  name: "action",
+                  type: "string",
+                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                }
+              ],
+            },
+            {
+              name: "responseHeadersToRemove",
+              type: "array of string",
+            }
+          ],
+        },
+        {
+          name: "cache",
+          type: "object",
+          children: [
+            {
+              name: "rules",
+              type: "array of object",
+              children: [
+                {
+                  name: "description",
+                  type: "string",
+                },
+                {
+                  name: "enable",
+                  type: "boolean",
+                },
+                {
+                  name: "condition",
+                  type: "object",
+                  required: true,
+                  description: `缓存规则匹配条件：target=url_path/file_extension/full_uri，matchType=prefix/suffix/contains/exact，values=匹配值数组`,
+                  children: [
+                    {
+                      name: "target",
+                      type: "string",
+                      description: ` 可填写的值: "url_path", "file_extension", "full_uri"`,
+                    },
+                    {
+                      name: "matchType",
+                      type: "string",
+                      description: ` 可填写的值: "prefix", "suffix", "contains", "exact"`,
+                    },
+                    {
+                      name: "values",
+                      type: "array of string",
+                    }
+                  ],
+                },
+                {
+                  name: "actions",
+                  type: "array of object",
+                  required: true,
+                  description: `缓存动作数组：type=Cache 配 cache{followOrigin,noCache,cacheTime,maxAgeTime}（三者互斥，需开启其一）；type=CacheKey 配 cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}`,
+                  children: [
+                    {
+                      name: "type",
+                      type: "string",
+                      description: ` 可填写的值: "Cache", "CacheKey"`,
+                    },
+                    {
+                      name: "cache",
+                      type: "object",
+                      children: [
+                        {
+                          name: "followOrigin",
+                          type: "boolean",
+                        },
+                        {
+                          name: "noCache",
+                          type: "boolean",
+                        },
+                        {
+                          name: "cacheTime",
+                          type: "integer",
+                        },
+                        {
+                          name: "maxAgeTime",
+                          type: "integer",
+                        }
+                      ],
+                    },
+                    {
+                      name: "cacheKey",
+                      type: "object",
+                      children: [
+                        {
+                          name: "fullUrlCache",
+                          type: "string",
+                          description: ` 可填写的值: "on", "off"`,
+                        },
+                        {
+                          name: "queryStringSwitch",
+                          type: "string",
+                          description: ` 可填写的值: "on", "off"`,
+                        },
+                        {
+                          name: "queryStringAction",
+                          type: "string",
+                          description: ` 可填写的值: "includeCustom", "excludeCustom"`,
+                        },
+                        {
+                          name: "queryStringValues",
+                          type: "array of string",
+                        }
+                      ],
+                    }
+                  ],
+                }
+              ],
+            }
+          ],
+        }
+      ],
     },
     {
       name: "protocol",
@@ -3318,18 +3513,213 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
         },
         {
           name: "pathRewrite",
-          type: "unknown",
+          type: "object",
           description: `同顶层 pathRewrite。route 内设置时优先于顶层。`,
+          children: [
+            {
+              name: "prefix",
+              type: "string",
+            },
+            {
+              name: "staticStorePrefix",
+              type: "string",
+            }
+          ],
         },
         {
           name: "qpsPolicy",
-          type: "unknown",
+          type: "object",
           description: `同顶层 qpsPolicy（限频）。route 内设置时优先于顶层。`,
+          children: [
+            {
+              name: "total",
+              type: "integer",
+            },
+            {
+              name: "perClient",
+              type: "object",
+              children: [
+                {
+                  name: "limitBy",
+                  type: "string",
+                  description: ` 可填写的值: "ClientIP", "UserID"`,
+                },
+                {
+                  name: "limitValue",
+                  type: "integer",
+                }
+              ],
+            }
+          ],
         },
         {
           name: "extension",
-          type: "unknown",
+          type: "object",
           description: `同顶层 extension（路由级自定义头与缓存规则）。route 内设置时优先于顶层。`,
+          children: [
+            {
+              name: "headersHandler",
+              type: "object",
+              children: [
+                {
+                  name: "requestHeadersToAdd",
+                  type: "array of object",
+                  children: [
+                    {
+                      name: "key",
+                      type: "string",
+                      required: true,
+                      description: `请求/响应头名称，如 X-Frame-Options`,
+                    },
+                    {
+                      name: "value",
+                      type: "string",
+                      required: true,
+                      description: `请求/响应头取值，如 SAMEORIGIN`,
+                    },
+                    {
+                      name: "action",
+                      type: "string",
+                      description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                    }
+                  ],
+                },
+                {
+                  name: "requestHeadersToRemove",
+                  type: "array of string",
+                },
+                {
+                  name: "responseHeadersToAdd",
+                  type: "array of object",
+                  children: [
+                    {
+                      name: "key",
+                      type: "string",
+                      required: true,
+                      description: `请求/响应头名称，如 X-Frame-Options`,
+                    },
+                    {
+                      name: "value",
+                      type: "string",
+                      required: true,
+                      description: `请求/响应头取值，如 SAMEORIGIN`,
+                    },
+                    {
+                      name: "action",
+                      type: "string",
+                      description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                    }
+                  ],
+                },
+                {
+                  name: "responseHeadersToRemove",
+                  type: "array of string",
+                }
+              ],
+            },
+            {
+              name: "cache",
+              type: "object",
+              children: [
+                {
+                  name: "rules",
+                  type: "array of object",
+                  children: [
+                    {
+                      name: "description",
+                      type: "string",
+                    },
+                    {
+                      name: "enable",
+                      type: "boolean",
+                    },
+                    {
+                      name: "condition",
+                      type: "object",
+                      required: true,
+                      description: `缓存规则匹配条件：target=url_path/file_extension/full_uri，matchType=prefix/suffix/contains/exact，values=匹配值数组`,
+                      children: [
+                        {
+                          name: "target",
+                          type: "string",
+                          description: ` 可填写的值: "url_path", "file_extension", "full_uri"`,
+                        },
+                        {
+                          name: "matchType",
+                          type: "string",
+                          description: ` 可填写的值: "prefix", "suffix", "contains", "exact"`,
+                        },
+                        {
+                          name: "values",
+                          type: "array of string",
+                        }
+                      ],
+                    },
+                    {
+                      name: "actions",
+                      type: "array of object",
+                      required: true,
+                      description: `缓存动作数组：type=Cache 配 cache{followOrigin,noCache,cacheTime,maxAgeTime}（三者互斥，需开启其一）；type=CacheKey 配 cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}`,
+                      children: [
+                        {
+                          name: "type",
+                          type: "string",
+                          description: ` 可填写的值: "Cache", "CacheKey"`,
+                        },
+                        {
+                          name: "cache",
+                          type: "object",
+                          children: [
+                            {
+                              name: "followOrigin",
+                              type: "boolean",
+                            },
+                            {
+                              name: "noCache",
+                              type: "boolean",
+                            },
+                            {
+                              name: "cacheTime",
+                              type: "integer",
+                            },
+                            {
+                              name: "maxAgeTime",
+                              type: "integer",
+                            }
+                          ],
+                        },
+                        {
+                          name: "cacheKey",
+                          type: "object",
+                          children: [
+                            {
+                              name: "fullUrlCache",
+                              type: "string",
+                              description: ` 可填写的值: "on", "off"`,
+                            },
+                            {
+                              name: "queryStringSwitch",
+                              type: "string",
+                              description: ` 可填写的值: "on", "off"`,
+                            },
+                            {
+                              name: "queryStringAction",
+                              type: "string",
+                              description: ` 可填写的值: "includeCustom", "excludeCustom"`,
+                            },
+                            {
+                              name: "queryStringValues",
+                              type: "array of string",
+                            }
+                          ],
+                        }
+                      ],
+                    }
+                  ],
+                }
+              ],
+            }
+          ],
         },
         {
           name: "enable",
@@ -3656,7 +4046,7 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
 
 示例：
 - 查询存储桶权限：`action="getResourcePermission", resourceType="storage", resourceId="bucket-name"`
-- 列出旧网关策略：`action="listPolicy"`（PG / OPA 引擎环境返回空列表，与 CLI 一致）
+- 列出旧网关策略：`action="listPolicy"`（只有真实查询为空才等于「没有策略」；PG / OPA 引擎环境会跳过查询，返回 `skipped=true` 与空列表，**不代表没有策略**，请改用 getPolicy）
 - 读取用户 Rego：`action="getPolicy"`；平台扩展策略：`action="getPolicy", extension=true`
 
 📌 跨后端边界提示：调用前先用 `queryEnv(action="info", envId=...)` 看 `EnvInfo.RuntimeBackends`。`resourceType="noSqlDatabase"` 查询的是 CloudBase NoSQL 集合规则，与 CloudBase PostgreSQL（PG）表的行级安全（RLS）是两套独立机制——同一个 PG 环境里 NoSQL 集合若仍在使用，对那些集合查询本工具结果**仍然有效**。要查 PG 表 RLS，请改用 `queryPgDatabase(action="sql", sql="SELECT * FROM pg_policies WHERE tablename=...")`。本工具不涉及 MySQL 权限。
@@ -3747,7 +4137,7 @@ action=deployApp 上传源码 ZIP 并触发远端构建部署管道：
 - `resourceType="storage"` 控制的是 NoSQL/COS 存储桶 ACL；PG 的 `pgstore` bucket 不在此 `resourceType` 覆盖范围内。
 - 本工具不涉及 MySQL；MySQL 数据库权限请走 MySQL 自身的 GRANT/REVOKE 语句（通过 `manageMysqlDatabase`）。
 
-⚠️ PostgreSQL 环境：平台 `ModifyResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType="function"` 时，本工具会自动回退到 Manager SDK `modifyEnvAuthzConfig`（与 CLI `tcb policy set` 一致，写入 `authz.user.rego`）。`securityRule` 可传完整 Rego（`package authz.user`）或 `'\{"invoke":true\}'`（自动生成放通 anonymous/unauthenticated 调 functions 的策略）。设置 Rego 后旧网关鉴权会失效，行为与 CLI 相同。显式 OPA 策略请优先用 `action="setPolicy"`。
+⚠️ PostgreSQL 环境：平台 `ModifyResourcePermission` 对 PG 环境会直接拒绝。当 `resourceType="function"` 时，本工具会自动回退到 Manager SDK `modifyEnvAuthzConfig`（与 CLI `tcb policy set` 一致，写入 `authz.user.rego`）。`securityRule` 可传完整 Rego（`package authz.user`）或 `'\{"invoke":true\}'`（自动生成放通 anonymous/unauthenticated 调 functions 的策略）。设置 Rego 后会替换该环境整个用户策略文档（对全环境生效，不是单个函数/资源），旧网关鉴权立即失效且不会回退，与 CLI 行为一致。显式 OPA 策略请优先用 `action="setPolicy"`。
 
 ⚠️ 角色类 action（`createRole` / `deleteRoles` / `updateRole`）在 **PostgreSQL 类型环境**下平台侧一律拒绝（`The current API does not support PostgreSQL type environments.`）——平台能力边界，不是配置问题，**不要在 PG 环境反复重试**；PG 环境请改用 RLS（`managePgDatabase(action="execute")` 跑 `CREATE POLICY`）或控制台管理权限。
 
@@ -4068,7 +4458,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "service",
       type: "string",
       required: true,
-      description: `腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 58 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
+      description: ` 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
     },
     {
       name: "action",
@@ -4079,7 +4469,6 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     {
       name: "version",
       type: "string",
-      description: `API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；以下多版本产品必须显式传，缺省会报错并列出可选项：tke、mongodb、teo、monitor、vod、sms。示例：service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"env-xxx",PackageType:"Standard"}；service="monitor" 需显式传 "2018-07-24"（告警策略族 Action 属于该版本）。`,
     },
     {
       name: "params",
@@ -4210,8 +4599,8 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     },
     {
       name: "text_mode",
-      type: "number",
-      description: `云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新） 可填写的值: 1, 2`,
+      type: "union",
+      description: `云托管消息正文编码：1=json，2=xml（ensureContainerMode 必填；setContainerCallback 可选更新）`,
     },
     {
       name: "confirm",
