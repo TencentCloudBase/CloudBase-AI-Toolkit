@@ -38,7 +38,8 @@ If a referenced sibling skill file is missing from this environment, ask the use
 ### Common mistakes / gotchas
 
 - Treating Web SDK examples as valid for native Apps.
-- Guessing endpoints without reading OpenAPI definitions.
+- Guessing endpoints without reading OpenAPI definitions, or probing the gateway to find undocumented ones.
+- Treating an endpoint that returns 200 as a supported public API.
 - Confusing official CloudBase HTTP APIs with your own function or CloudRun endpoint.
 - Mixing raw HTTP API integration with MCP management logic.
 
@@ -128,6 +129,18 @@ Before implementing any HTTP API calls, you should:
    - Verify error response formats
 
 4. **Never invent API endpoints or parameters** - always base your implementation on the official swagger documentation.
+
+### Undocumented endpoints are off limits
+
+Call only the endpoints, methods, parameters, and response fields published in the CloudBase HTTP API docs or in the OpenAPI definition returned by `searchKnowledgeBase`. A successful response does not make an endpoint public.
+
+| Counts as public API | Does not count |
+| --- | --- |
+| Path and method in the OpenAPI definition | Path found by probing the gateway, reading error messages, or capturing requests |
+| Path and method on the docs site | Path that returns 200 but has no documentation entry |
+| Parameters and response fields in the docs | PostgREST features CloudBase has not published, such as unlisted `/rpc/` routes or `Prefer` values |
+
+> ⚠️ Undocumented endpoints have no compatibility commitment and no SLA. They can change or be removed without notice. Do not generate code against them, and do not offer them to the user as a supported option.
 
 ## Prerequisites
 
