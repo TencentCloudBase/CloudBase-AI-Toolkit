@@ -4,6 +4,8 @@ import {
   SERVICE_VERSIONS,
   assertTcbCloudRunActionAllowed,
   buildCapiErrorMessage,
+  buildCapiFailureResult,
+  classifyCapiError,
   removeEmptyStringParams,
   resolveCloudApiRegionAndParams,
   resolveServiceVersion,
@@ -301,5 +303,71 @@ describe("removeEmptyStringParams", () => {
     };
     const cleaned = removeEmptyStringParams(params);
     expect(cleaned).toEqual(params);
+  });
+});
+
+describe("callCloudApi credential failures", () => {
+  it("classifies token rejections by credential scope", () => {
+    expect(classifyCapiError("Token verification failed", "single_env")).toBe("credential_scope_limited");
+    expect(classifyCapiError("invalid token", "single_env")).toBe("credential_scope_limited");
+    expect(classifyCapiError("Token verification failed", "account")).toBe("credential_invalid");
+    expect(classifyCapiError("AuthFailure: token expired", "account")).toBe("credential_invalid");
+    expect(classifyCapiError("UnauthorizedOperation: denied", "account")).toBe("cam_denied");
+    expect(classifyCapiError("some other error", "account")).toBe("cloud_api_error");
+  });
+
+  it("tells the model to re-check status instead of reconnecting", () => {
+    const message = buildCapiErrorMessage(
+      "tcb",
+      "DescribeEnvs",
+      new Error("Token verification failed"),
+      "single_env",
+    );
+    expect(message).toContain('auth(action="status")');
+    expect(message).toContain("不要解绑");
+    expect(message).toContain("权限边界");
+    expect(message).not.toContain("这是 CAM 权限不足");
+  });
+
+  it("keeps CAM guidance for CAM denials", () => {
+    const message = buildCapiErrorMessage(
+      "tcbr",
+      "CreateCloudRunEnv",
+      new Error("UnauthorizedOperation: denied"),
+    );
+    expect(message).toMatch(/device code|start_auth/);
+  });
+
+  it("returns machine-readable scope, category, code and next step", () => {
+    const error = Object.assign(new Error("Token verification failed"), {
+      code: "AuthFailure.TokenInvalid",
+      requestId: "req-123",
+    });
+    const result = buildCapiFailureResult("tcb", "DescribeEnvs", error, "single_env");
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.error_category).toBe("credential_scope_limited");
+    expect(payload.credential_scope).toBe("single_env");
+    expect(payload.code).toBe("AuthFailure.TokenInvalid");
+    expect(payload.requestId).toBe("req-123");
+    expect(payload.next_step).toEqual({
+      tool: "auth",
+      action: "status",
+      suggested_args: { action: "status" },
+    });
+    expect(payload.message).toContain('auth(action="status")');
+  });
+
+  it("does not send ordinary API errors to a login re-check", () => {
+    const result = buildCapiFailureResult(
+      "tcb",
+      "DescribeEnvs",
+      new Error("Action invalid or not found"),
+      "account",
+    );
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.error_category).toBe("cloud_api_error");
+    expect(payload.next_step).toBeUndefined();
+    expect(payload.message).toContain("Action");
   });
 });
