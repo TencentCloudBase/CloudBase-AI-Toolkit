@@ -3,6 +3,7 @@ const { merge } = require('webpack-merge');
 const createBaseConfig = require('./base.config.cjs');
 const createMinimalExternals = require('./minimal-externals.cjs');
 const webpack = require('webpack');
+const { libraryOptimization } = require('./terser.cjs');
 
 /**
  * 库文件配置
@@ -14,6 +15,9 @@ function createLibraryConfigs() {
   // ESM 版本配置
   const esmConfig = merge(baseConfig, {
     name: 'library-esm',
+    // Maps stay out of the npm package (see package.json `files`); they ship
+    // with the GitHub release instead.
+    devtool: 'source-map',
     entry: './src/index.ts',
     output: {
       path: path.resolve(__dirname, '../dist'),
@@ -30,6 +34,7 @@ function createLibraryConfigs() {
     experiments: {
       outputModule: true
     },
+    optimization: libraryOptimization(),
     externalsType: 'module',
     externals: [/^node:.+$/, /^[^./].*$/], // 外部化所有 node_modules 依赖和 node: 内建模块
   });
@@ -37,6 +42,7 @@ function createLibraryConfigs() {
   // CJS 版本配置
   const cjsConfig = merge(baseConfig, {
     name: 'library-cjs',
+    devtool: 'source-map',
     entry: './src/index.ts',
     output: {
       path: path.resolve(__dirname, '../dist'),
@@ -46,6 +52,7 @@ function createLibraryConfigs() {
       }
     },
     optimization: {
+      ...libraryOptimization(),
       usedExports: false,  // 防止 webpack tree-shake 误删动态引用的导出
                            // 如 source-map-support 的 _createParsedCallSite
                            //（通过 self._createParsedCallSite 动态引用）

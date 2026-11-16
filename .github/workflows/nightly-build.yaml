@@ -46,6 +46,13 @@ jobs:
         working-directory: ./mcp
         run: pnpm run build
 
+      - name: Library minify parity
+        # dist/index.cjs is imported by code (enterprise wrappers, hosted
+        # services). Rebuild an unminified copy and prove the export surface,
+        # tool list and a sample tool call are identical.
+        working-directory: ./mcp
+        run: PARITY_REUSE_DIST=1 pnpm run test:lib:minify-parity
+
       - name: Smoke CLI cloud-mode
         working-directory: ./mcp
         run: pnpm run test:cli:cloud-mode

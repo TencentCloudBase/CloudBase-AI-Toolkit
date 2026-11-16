@@ -154,3 +154,4 @@ tests/fixtures/readme-test/
 # `.skills-repo-output*` 已在文件开头覆盖其全部变体）
 .plugin-repo-output-*
 package-lock.json
+.parity-*/
