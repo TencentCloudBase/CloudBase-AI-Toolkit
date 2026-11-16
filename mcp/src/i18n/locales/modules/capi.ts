@@ -20,6 +20,10 @@ export const capi = defineModule(
       "请优先核对对应官方云 API 文档；若你的场景其实是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode=\"openapi\")，不要继续猜测管控面 Action。",
     camAuthGuidance:
       "这是 CAM 权限不足。先分清是谁缺权限，再决定怎么补：用 auth(action=\"status\") 看 credential_scope，用 callCloudApi(service=\"sts\", action=\"GetCallerIdentity\") 看实际调用者（Type=CAMRole 表示角色扮演身份，UserId 里带角色名）。若缺权限的是角色（如 TCB_QcsRole），补的是挂在**角色**上的策略 —— 给用户一条 cam/role/grant 一键授权链接，拼法与 principal 取值见 skill cloud-api-operations 的 §3.2；若是账号级身份本人，则由主账号给这个身份追加策略（用腾讯云 SecretId/SecretKey 登录时，调用者就是该身份）。环境级 API Key 只能访问绑定环境的数据面，跨产品调用需改用账号级凭据：auth(action=\"start_auth\", authMode=\"device\")。另请确认目标资源确实属于当前账号。",
+    errorCredentialScopeLimited:
+      "当前是环境级凭据（只绑定了一个环境），账号级管控面 Action 被拒绝属于权限边界，不代表登录态失效。先调 auth(action=\"status\") 复核登录态；不要解绑或重新连接。要调用这类接口，请改用账号级凭据（TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY，或 auth 设备码登录）。",
+    errorCredentialInvalid:
+      "凭据校验失败。先调 auth(action=\"status\") 复核登录态与当前站点，再按结果处理；不要直接解绑或重新连接，也不要反复重试同一个调用。",
     errorInvalidAction:
       "Action `{action}` 可能不存在或不对外开放。请不要继续猜测 Action 名称，先确认 service=`{service}` 下该 Action 在当前 API 版本是否真实存在。",
     errorSuggestedActions: "可能的 tcb Action：{candidates}。",
@@ -74,6 +78,10 @@ export const capi = defineModule(
       "Check the corresponding official cloud API docs first; if your scenario is actually integrating CloudBase business APIs such as auth/functions/cloudrun/storage/mysqldb over HTTP, prefer OpenAPI / Swagger or searchKnowledgeBase(mode=\"openapi\") instead of guessing control-plane Actions.",
     camAuthGuidance:
       "This is a CAM permission gap. Work out who is missing it before choosing a fix: auth(action=\"status\") shows credential_scope, and callCloudApi(service=\"sts\", action=\"GetCallerIdentity\") shows the actual caller (Type=CAMRole means an assumed role; the UserId carries the role name). When the role is the one missing permission (e.g. TCB_QcsRole), the fix is a policy attached to that role — give the user a cam/role/grant authorization link, built as described in the cloud-api-operations skill, section 3.2. When an account-level identity is the caller, the main account attaches the policy to it (signing in with a Tencent Cloud SecretId/SecretKey makes the caller that identity). An environment-level API Key can only reach the bound environment's data plane; for cross-product calls switch to account-level credentials: auth(action=\"start_auth\", authMode=\"device\"). Also confirm the target resource belongs to the current account.",
+    errorCredentialScopeLimited:
+      "This is an env-level credential (bound to one environment): rejection of an account-level control-plane Action is a permission boundary, not a lost login. Call auth(action=\"status\") to re-check the login state first; do not unbind or reconnect. To call these Actions, switch to account-level credentials (TENCENTCLOUD_SECRETID / TENCENTCLOUD_SECRETKEY, or auth device login).",
+    errorCredentialInvalid:
+      "Credential verification failed. Call auth(action=\"status\") to re-check the login state and site before acting; do not unbind or reconnect, and do not retry the same call repeatedly.",
     errorInvalidAction:
       "Action `{action}` may not exist or is not publicly available. Do not keep guessing Action names; first confirm the Action actually exists under service=`{service}` in the current API version.",
     errorSuggestedActions: "Possible tcb Actions: {candidates}.",
