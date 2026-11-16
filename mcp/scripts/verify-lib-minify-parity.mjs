@@ -112,6 +112,15 @@ async function main() {
       build({});
     }
     check(existsSync(path.join(distDir, "index.cjs")), "dist/index.cjs exists");
+    // The declaration comparison below only visits files that exist, so a
+    // `types` path in exports pointing at a missing file would pass silently.
+    // Assert every declared path is present in the built package first.
+    const declared = JSON.parse(readFileSync(path.join(pkgDir, "package.json"), "utf8"));
+    for (const [condition, target] of Object.entries(declared.exports?.["."] || {})) {
+      if (!target || typeof target !== "object" || !target.types) continue;
+      const rel = String(target.types).replace(/^\.\//, "").replace(/^dist\//, "");
+      check(existsSync(path.join(distDir, rel)), `exports["."].${condition}.types (${target.types}) exists`);
+    }
     const minDir = copyDist(path.join(work, "min"));
 
     console.log("building unminified reference (MCP_LIB_MINIFY=0) ...");
