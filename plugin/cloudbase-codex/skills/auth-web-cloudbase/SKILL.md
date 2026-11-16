@@ -91,7 +91,7 @@ Use npm installation for modern Web projects. In React, Vue, Vite, and other bun
 - If the conversation only provides an environment alias, nickname, or other shorthand, resolve it with `queryEnv(action="list", alias=..., aliasExact=true)` first and use the returned canonical full `EnvId` for SDK init, console links, and generated config. Do not pass alias-like short forms directly into `cloudbase.init({ env })`.
 - Treat CloudBase Web Auth as **Supabase-like**, not “every `supabase-js` auth example is valid unchanged”
 - When `queryAppAuth` / `manageAppAuth` returns `sdkStyle: "supabase-like"` and `sdkHints`, follow those method and parameter hints first
-- `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`
+- `auth.signInWithOtp({ phone })` and `auth.signUp({ phone })` use the phone number in a `phone` field, not `phone_number`. Phone OTP needs a custom SMS channel (own signature/template) before it can deliver codes — see `../auth-tool-cloudbase/SKILL.md`; prefer email OTP by default
 - `auth.signInWithOtp({ email })` and `auth.signUp({ email })` use `email`
 - `auth.signInWithPassword({ username, password })` is the canonical Web login path for username/password accounts
 - Treat direct Web `auth.signUp({ username, password })` as conditional. Verify `sdkHints` and the installed SDK first; some versions only support `signUp` for OTP/provider-token flows and will not create username/password users.
@@ -151,20 +151,20 @@ if (error) { /* show error.message */ } else { /* data.user */ }
 const { error } = await auth.signInAnonymously()
 ```
 
-**Registration — verification code is MANDATORY.** There is no password-only signup: `signUp` itself sends a code, and `data.verifyOtp` must complete it. Smart flow: existing identifier → plain login; new identifier → register + auto-login. Phone/SMS is 上海地域 only — prefer email:
+**Registration — verification code is MANDATORY.** There is no password-only signup: `signUp` itself sends a code, and `data.verifyOtp` must complete it. Smart flow: existing identifier → plain login; new identifier → register + auto-login. **Default to email**: phone signup needs a custom SMS channel configured first (see `../auth-tool-cloudbase/SKILL.md`), enabling the phone login switch alone does not deliver codes.
 
 ```js
-const { data, error } = await auth.signUp({ email, password }) // or { phone, password }
+const { data, error } = await auth.signUp({ email, password }) // { phone, password } only after the SMS channel is configured
 if (error) throw error
 // user types the code from their inbox...
 const { data: login, error: verifyErr } = await data.verifyOtp({ token: code })
 // login.user / login.session — signed in on both paths
 ```
 
-**OTP sign-in (no password)** — same shape as `signUp`, auto-creates the user by default (`shouldCreateUser: false` to refuse unknown users). Requires 邮箱/短信验证码登录 enabled in console → 身份认证/登录方式:
+**OTP sign-in (no password)** — same shape as `signUp`, auto-creates the user by default (`shouldCreateUser: false` to refuse unknown users). Requires 邮箱/短信验证码登录 enabled in console → 身份认证/登录方式. Phone OTP additionally requires the custom SMS channel above:
 
 ```js
-const { data, error } = await auth.signInWithOtp({ email }) // or { phone }
+const { data, error } = await auth.signInWithOtp({ email }) // { phone } only after the SMS channel is configured
 const { data: login, error: verifyErr } = await data.verifyOtp({ token: code })
 ```
 
