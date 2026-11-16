@@ -2588,7 +2588,11 @@
               "type": "string"
             },
             "InternalAccess": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "open",
+                "close"
+              ]
             },
             "InternalDomain": {
               "type": "string"

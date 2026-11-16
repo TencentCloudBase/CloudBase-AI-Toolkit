@@ -1,9 +1,9 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 195710,
+    "wireBytes": 195676,
     "toolDescriptionChars": 28788,
-    "paramDescriptionChars": 43227,
+    "paramDescriptionChars": 43209,
     "perTool": {
       "auth": {
         "bytes": 3701,
@@ -126,9 +126,9 @@
         "paramDescriptionChars": 1503
       },
       "manageCloudRun": {
-        "bytes": 20056,
+        "bytes": 20022,
         "toolDescriptionChars": 825,
-        "paramDescriptionChars": 5809
+        "paramDescriptionChars": 5791
       },
       "deployBuild": {
         "bytes": 1657,
@@ -219,9 +219,9 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 209112,
+    "wireBytes": 209063,
     "toolDescriptionChars": 54693,
-    "paramDescriptionChars": 86217,
+    "paramDescriptionChars": 86144,
     "perTool": {
       "auth": {
         "bytes": 4139,
@@ -344,9 +344,9 @@
         "paramDescriptionChars": 3351
       },
       "manageCloudRun": {
-        "bytes": 21597,
+        "bytes": 21548,
         "toolDescriptionChars": 1814,
-        "paramDescriptionChars": 13939
+        "paramDescriptionChars": 13866
       },
       "deployBuild": {
         "bytes": 1842,

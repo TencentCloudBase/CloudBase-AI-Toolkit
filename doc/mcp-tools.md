@@ -2596,7 +2596,7 @@ skill 返回 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中全部
         {
           name: "InternalAccess",
           type: "string",
-          description: `内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）`,
+          description: `内网访问开关：open=启用内网访问（可通过云开发 SDK 直接调用），close=关闭内网访问 可填写的值: "open", "close"`,
         },
         {
           name: "InternalDomain",

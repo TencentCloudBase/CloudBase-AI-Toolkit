@@ -2823,8 +2823,12 @@
                 "type": "string"
               },
               "InternalAccess": {
-                "description": "内网访问开关配置，控制是否启用内网访问。true=启用内网访问（可通过云开发SDK直接调用），false=关闭内网访问（仅公网访问）",
-                "type": "string"
+                "description": "内网访问开关：open=启用内网访问（可通过云开发 SDK 直接调用），close=关闭内网访问",
+                "type": "string",
+                "enum": [
+                  "open",
+                  "close"
+                ]
               },
               "InternalDomain": {
                 "description": "内网域名配置，用于配置服务的内网访问域名。仅在启用内网访问时有效",
