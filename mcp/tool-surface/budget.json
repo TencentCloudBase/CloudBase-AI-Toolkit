@@ -1,9 +1,9 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 201542,
-    "toolDescriptionChars": 29459,
-    "paramDescriptionChars": 46397,
+    "wireBytes": 196636,
+    "toolDescriptionChars": 29151,
+    "paramDescriptionChars": 43599,
     "perTool": {
       "auth": {
         "bytes": 3701,
@@ -61,9 +61,9 @@
         "paramDescriptionChars": 288
       },
       "managePgDatabase": {
-        "bytes": 10076,
+        "bytes": 9717,
         "toolDescriptionChars": 561,
-        "paramDescriptionChars": 3595
+        "paramDescriptionChars": 3370
       },
       "queryPgStorage": {
         "bytes": 1821,
@@ -126,9 +126,9 @@
         "paramDescriptionChars": 1503
       },
       "manageCloudRun": {
-        "bytes": 21491,
+        "bytes": 20102,
         "toolDescriptionChars": 849,
-        "paramDescriptionChars": 6556
+        "paramDescriptionChars": 5809
       },
       "deployBuild": {
         "bytes": 1657,
@@ -151,9 +151,9 @@
         "paramDescriptionChars": 781
       },
       "manageGateway": {
-        "bytes": 23284,
-        "toolDescriptionChars": 1879,
-        "paramDescriptionChars": 6872
+        "bytes": 20126,
+        "toolDescriptionChars": 1571,
+        "paramDescriptionChars": 5046
       },
       "queryAppAuth": {
         "bytes": 1895,
@@ -219,9 +219,9 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 215520,
-    "toolDescriptionChars": 56016,
-    "paramDescriptionChars": 91269,
+    "wireBytes": 210027,
+    "toolDescriptionChars": 55172,
+    "paramDescriptionChars": 86638,
     "perTool": {
       "auth": {
         "bytes": 4139,
@@ -279,9 +279,9 @@
         "paramDescriptionChars": 517
       },
       "managePgDatabase": {
-        "bytes": 11054,
+        "bytes": 10635,
         "toolDescriptionChars": 1042,
-        "paramDescriptionChars": 6948
+        "paramDescriptionChars": 6529
       },
       "queryPgStorage": {
         "bytes": 1905,
@@ -344,9 +344,9 @@
         "paramDescriptionChars": 3351
       },
       "manageCloudRun": {
-        "bytes": 23207,
+        "bytes": 21657,
         "toolDescriptionChars": 1874,
-        "paramDescriptionChars": 15483
+        "paramDescriptionChars": 13939
       },
       "deployBuild": {
         "bytes": 1842,
@@ -369,9 +369,9 @@
         "paramDescriptionChars": 1364
       },
       "manageGateway": {
-        "bytes": 24408,
-        "toolDescriptionChars": 3313,
-        "paramDescriptionChars": 11539
+        "bytes": 20884,
+        "toolDescriptionChars": 2469,
+        "paramDescriptionChars": 8871
       },
       "queryAppAuth": {
         "bytes": 1988,

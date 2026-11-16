@@ -803,7 +803,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
       name: "action",
       type: "string",
       required: true,
-      description: `操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用会自动完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。 可填写的值: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration", "describeRealtime", "enableRealtime", "modifyRealtime"`,
+      description: `操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。describeRealtime / enableRealtime / modifyRealtime 管理 Realtime（见工具说明）。 可填写的值: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration", "describeRealtime", "enableRealtime", "modifyRealtime"`,
     },
     {
       name: "sql",
@@ -878,7 +878,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "taskPollTimeoutMs",
       type: "integer",
-      description: `apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 600000（与 CLI tcb db pg migration up 的 10 分钟对齐）。范围 5000-600000。超时后务必先 describeMigrationTask(taskId) 再 listMigrations，禁止立刻重推同 version。`,
+      description: `apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 600000（10 分钟）。范围 5000-600000。超时后务必先 describeMigrationTask(taskId) 再 listMigrations，禁止立刻重推同 version。`,
     },
     {
       name: "waitForTask",
@@ -903,12 +903,12 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "force",
       type: "boolean",
-      description: `fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件（对齐 CLI tcb db pg migration fetch --force）；false=跳过已存在文件。用于从远端 history 重新对齐 Git checksum。`,
+      description: `fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件；false=跳过已存在文件。用于从远端 history 重新对齐 Git checksum。`,
     },
     {
       name: "includeAll",
       type: "boolean",
-      description: `planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push，对齐 CLI tcb db pg migration up --include-all；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。`,
+      description: `planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。`,
     },
     {
       name: "allowDdlViaExecute",
@@ -2462,7 +2462,7 @@ skill 返回 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中全部
       name: "action",
       type: "string",
       required: true,
-      description: `云托管服务管理操作类型：init=从模板初始化新的云托管项目代码（在targetPath目录下创建以serverName命名的子目录，支持多种语言和框架模板），download=从云端下载现有服务的代码到本地进行开发，run=在本地运行函数型云托管服务（用于开发和调试，仅支持函数型服务），deploy=触发部署并轻量等待任务注册（不会 hang 等完整构建）。源码构建（targetPath）返回 buildId，用 getDeployLog 轮询后再 getProcessLog；已有镜像部署（imageUrl，DeployType=image，BuildId 常为 0）跳过 getDeployLog，用 detail/getDeployRecords 取 RunId 后 getProcessLog。传 imageUrl 时 targetPath 可省略；已存在服务会 Read-Merge-Write 保留远程 VpcConf/EnvParams/OpenAccessTypes），updateConfig=仅更新服务配置不重新上传代码（对齐控制台服务设置，走 SubmitServerConfigChangeDiff；不需要 targetPath），delete=删除指定的云托管服务（不可恢复，需要确认），createAgent=创建函数型Agent（基于函数型云托管开发AI智能体），initEnv=开通当前环境的云托管（异步创建云托管环境，幂等：已开通直接返回；适合新环境首次部署前使用），traffic=流量管理与灰度发布（set=调整稳定版/灰度版流量比例，promote=将灰度版本升级为全量，rollback=回滚到上一个稳定版本；对应 tcb cloudrun traffic 命令） 可填写的值: "init", "download", "run", "deploy", "delete", "createAgent", "updateConfig", "initEnv", "traffic"`,
+      description: `云托管服务管理操作类型：init=从模板初始化新的云托管项目代码（在 targetPath 下创建以 serverName 命名的子目录），download=从云端下载现有服务的代码到本地，run=在本地运行函数型云托管服务（仅支持函数型服务），deploy=触发部署并轻量等待任务注册（不会 hang 等完整构建；源码构建用 getDeployLog 轮询，镜像部署跳过 getDeployLog 直接 getProcessLog），updateConfig=仅更新服务配置不重新上传代码，delete=删除指定的云托管服务（不可恢复，需要确认），createAgent=创建函数型 Agent，initEnv=开通当前环境的云托管（异步、幂等，适合新环境首次部署前使用），traffic=流量管理与灰度发布（子操作见 trafficOp） 可填写的值: "init", "download", "run", "deploy", "delete", "createAgent", "updateConfig", "initEnv", "traffic"`,
     },
     {
       name: "serverName",
@@ -2472,7 +2472,7 @@ skill 返回 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中全部
     {
       name: "trafficOp",
       type: "string",
-      description: `流量管理子操作（action=traffic 时使用）：set=调整灰度流量比例（需先部署新版本至灰度，通过 stablePercent/canaryPercent 设置稳定版与灰度版流量比例，两者之和必须等于100）；promote=将灰度版本全量发布（灰度版本流量置为100%并关闭灰度发布，等价于 tcb cloudrun traffic promote）；rollback=回滚到上一个稳定版本（停止当前灰度/发布中的版本，回到稳定版本，等价于 tcb cloudrun traffic rollback） 可填写的值: "set", "promote", "rollback"`,
+      description: `流量管理子操作（action=traffic 时使用）：set=调整灰度流量比例（需先部署新版本至灰度，再用 stablePercent/canaryPercent 设置）；promote=将灰度版本全量发布并关闭灰度；rollback=停止当前灰度/发布中的版本，回到上一个稳定版本 可填写的值: "set", "promote", "rollback"`,
     },
     {
       name: "stablePercent",
@@ -2507,12 +2507,12 @@ skill 返回 SKILL.md 全文，以及它在远端聚合仓（CNB raw）中全部
     {
       name: "targetPath",
       type: "string",
-      description: `本地代码路径，必须是绝对路径。在deploy操作中指定要部署的代码目录，在download操作中指定下载目标目录，在init操作中指定云托管服务的上级目录（会在该目录下创建以serverName命名的子目录）。updateConfig 不需要此参数。建议约定：项目根目录下的cloudrun/目录，例如：/Users/username/projects/my-project/cloudrun。必须指向具体的项目目录：文件系统根、家目录本身、/Users 本身、系统目录（含 /bin、/etc），以及 .ssh / Library / .config/.cloudbase 这类凭据或主机数据目录都会被拒绝。使用 imageUrl 部署已有镜像时此参数可省略。注意：本地有源码目录不等于必须走源码构建；若用户指定镜像请优先传 imageUrl，不要仅因存在 targetPath 就回退到源码构建`,
+      description: `本地代码路径，必须是绝对路径。deploy 时为要部署的代码目录，download 时为下载目标目录，init 时为云托管服务的上级目录。建议约定：项目根目录下的 cloudrun/ 目录。必须指向具体的项目目录：文件系统根、家目录本身、/Users 本身、系统目录（含 /bin、/etc），以及 .ssh / Library / .config/.cloudbase 这类凭据或主机数据目录都会被拒绝。updateConfig 与使用 imageUrl 部署已有镜像时可省略。本地有源码目录不等于必须走源码构建；用户指定镜像时优先传 imageUrl。`,
     },
     {
       name: "imageUrl",
       type: "string",
-      description: `已有镜像部署（action=deploy 时使用）：直接指定容器镜像地址，如 ccr.ccs.tencentyun.com/ns/img:v1 或公网 registry 地址。传入后走 DeployType="image"（容器型）部署，无需本地源码目录（targetPath 可省略）。支持：1) 公网匿名可拉取的镜像直填地址；2) 私有/需登录的镜像（如 ghcr.io）需先在本地 docker pull → docker tag/push 到腾讯云 CCR → 填入 CCR 地址。不传则维持源码构建（本地代码打包上传）。约束：若用户明确提到使用某个镜像、或无需重新构建代码，则必须传 imageUrl 走镜像部署，不要回退到源码构建。注意：无论哪种部署方式，环境都需先开通云托管（未开通时先调用 initEnv，Status=normal 后再部署）`,
+      description: `已有镜像部署（action=deploy 时使用）：直接指定容器镜像地址，如 ccr.ccs.tencentyun.com/ns/img:v1 或公网 registry 地址，传入后无需本地源码目录。公网匿名可拉取的镜像直填地址；私有/需登录的镜像（如 ghcr.io）需先在本地 docker pull → docker tag/push 到腾讯云 CCR → 填入 CCR 地址。不传则走源码构建。若用户明确提到使用某个镜像、或无需重新构建代码，必须传 imageUrl 走镜像部署，不要回退到源码构建。`,
     },
     {
       name: "envParamsReplaceAll",
@@ -3035,7 +3035,7 @@ CloudBase HTTP 网关统一只读入口（Domain/Route）。查询域名下路�
 ---
 
 ### `manageGateway`
-CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）。未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.\{region\}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action="disableRoute", domain=该域名, path="/")；勿用 manageHosting。创建后可用 queryGateway(action="listRoutes") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器；配合 targetName 或 route.serviceName（云函数名/云托管服务名/静态托管实例名，常见 staticstore/云存储实例名）。createRoute 只建网关入口，不改上游权限。enablePathTransmission：默认 false 剥触发路径前缀；true 透传完整路径（CBR 多路由、WEB_SCF 自管子路径常需 true；STATIC_STORE 自定义触发路径映射站点根通常 false）。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain（certificateId 可选：未传时按域名自动检索证书，单证书自动选用、多证书返回选择指引）。createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检（探测→创建）；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名（浏览器跨域白名单，与本工具的网关自定义域名无关）用 manageEnv(action=addSecurityDomain/removeSecurityDomain)。enableService/authSwitch：HTTP 网关总开关与访问鉴权开关；createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。purgeCache：清除域名缓存（CDN/EO，按 URL/前缀/整站），返回 TaskId 后用 queryGateway cachePurgeTask 查进度。路由级还支持 enableSafeDomain（跨域/合法域名校验）、pathRewrite（路径重写）、qpsPolicy（限频）、extension（自定义请求/响应头与缓存规则）；域名级支持 protocol 与 domainExtension。updateRoute 只传要改的字段即可，未传的 CORS/重写/限频/扩展配置会保持原值。
+CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute/deleteRoute 把域名下的 path 转到上游；enableRoute/disableRoute 启用或禁用已有路由（底层 ModifyHTTPServiceRoute 的 Routes[].Enable，不是 ModifyGatewayRoute）；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权；purgeCache 清除域名缓存（返回 TaskId 后用 queryGateway cachePurgeTask 查进度）。未传 domain 时用 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（形如 *.\{region\}.app.tcloudbase.com），不会使用静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）。这是网关默认域上的路径路由，不是 STATIC_STORE 上游绑定；STATIC_STORE 上游必须显式传 upstreamResourceType=STATIC_STORE。关闭静态托管默认域名（*.tcloudbaseapp.com）：先 queryGateway(listRoutes) 找到 DomainType=STATIC_STORE 且 IsDefault=true 的 domain，再 manageGateway(action="disableRoute", domain=该域名, path="/")；勿用 manageHosting。创建后可用 queryGateway(action="listRoutes") 核对 Domain / DomainType / Path / UpstreamResourceType。上游类型只用一个参数 upstreamResourceType（也可写在 route.upstreamResourceType，route 优先）：WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器；配合 targetName 或 route.serviceName 指定上游实例。createRoute 只建网关入口，不改上游权限。⚠️ 自定义域名访问：若环境已有自定义域名（先 queryGateway listCustomDomains），优先 createRoute 并显式传入该 domain，无需 certificateId；仅首次绑定全新自定义域名时用 bindCustomDomain。createRoute / bindCustomDomain 创建前会调用 VerifyHTTPServiceRoute 做归属权等预检；失败时返回 data.checks 与 DNS TXT 指引，配置后重试。CORS/安全域名（浏览器跨域白名单，与本工具的网关自定义域名无关）用 manageEnv(action=addSecurityDomain/removeSecurityDomain)。createRoute 后若访问报 HTTPSERVICE_NONACTIVATED，通常是总开关未开启（用 queryGateway getPrivilege 查询、enableService 开启）。updateRoute 只传要改的字段即可，未传的 CORS/重写/限频/扩展配置会保持原值。
 
 #### 参数
 
@@ -3045,7 +3045,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
       name: "action",
       type: "string",
       required: true,
-      description: `写操作：createRoute/updateRoute/deleteRoute 管理路由；enableRoute/disableRoute 启用或禁用已有路由（需 path，建议显式传 domain）；bindCustomDomain/deleteCustomDomain 管理自定义域名；enableService/authSwitch 开关 HTTP 网关总开关与访问鉴权（需配合 enable 参数）。createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 会先 listRoutes 定位已有路由，通常不必重填上游。updateRoute 也可传 enable/route.enable 直接改 Routes[].Enable。关闭 *.tcloudbaseapp.com 默认静态托管域：disableRoute + domain=该 STATIC_STORE IsDefault 域名 + path="/"。已有自定义域名时优先 createRoute(domain=已有域名) 实现访问，不必再次 bindCustomDomain / 传入 certificateId；bindCustomDomain 仅用于首次绑定新域名（certificateId 可选，未传则按域名自动检索；可选 accessType=DIRECT|CDN|CUSTOM，CUSTOM 需 customCname；普通场景用默认 DIRECT）。createRoute/bindCustomDomain 创建前会 VerifyHTTPServiceRoute 预检；失败时按返回的 DNS TXT 指引配置后重试。purgeCache 清除域名缓存：需 domain 与 targets（配 purgeType=PURGE_URL|PURGE_PREFIX|PURGE_HOST，可选 cacheType=CDN|EO）。接入说明：https://docs.cloudbase.net/service/custom-domain 可填写的值: "createRoute", "updateRoute", "deleteRoute", "enableRoute", "disableRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch", "purgeCache"`,
+      description: `写操作。createRoute/updateRoute 必须提供 upstreamResourceType；enableRoute/disableRoute 需 path（建议显式传 domain），会先定位已有路由，通常不必重填上游；enableService/authSwitch 需配合 enable；purgeCache 需 domain 与 targets。自定义域名接入说明：https://docs.cloudbase.net/service/custom-domain 可填写的值: "createRoute", "updateRoute", "deleteRoute", "enableRoute", "disableRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch", "purgeCache"`,
     },
     {
       name: "targetName",
@@ -3060,7 +3060,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "upstreamResourceType",
       type: "string",
-      description: `上游类型（与 route.upstreamResourceType 二选一，route 优先）。WEB_SCF=HTTP云函数，SCF=Event云函数，CBR=云托管，STATIC_STORE=静态托管，STORAGE=云存储，LH=轻量应用服务器。STORAGE 的 UpstreamResourceName 是云存储实例名，可先用 queryStorage 查实例。createRoute/updateRoute 必填其一；勿把 manageFunctions 的 type=HTTP|Event 传到本字段。 可填写的值: "SCF", "WEB_SCF", "CBR", "STATIC_STORE", "LH", "STORAGE"`,
+      description: `上游类型（与 route.upstreamResourceType 二选一，route 优先）。STORAGE 的上游名是云存储实例名，可先用 queryStorage 查实例。勿把 manageFunctions 的 type=HTTP|Event 传到本字段。 可填写的值: "SCF", "WEB_SCF", "CBR", "STATIC_STORE", "LH", "STORAGE"`,
     },
     {
       name: "auth",
@@ -3121,7 +3121,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "extension",
       type: "object",
-      description: `路由级扩展（Extension），可配自定义请求/响应头与缓存规则。{headersHandler:{requestHeadersToAdd,requestHeadersToRemove,responseHeadersToAdd,responseHeadersToRemove},cache:{rules:[{description,enable,condition:{target,matchType,values},actions:[{type:"Cache"|"CacheKey",cache,cacheKey}]}]}}。⚠️ 默认域（*.{region}.app.tcloudbase.com）不支持自定义响应头，后端会拒绝（实测 2026-10-21），需要自定义域名才能配。也可用 route.extension（route 优先）。`,
+      description: `路由级扩展：自定义请求/响应头与缓存规则。⚠️ 默认域（*.{region}.app.tcloudbase.com）不支持自定义响应头，需要自定义域名。也可用 route.extension（route 优先）。`,
       children: [
         {
           name: "headersHandler",
@@ -3146,7 +3146,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                 {
                   name: "action",
                   type: "string",
-                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                  description: `写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
                 }
               ],
             },
@@ -3173,7 +3173,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                 {
                   name: "action",
                   type: "string",
-                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                  description: `写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
                 }
               ],
             },
@@ -3203,7 +3203,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                   name: "condition",
                   type: "object",
                   required: true,
-                  description: `缓存规则匹配条件：target=url_path/file_extension/full_uri，matchType=prefix/suffix/contains/exact，values=匹配值数组`,
+                  description: `缓存规则匹配条件，values 为匹配值数组`,
                   children: [
                     {
                       name: "target",
@@ -3290,7 +3290,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "domainExtension",
       type: "object",
-      description: `域名级扩展（Extension），作用于整个域名（含该域名下所有路径）的自定义头与缓存规则，结构同 extension。缓存规则通常配在域名级；仅 createRoute/updateRoute/bindCustomDomain 生效。⚠️ 同 extension：默认域不支持自定义响应头，需自定义域名。`,
+      description: `域名级扩展，作用于整个域名（含所有路径），结构同 extension。缓存规则通常配在域名级；仅 createRoute/updateRoute/bindCustomDomain 生效。⚠️ 同 extension：默认域不支持自定义响应头。`,
       children: [
         {
           name: "headersHandler",
@@ -3315,7 +3315,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                 {
                   name: "action",
                   type: "string",
-                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                  description: `写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
                 }
               ],
             },
@@ -3342,7 +3342,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                 {
                   name: "action",
                   type: "string",
-                  description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                  description: `写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
                 }
               ],
             },
@@ -3372,7 +3372,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                   name: "condition",
                   type: "object",
                   required: true,
-                  description: `缓存规则匹配条件：target=url_path/file_extension/full_uri，matchType=prefix/suffix/contains/exact，values=匹配值数组`,
+                  description: `缓存规则匹配条件，values 为匹配值数组`,
                   children: [
                     {
                       name: "target",
@@ -3459,7 +3459,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "protocol",
       type: "string",
-      description: `域名协议（Protocol），仅 createRoute/updateRoute/bindCustomDomain 生效：HTTP / HTTPS / HTTP_AND_HTTPS / HTTP_TO_HTTPS / HTTPS_TO_HTTP。省略则沿用域名现有配置。 可填写的值: "HTTP", "HTTPS", "HTTP_AND_HTTPS", "HTTP_TO_HTTPS", "HTTPS_TO_HTTP"`,
+      description: `域名协议，仅 createRoute/updateRoute/bindCustomDomain 生效。省略则沿用域名现有配置。 可填写的值: "HTTP", "HTTPS", "HTTP_AND_HTTPS", "HTTP_TO_HTTPS", "HTTPS_TO_HTTP"`,
     },
     {
       name: "route",
@@ -3563,7 +3563,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                     {
                       name: "action",
                       type: "string",
-                      description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                      description: `写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
                     }
                   ],
                 },
@@ -3590,7 +3590,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                     {
                       name: "action",
                       type: "string",
-                      description: `写入策略（可选）：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
+                      description: `写入策略：APPEND_IF_EXISTS_OR_ADD 追加；ADD_IF_ABSENT 不存在才加；OVERWRITE_IF_EXISTS_OR_ADD 覆盖或新增；OVERWRITE_IF_EXISTS 仅覆盖已存在的 可填写的值: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"`,
                     }
                   ],
                 },
@@ -3620,7 +3620,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
                       name: "condition",
                       type: "object",
                       required: true,
-                      description: `缓存规则匹配条件：target=url_path/file_extension/full_uri，matchType=prefix/suffix/contains/exact，values=匹配值数组`,
+                      description: `缓存规则匹配条件，values 为匹配值数组`,
                       children: [
                         {
                           name: "target",
@@ -3707,14 +3707,14 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
         {
           name: "enable",
           type: "boolean",
-          description: `路由级开关（Routes[].Enable / Route.Enable）。createRoute/updateRoute 可用：enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；enable=true 重新启用。updateRoute 也可用顶层 enable 表达同一语义；也可用专用 action enableRoute/disableRoute。route.enable 优先于顶层 enable。`,
+          description: `路由级开关。enable=false 禁用该 Domain+Path（访问返回 GATEWAY_ROUTE_DISABLED）；enable=true 重新启用。优先于顶层 enable。`,
         }
       ],
     },
     {
       name: "domain",
       type: "string",
-      description: `域名。省略时自动使用环境 DomainType=HTTPSERVICE 的 IsDefault 默认 HTTP 域名（*.{region}.app.tcloudbase.com），不会回退到静态托管 CDN 域名（*.tcloudbaseapp.com，DomainType=STATIC_STORE）；也不是 STATIC_STORE 上游绑定。可用 queryGateway(action="listRoutes") 核对实际 Domain / DomainType。enableRoute/disableRoute 操作 *.tcloudbaseapp.com 时必须显式传入该域名。已有自定义域名时请显式传入该域名并 createRoute/updateRoute/deleteRoute，即可实现自定义域名访问且无需证书 ID；仅 bindCustomDomain 时表示要新绑定的域名。`,
+      description: `域名。省略时自动使用环境 DomainType=HTTPSERVICE 的默认 HTTP 域名（*.{region}.app.tcloudbase.com），可用 queryGateway(action="listRoutes") 核对。enableRoute/disableRoute 操作 *.tcloudbaseapp.com 时必须显式传入该域名。已有自定义域名时显式传入该域名即可配路由，无需证书 ID；仅 bindCustomDomain 时表示要新绑定的域名。`,
     },
     {
       name: "certificateId",
@@ -3734,7 +3734,7 @@ CloudBase HTTP 网关统一写入口（Domain/Route）。createRoute/updateRoute
     {
       name: "enable",
       type: "boolean",
-      description: `开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；bindCustomDomain 可选：enable=false 表示绑定后禁用域名（默认启用）；updateRoute 可选：映射到 Routes[].Enable（也可用 route.enable，route 优先；也可用专用 action enableRoute/disableRoute）。省略或非布尔值在 enableService/authSwitch 会返回参数错误。`,
+      description: `开关目标状态：enableService / authSwitch 必填（true 开启 / false 关闭）；bindCustomDomain 可选，false 表示绑定后禁用域名；updateRoute 可选，映射到 Routes[].Enable（route.enable 优先）。`,
     },
     {
       name: "cacheType",
