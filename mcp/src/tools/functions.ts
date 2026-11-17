@@ -16,6 +16,7 @@ import {
 } from "../utils/log-service.js";
 import { debug, warn } from "../utils/logger.js";
 import { isToolPayloadError, throwToolPayloadError } from "../utils/tool-result.js";
+import { diffTriggerLists } from "../utils/trigger-diff.js";
 import {
   DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
   describeFunctionDeployTask,
@@ -3278,6 +3279,20 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           validateTimerCron(trigger.config);
         }
       }
+      if (input.dryRun === true) {
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName: input.functionName,
+            executed: false,
+            plannedTriggers: input.triggers.map((trigger) => trigger.name),
+          },
+          t("functions.createdTriggersDryRun", {
+            triggers: input.triggers.map((trigger) => trigger.name).join(", "),
+          }),
+          [],
+        );
+      }
       const cloudbase = await getManager();
       const result = await cloudbase.functions.createFunctionTriggers(
         input.functionName,
@@ -3309,18 +3324,78 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       }
       requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
+
+      // Read the list before and after deleting. Deleting by name must not be
+      // able to silently take other triggers with it: report every name that
+      // actually disappeared, not just the requested one.
+      const triggerNames = async (): Promise<string[]> => {
+        try {
+          const detail = await cloudbase.functions.getFunctionDetail(
+            input.functionName as string,
+          );
+          const triggers =
+            (detail as { Triggers?: Array<{ TriggerName?: string; Name?: string }> } | undefined)
+              ?.Triggers ?? [];
+          return triggers
+            .map((item) => String(item?.TriggerName ?? item?.Name ?? ""))
+            .filter(Boolean);
+        } catch {
+          return [];
+        }
+      };
+
+      const before = await triggerNames();
+      if (input.dryRun === true) {
+        return buildEnvelope(
+          {
+            action: input.action,
+            functionName: input.functionName,
+            triggerName: input.triggerName,
+            executed: false,
+            triggersBefore: before,
+            plannedRemoval: [input.triggerName],
+          },
+          t("functions.deletedTriggerDryRun", {
+            triggers: before.length ? before.join(", ") : "()",
+            triggerName: input.triggerName,
+          }),
+          [],
+        );
+      }
+
       await cloudbase.functions.deleteFunctionTrigger(
         input.functionName,
         input.triggerName,
       );
+      const after = await triggerNames();
+      const { removed, unexpected } = diffTriggerLists(
+        before,
+        after,
+        input.triggerName,
+      );
+      const message = unexpected.length
+        ? t("functions.deletedTriggerUnexpected", {
+            fnName: input.functionName,
+            triggerName: input.triggerName,
+            names: unexpected.join(", "),
+          })
+        : t("functions.deletedTrigger", {
+            fnName: input.functionName,
+            triggerName: input.triggerName,
+          });
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
           triggerName: input.triggerName,
+          executed: true,
+          triggersBefore: before,
+          triggersAfter: after,
+          removed,
+          unexpected,
           raw: {},
         },
-        t("functions.deletedTrigger", { fnName: input.functionName, triggerName: input.triggerName }),
+        message,
         [
           {
             tool: "queryFunctions",

@@ -33,6 +33,11 @@ export const credential = defineModule(
     "blocked.timeout": "未执行：{seconds}s 内没有收到核对结果（超时）。请重试。",
     "blocked.error": "未执行：核对流程出错（{reason}）。请重试。",
     "hint.release": "如需放行：把 {action} 加入 CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD。",
+
+    "expired.pg":
+      "临时密钥已过期，不是 PostgreSQL 实例尚未就绪。MCP 会重新换取密钥，请重试该操作；不要解绑重连。原始错误：{reason}",
+    "expired.env":
+      "临时密钥已过期，不是登录态丢失。MCP 会重新换取密钥，请重试该操作；不要解绑重连，也不要重新授权。",
   },
   {
     "message.confirmJwt":
@@ -57,5 +62,10 @@ export const credential = defineModule(
     "blocked.timeout": "Not executed: no check result within {seconds}s (timed out). Please retry.",
     "blocked.error": "Not executed: the check failed ({reason}). Please retry.",
     "hint.release": "To allow it: add {action} to CLOUDBASE_MCP_SKIP_CREDENTIAL_GUARD.",
+
+    "expired.pg":
+      "The temporary credential expired; this is not a PostgreSQL instance that is still initializing. A new credential will be requested. Retry the operation; do not reconnect. Original error: {reason}",
+    "expired.env":
+      "The temporary credential expired; this is not a lost login. A new credential will be requested. Retry the operation; do not reconnect or re-authorize.",
   },
 );

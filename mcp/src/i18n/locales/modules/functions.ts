@@ -198,7 +198,13 @@ export const functions = defineModule(
     invokeNotFoundTip: "{message}\n\nTip: \"invokeFunction\" 只能调用已部署的云函数。数据库操作请使用对应的数据工具。",
     deletedFunction: "已删除函数 {fnName}",
     createdTriggers: "已为函数 {fnName} 创建触发器",
+    createdTriggersDryRun:
+      "未执行：dryRun=true 时不会创建触发器。计划创建：{triggers}。去掉 dryRun 或设为 false 才会真实执行。",
     deletedTrigger: "已删除函数 {fnName} 的触发器 {triggerName}",
+    deletedTriggerUnexpected:
+      "已从函数 {fnName} 删除触发器 {triggerName}，但 {names} 也一并消失了。请核对下方列表并按需重建。",
+    deletedTriggerDryRun:
+      "未执行：dryRun=true 时不会删除触发器。当前列表：{triggers}；计划删除：{triggerName}。去掉 dryRun 或设为 false 才会真实执行。",
     createdLayerVersion: "已创建层 {layerName} 的新版本",
     deletedLayerVersion: "已删除层 {layerName} 的版本 {layerVersion}",
     attachedLayer: "已将层 {layerName}:{layerVersion} 绑定到函数 {fnName}",
@@ -519,7 +525,13 @@ export const functions = defineModule(
     invokeNotFoundTip: "{message}\n\nTip: \"invokeFunction\" can only invoke deployed cloud functions. Use the corresponding database tools for database operations.",
     deletedFunction: "Deleted function {fnName}",
     createdTriggers: "Created triggers for function {fnName}",
+    createdTriggersDryRun:
+      "Not executed: dryRun=true does not create triggers. Planned: {triggers}. Omit dryRun or set it to false to execute.",
     deletedTrigger: "Deleted trigger {triggerName} of function {fnName}",
+    deletedTriggerUnexpected:
+      "Deleted trigger {triggerName} of function {fnName}, but {names} also disappeared. Review the lists below and recreate them if needed.",
+    deletedTriggerDryRun:
+      "Not executed: dryRun=true does not delete triggers. Current list: {triggers}; planned removal: {triggerName}. Omit dryRun or set it to false to execute.",
     createdLayerVersion: "Created a new version of layer {layerName}",
     deletedLayerVersion: "Deleted version {layerVersion} of layer {layerName}",
     attachedLayer: "Bound layer {layerName}:{layerVersion} to function {fnName}",
