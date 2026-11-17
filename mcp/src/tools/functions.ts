@@ -16,7 +16,11 @@ import {
 } from "../utils/log-service.js";
 import { debug, warn } from "../utils/logger.js";
 import { isToolPayloadError, throwToolPayloadError } from "../utils/tool-result.js";
-import { diffTriggerLists } from "../utils/trigger-diff.js";
+import {
+  diffTriggerCreation,
+  diffTriggerLists,
+  planTriggerCreation,
+} from "../utils/trigger-diff.js";
 import {
   DEPLOY_TASK_NOT_FOUND_ERROR_CODE,
   describeFunctionDeployTask,
@@ -525,6 +529,7 @@ type ManageFunctionsInput = {
     config: string;
   }>;
   triggerName?: string;
+  replaceAll?: boolean;
   layerName?: string;
   layerVersion?: number;
   contentPath?: string;
@@ -3273,39 +3278,126 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       if (!input.triggers?.length) {
         throw new Error(t("functions.paramRequired", { action: "createFunctionTrigger", param: "triggers" }));
       }
-      // Validate timer cron format before sending to CloudBase
       for (const trigger of input.triggers) {
         if (trigger.type === "timer") {
           validateTimerCron(trigger.config);
         }
       }
+
+      const cloudbase = await getManager();
+      const plannedNames = input.triggers.map((trigger) => trigger.name);
+
+      // The backend replaces every timer trigger on the function with the
+      // submitted array. Read the current list first so a partial submission
+      // cannot silently delete the triggers that were left out.
+      const readTriggerNames = async (): Promise<string[] | null> => {
+        try {
+          const detail = await cloudbase.functions.getFunctionDetail(
+            input.functionName as string,
+          );
+          const triggers =
+            (detail as {
+              Triggers?: Array<{ TriggerName?: string; Name?: string; Type?: string }>;
+            } | undefined)?.Triggers ?? [];
+          return triggers
+            .filter((item) => !item?.Type || item.Type === "timer")
+            .map((item) => String(item?.TriggerName ?? item?.Name ?? ""))
+            .filter(Boolean);
+        } catch {
+          return null;
+        }
+      };
+
+      const before = await readTriggerNames();
+      const plan = planTriggerCreation(
+        before ?? [],
+        plannedNames,
+        input.replaceAll === true,
+      );
+
       if (input.dryRun === true) {
         return buildEnvelope(
           {
             action: input.action,
             functionName: input.functionName,
             executed: false,
-            plannedTriggers: input.triggers.map((trigger) => trigger.name),
+            plannedTriggers: plannedNames,
+            triggersBefore: before,
+            willRemove: before === null ? [] : plan.willRemove,
+            ...(before === null ? { triggerListUnavailable: true } : {}),
           },
-          t("credential.trigger.dryRunCreate", {
-            triggers: input.triggers.map((trigger) => trigger.name).join(", "),
-          }),
+          before === null
+            ? t("credential.trigger.listUnavailable")
+            : plan.willRemove.length > 0
+              ? t("credential.trigger.dryRunCreateWithRemoval", {
+                  triggers: plannedNames.join(", "),
+                  names: plan.willRemove.join(", "),
+                })
+              : t("credential.trigger.dryRunCreate", {
+                  triggers: plannedNames.join(", "),
+                }),
           [],
         );
       }
-      const cloudbase = await getManager();
+
+      if (before === null) {
+        throwToolPayloadError({
+          success: false,
+          errorCode: "TRIGGER_LIST_UNAVAILABLE",
+          data: {
+            action: input.action,
+            functionName: input.functionName,
+            next_step: { tool: "queryFunctions", action: "listFunctionTriggers" },
+          },
+          message: t("credential.trigger.listUnavailable"),
+        });
+      }
+
+      if (plan.action === "blocked") {
+        throwToolPayloadError({
+          success: false,
+          errorCode: "TRIGGER_REPLACE_BLOCKED",
+          data: {
+            action: input.action,
+            functionName: input.functionName,
+            triggersBefore: before,
+            plannedTriggers: plannedNames,
+            willRemove: plan.willRemove,
+            next_step: { tool: "queryFunctions", action: "listFunctionTriggers" },
+          },
+          message: t("credential.trigger.wouldReplace", {
+            names: plan.willRemove.join(", "),
+          }),
+        });
+      }
+
       const result = await cloudbase.functions.createFunctionTriggers(
         input.functionName,
         input.triggers,
       );
       logCloudBaseResult(server.logger, result);
+
+      const after = await readTriggerNames();
+      const diff = diffTriggerCreation(before, after ?? []);
+      const unexpected = plan.action === "create" ? diff.removed : [];
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
+          executed: true,
           raw: result,
+          triggersBefore: before,
+          triggersAfter: after,
+          added: diff.added,
+          removed: diff.removed,
+          unexpected,
+          replaceAll: input.replaceAll === true,
         },
-        t("functions.createdTriggers", { fnName: input.functionName }),
+        unexpected.length > 0
+          ? t("credential.trigger.createdUnexpected", {
+              names: unexpected.join(", "),
+            })
+          : t("functions.createdTriggers", { fnName: input.functionName }),
         [
           {
             tool: "queryFunctions",
@@ -3810,6 +3902,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           .optional()
           .describe("functions.schema.manage.triggers"),
         triggerName: z.string().optional().describe("functions.schema.manage.triggerName"),
+        replaceAll: z.boolean().optional().describe("credential.trigger.replaceAll"),
         layerName: z
           .string()
           .optional()

@@ -1736,6 +1736,11 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       description: `deleteFunctionTrigger 的目标触发器名称`,
     },
     {
+      name: "replaceAll",
+      type: "boolean",
+      description: `默认 false：若函数上还有未列入 triggers 的定时触发器，工具会拒绝执行并列出名字。确认要用本次提交替换全部定时触发器时设为 true。`,
+    },
+    {
       name: "layerName",
       type: "string",
       description: `层名称。创建层推荐固定格式 \`{layerName}_{当前envId}\`（如 common_cloud1-d9ghadgak3edf6b36）；不要跨环境复用裸层名。层为账号级共享命名空间`,

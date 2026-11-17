@@ -45,6 +45,16 @@ export const credential = defineModule(
       "未执行：dryRun=true 时不会删除触发器。当前列表：{triggers}；计划删除：{triggerName}。去掉 dryRun 或设为 false 才会真实执行。",
     "trigger.dryRunCreate":
       "未执行：dryRun=true 时不会创建触发器。计划创建：{triggers}。去掉 dryRun 或设为 false 才会真实执行。",
+    "trigger.replaceAll":
+      "默认 false：若函数上还有未列入 triggers 的定时触发器，工具会拒绝执行并列出名字。确认要用本次提交替换全部定时触发器时设为 true。",
+    "trigger.wouldReplace":
+      "未执行：底层按定时触发器全量替换，继续创建会删除 {names}。若要保留请把它们一起传入 triggers；确认替换请显式设置 replaceAll=true。",
+    "trigger.listUnavailable":
+      "未执行：无法读取当前触发器列表，已停止创建以避免覆盖。请先用 queryFunctions(action=\"listFunctionTriggers\") 核对后重试。",
+    "trigger.dryRunCreateWithRemoval":
+      "未执行：dryRun=true 时不会创建触发器。计划创建：{triggers}；真实执行时会被替换删除：{names}。保留它们请一起传入 triggers，或设置 replaceAll=true 确认替换。",
+    "trigger.createdUnexpected":
+      "已创建触发器，但 {names} 也消失了。请核对返回的 triggersBefore / triggersAfter 并按需重建。",
   },
   {
     "message.confirmJwt":
@@ -81,5 +91,15 @@ export const credential = defineModule(
       "Not executed: dryRun=true does not delete triggers. Current list: {triggers}; planned removal: {triggerName}. Omit dryRun or set it to false to execute.",
     "trigger.dryRunCreate":
       "Not executed: dryRun=true does not create triggers. Planned: {triggers}. Omit dryRun or set it to false to execute.",
+    "trigger.replaceAll":
+      "Default false: if the function has timer triggers not listed in triggers, the tool refuses and lists their names. Set true to replace all timer triggers with this submission.",
+    "trigger.wouldReplace":
+      "Not executed: the backend replaces all timer triggers, so continuing would delete {names}. Include them in triggers to keep them, or set replaceAll=true to confirm the replacement.",
+    "trigger.listUnavailable":
+      "Not executed: the current trigger list could not be read, so creation stopped to avoid overwriting. Check it with queryFunctions(action=\"listFunctionTriggers\") first, then retry.",
+    "trigger.dryRunCreateWithRemoval":
+      "Not executed: dryRun=true does not create triggers. Planned: {triggers}; a real run would delete {names}. Include them in triggers to keep them, or set replaceAll=true to confirm.",
+    "trigger.createdUnexpected":
+      "Triggers were created, but {names} also disappeared. Review triggersBefore / triggersAfter in the result and recreate them if needed.",
   },
 );
