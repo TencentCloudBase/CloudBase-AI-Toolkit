@@ -2,6 +2,12 @@
 
 Use the HTTP API only when the SDK path is blocked or the caller is a non-SDK client.
 
+## Supported surface
+
+Use only the paths, methods, and parameters published in the CloudBase HTTP API docs or the OpenAPI definition. PostgREST implements more features than CloudBase publishes; an endpoint that responds is not a supported API.
+
+> ⚠️ Undocumented endpoints have no compatibility commitment and no SLA. They can change or be removed without notice.
+
 ## Base endpoints
 
 ```text

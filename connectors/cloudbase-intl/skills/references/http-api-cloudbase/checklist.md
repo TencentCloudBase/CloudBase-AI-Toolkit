@@ -19,6 +19,7 @@ Use this checklist when the request comes from Android, iOS, Flutter, React Nati
    - `nosql` — NoSQL REST
    - `ai_model` — AI 大模型接入
    - `auth` / `functions` / `cloudrun` / `storage` — 其他
+8. Use only endpoints, methods, and parameters present in the published OpenAPI definition or docs. Do not probe the gateway or copy unlisted PostgREST features.
 
 ## Do not route here when
 
@@ -33,3 +34,4 @@ Use this checklist when the request comes from Android, iOS, Flutter, React Nati
 - The correct REST API variant (关系型 / NoSQL / AI) has been identified.
 - OpenAPI source has been checked (`searchKnowledgeBase` with the right `apiName`).
 - The auth method and request base URL are fixed before code generation.
+- No undocumented endpoint, method, or parameter appears in the generated code.
