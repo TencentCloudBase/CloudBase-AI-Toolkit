@@ -98,8 +98,7 @@ export const apps = defineModule(
     "schema.buildPath": "构建产物目录，相对于 filePath，例如 dist 或 build。\n" +
       "⚠️ 传此值后远端构建系统会 cd 到此目录再执行 tcb hosting deploy，因此 deployCmd 会自动使用 .（当前目录）而非目录名，避免路径重复（如 dist/dist 错误）。\n" +
       "纯静态 HTML 如果在项目根目录可省略，但注意 deployCmd 默认用 dist。",
-    "schema.framework": "前端框架类型。可选值：vue、react、next、nuxt、vite、angular、static。\n" +
-      "即使传 static，仍会经过远端构建管道。如果本地已构建好，建议改用 manageHosting 直接上传，可完全跳过远端构建。",
+    "schema.framework": "前端框架类型。即使传 static，仍会经过远端构建管道。如果本地已构建好，建议改用 manageHosting 直接上传，可完全跳过远端构建。",
     "schema.nodeJsVersion": "构建时使用的 Node.js 版本；不传时由 CloudBase 使用默认值。",
     "schema.installCmd": "依赖安装命令，例如 npm install。不传时默认 npm install。本地已安装或无需安装可传空字符串 '' 跳过，但远端仍会执行 tcb hosting deploy。",
     "schema.buildCmd": "构建命令，例如 npm run build。不传时默认 npm run build。本地已构建好可传空字符串 '' 跳过构建步骤。若希望完全跳过远端管道，请改用 manageHosting。",
@@ -206,8 +205,7 @@ export const apps = defineModule(
     "schema.buildPath": "Build output directory relative to filePath, such as dist or build.\n" +
       "⚠️ When set, the remote build system changes to this directory before running tcb hosting deploy, so deployCmd automatically uses . (the current directory) instead of the directory name to avoid duplicated paths such as dist/dist.\n" +
       "It can be omitted for static HTML in the project root, but note that deployCmd defaults to dist.",
-    "schema.framework": "Frontend framework. Allowed values: vue, react, next, nuxt, vite, angular, and static.\n" +
-      "Even static uses the remote build pipeline. If the app is already built locally, use manageHosting to upload it directly and skip the remote build entirely.",
+    "schema.framework": "Frontend framework. Even static uses the remote build pipeline. If the app is already built locally, use manageHosting to upload it directly and skip the remote build entirely.",
     "schema.nodeJsVersion": "Node.js version used for the build; when omitted, CloudBase uses its default.",
     "schema.installCmd": "Dependency installation command, for example npm install. Defaults to npm install when omitted. Pass an empty string '' when dependencies are already installed or no installation is needed, though the remote pipeline still runs tcb hosting deploy.",
     "schema.buildCmd": "Build command, for example npm run build. Defaults to npm run build when omitted. Pass an empty string '' to skip the build step when the app is already built locally. To skip the remote pipeline entirely, use manageHosting.",

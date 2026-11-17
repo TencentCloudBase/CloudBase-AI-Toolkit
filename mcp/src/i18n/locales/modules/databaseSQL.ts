@@ -9,7 +9,7 @@ export const databaseSQL = defineModule(
     "gate.useManagePg": "请使用 managePgDatabase 执行 PostgreSQL 操作",
     "queryMysqlDatabase.title": "查询 CloudBase MySQL 数据库状态或执行只读 SQL",
     "queryMysqlDatabase.description":
-      "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询实例创建任务结果（控制台发起）、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志（对齐 Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs）。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。",
+      "查询 CloudBase MySQL 数据库信息。支持执行只读 SQL、查询实例创建任务结果（控制台发起）、查询 MySQL 任务状态、获取当前实例生命周期上下文，以及查询实例慢查询/错误日志。标准 getInstanceInfo/describeInstance 不返回连接凭据；仅 getConnectionInfo 透传原始连接/集群载荷（含可能的凭据），且仅用于显式 TCP 迁移。业务 CRUD 优先使用 SDK 或 runQuery/runStatement。",
     "schema.query.action":
       "runQuery=执行只读 SQL；describeCreateResult=查询实例创建任务结果（控制台发起）；describeTaskStatus=查询 MySQL 任务状态；getInstanceInfo=获取不含连接凭据的生命周期上下文；describeInstance=getInstanceInfo 的别名；getConnectionInfo=透传可能包含凭据的原始连接/集群载荷（仅限 TCP 迁移例外场景）；describeInstanceSlowQueries=查询实例慢查询日志；describeInstanceErrorLogs=查询实例错误日志",
     "schema.query.sql": "action=runQuery 使用的只读 SQL",
@@ -28,7 +28,7 @@ export const databaseSQL = defineModule(
     "schema.query.orderByType": "排序方向：asc/desc（大小写均可）",
     "schema.query.sqlText": "慢查过滤：SQL 文本片段",
     "schema.query.logLevels":
-      "错误日志等级过滤，可选值：error / warning / note",
+      "错误日志等级过滤",
     "schema.query.keyWords": "错误日志关键字模糊搜索列表",
     "instanceLogs.notProvisioned":
       "当前环境没有 MySQL 实例，无法查询实例慢查/错误日志。MySQL 开通已不再由本工具提供。",
@@ -116,7 +116,7 @@ export const databaseSQL = defineModule(
     "queryMysqlDatabase.title":
       "Query CloudBase MySQL database status or run read-only SQL",
     "queryMysqlDatabase.description":
-      "Query CloudBase MySQL database information. Supports running read-only SQL, checking the result of an instance-creation task started in the console, querying MySQL task status, getting the current instance lifecycle context, and querying instance slow queries / error logs (aligned with Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs). Standard getInstanceInfo/describeInstance never returns connection credentials; only getConnectionInfo passes through the raw connection/cluster payload (possibly including credentials), and only for explicit TCP migration. Prefer the SDK or runQuery/runStatement for business CRUD.",
+      "Query CloudBase MySQL database information. Supports running read-only SQL, checking the result of an instance-creation task started in the console, querying MySQL task status, getting the current instance lifecycle context, and querying instance slow queries / error logs. Standard getInstanceInfo/describeInstance never returns connection credentials; only getConnectionInfo passes through the raw connection/cluster payload (possibly including credentials), and only for explicit TCP migration. Prefer the SDK or runQuery/runStatement for business CRUD.",
     "schema.query.action":
       "runQuery=execute read-only SQL; describeCreateResult=query the result of an instance-creation task started in the console; describeTaskStatus=query MySQL task status; getInstanceInfo=get lifecycle context without connection credentials; describeInstance=alias of getInstanceInfo; getConnectionInfo=passthrough raw connection/cluster payload including possible credentials (TCP migration exception only); describeInstanceSlowQueries=query instance slow query logs; describeInstanceErrorLogs=query instance error logs",
     "schema.query.sql": "Read-only SQL used by action=runQuery",
@@ -138,7 +138,7 @@ export const databaseSQL = defineModule(
     "schema.query.orderByType": "Sort direction: asc/desc (case-insensitive)",
     "schema.query.sqlText": "Slow-query filter: SQL text fragment",
     "schema.query.logLevels":
-      "Error log level filter. Allowed values: error / warning / note",
+      "Error log level filter",
     "schema.query.keyWords": "Error log keyword fuzzy-search list",
     "instanceLogs.notProvisioned":
       "No MySQL instance exists for this environment, so instance slow/error logs cannot be queried. This tool no longer provisions MySQL.",

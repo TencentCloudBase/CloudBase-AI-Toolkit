@@ -268,9 +268,11 @@ describe("gateway tools", () => {
     expect(targetNameText).toContain("云托管");
     expect(targetNameText).toContain("静态托管");
     expect(t(schema.path.description as MessageKey)).toContain("/api/hello");
-    expect(upstreamTypeText).toContain("WEB_SCF");
-    expect(upstreamTypeText).toContain("CBR");
-    expect(upstreamTypeText).toContain("STATIC_STORE");
+    // Upstream type values live in the enum; the tool description explains each one.
+    expect(schema.upstreamResourceType.unwrap().options).toEqual(
+      expect.arrayContaining(["WEB_SCF", "CBR", "STATIC_STORE"]),
+    );
+    expect(upstreamTypeText).toContain("queryStorage");
     expect(t(schema.auth.description as MessageKey)).toContain("通常 false");
     expect(transmissionText).toContain("CBR");
     expect(transmissionText).toContain("STATIC_STORE");
@@ -283,7 +285,7 @@ describe("gateway tools", () => {
     expect(description).toContain("tcloudbaseapp.com");
     expect(description).toContain("listRoutes");
     expect(description).toContain("不是 STATIC_STORE 上游绑定");
-    expect(actionText).toContain("已有自定义域名");
+    expect(description).toContain("已有自定义域名");
     expect(domainText).toContain("无需证书");
     expect(domainText).toContain("HTTPSERVICE");
     expect(domainText).toContain("listRoutes");

@@ -3703,7 +3703,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .optional()
         .describe("env.schema.query.endTime"),
       period: z
-        .union([z.literal(300), z.literal(3600), z.literal(86400)])
+        .literal(ENV_METRIC_PERIOD_VALUES)
         .optional()
         .describe("env.schema.query.period"),
       resourceID: z

@@ -1,0 +1,438 @@
+{
+  "zh": {
+    "tools": 42,
+    "wireBytes": 195676,
+    "toolDescriptionChars": 28788,
+    "paramDescriptionChars": 43209,
+    "perTool": {
+      "auth": {
+        "bytes": 3701,
+        "toolDescriptionChars": 425,
+        "paramDescriptionChars": 954
+      },
+      "queryEnv": {
+        "bytes": 9090,
+        "toolDescriptionChars": 1859,
+        "paramDescriptionChars": 1930
+      },
+      "envDomainManagement": {
+        "bytes": 2240,
+        "toolDescriptionChars": 764,
+        "paramDescriptionChars": 105
+      },
+      "manageEnv": {
+        "bytes": 5583,
+        "toolDescriptionChars": 515,
+        "paramDescriptionChars": 1690
+      },
+      "readNoSqlDatabaseStructure": {
+        "bytes": 1431,
+        "toolDescriptionChars": 95,
+        "paramDescriptionChars": 263
+      },
+      "writeNoSqlDatabaseStructure": {
+        "bytes": 2459,
+        "toolDescriptionChars": 222,
+        "paramDescriptionChars": 304
+      },
+      "readNoSqlDatabaseContent": {
+        "bytes": 2171,
+        "toolDescriptionChars": 171,
+        "paramDescriptionChars": 368
+      },
+      "writeNoSqlDatabaseContent": {
+        "bytes": 2798,
+        "toolDescriptionChars": 317,
+        "paramDescriptionChars": 575
+      },
+      "manageDataModel": {
+        "bytes": 1439,
+        "toolDescriptionChars": 158,
+        "paramDescriptionChars": 234
+      },
+      "modifyDataModel": {
+        "bytes": 2334,
+        "toolDescriptionChars": 102,
+        "paramDescriptionChars": 1080
+      },
+      "queryPgDatabase": {
+        "bytes": 1823,
+        "toolDescriptionChars": 351,
+        "paramDescriptionChars": 288
+      },
+      "managePgDatabase": {
+        "bytes": 9717,
+        "toolDescriptionChars": 561,
+        "paramDescriptionChars": 3370
+      },
+      "queryPgStorage": {
+        "bytes": 1821,
+        "toolDescriptionChars": 118,
+        "paramDescriptionChars": 269
+      },
+      "queryMysqlDatabase": {
+        "bytes": 3374,
+        "toolDescriptionChars": 236,
+        "paramDescriptionChars": 706
+      },
+      "manageMysqlDatabase": {
+        "bytes": 2257,
+        "toolDescriptionChars": 214,
+        "paramDescriptionChars": 363
+      },
+      "queryFunctions": {
+        "bytes": 6774,
+        "toolDescriptionChars": 1422,
+        "paramDescriptionChars": 1501
+      },
+      "manageFunctions": {
+        "bytes": 22226,
+        "toolDescriptionChars": 1721,
+        "paramDescriptionChars": 6787
+      },
+      "queryHosting": {
+        "bytes": 1960,
+        "toolDescriptionChars": 205,
+        "paramDescriptionChars": 378
+      },
+      "manageHosting": {
+        "bytes": 7520,
+        "toolDescriptionChars": 836,
+        "paramDescriptionChars": 1564
+      },
+      "queryStorage": {
+        "bytes": 2468,
+        "toolDescriptionChars": 922,
+        "paramDescriptionChars": 145
+      },
+      "manageStorage": {
+        "bytes": 3157,
+        "toolDescriptionChars": 1185,
+        "paramDescriptionChars": 225
+      },
+      "downloadTemplate": {
+        "bytes": 2556,
+        "toolDescriptionChars": 1053,
+        "paramDescriptionChars": 44
+      },
+      "searchKnowledgeBase": {
+        "bytes": 4397,
+        "toolDescriptionChars": 1185,
+        "paramDescriptionChars": 486
+      },
+      "queryCloudRun": {
+        "bytes": 4646,
+        "toolDescriptionChars": 184,
+        "paramDescriptionChars": 1503
+      },
+      "manageCloudRun": {
+        "bytes": 20022,
+        "toolDescriptionChars": 825,
+        "paramDescriptionChars": 5791
+      },
+      "deployBuild": {
+        "bytes": 1657,
+        "toolDescriptionChars": 542,
+        "paramDescriptionChars": 89
+      },
+      "deployPlan": {
+        "bytes": 3257,
+        "toolDescriptionChars": 1076,
+        "paramDescriptionChars": 226
+      },
+      "deployApply": {
+        "bytes": 4296,
+        "toolDescriptionChars": 1211,
+        "paramDescriptionChars": 438
+      },
+      "queryGateway": {
+        "bytes": 3008,
+        "toolDescriptionChars": 432,
+        "paramDescriptionChars": 653
+      },
+      "manageGateway": {
+        "bytes": 20126,
+        "toolDescriptionChars": 1571,
+        "paramDescriptionChars": 5046
+      },
+      "queryAppAuth": {
+        "bytes": 1895,
+        "toolDescriptionChars": 406,
+        "paramDescriptionChars": 155
+      },
+      "manageAppAuth": {
+        "bytes": 3717,
+        "toolDescriptionChars": 705,
+        "paramDescriptionChars": 479
+      },
+      "queryApps": {
+        "bytes": 2036,
+        "toolDescriptionChars": 291,
+        "paramDescriptionChars": 365
+      },
+      "manageApps": {
+        "bytes": 5891,
+        "toolDescriptionChars": 1184,
+        "paramDescriptionChars": 1406
+      },
+      "queryPermissions": {
+        "bytes": 3193,
+        "toolDescriptionChars": 1103,
+        "paramDescriptionChars": 229
+      },
+      "managePermissions": {
+        "bytes": 7026,
+        "toolDescriptionChars": 2220,
+        "paramDescriptionChars": 1175
+      },
+      "queryLogs": {
+        "bytes": 3591,
+        "toolDescriptionChars": 426,
+        "paramDescriptionChars": 1391
+      },
+      "manageLogs": {
+        "bytes": 1075,
+        "toolDescriptionChars": 246,
+        "paramDescriptionChars": 112
+      },
+      "queryAgents": {
+        "bytes": 694,
+        "toolDescriptionChars": 37,
+        "paramDescriptionChars": 0
+      },
+      "manageAgents": {
+        "bytes": 1067,
+        "toolDescriptionChars": 42,
+        "paramDescriptionChars": 0
+      },
+      "callCloudApi": {
+        "bytes": 4137,
+        "toolDescriptionChars": 1434,
+        "paramDescriptionChars": 485
+      },
+      "prepareFeedback": {
+        "bytes": 1003,
+        "toolDescriptionChars": 216,
+        "paramDescriptionChars": 37
+      }
+    }
+  },
+  "en": {
+    "tools": 42,
+    "wireBytes": 209063,
+    "toolDescriptionChars": 54693,
+    "paramDescriptionChars": 86144,
+    "perTool": {
+      "auth": {
+        "bytes": 4139,
+        "toolDescriptionChars": 930,
+        "paramDescriptionChars": 2017
+      },
+      "queryEnv": {
+        "bytes": 10247,
+        "toolDescriptionChars": 3669,
+        "paramDescriptionChars": 4354
+      },
+      "envDomainManagement": {
+        "bytes": 2513,
+        "toolDescriptionChars": 1649,
+        "paramDescriptionChars": 222
+      },
+      "manageEnv": {
+        "bytes": 6214,
+        "toolDescriptionChars": 1169,
+        "paramDescriptionChars": 3560
+      },
+      "readNoSqlDatabaseStructure": {
+        "bytes": 1503,
+        "toolDescriptionChars": 284,
+        "paramDescriptionChars": 479
+      },
+      "writeNoSqlDatabaseStructure": {
+        "bytes": 2538,
+        "toolDescriptionChars": 428,
+        "paramDescriptionChars": 648
+      },
+      "readNoSqlDatabaseContent": {
+        "bytes": 2328,
+        "toolDescriptionChars": 337,
+        "paramDescriptionChars": 846
+      },
+      "writeNoSqlDatabaseContent": {
+        "bytes": 3015,
+        "toolDescriptionChars": 670,
+        "paramDescriptionChars": 1218
+      },
+      "manageDataModel": {
+        "bytes": 1501,
+        "toolDescriptionChars": 401,
+        "paramDescriptionChars": 530
+      },
+      "modifyDataModel": {
+        "bytes": 2380,
+        "toolDescriptionChars": 279,
+        "paramDescriptionChars": 1315
+      },
+      "queryPgDatabase": {
+        "bytes": 1868,
+        "toolDescriptionChars": 603,
+        "paramDescriptionChars": 517
+      },
+      "managePgDatabase": {
+        "bytes": 10635,
+        "toolDescriptionChars": 1042,
+        "paramDescriptionChars": 6529
+      },
+      "queryPgStorage": {
+        "bytes": 1905,
+        "toolDescriptionChars": 280,
+        "paramDescriptionChars": 535
+      },
+      "queryMysqlDatabase": {
+        "bytes": 3549,
+        "toolDescriptionChars": 556,
+        "paramDescriptionChars": 1322
+      },
+      "manageMysqlDatabase": {
+        "bytes": 2367,
+        "toolDescriptionChars": 474,
+        "paramDescriptionChars": 637
+      },
+      "queryFunctions": {
+        "bytes": 7249,
+        "toolDescriptionChars": 2680,
+        "paramDescriptionChars": 2931
+      },
+      "manageFunctions": {
+        "bytes": 23870,
+        "toolDescriptionChars": 3704,
+        "paramDescriptionChars": 12839
+      },
+      "queryHosting": {
+        "bytes": 2030,
+        "toolDescriptionChars": 455,
+        "paramDescriptionChars": 811
+      },
+      "manageHosting": {
+        "bytes": 7823,
+        "toolDescriptionChars": 1576,
+        "paramDescriptionChars": 3049
+      },
+      "queryStorage": {
+        "bytes": 2543,
+        "toolDescriptionChars": 1613,
+        "paramDescriptionChars": 296
+      },
+      "manageStorage": {
+        "bytes": 3320,
+        "toolDescriptionChars": 2100,
+        "paramDescriptionChars": 466
+      },
+      "downloadTemplate": {
+        "bytes": 2724,
+        "toolDescriptionChars": 1710,
+        "paramDescriptionChars": 160
+      },
+      "searchKnowledgeBase": {
+        "bytes": 4545,
+        "toolDescriptionChars": 2094,
+        "paramDescriptionChars": 876
+      },
+      "queryCloudRun": {
+        "bytes": 4879,
+        "toolDescriptionChars": 444,
+        "paramDescriptionChars": 3351
+      },
+      "manageCloudRun": {
+        "bytes": 21548,
+        "toolDescriptionChars": 1814,
+        "paramDescriptionChars": 13866
+      },
+      "deployBuild": {
+        "bytes": 1842,
+        "toolDescriptionChars": 1162,
+        "paramDescriptionChars": 193
+      },
+      "deployPlan": {
+        "bytes": 3646,
+        "toolDescriptionChars": 2233,
+        "paramDescriptionChars": 587
+      },
+      "deployApply": {
+        "bytes": 4830,
+        "toolDescriptionChars": 2646,
+        "paramDescriptionChars": 1089
+      },
+      "queryGateway": {
+        "bytes": 3153,
+        "toolDescriptionChars": 782,
+        "paramDescriptionChars": 1224
+      },
+      "manageGateway": {
+        "bytes": 20854,
+        "toolDescriptionChars": 2469,
+        "paramDescriptionChars": 8841
+      },
+      "queryAppAuth": {
+        "bytes": 1988,
+        "toolDescriptionChars": 792,
+        "paramDescriptionChars": 290
+      },
+      "manageAppAuth": {
+        "bytes": 3968,
+        "toolDescriptionChars": 1467,
+        "paramDescriptionChars": 915
+      },
+      "queryApps": {
+        "bytes": 2149,
+        "toolDescriptionChars": 568,
+        "paramDescriptionChars": 753
+      },
+      "manageApps": {
+        "bytes": 6330,
+        "toolDescriptionChars": 2001,
+        "paramDescriptionChars": 3021
+      },
+      "queryPermissions": {
+        "bytes": 3422,
+        "toolDescriptionChars": 1895,
+        "paramDescriptionChars": 409
+      },
+      "managePermissions": {
+        "bytes": 7574,
+        "toolDescriptionChars": 3789,
+        "paramDescriptionChars": 1946
+      },
+      "queryLogs": {
+        "bytes": 3679,
+        "toolDescriptionChars": 688,
+        "paramDescriptionChars": 2121
+      },
+      "manageLogs": {
+        "bytes": 1119,
+        "toolDescriptionChars": 393,
+        "paramDescriptionChars": 208
+      },
+      "queryAgents": {
+        "bytes": 711,
+        "toolDescriptionChars": 96,
+        "paramDescriptionChars": 0
+      },
+      "manageAgents": {
+        "bytes": 1095,
+        "toolDescriptionChars": 109,
+        "paramDescriptionChars": 0
+      },
+      "callCloudApi": {
+        "bytes": 4407,
+        "toolDescriptionChars": 2171,
+        "paramDescriptionChars": 1088
+      },
+      "prepareFeedback": {
+        "bytes": 1020,
+        "toolDescriptionChars": 471,
+        "paramDescriptionChars": 85
+      }
+    }
+  }
+}

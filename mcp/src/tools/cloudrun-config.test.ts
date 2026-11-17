@@ -283,3 +283,21 @@ describe("serverConfig 对未知嵌套字段的处理", () => {
     ).toBe(true);
   });
 });
+
+describe("manageCloudRun serverConfig.InternalAccess schema", () => {
+  it("accepts only the ServerBaseConfig values open / close", async () => {
+    const { registerCloudRunTools } = await import("./cloudrun.js");
+    const registered: Record<string, { inputSchema: Record<string, any> }> = {};
+    const server = {
+      cloudBaseOptions: {},
+      registerTool: (name: string, meta: any) => {
+        registered[name] = meta;
+      },
+    };
+    registerCloudRunTools(server as any);
+    const serverConfig = registered.manageCloudRun.inputSchema.serverConfig;
+    expect(serverConfig.safeParse({ InternalAccess: "open" }).success).toBe(true);
+    expect(serverConfig.safeParse({ InternalAccess: "close" }).success).toBe(true);
+    expect(serverConfig.safeParse({ InternalAccess: "true" }).success).toBe(false);
+  });
+});
