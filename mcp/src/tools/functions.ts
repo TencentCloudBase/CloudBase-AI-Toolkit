@@ -3287,7 +3287,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             executed: false,
             plannedTriggers: input.triggers.map((trigger) => trigger.name),
           },
-          t("functions.createdTriggersDryRun", {
+          t("credential.trigger.dryRunCreate", {
             triggers: input.triggers.map((trigger) => trigger.name).join(", "),
           }),
           [],
@@ -3355,7 +3355,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             triggersBefore: before,
             plannedRemoval: [input.triggerName],
           },
-          t("functions.deletedTriggerDryRun", {
+          t("credential.trigger.dryRunDelete", {
             triggers: before.length ? before.join(", ") : "()",
             triggerName: input.triggerName,
           }),
@@ -3374,7 +3374,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.triggerName,
       );
       const message = unexpected.length
-        ? t("functions.deletedTriggerUnexpected", {
+        ? t("credential.trigger.unexpected", {
             fnName: input.functionName,
             triggerName: input.triggerName,
             names: unexpected.join(", "),

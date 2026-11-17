@@ -38,6 +38,13 @@ export const credential = defineModule(
       "临时密钥已过期，不是 PostgreSQL 实例尚未就绪。MCP 会重新换取密钥，请重试该操作；不要解绑重连。原始错误：{reason}",
     "expired.env":
       "临时密钥已过期，不是登录态丢失。MCP 会重新换取密钥，请重试该操作；不要解绑重连，也不要重新授权。",
+
+    "trigger.unexpected":
+      "已从函数 {fnName} 删除触发器 {triggerName}，但 {names} 也一并消失了。请核对下方列表并按需重建。",
+    "trigger.dryRunDelete":
+      "未执行：dryRun=true 时不会删除触发器。当前列表：{triggers}；计划删除：{triggerName}。去掉 dryRun 或设为 false 才会真实执行。",
+    "trigger.dryRunCreate":
+      "未执行：dryRun=true 时不会创建触发器。计划创建：{triggers}。去掉 dryRun 或设为 false 才会真实执行。",
   },
   {
     "message.confirmJwt":
@@ -67,5 +74,12 @@ export const credential = defineModule(
       "The temporary credential expired; this is not a PostgreSQL instance that is still initializing. A new credential will be requested. Retry the operation; do not reconnect. Original error: {reason}",
     "expired.env":
       "The temporary credential expired; this is not a lost login. A new credential will be requested. Retry the operation; do not reconnect or re-authorize.",
+
+    "trigger.unexpected":
+      "Deleted trigger {triggerName} of function {fnName}, but {names} also disappeared. Review the lists below and recreate them if needed.",
+    "trigger.dryRunDelete":
+      "Not executed: dryRun=true does not delete triggers. Current list: {triggers}; planned removal: {triggerName}. Omit dryRun or set it to false to execute.",
+    "trigger.dryRunCreate":
+      "Not executed: dryRun=true does not create triggers. Planned: {triggers}. Omit dryRun or set it to false to execute.",
   },
 );
