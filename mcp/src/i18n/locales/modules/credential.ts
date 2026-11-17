@@ -50,11 +50,13 @@ export const credential = defineModule(
     "trigger.wouldReplace":
       "未执行：底层按定时触发器全量替换，继续创建会删除 {names}。若要保留请把它们一起传入 triggers；确认替换请显式设置 replaceAll=true。",
     "trigger.listUnavailable":
-      "未执行：无法读取当前触发器列表，已停止创建以避免覆盖。请先用 queryFunctions(action=\"listFunctionTriggers\") 核对后重试。",
+      "未执行：无法读取当前触发器列表，已停止操作以避免误判。请先用 queryFunctions(action=\"listFunctionTriggers\") 核对后重试。",
     "trigger.dryRunCreateWithRemoval":
       "未执行：dryRun=true 时不会创建触发器。计划创建：{triggers}；真实执行时会被替换删除：{names}。保留它们请一起传入 triggers，或设置 replaceAll=true 确认替换。",
     "trigger.createdUnexpected":
       "已创建触发器，但 {names} 也消失了。请核对返回的 triggersBefore / triggersAfter 并按需重建。",
+    "trigger.listUnavailableAfter":
+      "操作已执行，但无法读取操作后的触发器列表，本次无法核对是否有其它触发器消失。请用 queryFunctions(action=\"listFunctionTriggers\") 复核。",
   },
   {
     "message.confirmJwt":
@@ -96,10 +98,12 @@ export const credential = defineModule(
     "trigger.wouldReplace":
       "Not executed: the backend replaces all timer triggers, so continuing would delete {names}. Include them in triggers to keep them, or set replaceAll=true to confirm the replacement.",
     "trigger.listUnavailable":
-      "Not executed: the current trigger list could not be read, so creation stopped to avoid overwriting. Check it with queryFunctions(action=\"listFunctionTriggers\") first, then retry.",
+      "Not executed: the current trigger list could not be read, so the operation stopped. Check it with queryFunctions(action=\"listFunctionTriggers\") first, then retry.",
     "trigger.dryRunCreateWithRemoval":
       "Not executed: dryRun=true does not create triggers. Planned: {triggers}; a real run would delete {names}. Include them in triggers to keep them, or set replaceAll=true to confirm.",
     "trigger.createdUnexpected":
       "Triggers were created, but {names} also disappeared. Review triggersBefore / triggersAfter in the result and recreate them if needed.",
+    "trigger.listUnavailableAfter":
+      "The operation ran, but the resulting trigger list could not be read, so this call cannot confirm what disappeared. Check it with queryFunctions(action=\"listFunctionTriggers\").",
   },
 );

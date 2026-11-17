@@ -75,7 +75,11 @@ const REGISTRY: ErrorGuidance[] = [
  * 也经常没有结构化 Code；只在这里作为 Code 未命中后的兜底依据。
  */
 export const CREDENTIAL_EXPIRED_PATTERN =
-  /Token verification failed|invalid token|tmp secret key expire|AuthFailure\.TokenFailure|Token验证失败|\b11014\b/i;
+  /Token verification failed|invalid token(?!\s+[a-z]+\s+config)|tmp secret key expire|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
+
+const AUTH_CODE_PATTERN =
+  /AuthFailure|11014|\b213\b|TokenFailure|SignatureFailure|InvalidCredential|UnauthorizedOperation/i;
+const EXPIRED_CODE_PATTERN = /AuthFailure\.TokenFailure|11014|\b213\b/i;
 
 const CREDENTIAL_EXPIRED_GUIDANCE: ErrorGuidance = {
   code: "AuthFailure.TokenFailure",
@@ -88,7 +92,10 @@ const CREDENTIAL_EXPIRED_GUIDANCE: ErrorGuidance = {
 /** 是否属于「临时密钥过期」而非账号登录失效。 */
 export function isCredentialExpiredError(error: unknown): boolean {
   const code = resolveErrorCode(error);
-  if (code && /AuthFailure\.TokenFailure|\b11014\b/i.test(code)) {
+  if (code && !AUTH_CODE_PATTERN.test(code)) {
+    return false;
+  }
+  if (code && EXPIRED_CODE_PATTERN.test(code)) {
     return true;
   }
   return CREDENTIAL_EXPIRED_PATTERN.test(errorMessageOf(error));
@@ -107,10 +114,16 @@ export function resolveErrorCode(error: unknown): string | undefined {
     record.Code,
     record.errorCode,
     (record.Response as Record<string, unknown> | undefined)?.Error,
+    (record.original as Record<string, unknown> | undefined)?.Code,
+    (record.meta as Record<string, unknown> | undefined)?.upstreamCode,
+    record.eCode,
   ];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate) {
       return candidate;
+    }
+    if (typeof candidate === "number") {
+      return String(candidate);
     }
     if (candidate && typeof candidate === "object") {
       const nested = (candidate as Record<string, unknown>).Code;
@@ -146,6 +159,10 @@ export function findErrorGuidance(error: unknown): ErrorGuidance | null {
     );
     if (matched) {
       return matched;
+    }
+    // A structured non-auth code wins over an incidental token phrase.
+    if (!AUTH_CODE_PATTERN.test(code)) {
+      return null;
     }
   }
   // Token failures rejected at the access layer often carry no structured Code.

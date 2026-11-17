@@ -1890,7 +1890,6 @@
           },
           "dryRun": {
             "type": "boolean",
-            "default": true,
             "description": "镜像构建部署（func.buildStrategy=cloud/local）是否只生成部署计划。默认 true；传 false 时必须同时传 confirm=true。"
           },
           "wait": {

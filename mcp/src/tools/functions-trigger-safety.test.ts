@@ -152,6 +152,91 @@ describe("createFunctionTrigger replace-all guard", () => {
   });
 });
 
+describe("trigger default and read-failure behavior", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsCloudMode.mockReturnValue(false);
+    mockGetEnvId.mockResolvedValue("env-test");
+    mockProbeCamCapabilityForLogin.mockResolvedValue("capable");
+    mockCreateFunctionTriggers.mockResolvedValue({ RequestId: "req-create-trigger" });
+    mockDeleteFunctionTrigger.mockResolvedValue({ RequestId: "req-delete-trigger" });
+    mockGetCloudBaseManager.mockResolvedValue({
+      functions: {
+        getFunctionDetail: mockGetFunctionDetail,
+        createFunctionTriggers: mockCreateFunctionTriggers,
+        deleteFunctionTrigger: mockDeleteFunctionTrigger,
+      },
+    });
+  });
+
+  it("executes a create when dryRun is omitted", async () => {
+    mockGetFunctionDetail.mockResolvedValue({ Triggers: [] });
+    const parsed = await call({
+      action: "createFunctionTrigger",
+      functionName: "demoFn",
+      triggers: [{ name: "tempDiag", type: "timer", config: CRON }],
+    });
+    expect(parsed.data.executed).toBe(true);
+    expect(mockCreateFunctionTriggers).toHaveBeenCalledTimes(1);
+  });
+
+  it("executes a delete when dryRun is omitted and confirm is set", async () => {
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({ Triggers: [{ TriggerName: "tempDiag", Type: "timer" }] })
+      .mockResolvedValueOnce({ Triggers: [] });
+    const parsed = await call({
+      action: "deleteFunctionTrigger",
+      functionName: "demoFn",
+      triggerName: "tempDiag",
+      confirm: true,
+    });
+    expect(parsed.data.executed).toBe(true);
+    expect(mockDeleteFunctionTrigger).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews a delete without requiring confirm", async () => {
+    mockGetFunctionDetail.mockResolvedValue({ Triggers: [{ TriggerName: "tempDiag", Type: "timer" }] });
+    const parsed = await call({
+      action: "deleteFunctionTrigger",
+      functionName: "demoFn",
+      triggerName: "tempDiag",
+      dryRun: true,
+    });
+    expect(parsed.data.executed).toBe(false);
+    expect(mockDeleteFunctionTrigger).not.toHaveBeenCalled();
+  });
+
+  it("stops a delete when the trigger list cannot be read", async () => {
+    mockGetFunctionDetail.mockRejectedValue(new Error("unavailable"));
+    const parsed = await call({
+      action: "deleteFunctionTrigger",
+      functionName: "demoFn",
+      triggerName: "tempDiag",
+      confirm: true,
+    });
+    expect(parsed.success).toBe(false);
+    expect(parsed.errorCode).toBe("TRIGGER_LIST_UNAVAILABLE");
+    expect(mockDeleteFunctionTrigger).not.toHaveBeenCalled();
+  });
+
+  it("does not report a false loss when the post-create read fails", async () => {
+    mockGetFunctionDetail
+      .mockResolvedValueOnce({ Triggers: [{ TriggerName: "hourlySync", Type: "timer" }] })
+      .mockRejectedValueOnce(new Error("unavailable"));
+    const parsed = await call({
+      action: "createFunctionTrigger",
+      functionName: "demoFn",
+      triggers: [
+        { name: "hourlySync", type: "timer", config: CRON },
+        { name: "tempDiag", type: "timer", config: CRON },
+      ],
+    });
+    expect(parsed.data.unexpected).toEqual([]);
+    expect(parsed.data.triggerListUnavailable).toBe(true);
+    expect(parsed.message).not.toContain("按需重建");
+  });
+});
+
 describe("manageFunctions trigger schema", () => {
   it("declares replaceAll so the guard is discoverable to clients", () => {
     const metas: Record<string, any> = {};

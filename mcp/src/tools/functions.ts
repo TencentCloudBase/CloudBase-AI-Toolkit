@@ -1199,8 +1199,8 @@ export function functionUpdateWaitedSeconds(): number {
 }
 
 /**
- * dryRun and wait only apply to image build deployment. Other actions still
- * run; the caller gets a warning instead of a silent ignore.
+ * dryRun and wait apply to image build deployment and to trigger create/delete.
+ * For other actions the caller gets a warning instead of a silent ignore.
  */
 export function functionUpdateMisuseWarnings(input: {
   dryRun?: boolean;
@@ -3378,8 +3378,11 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       logCloudBaseResult(server.logger, result);
 
       const after = await readTriggerNames();
-      const diff = diffTriggerCreation(before, after ?? []);
-      const unexpected = plan.action === "create" ? diff.removed : [];
+      const diff = after === null
+        ? { added: [], removed: [] }
+        : diffTriggerCreation(before, after);
+      const unexpected =
+        after !== null && plan.action === "create" ? diff.removed : [];
       return buildEnvelope(
         {
           action: input.action,
@@ -3392,6 +3395,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           removed: diff.removed,
           unexpected,
           replaceAll: input.replaceAll === true,
+          ...(after === null ? { triggerListUnavailable: true } : {}),
         },
         unexpected.length > 0
           ? t("credential.trigger.createdUnexpected", {
@@ -3405,6 +3409,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: t("functions.reason.confirmTriggers"),
           },
         ],
+        after === null ? [t("credential.trigger.listUnavailableAfter")] : [],
       );
     }
     case "deleteFunctionTrigger": {
@@ -3414,13 +3419,12 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       if (!input.triggerName) {
         throw new Error(t("functions.paramRequired", { action: "deleteFunctionTrigger", param: "triggerName" }));
       }
-      requireConfirm(input.action, input.confirm);
       const cloudbase = await getManager();
 
       // Read the list before and after deleting. Deleting by name must not be
       // able to silently take other triggers with it: report every name that
       // actually disappeared, not just the requested one.
-      const triggerNames = async (): Promise<string[]> => {
+      const triggerNames = async (): Promise<string[] | null> => {
         try {
           const detail = await cloudbase.functions.getFunctionDetail(
             input.functionName as string,
@@ -3432,7 +3436,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             .map((item) => String(item?.TriggerName ?? item?.Name ?? ""))
             .filter(Boolean);
         } catch {
-          return [];
+          return null;
         }
       };
 
@@ -3446,35 +3450,54 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             executed: false,
             triggersBefore: before,
             plannedRemoval: [input.triggerName],
+            ...(before === null ? { triggerListUnavailable: true } : {}),
           },
-          t("credential.trigger.dryRunDelete", {
-            triggers: before.length ? before.join(", ") : "()",
-            triggerName: input.triggerName,
-          }),
+          before === null
+            ? t("credential.trigger.listUnavailable")
+            : t("credential.trigger.dryRunDelete", {
+                triggers: before.length ? before.join(", ") : "()",
+                triggerName: input.triggerName,
+              }),
           [],
         );
       }
 
+      // A failed read must not turn into "nothing disappeared". Stop before
+      // the write so the caller never gets a false success.
+      if (before === null) {
+        throwToolPayloadError({
+          success: false,
+          errorCode: "TRIGGER_LIST_UNAVAILABLE",
+          data: {
+            action: input.action,
+            functionName: input.functionName,
+            next_step: { tool: "queryFunctions", action: "listFunctionTriggers" },
+          },
+          message: t("credential.trigger.listUnavailable"),
+        });
+      }
+
+      requireConfirm(input.action, input.confirm);
       await cloudbase.functions.deleteFunctionTrigger(
         input.functionName,
         input.triggerName,
       );
       const after = await triggerNames();
-      const { removed, unexpected } = diffTriggerLists(
-        before,
-        after,
-        input.triggerName,
-      );
-      const message = unexpected.length
-        ? t("credential.trigger.unexpected", {
-            fnName: input.functionName,
-            triggerName: input.triggerName,
-            names: unexpected.join(", "),
-          })
-        : t("functions.deletedTrigger", {
-            fnName: input.functionName,
-            triggerName: input.triggerName,
-          });
+      const { removed, unexpected } = after === null
+        ? { removed: [], unexpected: [] }
+        : diffTriggerLists(before, after, input.triggerName);
+      const message = after === null
+        ? t("credential.trigger.listUnavailable")
+        : unexpected.length
+          ? t("credential.trigger.unexpected", {
+              fnName: input.functionName,
+              triggerName: input.triggerName,
+              names: unexpected.join(", "),
+            })
+          : t("functions.deletedTrigger", {
+              fnName: input.functionName,
+              triggerName: input.triggerName,
+            });
       return buildEnvelope(
         {
           action: input.action,
@@ -3486,6 +3509,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           removed,
           unexpected,
           raw: {},
+          ...(after === null ? { triggerListUnavailable: true } : {}),
         },
         message,
         [
@@ -3495,6 +3519,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: t("functions.reason.remainingTriggers"),
           },
         ],
+        after === null ? [t("credential.trigger.listUnavailableAfter")] : [],
       );
     }
     case "createLayerVersion": {
@@ -3921,7 +3946,6 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         dryRun: z
           .boolean()
           .optional()
-          .default(true)
           .describe("functions.schema.manage.dryRun"),
         wait: z
           .boolean()

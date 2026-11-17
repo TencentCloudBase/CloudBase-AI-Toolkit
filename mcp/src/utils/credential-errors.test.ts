@@ -67,3 +67,25 @@ describe("temporary credential failures", () => {
     expect(CREDENTIAL_EXPIRED_PATTERN.test("token bucket is empty")).toBe(false);
   });
 });
+
+describe("access-layer error codes and message scope", () => {
+  it("recognizes eCode 213 and nested upstream codes", () => {
+    expect(isCredentialExpiredError({ eCode: 213 } as unknown)).toBe(true);
+    expect(isCredentialExpiredError({ Response: { Error: { Code: "11014" } } } as unknown)).toBe(true);
+    expect(isCredentialExpiredError({ meta: { upstreamCode: "11014" } } as unknown)).toBe(true);
+    expect(isCredentialExpiredError({ original: { Code: "AuthFailure.TokenFailure" } } as unknown)).toBe(true);
+  });
+
+  it("does not let a non-auth code borrow a token phrase", () => {
+    const error = Object.assign(new Error("Token verification failed"), {
+      code: "EXCEED_REQUEST_LIMIT",
+    });
+    expect(isCredentialExpiredError(error)).toBe(false);
+    expect(findErrorGuidance(error)?.code).toBe("EXCEED_REQUEST_LIMIT");
+  });
+
+  it("does not match token phrases used as ordinary configuration text", () => {
+    expect(isCredentialExpiredError(new Error("invalid token bucket config"))).toBe(false);
+    expect(isCredentialExpiredError(new Error("invalid token"))).toBe(true);
+  });
+});
