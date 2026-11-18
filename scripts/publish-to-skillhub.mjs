@@ -8,6 +8,58 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const AUTO_CHANGELOG_LIMIT = 5;
 const DEFAULT_API_BASE = "https://api.skillhub.cn";
+const DEFAULT_MAX_NETWORK_RETRIES = 2;
+const DEFAULT_NETWORK_RETRY_DELAY_MS = 2000;
+const TRANSIENT_HTTP_STATUS = new Set([
+  408, 429, 500, 502, 503, 504, 521, 522, 524,
+]);
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Node's fetch reports connection failures as a bare `TypeError: fetch failed`
+ * and hides the real reason (HTTP/2 stream reset, ECONNRESET, DNS, ...) in the
+ * `cause` chain. Walk it so CI logs and the failure summary carry the reason.
+ */
+function collectErrorText(error) {
+  const parts = [];
+  const seen = new Set();
+  let current = error;
+
+  for (let depth = 0; current && depth < 5; depth += 1) {
+    if (typeof current === "string") {
+      parts.push(current);
+    } else {
+      if (current.message) parts.push(String(current.message));
+      if (current.code) parts.push(String(current.code));
+      if (current.name) parts.push(String(current.name));
+    }
+    if (seen.has(current)) break;
+    seen.add(current);
+    current = typeof current === "object" ? current.cause : undefined;
+  }
+
+  return parts.join(" | ");
+}
+
+export function formatSkillhubUploadError(error) {
+  const detail = collectErrorText(error);
+  return detail || "unknown error";
+}
+
+function isTransientNetworkFailure(detail, status) {
+  if (status !== null && !TRANSIENT_HTTP_STATUS.has(status)) {
+    return false;
+  }
+  if (status !== null && TRANSIENT_HTTP_STATUS.has(status)) {
+    return true;
+  }
+  return /fetch failed|socket hang up|ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|UND_ERR_|timed? ?out|aborted|terminated|HTTP\/2|empty reply|network/i.test(
+    detail,
+  );
+}
 
 function parseArgs(argv) {
   let manifestPath = "";
@@ -204,6 +256,7 @@ export function resolvePublishVersion(currentVersion, skillHubVersionStrings) {
  */
 export function classifySkillhubUploadError(error) {
   const text = String(error?.message || error || "");
+  const detail = collectErrorText(error);
   const statusMatch = text.match(/SkillHub API error \((\d+)\)/i);
   const status = statusMatch ? Number(statusMatch[1]) : null;
   const body = statusMatch ? text.slice(statusMatch.index + statusMatch[0].length) : text;
@@ -229,6 +282,12 @@ export function classifySkillhubUploadError(error) {
     return "version-conflict-retry";
   }
 
+  // Gateway / connection failures are transient for small packages (522, reset,
+  // timeout). Retry a bounded number of times instead of failing the whole run.
+  if (isTransientNetworkFailure(detail, status)) {
+    return "network-retry";
+  }
+
   return "fatal";
 }
 
@@ -238,6 +297,10 @@ export function isSkillhubAlreadyPublishedError(error) {
 
 export function isSkillhubVersionConflictError(error) {
   return classifySkillhubUploadError(error) === "version-conflict-retry";
+}
+
+export function isSkillhubNetworkRetryError(error) {
+  return classifySkillhubUploadError(error) === "network-retry";
 }
 
 function bumpSemver(versionStr, bumpType) {
@@ -407,6 +470,8 @@ export async function publishToSkillhub({
   apiBase = DEFAULT_API_BASE,
   uploadVersion = uploadVersionToSkillhub,
   fetchImpl = (...args) => fetch(...args),
+  maxNetworkRetries = DEFAULT_MAX_NETWORK_RETRIES,
+  networkRetryDelayMs = DEFAULT_NETWORK_RETRY_DELAY_MS,
 }) {
   const manifest = readManifest(manifestPath);
   const gitRoot = resolveGitRoot(manifestPath);
@@ -479,6 +544,7 @@ export async function publishToSkillhub({
     // Query SkillHub versions to decide publish vs skip.
     let version = currentVersion;
     let retryCount = 0;
+    let networkRetryCount = 0;
     const maxRetries = 10;
     let skillHubVersionStrings = [];
     let shouldPublish = true;
@@ -515,7 +581,7 @@ export async function publishToSkillhub({
         }
       }
     } catch (fetchError) {
-      console.warn(`  ⚠ 版本历史查询失败 / Failed to query version history: ${fetchError instanceof Error ? fetchError.message : fetchError}`);
+      console.warn(`  ⚠ 版本历史查询失败 / Failed to query version history: ${formatSkillhubUploadError(fetchError)}`);
       // Fall through and attempt SKILL.md version.
     }
 
@@ -581,7 +647,7 @@ export async function publishToSkillhub({
             failures.push({
               targetKey: target.targetKey,
               slug,
-              message: `版本冲突重试 ${maxRetries} 次后仍失败 / version conflict after ${maxRetries} retries: ${error.message}`,
+              message: `版本冲突重试 ${maxRetries} 次后仍失败 / version conflict after ${maxRetries} retries: ${formatSkillhubUploadError(error)}`,
             });
             break;
           }
@@ -590,15 +656,33 @@ export async function publishToSkillhub({
           const next = nextVersionAfter(pickHighestVersion(skillHubVersionStrings) || version);
           version = next || `${currentVersion}-beta.${retryCount}`;
           console.log(
-            `  ↻ 版本冲突 / Version conflict, retrying with ${version} (attempt ${retryCount}/${maxRetries}): ${error.message}`,
+            `  ↻ 版本冲突 / Version conflict, retrying with ${version} (attempt ${retryCount}/${maxRetries}): ${formatSkillhubUploadError(error)}`,
           );
+          continue;
+        }
+
+        if (classification === "network-retry") {
+          if (networkRetryCount >= maxNetworkRetries) {
+            failures.push({
+              targetKey: target.targetKey,
+              slug,
+              message: `网络错误重试 ${maxNetworkRetries} 次后仍失败 / network error after ${maxNetworkRetries} retries: ${formatSkillhubUploadError(error)}`,
+            });
+            break;
+          }
+          networkRetryCount++;
+          const delayMs = networkRetryDelayMs * networkRetryCount;
+          console.warn(
+            `  ↻ 网络错误 / Network error, retrying in ${delayMs}ms (attempt ${networkRetryCount}/${maxNetworkRetries}): ${formatSkillhubUploadError(error)}`,
+          );
+          if (delayMs > 0) await sleep(delayMs);
           continue;
         }
 
         failures.push({
           targetKey: target.targetKey,
           slug,
-          message: error.message,
+          message: formatSkillhubUploadError(error),
         });
         break;
       }

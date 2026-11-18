@@ -4,7 +4,9 @@ import path from 'path';
 import { afterEach, describe, expect, test } from 'vitest';
 import {
   classifySkillhubUploadError,
+  formatSkillhubUploadError,
   isSkillhubAlreadyPublishedError,
+  isSkillhubNetworkRetryError,
   isSkillhubVersionConflictError,
   publishToSkillhub,
   resolvePublishVersion,
@@ -185,6 +187,41 @@ describe('classifySkillhubUploadError', () => {
       ),
     ).toBe('fatal');
   });
+
+  test('treats gateway / connection failures as network-retry', () => {
+    const fetchFailed = new TypeError('fetch failed');
+    fetchFailed.cause = new Error('HTTP/2 stream 1 was not closed cleanly: INTERNAL_ERROR');
+    expect(classifySkillhubUploadError(fetchFailed)).toBe('network-retry');
+    expect(isSkillhubNetworkRetryError(fetchFailed)).toBe(true);
+    expect(
+      classifySkillhubUploadError(
+        new Error('SkillHub API error (522): Connection Timeout with Origin Server'),
+      ),
+    ).toBe('network-retry');
+    expect(
+      classifySkillhubUploadError(new Error('SkillHub API error (503): service unavailable')),
+    ).toBe('network-retry');
+  });
+
+  test('keeps auth and payload errors fatal', () => {
+    expect(
+      classifySkillhubUploadError(new Error('SkillHub API error (401): invalid token')),
+    ).toBe('fatal');
+    expect(
+      classifySkillhubUploadError(new Error('SkillHub API error (413): payload too large')),
+    ).toBe('fatal');
+  });
+});
+
+describe('formatSkillhubUploadError', () => {
+  test('includes the nested cause so CI logs show the real reason', () => {
+    const error = new TypeError('fetch failed');
+    error.cause = Object.assign(new Error('connection reset'), { code: 'ECONNRESET' });
+    const detail = formatSkillhubUploadError(error);
+    expect(detail).toContain('fetch failed');
+    expect(detail).toContain('ECONNRESET');
+    expect(detail).toContain('connection reset');
+  });
 });
 
 describe('publishToSkillhub idempotency', () => {
@@ -266,5 +303,112 @@ describe('publishToSkillhub idempotency', () => {
       if (previousToken === undefined) delete process.env.SKILLHUB_API_TOKEN;
       else process.env.SKILLHUB_API_TOKEN = previousToken;
     }
+  });
+});
+
+describe('publishToSkillhub network retries', () => {
+  function withCredentials(run) {
+    const previousOrg = process.env.SKILLHUB_ORG_ID;
+    const previousToken = process.env.SKILLHUB_API_TOKEN;
+    process.env.SKILLHUB_ORG_ID = 'org-test';
+    process.env.SKILLHUB_API_TOKEN = 'token-test';
+    return Promise.resolve()
+      .then(run)
+      .finally(() => {
+        if (previousOrg === undefined) delete process.env.SKILLHUB_ORG_ID;
+        else process.env.SKILLHUB_ORG_ID = previousOrg;
+        if (previousToken === undefined) delete process.env.SKILLHUB_API_TOKEN;
+        else process.env.SKILLHUB_API_TOKEN = previousToken;
+      });
+  }
+
+  const versionsResponse = {
+    ok: true,
+    json: async () => ({ versions: [{ version: '1.9.0' }] }),
+  };
+
+  test('retries a transient network error and publishes on the next attempt', async () => {
+    await withCredentials(async () => {
+      const manifestPath = createSkillManifest([
+        { targetKey: 'web-development', registrySlug: 'web-development', version: '2.0.0' },
+      ]);
+      let calls = 0;
+
+      const results = await publishToSkillhub({
+        manifestPath,
+        fetchImpl: async () => versionsResponse,
+        networkRetryDelayMs: 0,
+        uploadVersion: async () => {
+          calls += 1;
+          if (calls === 1) {
+            const error = new TypeError('fetch failed');
+            error.cause = new Error('ECONNRESET');
+            throw error;
+          }
+          return { versionId: 'vid-2' };
+        },
+      });
+
+      expect(calls).toBe(2);
+      expect(results[0].status).toBe('published');
+    });
+  });
+
+  test('stops after the bounded retry count and reports the underlying cause', async () => {
+    await withCredentials(async () => {
+      const manifestPath = createSkillManifest([
+        { targetKey: 'all-in-one', registrySlug: 'cloudbase', version: '2.0.0' },
+      ]);
+      let calls = 0;
+
+      await expect(
+        publishToSkillhub({
+          manifestPath,
+          fetchImpl: async () => versionsResponse,
+          networkRetryDelayMs: 0,
+          maxNetworkRetries: 2,
+          uploadVersion: async () => {
+            calls += 1;
+            const error = new TypeError('fetch failed');
+            error.cause = new Error('HTTP/2 INTERNAL_ERROR');
+            throw error;
+          },
+        }),
+      ).rejects.toMatchObject({
+        failures: [
+          expect.objectContaining({
+            targetKey: 'all-in-one',
+            message: expect.stringContaining('HTTP/2 INTERNAL_ERROR'),
+          }),
+        ],
+      });
+
+      expect(calls).toBe(3);
+    });
+  });
+
+  test('does not retry a deterministic payload error', async () => {
+    await withCredentials(async () => {
+      const manifestPath = createSkillManifest([
+        { targetKey: 'all-in-one', registrySlug: 'cloudbase', version: '2.0.0' },
+      ]);
+      let calls = 0;
+
+      await expect(
+        publishToSkillhub({
+          manifestPath,
+          fetchImpl: async () => versionsResponse,
+          networkRetryDelayMs: 0,
+          uploadVersion: async () => {
+            calls += 1;
+            throw new Error('SkillHub API error (413): payload too large');
+          },
+        }),
+      ).rejects.toMatchObject({
+        failures: [expect.objectContaining({ targetKey: 'all-in-one' })],
+      });
+
+      expect(calls).toBe(1);
+    });
   });
 });
