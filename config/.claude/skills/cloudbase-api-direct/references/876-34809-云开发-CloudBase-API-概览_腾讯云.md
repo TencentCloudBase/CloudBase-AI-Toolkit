@@ -2,7 +2,7 @@
 
 ## API 概览
 
-最近更新时间：2026-11-11 02:38:21
+最近更新时间：2026-11-18 02:37:45
 
 -   微信扫一扫 
 -   QQ
@@ -64,6 +64,8 @@ _我的收藏_
 | [DescribePlatforms](/document/api/876/138298) | 查询平台版资源信息 | 20 |
 | [ModifyPlatformEnv](/document/api/876/138295) | 修改平台版环境信息 | 20 |
 | [DescribeEnvInfo](/document/api/876/140606) | 根据环境ID查询环境详情 | 20 |
+| [DescribeEnvAccessControl](/document/api/876/141033) | 查询环境访问控制配置（域名来源） | 20 |
+| [ModifyEnvAccessControl](/document/api/876/141032) | 修改环境访问控制配置（域名来源） | 20 |
 
 ## 用户权限相关接口
 

@@ -4,7 +4,7 @@
  *
  * ⚠️ 请勿手动编辑此文件，由 scripts/generate-actionlist.ts 自动生成
  *
- * Action 数量: 151
+ * Action 数量: 153
  */
 
 const TCB_ALLOWED_ACTIONS: string[] = [
@@ -71,6 +71,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'DescribeCreditsUsageDetail',
   'DescribeCurveData',
   'DescribeDatabaseACL',
+  'DescribeEnvAccessControl',
   'DescribeEnvAccountCircle',
   'DescribeEnvBaseInfo',
   'DescribeEnvInfo',
@@ -121,6 +122,7 @@ const TCB_ALLOWED_ACTIONS: string[] = [
   'ModifyClsTopic',
   'ModifyDatabaseACL',
   'ModifyEnv',
+  'ModifyEnvAccessControl',
   'ModifyEnvExtra',
   'ModifyEnvPlan',
   'ModifyHTTPServiceRoute',
