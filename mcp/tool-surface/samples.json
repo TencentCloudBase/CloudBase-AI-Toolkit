@@ -286,6 +286,7 @@
     "action=incrementalDeployFunction": true,
     "action=<outside allowed>": false,
     "force=<string>": false,
+    "replaceAll=<string>": false,
     "dryRun=<string>": false,
     "wait=<string>": false,
     "autoGrant=<string>": false,

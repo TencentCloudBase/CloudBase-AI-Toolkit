@@ -231,7 +231,7 @@ CloudBase（腾讯云开发）开发阶段登录与环境绑定。不确定该�
 ### `queryEnv`
 查询 CloudBase 环境相关信息，支持查询环境列表、指定环境详情、安全域名、资源用量与监控指标。action=list 只返回摘要（即使传入 envId），不含完整资源明细与 expiry。环境级凭证（API Key / 托管授权 token）只能看到绑定的 envId，返回 credential_scope=single_env，此时 region 不参与查询会在 ignored_params 中如实说明（AppliedFilters.region 为 null），不要误判为环境不存在或地域过滤失效。如需查询某个已知 EnvId 对应环境的详细信息（包括资源字段和计费信息），必须使用 action=info 并传入目标环境的 envId 参数。action=info 会在可用时补充 BillingInfo（如 ExpireTime、PayMode、IsAutoRenew 等计费字段）。
 
-📊 action=usage 返回计费周期与各模块资源点用量（FLEXDB/SCF/COS 等）。
+📊 action=usage 返回计费周期与各模块的资源点用量（按模块分组）。
 
 📈 action=metrics 查询环境/网关 QPS、云函数调用与错误、数据库 CPU/内存/磁盘、云托管 CPU/QPS 等时序（云开发自带监控，不是云监控 GetMonitorData）。云托管 Tke* 指标必须传服务名 resourceID。禁止用 callCloudApi 猜测监控 Action。
 
@@ -745,7 +745,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
     {
       name: "dbInstanceType",
       type: "string",
-      description: `数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL） 可填写的值: "MYSQL", "FLEXDB"`,
+      description: `数据库实例类型：MySQL 数据库或文档型数据库（NoSQL） 可填写的值: "MYSQL", "FLEXDB"`,
     }
   ]}
 />
@@ -1217,7 +1217,7 @@ AI 在写业务/权限/存储代码前必须先看这三项：PG 模式下新业
 ### `queryFunctions`
 CloudBase 云函数统一只读入口：查询函数列表与详情、执行日志、层、触发器、代码下载地址、已发布版本与流量别名、异步部署状态，以及代码包上传地址。
 
-**云函数日志**：`listFunctionLogs` 从 CLS 检索，不传 startTime/endTime 时默认查最近 1 天；跨度不能超过 1 天，单次最多返回 100 条
+**云函数日志**：`listFunctionLogs` 查询指定函数的执行日志，不传 startTime/endTime 时默认查最近 1 天；跨度不能超过 1 天，单次最多返回 100 条
 - 返回 `hasMore=true` 表示还有更早的日志：把返回的 `context` 原样传回取下一页（`offset` 只在前 100 条内生效）
 - `logs[]` 已解析成 requestId / log / statusCode / retCode / durationMs / memoryMb / timestamp
 - 想看某一次调用的完整过程（START、业务日志、REPORT）用 `getFunctionLogDetail`
@@ -1756,6 +1756,11 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
       name: "triggerName",
       type: "string",
       description: `deleteFunctionTrigger 的目标触发器名称`,
+    },
+    {
+      name: "replaceAll",
+      type: "boolean",
+      description: `默认 false：若函数上还有未列入 triggers 的定时触发器，工具会拒绝执行并列出名字。确认要用本次提交替换全部定时触发器时设为 true。`,
     },
     {
       name: "layerName",
@@ -4495,7 +4500,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 ---
 
 ### `queryMessagePush`
-查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。推送模式有两种：云函数（默认，按 (msgType,event) 逐条回调）与云托管（qbase_open=true，整包接收所有消息到容器 path）。action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。action=listSupportedEvents 返回全部合法约束（按消息类型分组）。需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。
+查询小程序云开发消息推送配置（qbase getappconfig）或全部合法消息推送事件约束（getcallbacksupportlist）。推送模式有两种：云函数（默认，按 (msgType,event) 逐条回调）与云托管（qbase_open=true，整包接收所有消息到容器 path）。action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。action=listSupportedEvents 返回全部合法约束（按消息类型分组）。需在 MCP 配置里显式启用 msg-push 插件；还需微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。
 
 #### 参数
 
@@ -4524,7 +4529,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
 ---
 
 ### `manageMessagePush`
-管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。推送模式：云函数（默认，按 (msgType,event) 回调）vs 云托管（整包接收；云托管模式下 subscribe/unsubscribe/setEnable 会被拒绝，先 ensureCloudFunctionMode）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等。msg_type 缺省 "event"；消息类型用 msg_type=text|image|voice|video|miniprogrampage。action=subscribe 前会校验 function_name 在环境中真实存在。action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；action=setContainerCallback 更新云托管 path/env/text_mode。集合无变化时不发起写请求（幂等 no-op）。需要微信 IDE 登录态通道。
+管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。推送模式：云函数（默认，按 (msgType,event) 回调）vs 云托管（整包接收；云托管模式下 subscribe/unsubscribe/setEnable 会被拒绝，先 ensureCloudFunctionMode）。基于「读全量 → merge → 全量覆盖（带 version 乐观锁）」实现声明式幂等。msg_type 缺省 "event"；消息类型用 msg_type=text|image|voice|video|miniprogrampage。action=subscribe 前会校验 function_name 在环境中真实存在。action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；action=setContainerCallback 更新云托管 path/env/text_mode。集合无变化时不发起写请求（幂等 no-op）。需在 MCP 配置里显式启用 msg-push 插件，并具备微信 IDE 登录态通道。
 
 #### 参数
 

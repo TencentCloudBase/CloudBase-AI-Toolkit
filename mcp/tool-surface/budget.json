@@ -1,9 +1,9 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 196491,
-    "toolDescriptionChars": 28788,
-    "paramDescriptionChars": 43656,
+    "wireBytes": 196699,
+    "toolDescriptionChars": 28781,
+    "paramDescriptionChars": 43713,
     "perTool": {
       "auth": {
         "bytes": 3701,
@@ -12,7 +12,7 @@
       },
       "queryEnv": {
         "bytes": 9090,
-        "toolDescriptionChars": 1859,
+        "toolDescriptionChars": 1849,
         "paramDescriptionChars": 1930
       },
       "envDomainManagement": {
@@ -51,9 +51,9 @@
         "paramDescriptionChars": 234
       },
       "modifyDataModel": {
-        "bytes": 2334,
+        "bytes": 2309,
         "toolDescriptionChars": 102,
-        "paramDescriptionChars": 1080
+        "paramDescriptionChars": 1063
       },
       "queryPgDatabase": {
         "bytes": 1823,
@@ -81,14 +81,14 @@
         "paramDescriptionChars": 363
       },
       "queryFunctions": {
-        "bytes": 6774,
-        "toolDescriptionChars": 1422,
+        "bytes": 6793,
+        "toolDescriptionChars": 1425,
         "paramDescriptionChars": 1501
       },
       "manageFunctions": {
-        "bytes": 22226,
+        "bytes": 22440,
         "toolDescriptionChars": 1721,
-        "paramDescriptionChars": 6787
+        "paramDescriptionChars": 6861
       },
       "queryHosting": {
         "bytes": 1960,
@@ -219,9 +219,9 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 209994,
-    "toolDescriptionChars": 54693,
-    "paramDescriptionChars": 87017,
+    "wireBytes": 210212,
+    "toolDescriptionChars": 54714,
+    "paramDescriptionChars": 87180,
     "perTool": {
       "auth": {
         "bytes": 4139,
@@ -229,8 +229,8 @@
         "paramDescriptionChars": 2017
       },
       "queryEnv": {
-        "bytes": 10247,
-        "toolDescriptionChars": 3669,
+        "bytes": 10243,
+        "toolDescriptionChars": 3665,
         "paramDescriptionChars": 4354
       },
       "envDomainManagement": {
@@ -269,9 +269,9 @@
         "paramDescriptionChars": 530
       },
       "modifyDataModel": {
-        "bytes": 2380,
+        "bytes": 2369,
         "toolDescriptionChars": 279,
-        "paramDescriptionChars": 1315
+        "paramDescriptionChars": 1304
       },
       "queryPgDatabase": {
         "bytes": 1868,
@@ -299,14 +299,14 @@
         "paramDescriptionChars": 637
       },
       "queryFunctions": {
-        "bytes": 7249,
-        "toolDescriptionChars": 2680,
+        "bytes": 7274,
+        "toolDescriptionChars": 2705,
         "paramDescriptionChars": 2931
       },
       "manageFunctions": {
-        "bytes": 23870,
+        "bytes": 24078,
         "toolDescriptionChars": 3704,
-        "paramDescriptionChars": 12839
+        "paramDescriptionChars": 13013
       },
       "queryHosting": {
         "bytes": 2030,

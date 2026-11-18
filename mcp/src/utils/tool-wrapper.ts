@@ -7,7 +7,8 @@ import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer, readClientCapabilitiesFromServer } from './telemetry.js';
 import { isBusinessFailureToolResult, isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
 import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
-import { enhanceErrorMessage, resolveRequestId } from "./error-guidance.js";
+import { enhanceErrorMessage, isCredentialExpiredError, resolveErrorCode, resolveRequestId } from "./error-guidance.js";
+import { forceRefreshCredential } from "../auth.js";
 import { resolveSiteAndRegion } from "./site-map.js";
 import { guardDestructiveAction, type ConfirmationServer } from "./confirmation-guard.js";
 import { guardCredentialWrite, type CredentialGuardServer } from "./credential-guard.js";
@@ -376,9 +377,37 @@ function createWrappedHandler(
                 throw new ToolPayloadError(payload);
             }
 
+            // 临时密钥过期不是登录态丢失：换一把新密钥，并把稳定信号写进失败回执，
+            // 让上层重试该操作而不是引导用户解绑重连。不自动重放工具本身——
+            // 写操作重复执行的代价远高于一次显式重试。
+            let credentialReceipt: Record<string, unknown> | null = null;
+            if (isCredentialExpiredError(error)) {
+                let credentialRefreshed = false;
+                if (!isTestEnvironment) {
+                    try {
+                        credentialRefreshed = Boolean(await forceRefreshCredential());
+                    } catch {
+                        credentialRefreshed = false;
+                    }
+                }
+                credentialReceipt = {
+                    error_category: "credential_expired",
+                    need_auth: false,
+                    credential_refreshed: credentialRefreshed,
+                    next_step: "retry",
+                    code: resolveErrorCode(error) ?? "AuthFailure.TokenFailure",
+                    ...(requestId ? { requestId } : {}),
+                };
+            }
+
             // In tests, avoid any extra work that may block (envId lookup, issue link generation, etc.)
             if (isTestEnvironment) {
-                throw error instanceof Error ? error : new Error(String(error));
+                const plainError = error instanceof Error ? error : new Error(String(error));
+                if (credentialReceipt) {
+                    plainError.message = `${plainError.message}\n\n🔑 ${JSON.stringify(credentialReceipt)}`;
+                    Object.assign(plainError, credentialReceipt);
+                }
+                throw plainError;
             }
 
             const enhancedErrorMessage = buildFailureClientText(errorMessage, requestId, server);
@@ -392,6 +421,11 @@ function createWrappedHandler(
             if (error instanceof Error) {
                 enhancedError.stack = error.stack;
                 enhancedError.name = error.name;
+            }
+
+            if (credentialReceipt) {
+                enhancedError.message = `${enhancedError.message}\n\n🔑 ${JSON.stringify(credentialReceipt)}`;
+                Object.assign(enhancedError, credentialReceipt);
             }
 
             // 重新抛出增强的错误

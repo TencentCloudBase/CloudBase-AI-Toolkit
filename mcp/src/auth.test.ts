@@ -11,6 +11,7 @@ const {
   authStoreData,
   cliConfigDir,
   mockCheckAndGetCredential,
+  mockExchangeApiKeyForCredential,
   projectAuthDir,
 } = vi.hoisted(() => {
   const { tmpdir } = require("node:os") as typeof import("node:os");
@@ -50,6 +51,7 @@ const {
     authStoreData,
     cliConfigDir: joinPath(tmpdir(), `cb-mcp-auth-flat-${process.pid}`),
     mockCheckAndGetCredential: vi.fn(),
+    mockExchangeApiKeyForCredential: vi.fn(),
     // 项目级凭据目录：默认不存在 ⇒ 探测一律落空、回落到全局登录态
     projectAuthDir: joinPath(tmpdir(), `cb-mcp-auth-project-${process.pid}`),
     mockAuthStore,
@@ -69,6 +71,7 @@ vi.mock("@cloudbase/toolbox", () => ({
   cloudbaseConfigDir: cliConfigDir,
   resolveCredential: (data: any) => data,
   refreshTmpToken: vi.fn(),
+  exchangeApiKeyForCredential: mockExchangeApiKeyForCredential,
   checkAndGetCredential: mockCheckAndGetCredential,
   getProjectDir: vi.fn(() => projectAuthDir),
 }));
@@ -635,6 +638,94 @@ describe("flat credential storage", () => {
       uin: 123811017,
     });
     expect(authStoreData.credential).not.toHaveProperty("domestic");
+  });
+
+  it("renews an expired global API Key credential by exchanging the key again", async () => {
+    authStoreData.credential = {
+      secretId: "old-sid",
+      secretKey: "old-skey",
+      authSource: "api_key",
+      apiKey: "ak",
+      envId: "env-1",
+      uin: 123811017,
+      accessTokenExpired: Date.now() - 60_000,
+    };
+    const toolbox = await import("@cloudbase/toolbox");
+    vi.mocked(toolbox.exchangeApiKeyForCredential).mockResolvedValueOnce({
+      secretId: "fresh-sid",
+      secretKey: "fresh-skey",
+      token: "fresh-token",
+      accessTokenExpired: Date.now() + 60 * 60_000,
+      envId: "env-1",
+    } as any);
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.secretId).toBe("fresh-sid");
+    expect(toolbox.exchangeApiKeyForCredential).toHaveBeenCalledWith({
+      apiKey: "ak",
+      envId: "env-1",
+    });
+    expect(authStoreData.credential).toMatchObject({
+      secretId: "fresh-sid",
+      authSource: "api_key",
+      apiKey: "ak",
+      uin: 123811017,
+    });
+  });
+
+  it("returns a permanent key unchanged and never exchanges it", async () => {
+    authStoreData.credential = {
+      secretId: "permanent-sid",
+      secretKey: "permanent-skey",
+    };
+    const toolbox = await import("@cloudbase/toolbox");
+    vi.mocked(toolbox.exchangeApiKeyForCredential).mockClear();
+
+    const { peekLoginState } = await import("./auth.js");
+    const loginState = await peekLoginState();
+
+    expect(loginState?.secretId).toBe("permanent-sid");
+    expect(toolbox.exchangeApiKeyForCredential).not.toHaveBeenCalled();
+  });
+
+  it("reports not logged in when an expired credential cannot be renewed", async () => {
+    authStoreData.credential = {
+      secretId: "stale-sid",
+      secretKey: "stale-skey",
+      accessTokenExpired: Date.now() - 60_000,
+    };
+    const { peekLoginState } = await import("./auth.js");
+    expect(await peekLoginState()).toBeNull();
+  });
+
+  it("shares one forced renewal across concurrent cloud-side rejections", async () => {
+    authStoreData.credential = {
+      secretId: "old-sid",
+      secretKey: "old-skey",
+      authSource: "api_key",
+      apiKey: "ak",
+      envId: "env-1",
+      accessTokenExpired: Date.now() + 60 * 60_000,
+    };
+    const toolbox = await import("@cloudbase/toolbox");
+    vi.mocked(toolbox.exchangeApiKeyForCredential).mockResolvedValue({
+      secretId: "renewed-sid",
+      secretKey: "renewed-skey",
+      accessTokenExpired: Date.now() + 60 * 60_000,
+      envId: "env-1",
+    } as any);
+
+    const { forceRefreshCredential } = await import("./auth.js");
+    const results = await Promise.all([
+      forceRefreshCredential(),
+      forceRefreshCredential(),
+      forceRefreshCredential(),
+    ]);
+
+    expect(results.every((state) => state?.secretId === "renewed-sid")).toBe(true);
+    expect(toolbox.exchangeApiKeyForCredential).toHaveBeenCalledTimes(1);
   });
 
   it("should return the flat credential for an ambiguous region", async () => {

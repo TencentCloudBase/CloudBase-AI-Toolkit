@@ -1717,6 +1717,9 @@
         "triggerName": {
           "type": "string"
         },
+        "replaceAll": {
+          "type": "boolean"
+        },
         "layerName": {
           "type": "string"
         },
@@ -1765,7 +1768,6 @@
           "type": "string"
         },
         "dryRun": {
-          "default": true,
           "type": "boolean"
         },
         "wait": {

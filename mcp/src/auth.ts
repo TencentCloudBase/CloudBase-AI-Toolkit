@@ -5,6 +5,7 @@ import {
   authStore,
   checkAndGetCredential,
   cloudbaseConfigDir,
+  exchangeApiKeyForCredential,
   getProjectDir,
   refreshTmpToken,
   resolveCredential,
@@ -593,9 +594,18 @@ function isTempTokenExpired(
 }
 
 /**
- * Read the single flat credential and refresh it when the temp token is expired.
+ * Read the single flat credential and renew it when the temp token is expired.
  * Refresh responses omit uin, so the previous uin is copied back onto the stored record.
+ *
+ * Every credential source is checked. A credential without refreshToken used to
+ * be returned unchanged here, which handed an expired STS token to the API client
+ * while the local state still looked valid — the cloud then reported
+ * "Token verification failed".
  */
+let forcedRenewalRequestedAt = 0;
+const FORCED_RENEWAL_WINDOW_MS = 5_000;
+let forcedRenewalInFlight: Promise<LoginState | null> | null = null;
+
 async function resolveFlatLoginState(): Promise<LoginState | null> {
   const raw = await authStore.get("credential");
   if (!hasResolvableSecrets(raw)) {
@@ -606,34 +616,81 @@ async function resolveFlatLoginState(): Promise<LoginState | null> {
     return null;
   }
 
-  if (credential.refreshToken) {
-    if (!isTempTokenExpired(credential)) {
-      return credential as LoginState;
-    }
-    if (Date.now() < Number(credential.expired)) {
-      try {
-        const refreshed = await refreshTmpToken(credential);
-        const refreshedCredential =
-          refreshed &&
-          (refreshed as { uin?: unknown }).uin === undefined &&
-          credential.uin !== undefined
-            ? { ...refreshed, uin: credential.uin }
-            : refreshed;
-        await authStore.set("credential", refreshedCredential ?? {});
-        const resolved = resolveCredential((refreshedCredential ?? {}) as Parameters<typeof resolveCredential>[0]);
-        return resolved?.secretId ? (resolved as LoginState) : null;
-      } catch (e) {
-        const code = (e as { code?: string })?.code;
-        if (code === "AUTH_FAIL" || code === "InternalError.GetRoleError") {
-          return null;
-        }
-        throw e;
-      }
-    }
-    return null;
+  // A renewal requested after a cloud-side token rejection bypasses the local
+  // expiry check. The flag is consumed once so concurrent callers share one renewal.
+  const forced = Date.now() - forcedRenewalRequestedAt < FORCED_RENEWAL_WINDOW_MS;
+  if (forced) {
+    forcedRenewalRequestedAt = 0;
+  }
+  // A permanent key has no accessTokenExpired and is never treated as expired.
+  if (!forced && !isTempTokenExpired(credential)) {
+    return credential as LoginState;
   }
 
-  return credential as LoginState;
+  // API Key credentials have no refreshToken: exchange the key again. This also
+  // covers the shared global file, which the CLI can write with an api_key source.
+  if (credential.authSource === "api_key" && credential.apiKey && credential.envId) {
+    try {
+      const exchanged = await exchangeApiKeyForCredential({
+        apiKey: credential.apiKey,
+        envId: credential.envId,
+      });
+      const renewed = {
+        ...exchanged,
+        authSource: "api_key" as const,
+        apiKey: credential.apiKey,
+        ...(credential.uin !== undefined ? { uin: credential.uin } : {}),
+      };
+      await authStore.set("credential", renewed);
+      const resolved = resolveCredential(renewed as Parameters<typeof resolveCredential>[0]);
+      return resolved?.secretId ? (resolved as LoginState) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (credential.refreshToken && Date.now() < Number(credential.expired)) {
+    try {
+      const refreshed = await refreshTmpToken(credential);
+      const refreshedCredential =
+        refreshed &&
+        (refreshed as { uin?: unknown }).uin === undefined &&
+        credential.uin !== undefined
+          ? { ...refreshed, uin: credential.uin }
+          : refreshed;
+      await authStore.set("credential", refreshedCredential ?? {});
+      const resolved = resolveCredential((refreshedCredential ?? {}) as Parameters<typeof resolveCredential>[0]);
+      return resolved?.secretId ? (resolved as LoginState) : null;
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === "AUTH_FAIL" || code === "InternalError.GetRoleError") {
+        return null;
+      }
+      throw e;
+    }
+  }
+
+  // Expired with no way to renew: report "not logged in" instead of handing a
+  // dead token to the API client.
+  return null;
+}
+
+/**
+ * Renew the temporary credential after the cloud rejected a token that still
+ * looked valid locally. Concurrent rejections share one in-flight renewal, so a
+ * burst of failed tool calls does not trigger one exchange per call.
+ *
+ * Returns the renewed login state, or null when the credential cannot be renewed.
+ */
+export async function forceRefreshCredential(): Promise<LoginState | null> {
+  if (forcedRenewalInFlight) {
+    return forcedRenewalInFlight;
+  }
+  forcedRenewalRequestedAt = Date.now();
+  forcedRenewalInFlight = peekLoginState().finally(() => {
+    forcedRenewalInFlight = null;
+  });
+  return forcedRenewalInFlight;
 }
 
 /**
