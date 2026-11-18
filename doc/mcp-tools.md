@@ -4439,7 +4439,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
       name: "service",
       type: "string",
       required: true,
-      description: ` 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
+      description: `腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 58 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。 可填写的值: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"`,
     },
     {
       name: "action",
@@ -4450,6 +4450,7 @@ CloudBase Agent 域统一写入口。支持创建、更新和删除远端 Agent�
     {
       name: "version",
       type: "string",
+      description: `API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；以下多版本产品必须显式传，缺省会报错并列出可选项：tke、mongodb、teo、monitor、vod、sms。示例：service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"env-xxx",PackageType:"Standard"}；service="monitor" 需显式传 "2018-07-24"（告警策略族 Action 属于该版本）。`,
     },
     {
       name: "params",

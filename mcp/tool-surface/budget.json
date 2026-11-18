@@ -1,9 +1,9 @@
 {
   "zh": {
     "tools": 42,
-    "wireBytes": 195676,
+    "wireBytes": 196491,
     "toolDescriptionChars": 28788,
-    "paramDescriptionChars": 43209,
+    "paramDescriptionChars": 43656,
     "perTool": {
       "auth": {
         "bytes": 3701,
@@ -206,9 +206,9 @@
         "paramDescriptionChars": 0
       },
       "callCloudApi": {
-        "bytes": 4137,
+        "bytes": 4952,
         "toolDescriptionChars": 1434,
-        "paramDescriptionChars": 485
+        "paramDescriptionChars": 932
       },
       "prepareFeedback": {
         "bytes": 1003,
@@ -219,9 +219,9 @@
   },
   "en": {
     "tools": 42,
-    "wireBytes": 209063,
+    "wireBytes": 209994,
     "toolDescriptionChars": 54693,
-    "paramDescriptionChars": 86144,
+    "paramDescriptionChars": 87017,
     "perTool": {
       "auth": {
         "bytes": 4139,
@@ -424,9 +424,9 @@
         "paramDescriptionChars": 0
       },
       "callCloudApi": {
-        "bytes": 4407,
+        "bytes": 5338,
         "toolDescriptionChars": 2171,
-        "paramDescriptionChars": 1088
+        "paramDescriptionChars": 1961
       },
       "prepareFeedback": {
         "bytes": 1020,

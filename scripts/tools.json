@@ -5016,7 +5016,8 @@
               "vod",
               "sms",
               "ses"
-            ]
+            ],
+            "description": "腾讯云产品标识，**取值只能来自本字段的 enum 白名单（共 58 个）**，决定请求域名 https://<service>.tencentcloudapi.com。名单外的取值一律拒绝，不要臆造；COS 不在云 API 体系内。产品名与 Action 对照见 skill cloud-api-operations。云托管统一走 tcbr。"
           },
           "action": {
             "type": "string",
@@ -5024,6 +5025,7 @@
             "description": "具体 Action 名称，需符合对应服务的官方 API 定义。**不确定时先查官方文档，不要用近义词或历史命名猜测**（猜错会被服务端报成 action invalid，很难排查）。常用 Action 见 skill cloud-api-operations。"
           },
           "version": {
+            "description": "API 版本（多数场景可省略）。白名单里**只有一个官方版本的产品会自动补齐**，不必传；以下多版本产品必须显式传，缺省会报错并列出可选项：tke、mongodb、teo、monitor、vod、sms。示例：service=\"tcbr\", version=\"2022-02-17\", action=\"CreateCloudRunEnv\", params={EnvId:\"env-xxx\",PackageType:\"Standard\"}；service=\"monitor\" 需显式传 \"2018-07-24\"（告警策略族 Action 属于该版本）。",
             "type": "string"
           },
           "params": {

@@ -4,7 +4,7 @@
     "B": 1,
     "C": 15,
     "D": 14,
-    "E": 10
+    "E": 11
   },
   "findings": [
     "A manageCloudRun template",
@@ -38,6 +38,7 @@
     "D manageGateway route.extension.headersHandler",
     "D manageGateway route.extension.headersHandler.requestHeadersToAdd.items",
     "D manageGateway route.extension.headersHandler.responseHeadersToAdd.items",
+    "E callCloudApi version",
     "E manageCloudRun action",
     "E manageCloudRun trafficOp",
     "E manageEnv externalStorage",

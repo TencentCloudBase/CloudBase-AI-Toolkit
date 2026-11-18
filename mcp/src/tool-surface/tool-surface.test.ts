@@ -203,3 +203,15 @@ describe("tool description constraint sentences", () => {
     if (UPDATE_CONSTRAINTS || !baseline) writeJson("constraints.json", current);
   });
 });
+
+describe("callCloudApi parameter descriptions", () => {
+  it("survive schema localisation in both languages", () => {
+    for (const lang of LANGS) {
+      const tool = surfaces[lang].tools.find((t) => t.name === "callCloudApi");
+      expect(tool, `${lang} callCloudApi is registered`).toBeDefined();
+      const properties = (tool!.inputSchema as { properties?: Record<string, { description?: string }> }).properties;
+      expect(properties?.service.description, `${lang} service`).toContain("58");
+      expect(properties?.version.description, `${lang} version`).toContain("tke");
+    }
+  });
+});
