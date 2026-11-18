@@ -10,6 +10,7 @@ import {
 import { t } from "../i18n/index.js";
 import { requireProjectRoot } from "../utils/project-config.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
+import { isCredentialExpiredError } from "../utils/error-guidance.js";
 import {
   getSqlVerb,
   isDestructiveSql,
@@ -2138,6 +2139,18 @@ async function classifyPgInfrastructureFailure(
   cloudBaseOptions: ExtendedMcpServer["cloudBaseOptions"] | undefined,
   context: PgDbContext,
 ): Promise<PgToolPayload> {
+  // An expired temporary credential is not an infrastructure failure. Packaging
+  // it as PG_NOT_READY tells the caller to wait and retry against a healthy
+  // instance, which only produces more failed calls.
+  if (isCredentialExpiredError(error)) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      errorCode: "CREDENTIAL_EXPIRED",
+      message: t("credential.expired.pg", { reason }),
+      nextActions: [],
+    };
+  }
   try {
     const snapshot = await queryEnvRuntimeBackends(cloudBaseOptions, context.envId);
     if (!snapshot.runtimeBackends.postgresql) {

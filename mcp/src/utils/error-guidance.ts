@@ -8,7 +8,10 @@
  * messagePattern 只用于同一个 Code 下的场景细分，是可选的 AND 条件，且**永远不是唯一依据**：
  * 每个 Code 都必须配一条不带 messagePattern 的兜底条目。这样即使 Message 文案变更导致
  * 细分正则失配，也只是降级成"正确但笼统"的指引，不会退化成原样透传英文原文。
- * Code 缺失时不做任何猜测，原样透传。
+ *
+ * 唯一的例外是临时密钥过期：AccessServer 在解析出账号之前就拒绝请求，这类失败经常
+ * 不带结构化 Code，只有 Message。因此 Code 未命中时才用一份固定短语表兜底，
+ * 且只匹配云 API 鉴权层的原文，不做通用文案猜测。
  *
  * 注册表按"细分在前、兜底在后"排序，命中第一个满足条件的条目。
  *
@@ -68,6 +71,37 @@ const REGISTRY: ErrorGuidance[] = [
 ];
 
 /**
+ * 云 API 鉴权层在临时密钥过期时返回的原文。AccessServer 的这类响应没有账号字段，
+ * 也经常没有结构化 Code；只在这里作为 Code 未命中后的兜底依据。
+ */
+export const CREDENTIAL_EXPIRED_PATTERN =
+  /Token verification failed|invalid token(?!\s+[a-z]+\s+config)|tmp secret key expire|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
+
+const AUTH_CODE_PATTERN =
+  /AuthFailure|11014|\b213\b|TokenFailure|SignatureFailure|InvalidCredential|UnauthorizedOperation/i;
+const EXPIRED_CODE_PATTERN = /AuthFailure\.TokenFailure|11014|\b213\b/i;
+
+const CREDENTIAL_EXPIRED_GUIDANCE: ErrorGuidance = {
+  code: "AuthFailure.TokenFailure",
+  summary:
+    "临时密钥已过期：这是短期凭据到期，不是登录态丢失。MCP 已尝试重新换取密钥，" +
+    "请重试该操作；不要解绑重连，也不要引导用户重新授权。",
+  docsUrl: "https://docs.cloudbase.net/error-code/AuthFailure.TokenFailure",
+};
+
+/** 是否属于「临时密钥过期」而非账号登录失效。 */
+export function isCredentialExpiredError(error: unknown): boolean {
+  const code = resolveErrorCode(error);
+  if (code && !AUTH_CODE_PATTERN.test(code)) {
+    return false;
+  }
+  if (code && EXPIRED_CODE_PATTERN.test(code)) {
+    return true;
+  }
+  return CREDENTIAL_EXPIRED_PATTERN.test(errorMessageOf(error));
+}
+
+/**
  * 从错误对象上取结构化错误码。SDK 与业务代码挂载位置不统一，这里穷举已知位置。
  */
 export function resolveErrorCode(error: unknown): string | undefined {
@@ -80,10 +114,16 @@ export function resolveErrorCode(error: unknown): string | undefined {
     record.Code,
     record.errorCode,
     (record.Response as Record<string, unknown> | undefined)?.Error,
+    (record.original as Record<string, unknown> | undefined)?.Code,
+    (record.meta as Record<string, unknown> | undefined)?.upstreamCode,
+    record.eCode,
   ];
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate) {
       return candidate;
+    }
+    if (typeof candidate === "number") {
+      return String(candidate);
     }
     if (candidate && typeof candidate === "object") {
       const nested = (candidate as Record<string, unknown>).Code;
@@ -110,16 +150,27 @@ function errorMessageOf(error: unknown): string {
 
 export function findErrorGuidance(error: unknown): ErrorGuidance | null {
   const code = resolveErrorCode(error);
-  if (!code) {
-    return null;
-  }
   const message = errorMessageOf(error);
-  const matched = REGISTRY.find(
-    (entry) =>
-      entry.code.toLowerCase() === code.toLowerCase() &&
-      (!entry.messagePattern || entry.messagePattern.test(message)),
-  );
-  return matched ?? null;
+  if (code) {
+    const matched = REGISTRY.find(
+      (entry) =>
+        entry.code.toLowerCase() === code.toLowerCase() &&
+        (!entry.messagePattern || entry.messagePattern.test(message)),
+    );
+    if (matched) {
+      return matched;
+    }
+    // A structured non-auth code wins over an incidental token phrase.
+    if (!AUTH_CODE_PATTERN.test(code)) {
+      return null;
+    }
+  }
+  // Token failures rejected at the access layer often carry no structured Code.
+  // Only the fixed authentication phrases above can produce guidance in that case.
+  if (CREDENTIAL_EXPIRED_PATTERN.test(message)) {
+    return CREDENTIAL_EXPIRED_GUIDANCE;
+  }
+  return null;
 }
 
 /**
