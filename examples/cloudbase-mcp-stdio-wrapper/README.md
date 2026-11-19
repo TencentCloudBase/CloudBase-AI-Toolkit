@@ -73,14 +73,14 @@ IDE ──stdio──▶ wrapper Server ──in-memory──▶ 官方 MCP Serv
 
 三个坑值得记下来：
 
-1. **必须走 CJS 入口。** 直接 `import { createCloudBaseMcpServer } from '@cloudbase/cloudbase-mcp'` 会连挂两次：先报找不到 `@cloudbase/cals`（这个包没写进 dependencies），装上后又报 `@cloudbase/cals` 的 CJS 文件里相对 import 缺 `.js` 扩展名。改用 `createRequire` 加载后正常，因为 `dist/index.cjs` 是 12MB 自包含 bundle，只外链一个包。
-2. **要补 `@cloudbase/aiagent-framework`。** 这是 CJS bundle 唯一的外部 require，没写进 dependencies。
-3. **`pluginsEnabled: ['apps','env']` 确实生效。** 上游 `tools/list` 只返回 6 个工具，被包装层裁到 2 个。
+1. **必须走 CJS 入口。** 直接 `import { createCloudBaseMcpServer } from '@cloudbase/cloudbase-mcp'` 会连挂两次：先报找不到 `@cloudbase/cals`（这个包没写进 dependencies），装上后又报 `@cloudbase/cals` 的 CJS 文件里相对 import 缺 `.js` 扩展名。改用 `createRequire` 加载后正常，因为 `dist/index.cjs` 是 12MB 自包含 bundle，不依赖任何外部包。
+2. **`pluginsEnabled: ['apps','env']` 确实生效。** 上游 `tools/list` 只返回 6 个工具，被包装层裁到 2 个。
+3. **别二次打包官方 MCP。** `dist/index.cjs` 是 webpack bundle，用 esbuild 卷进自己的产物会破坏内部模块包装（启动时报 `i.default is not a constructor`）；把 `@cloudbase/cloudbase-mcp` 标成 external，运行时用 `createRequire` 直接 require。CJS 入口是具名导出，不需要 `.default` fallback。
 
 ## 还没验证
 
-1. **API Key 是否被工厂读取。** 用假 Key 时上游返回「当前未登录，请先调用 auth 工具完成认证」，说明回落到了登录态。真 Key 下能否自动换 STS，要拿真环境试。
-2. **`createCloudBaseMcpServer` 的稳定性。** 有完整 d.ts 和示例，但不在正式对外文档里，属于库的内部能力。升级包版本时要回归一次。
+1. **真 Key 下能否自动换 STS。** 假 Key 的 `auth(status)` 返回 `auth_status=REQUIRED`、`credential_source=null`：换证失败是换证函数直接返回空，不会用假 Key 继续跑。真环境下的完整换证链路还没跑过。
+2. **`createCloudBaseMcpServer` 的稳定性。** 有完整 d.ts，文档站的「封装企业专属 MCP」教程与 `cloud-api-operations` skill 的实操 recipe 都公开用它。升级包版本时要回归一次。
 3. **同进程的环境变量隔离做不到。** wrapper 和官方 server 共享 `process.env`，没法做到"只传白名单变量"。这条只有 spawn 子进程时才成立，本示例选择不 spawn，接受这个代价。
 
 ## 已知限制
