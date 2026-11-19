@@ -26,7 +26,7 @@ import { parseAllowTools, isToolAllowed, isActionAllowed, patchArguments } from 
  * ESM 入口 dist/index.js 是 2.4MB 未打包版本，会 import 一批没写进 dependencies 的
  * 内部包（@cloudbase/cals 等），而且那些包的 CJS 文件里相对 import 缺 .js 扩展名，
  * Node 的 ESM 解析器直接报 ERR_MODULE_NOT_FOUND。
- * dist/index.cjs 是 12MB 自包含 bundle，只外链 @cloudbase/aiagent-framework。
+ * dist/index.cjs 是 12MB 自包含 bundle，不依赖任何外部包；也别用 esbuild 二次打包它。
  */
 const require = createRequire(import.meta.url);
 const { createCloudBaseMcpServer } = require('@cloudbase/cloudbase-mcp');
@@ -72,10 +72,11 @@ const upstream = await createCloudBaseMcpServer({
 });
 
 /**
- * 凭证作用域自检：只有 single_env + env 来源才放行。
- * - 作用域是 account/global → API Key 未生效、回落到了全局登录态，拒绝启动（越权面）
- * - 状态是未登录 → Key 换证失败（无效或网络），拒绝启动并提示
- * - auth 工具不存在（插件未注册）→ 不硬失败，警告并提示人工确认
+ * 凭证自检：auth(action="status") 三项同时成立才放行。
+ * - auth_status=READY：真的登录了（credential_scope 只反映变量是否配齐，不验证 Key 有效性）
+ * - credential_scope=single_env：环境级作用域
+ * - credential_source=env：凭证来自进程环境变量，不是机器上的全局登录态
+ * 返回读不到或不是 JSON 一律拒绝启动，不带未知权限继续跑。
  * 测试/CI 可用 CBW_SKIP_AUTH_CHECK=1 跳过，仅用于协议层验证。
  */
 async function checkCredentialScope() {
@@ -83,22 +84,23 @@ async function checkCredentialScope() {
     log('跳过凭证自检（CBW_SKIP_AUTH_CHECK=1），仅限协议层验证');
     return;
   }
+  let status;
   try {
-    const res = await client.callTool({ name: 'auth', arguments: { action: 'status' } });
+    const res = await upstreamClient.callTool({ name: 'auth', arguments: { action: 'status' } });
     const text = (res.content ?? []).map((c) => c.text ?? '').join('\n');
-    if (/未登录|not logged|AUTH_REQUIRED/i.test(text)) {
-      log('拒绝启动：API Key 换证失败（Key 无效或网络不可达），且没有可回落的凭证。请核对 Key 与 envId 是否配对。');
-      process.exit(1);
-    }
-    const scope = /credential_scope["'=:\s]+(\w+)/i.exec(text)?.[1];
-    if (scope && scope !== 'single_env') {
-      log(`拒绝启动：凭证作用域是 ${scope} 而非 single_env，说明 API Key 未生效、回落到了全局登录态。继续运行会以超出预期的权限操作。`);
-      process.exit(1);
-    }
-    log(`凭证自检通过 scope=${scope ?? 'unknown'}`);
+    status = JSON.parse(text);
   } catch (err) {
-    log(`警告：无法完成凭证自检（${String(err.message).slice(0, 60)}）。请人工执行 auth(action="status") 确认 credential_scope=single_env。`);
+    log(`拒绝启动：无法读取 auth(action="status") 的返回（${String(err.message).slice(0, 80)}）。凭证状态不明，不能带未知权限继续运行。`);
+    process.exit(1);
   }
+  const ok = status.auth_status === 'READY'
+    && status.credential_scope === 'single_env'
+    && status.credential_source === 'env';
+  if (!ok) {
+    log(`拒绝启动：凭证未生效（auth_status=${status.auth_status}, scope=${status.credential_scope}, source=${status.credential_source}）。请确认 CLOUDBASE_ENV_ID 与 CLOUDBASE_API_KEY 成对配置且 Key 有效。`);
+    process.exit(1);
+  }
+  log('凭证自检通过：READY / single_env / env');
 }
 
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
