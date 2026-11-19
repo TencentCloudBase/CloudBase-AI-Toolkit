@@ -724,14 +724,15 @@ export function resolveDocsMarkdownPath(docPath: string): string {
  */
 export const DOCS_BASE_HOST = "docs.cloudbase.net";
 
-/** 带 scheme 的绝对地址（`//host/path` 这类 protocol-relative 也算「指定了主机」）。 */
-const ABSOLUTE_DOC_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
-
+/**
+ * 判定「入参是否指定了主机」交给 URL 解析器，不再用字符串形态正则。
+ *
+ * WHATWG URL 对 http/https 允许省略 `//`（`http:host/path` 会解析成 `http://host/path`），
+ * 靠 `://` 之类的特征去猜会漏掉这一类。解析成功即说明入参自带 scheme/host，
+ * 解析失败才是站内相对路径；`//host/path` 先补一个 scheme 让解析器识别。
+ */
 function parseAbsoluteDocUrl(value: string): URL | null {
   const candidate = value.startsWith("//") ? `https:${value}` : value;
-  if (!ABSOLUTE_DOC_URL_PATTERN.test(candidate)) {
-    return null;
-  }
   try {
     return new URL(candidate);
   } catch {

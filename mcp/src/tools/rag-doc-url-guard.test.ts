@@ -110,6 +110,12 @@ describe("searchKnowledgeBase readDoc never lets the caller pick the fetch host"
     ["userinfo trick", "https://docs.cloudbase.net@evil.example.com/doc.md"],
     ["registrable TLD swap", "https://docs.cloudbase.net.md/doc.md"],
     ["uppercase loopback", "HTTP://127.0.0.1/secret.md"],
+    ["scheme without slashes · loopback", "http:127.0.0.1:8080/secret.md"],
+    ["scheme without slashes · metadata", "http:169.254.169.254/latest/meta-data/x.md"],
+    ["scheme without slashes · rfc1918", "http:10.0.0.5/internal.md"],
+    ["scheme without slashes · https", "https:evil.example.com/doc.md"],
+    ["scheme without slashes · uppercase", "HTTP:127.0.0.1/secret.md"],
+    ["scheme without slashes · host suffix", "https:docs.cloudbase.net.evil.example.com/doc.md"],
   ])("refuses %s without issuing any request", async (_label, docPath) => {
     const { readDoc, body } = await callReadDoc(docPath);
 
@@ -117,6 +123,15 @@ describe("searchKnowledgeBase readDoc never lets the caller pick the fetch host"
     expect(body.success).toBe(false);
     expect(body.message).toContain("docs.cloudbase.net");
     expect(body.message).toContain(docPath);
+  });
+
+  it("folds an official address without slashes into a site-relative path", async () => {
+    const { readDoc, body } = await callReadDoc(
+      "https:docs.cloudbase.net/quick-start",
+    );
+
+    expect(readDoc).toHaveBeenCalledWith("/quick-start.md");
+    expect(body.success).toBe(true);
   });
 
   it("asks for a concrete path when the input carries a host but no path", async () => {
