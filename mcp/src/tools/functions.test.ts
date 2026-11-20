@@ -2192,10 +2192,12 @@ describe("analyzeFunctionAvailability", () => {
     }
   });
 
-  it("treats AvailableStatus=Active as ok regardless of Status wording", () => {
-    expect(analyzeFunctionAvailability({ Status: "Active", AvailableStatus: "Active" })).toEqual({
+  it("treats AvailableStatus=Available as ok", () => {
+    expect(
+      analyzeFunctionAvailability({ Status: "Active", AvailableStatus: "Available" }),
+    ).toEqual({
       state: "ok",
-      availableStatus: "Active",
+      availableStatus: "Available",
     });
   });
 
@@ -2211,7 +2213,7 @@ describe("analyzeFunctionAvailability", () => {
     expect(analyzeFunctionAvailability(null)).toEqual({ state: "ok", availableStatus: null });
   });
 
-  it("maps other non-active AvailableStatus values to the generic reason", () => {
+  it("maps unknown AvailableStatus values to the generic reason", () => {
     const result = analyzeFunctionAvailability({
       Status: "Active",
       AvailableStatus: "SomeOtherReason",
@@ -2222,8 +2224,16 @@ describe("analyzeFunctionAvailability", () => {
     }
   });
 
+  it("does not treat Status=Active as an AvailableStatus value", () => {
+    const result = analyzeFunctionAvailability({ AvailableStatus: "Active" });
+    expect(result.state).toBe("unavailable");
+    if (result.state === "unavailable") {
+      expect(result.reasonKey).toBe("functions.availability.other");
+    }
+  });
+
   it("is case-insensitive on both status fields", () => {
-    expect(analyzeFunctionAvailability({ AvailableStatus: "ACTIVE" }).state).toBe("ok");
+    expect(analyzeFunctionAvailability({ AvailableStatus: "AVAILABLE" }).state).toBe("ok");
     const result = analyzeFunctionAvailability({ AvailableStatus: "insufficientbalance" });
     expect(result.state).toBe("unavailable");
     if (result.state === "unavailable") {

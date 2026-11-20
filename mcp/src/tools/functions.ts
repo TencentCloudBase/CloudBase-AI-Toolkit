@@ -90,7 +90,7 @@ export function analyzeFunctionAvailability(
   if (!availableStatus) {
     return { state: "ok", availableStatus: null };
   }
-  if (availableStatus.toLowerCase() === "active") {
+  if (availableStatus.toLowerCase() === "available") {
     return { state: "ok", availableStatus };
   }
   return {
