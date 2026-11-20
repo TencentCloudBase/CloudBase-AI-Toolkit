@@ -64,6 +64,62 @@ export const FUNCTION_UPLOAD_TARGET_NOT_FOUND_ERROR_CODE =
 export const CLS_MISMATCH_ERROR_CODE = "InvalidParameter.Cls";
 
 /**
+ * SCF 函数有两套状态，缺一不可判"能不能调用"：
+ * - `Status`：配置/部署状态（Active、Updating、CreateFailed…），MCP 一直在看这个；
+ * - `AvailableStatus`：可用状态（Active、InsufficientBalance…），此前完全没读。
+ *
+ * 两者会错位：函数 `Status=Active` 但 `AvailableStatus=InsufficientBalance` 时，
+ * 网关对它的请求会回 HTTP 410，而只看 Status 的工具会误报"正常"。
+ * 该字段只说明 SCF 侧计费/可用状态异常，不能直接判定是账户欠费或环境删除残留；
+ * 工具层应先暴露状态并提示核查，不替用户下结论。
+ *
+ * 这里把错位识别成结构化判定，供 getFunctionDetail / listFunctions 的信封
+ * 生成 warning 与显式 availability 字段。纯函数，不依赖 i18n，便于单测。
+ */
+export type FunctionAvailability =
+  | { state: "ok"; availableStatus: string | null }
+  | {
+      state: "unavailable";
+      availableStatus: string;
+      status: string | null;
+      /** 对应 i18n key：区分余额计费异常与其它不可用原因 */
+      reasonKey: "functions.availability.insufficientBalance" | "functions.availability.other";
+    };
+
+export function analyzeFunctionAvailability(
+  detail: unknown,
+): FunctionAvailability {
+  if (!detail || typeof detail !== "object") {
+    return { state: "ok", availableStatus: null };
+  }
+  const record = detail as Record<string, unknown>;
+  const availableStatus =
+    typeof record.AvailableStatus === "string" && record.AvailableStatus
+      ? record.AvailableStatus
+      : null;
+  const status =
+    typeof record.Status === "string" && record.Status ? record.Status : null;
+
+  // AvailableStatus 缺失（旧版 SDK / 非 SCF 上游）时不猜，维持原行为。
+  if (!availableStatus) {
+    return { state: "ok", availableStatus: null };
+  }
+  // Active 才是可调用。注意大小写不敏感，SCF 各版本返回过 Active/ACTIVE。
+  if (availableStatus.toLowerCase() === "active") {
+    return { state: "ok", availableStatus };
+  }
+  return {
+    state: "unavailable",
+    availableStatus,
+    status,
+    reasonKey:
+      availableStatus.toLowerCase() === "insufficientbalance"
+        ? "functions.availability.insufficientBalance"
+        : "functions.availability.other",
+  };
+}
+
+/**
  * SDK 的错误文案里常带 `reqId=<uuid>`，但错误对象本身没有这个字段。
  * 取不到结构化 RequestId 时用它兜底，调用方仍能把请求号交给后台。
  */
@@ -1604,15 +1660,36 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.offset,
       );
       logCloudBaseResult(server.logger, result);
+      const functions = result.Functions || [];
+      // ListFunctions 大多只回概要、不含 AvailableStatus；仅在后端确实带出该字段时
+      // 才判定，缺失不猜（analyzeFunctionAvailability 会返回 ok）。
+      const unavailable = functions
+        .map((fn) => ({ fn, availability: analyzeFunctionAvailability(fn) }))
+        .filter(
+          (
+            entry,
+          ): entry is {
+            fn: (typeof functions)[number];
+            availability: Extract<FunctionAvailability, { state: "unavailable" }>;
+          } => entry.availability.state === "unavailable",
+        );
+      const availabilityWarnings = unavailable.map(({ fn, availability }) => {
+        const rawName = (fn as Record<string, unknown> | null)?.FunctionName;
+        const functionName = typeof rawName === "string" ? rawName : "";
+        return t(availability.reasonKey, {
+          functionName,
+          availableStatus: availability.availableStatus,
+        });
+      });
       return buildEnvelope(
         {
           action: input.action,
-          functions: result.Functions || [],
+          functions,
           totalCount: result.TotalCount || 0,
           requestId: result.RequestId,
           raw: result,
         },
-        t("functions.listedFunctions", { count: result.Functions?.length || 0 }),
+        t("functions.listedFunctions", { count: functions.length }),
         [
           {
             tool: "queryFunctions",
@@ -1625,6 +1702,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: t("functions.reason.createFn"),
           },
         ],
+        availabilityWarnings.length ? availabilityWarnings : undefined,
       );
     }
     case "getFunctionDetail": {
@@ -1642,11 +1720,22 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
         input.revealEnvValues === true
           ? result
           : maskFunctionDetailEnvValues(result);
+      const availability = analyzeFunctionAvailability(result);
+      // Status=Active 但 AvailableStatus!=Active 时，网关对每次调用都回 410。
+      // 不再让 AI 只看 Status 就报"正常"——把不可用抬成显式字段 + warning。
+      const availabilityWarning =
+        availability.state === "unavailable"
+          ? t(availability.reasonKey, {
+              functionName: input.functionName,
+              availableStatus: availability.availableStatus,
+            })
+          : undefined;
       return buildEnvelope(
         {
           action: input.action,
           functionName: input.functionName,
           functionDetail,
+          availability,
           layers: normalizeFunctionLayers(result.Layers),
           triggers: result.Triggers || [],
           requestId: result.RequestId,
@@ -1670,6 +1759,7 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
             reason: t("functions.reason.checkGateway"),
           },
         ],
+        availabilityWarning ? [availabilityWarning] : undefined,
       );
     }
     case "listFunctionLogs": {

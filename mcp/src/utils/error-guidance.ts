@@ -59,13 +59,21 @@ const REGISTRY: ErrorGuidance[] = [
   // 与腾讯云账户余额是两个独立维度；SCF 对该码的官方释义（账号余额不足，请充值后重试）
   // 在云开发语境下容易误导——充值不会恢复环境资源点。恢复方式因套餐类型而异
   // （免费体验版的途径与付费套餐不同），分支细节交给官方文档，这里只给判别方向。
+  // 另：函数 Status=Active 但 AvailableStatus=InsufficientBalance、调用回 410 时，
+  // 只能判定 SCF 侧计费/可用状态异常，不能仅凭该字段判定账户欠费或环境删除残留；
+  // 环境删除流程遗留、限频导致资源未隔离只是可能成因之一，需要删除记录/隔离状态证据。
   {
     code: "InsufficientBalance",
     summary:
       "余额不足不一定是账户欠费：云开发环境的可用量取决于环境资源点与套餐状态，与账户余额是两个独立维度，" +
-      "给账户充值不会恢复环境资源点。请先区分三种情形——环境资源点耗尽、套餐到期、账户欠费——再决定动作，" +
-      "不要直接引导充值。判别可用只读查询对照：manageEnv(action=\"usage\") 查环境当期资源点用量，" +
-      "callCloudApi 查账户余额（billing DescribeAccountBalance）。",
+      "给账户充值不会恢复环境资源点。请先区分情形——环境资源点耗尽、套餐到期、账户欠费、" +
+      "以及 SCF 侧计费/可用状态异常（函数 Status=Active 但 AvailableStatus=InsufficientBalance、调用返回 410）。" +
+      "仅凭 AvailableStatus 不能判定是账户欠费或环境删除残留；环境删除流程遗留、限频导致资源未隔离只是可能成因之一，" +
+      "需要删除记录和隔离状态证据。不要直接引导充值。" +
+      "判别可用只读查询对照：manageEnv(action=\"usage\") 查环境当期资源点用量，" +
+      "queryFunctions(action=\"getFunctionDetail\") 看函数 AvailableStatus，" +
+      "callCloudApi 查账户余额（billing DescribeAccountBalance）。" +
+      "若确认是环境删除残留的计费异常，换一个新环境重建或联系平台核查 SCF 计费状态。",
     docsUrl: "https://cloud.tencent.com/document/product/876/136006",
   },
 ];

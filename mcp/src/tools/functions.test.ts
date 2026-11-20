@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  analyzeFunctionAvailability,
   buildCreateLayerNameWarning,
   buildFunctionOperationErrorMessage,
   DEFAULT_RUNTIME,
@@ -2174,5 +2175,62 @@ describe("queryFunctions logs via CLS", () => {
       action: "createLogService",
       suggested_args: { confirm: true },
     });
+  });
+});
+
+describe("analyzeFunctionAvailability", () => {
+  it("treats Status=Active + AvailableStatus=InsufficientBalance as unavailable", () => {
+    // 状态错位：Status=Active 但 AvailableStatus=InsufficientBalance，
+    // 网关回 410，只看 Status 会误报"正常"。
+    const result = analyzeFunctionAvailability({
+      Status: "Active",
+      AvailableStatus: "InsufficientBalance",
+    });
+    expect(result.state).toBe("unavailable");
+    if (result.state === "unavailable") {
+      expect(result.availableStatus).toBe("InsufficientBalance");
+      expect(result.status).toBe("Active");
+      expect(result.reasonKey).toBe("functions.availability.insufficientBalance");
+    }
+  });
+
+  it("treats AvailableStatus=Active as ok regardless of Status wording", () => {
+    expect(analyzeFunctionAvailability({ Status: "Active", AvailableStatus: "Active" })).toEqual({
+      state: "ok",
+      availableStatus: "Active",
+    });
+  });
+
+  it("does not guess when AvailableStatus is missing or non-string", () => {
+    // 旧版 SDK / 非 SCF 上游不带这个字段，不能因此把函数判成不可用。
+    expect(analyzeFunctionAvailability({ Status: "Active" })).toEqual({
+      state: "ok",
+      availableStatus: null,
+    });
+    expect(analyzeFunctionAvailability({ Status: "Active", AvailableStatus: 123 })).toEqual({
+      state: "ok",
+      availableStatus: null,
+    });
+    expect(analyzeFunctionAvailability(null)).toEqual({ state: "ok", availableStatus: null });
+  });
+
+  it("maps other non-active AvailableStatus values to the generic reason", () => {
+    const result = analyzeFunctionAvailability({
+      Status: "Active",
+      AvailableStatus: "SomeOtherReason",
+    });
+    expect(result.state).toBe("unavailable");
+    if (result.state === "unavailable") {
+      expect(result.reasonKey).toBe("functions.availability.other");
+    }
+  });
+
+  it("is case-insensitive on both status fields", () => {
+    expect(analyzeFunctionAvailability({ AvailableStatus: "ACTIVE" }).state).toBe("ok");
+    const result = analyzeFunctionAvailability({ AvailableStatus: "insufficientbalance" });
+    expect(result.state).toBe("unavailable");
+    if (result.state === "unavailable") {
+      expect(result.reasonKey).toBe("functions.availability.insufficientBalance");
+    }
   });
 });
