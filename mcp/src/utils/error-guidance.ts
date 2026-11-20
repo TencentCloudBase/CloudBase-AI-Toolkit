@@ -62,10 +62,11 @@ const REGISTRY: ErrorGuidance[] = [
   {
     code: "InsufficientBalance",
     summary:
-      "余额不足不一定是账户欠费：云开发环境的可用量取决于环境资源点与套餐状态，与账户余额是两个独立维度，" +
-      "给账户充值不会恢复环境资源点。请先区分三种情形——环境资源点耗尽、套餐到期、账户欠费——再决定动作，" +
-      "不要直接引导充值。判别可用只读查询对照：manageEnv(action=\"usage\") 查环境当期资源点用量，" +
-      "callCloudApi 查账户余额（billing DescribeAccountBalance）。",
+      "余额不足不一定是账户欠费：充值只解决账户欠费，不会恢复环境资源点；不要直接引导充值。" +
+      "先查 manageEnv(action=\"usage\")、queryFunctions(action=\"getFunctionDetail\") 的 AvailableStatus、" +
+      "callCloudApi 查账户余额（billing DescribeAccountBalance）。" +
+      "函数 Status=Active 但 AvailableStatus=InsufficientBalance、调用返回 410 时，只说明 SCF 侧计费/可用状态异常；" +
+      "不能判定账户欠费或环境删除残留。环境删除残留需删除记录和隔离状态证据，确认后再换新环境或联系平台核查。",
     docsUrl: "https://cloud.tencent.com/document/product/876/136006",
   },
 ];
