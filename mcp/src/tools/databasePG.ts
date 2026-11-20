@@ -10,7 +10,7 @@ import {
 import { t } from "../i18n/index.js";
 import { requireProjectRoot } from "../utils/project-config.js";
 import { buildJsonToolResult, ToolNextStep } from "../utils/tool-result.js";
-import { isCredentialExpiredError } from "../utils/error-guidance.js";
+import { isCredentialExpiredError, isCredentialScopeLimitedError } from "../utils/error-guidance.js";
 import {
   getSqlVerb,
   isDestructiveSql,
@@ -2148,6 +2148,15 @@ async function classifyPgInfrastructureFailure(
       success: false,
       errorCode: "CREDENTIAL_EXPIRED",
       message: t("credential.expired.pg", { reason }),
+      nextActions: [],
+    };
+  }
+  if (isCredentialScopeLimitedError(error)) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      errorCode: "CREDENTIAL_SCOPE_LIMITED",
+      message: t("credential.scopeLimited.pg", { reason }),
       nextActions: [],
     };
   }

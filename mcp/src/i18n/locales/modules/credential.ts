@@ -38,6 +38,10 @@ export const credential = defineModule(
       "临时密钥已过期，不是 PostgreSQL 实例尚未就绪。MCP 会重新换取密钥，请重试该操作；不要解绑重连。原始错误：{reason}",
     "expired.env":
       "临时密钥已过期，不是登录态丢失。MCP 会重新换取密钥，请重试该操作；不要解绑重连，也不要重新授权。",
+    "scopeLimited.env":
+      "凭据权限边界：环境级凭据（API Key 或托管授权）调用账号级管控面接口被拒。这不是临时密钥过期，重新换取密钥或重试同一请求都不会成功；不要解绑重连。改用带 EnvId 的接口（如 DescribeEnvInfo），或换用账号级凭据。",
+    "scopeLimited.pg":
+      "凭据权限边界：环境级凭据无法调用该账号级管控面接口，不是 PostgreSQL 实例未就绪，也不是临时密钥过期。重试或刷新密钥都不会成功。请改用带 EnvId 的接口，或换用账号级凭据。原始错误：{reason}",
 
     "trigger.unexpected":
       "已从函数 {fnName} 删除触发器 {triggerName}，但 {names} 也一并消失了。请核对下方列表并按需重建。",
@@ -86,6 +90,10 @@ export const credential = defineModule(
       "The temporary credential expired; this is not a PostgreSQL instance that is still initializing. A new credential will be requested. Retry the operation; do not reconnect. Original error: {reason}",
     "expired.env":
       "The temporary credential expired; this is not a lost login. A new credential will be requested. Retry the operation; do not reconnect or re-authorize.",
+    "scopeLimited.env":
+      "Credential permission boundary: an env-level credential (API Key or hosted authorization) was rejected by an account-level control-plane API. This is not an expired temporary credential; renewing it or retrying the same request will not help. Do not reconnect. Use an EnvId-scoped action such as DescribeEnvInfo, or switch to account-level credentials.",
+    "scopeLimited.pg":
+      "Credential permission boundary: an env-level credential cannot call this account-level control-plane API. This is not a PostgreSQL instance that is still initializing, and not an expired temporary credential. Retrying or renewing the credential will not help. Use an EnvId-scoped action, or switch to account-level credentials. Original error: {reason}",
 
     "trigger.unexpected":
       "Deleted trigger {triggerName} of function {fnName}, but {names} also disappeared. Review the lists below and recreate them if needed.",

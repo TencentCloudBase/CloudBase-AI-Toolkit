@@ -20,7 +20,7 @@ import {
   type AuthOptions,
   type DeviceFlowAuthInfo,
 } from "../auth.js";
-import { isCredentialExpiredError } from "../utils/error-guidance.js";
+import { isCredentialExpiredError, isCredentialScopeLimitedError } from "../utils/error-guidance.js";
 import {
   envManager,
   getCachedEnvId,
@@ -1768,6 +1768,8 @@ function buildEnvQueryErrorMessage(error: unknown, action: string): string {
     // actual reason for the failure.
     if (isCredentialExpiredError(error)) {
       suggestions.push(t("credential.expired.env"));
+    } else if (isCredentialScopeLimitedError(error)) {
+      suggestions.push(t("credential.scopeLimited.env"));
     } else {
       suggestions.push(t("env.queryError.authHeader"));
       suggestions.push(t("env.queryError.authAdvice"));
