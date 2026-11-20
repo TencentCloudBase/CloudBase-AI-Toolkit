@@ -67,7 +67,6 @@ describe("error-guidance", () => {
       expect(guidance).not.toBeNull();
       expect(guidance?.summary).toContain("不一定是账户欠费");
       expect(guidance?.summary).toContain("充值不会恢复环境资源点");
-      // 线上事故提示这个分支存在，但不能把删环境残留当唯一答案，也不能直接引导充值。
       expect(guidance?.summary).toContain("环境删除");
       expect(guidance?.summary).toContain("AvailableStatus");
       expect(guidance?.summary).toContain("不能判定");

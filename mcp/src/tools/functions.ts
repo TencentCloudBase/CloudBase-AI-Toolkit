@@ -63,26 +63,13 @@ export const FUNCTION_UPLOAD_TARGET_NOT_FOUND_ERROR_CODE =
 /** SCF 日志配对失败的错误码，两个病因共用这一句。 */
 export const CLS_MISMATCH_ERROR_CODE = "InvalidParameter.Cls";
 
-/**
- * SCF 函数有两套状态，缺一不可判"能不能调用"：
- * - `Status`：配置/部署状态（Active、Updating、CreateFailed…），MCP 一直在看这个；
- * - `AvailableStatus`：可用状态（Active、InsufficientBalance…），此前完全没读。
- *
- * 两者会错位：函数 `Status=Active` 但 `AvailableStatus=InsufficientBalance` 时，
- * 网关对它的请求会回 HTTP 410，而只看 Status 的工具会误报"正常"。
- * 该字段只说明 SCF 侧计费/可用状态异常，不能直接判定是账户欠费或环境删除残留；
- * 工具层应先暴露状态并提示核查，不替用户下结论。
- *
- * 这里把错位识别成结构化判定，供 getFunctionDetail / listFunctions 的信封
- * 生成 warning 与显式 availability 字段。纯函数，不依赖 i18n，便于单测。
- */
+/** SCF 的 AvailableStatus 决定函数是否可调用；Status 只表示部署状态。 */
 export type FunctionAvailability =
   | { state: "ok"; availableStatus: string | null }
   | {
       state: "unavailable";
       availableStatus: string;
       status: string | null;
-      /** 对应 i18n key：区分余额计费异常与其它不可用原因 */
       reasonKey: "functions.availability.insufficientBalance" | "functions.availability.other";
     };
 
@@ -100,11 +87,9 @@ export function analyzeFunctionAvailability(
   const status =
     typeof record.Status === "string" && record.Status ? record.Status : null;
 
-  // AvailableStatus 缺失（旧版 SDK / 非 SCF 上游）时不猜，维持原行为。
   if (!availableStatus) {
     return { state: "ok", availableStatus: null };
   }
-  // Active 才是可调用。注意大小写不敏感，SCF 各版本返回过 Active/ACTIVE。
   if (availableStatus.toLowerCase() === "active") {
     return { state: "ok", availableStatus };
   }
@@ -1661,8 +1646,6 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
       );
       logCloudBaseResult(server.logger, result);
       const functions = result.Functions || [];
-      // ListFunctions 大多只回概要、不含 AvailableStatus；仅在后端确实带出该字段时
-      // 才判定，缺失不猜（analyzeFunctionAvailability 会返回 ok）。
       const unavailable = functions
         .map((fn) => ({ fn, availability: analyzeFunctionAvailability(fn) }))
         .filter(
@@ -1721,8 +1704,6 @@ export function registerFunctionTools(server: ExtendedMcpServer) {
           ? result
           : maskFunctionDetailEnvValues(result);
       const availability = analyzeFunctionAvailability(result);
-      // Status=Active 但 AvailableStatus!=Active 时，网关对每次调用都回 410。
-      // 不再让 AI 只看 Status 就报"正常"——把不可用抬成显式字段 + warning。
       const availabilityWarning =
         availability.state === "unavailable"
           ? t(availability.reasonKey, {

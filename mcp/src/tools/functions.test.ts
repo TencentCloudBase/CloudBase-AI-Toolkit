@@ -2180,8 +2180,6 @@ describe("queryFunctions logs via CLS", () => {
 
 describe("analyzeFunctionAvailability", () => {
   it("treats Status=Active + AvailableStatus=InsufficientBalance as unavailable", () => {
-    // 状态错位：Status=Active 但 AvailableStatus=InsufficientBalance，
-    // 网关回 410，只看 Status 会误报"正常"。
     const result = analyzeFunctionAvailability({
       Status: "Active",
       AvailableStatus: "InsufficientBalance",
@@ -2202,7 +2200,6 @@ describe("analyzeFunctionAvailability", () => {
   });
 
   it("does not guess when AvailableStatus is missing or non-string", () => {
-    // 旧版 SDK / 非 SCF 上游不带这个字段，不能因此把函数判成不可用。
     expect(analyzeFunctionAvailability({ Status: "Active" })).toEqual({
       state: "ok",
       availableStatus: null,

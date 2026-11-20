@@ -59,9 +59,6 @@ const REGISTRY: ErrorGuidance[] = [
   // 与腾讯云账户余额是两个独立维度；SCF 对该码的官方释义（账号余额不足，请充值后重试）
   // 在云开发语境下容易误导——充值不会恢复环境资源点。恢复方式因套餐类型而异
   // （免费体验版的途径与付费套餐不同），分支细节交给官方文档，这里只给判别方向。
-  // 另：函数 Status=Active 但 AvailableStatus=InsufficientBalance、调用回 410 时，
-  // 只能判定 SCF 侧计费/可用状态异常，不能仅凭该字段判定账户欠费或环境删除残留；
-  // 环境删除流程遗留、限频导致资源未隔离只是可能成因之一，需要删除记录/隔离状态证据。
   {
     code: "InsufficientBalance",
     summary:
