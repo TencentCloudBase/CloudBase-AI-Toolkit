@@ -23,7 +23,7 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "可选的摘要数量上限，用于对象、元数据或 SQL 返回行数，默认 20，最大 200。",
     "schema.manageAction":
-      "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。三个 Realtime action：describeRealtime=读 Realtime 配置（不代表已开通）、enableRealtime=开通并解除挂起（等同 Suspend=false，未开通环境首次调用会自动完成开通，已开通未挂起时无副作用）、modifyRealtime=增量修改 Realtime 配置（需 confirm=true）。",
+      "操作类型。日常写入用 execute（DML/GRANT/RLS；schema DDL 默认拒绝，需 allowDdlViaExecute=true）或 dryRun（只分析风险、不执行）。建表 / 改 schema 必须用 applyMigration——完整流程（轮询、超时、落库校验）见工具描述。其余 6 个是迁移配套：planMigration=预览计划、listMigrations=列已应用、migrationDetail=单条详情、describeMigrationTask=查 Push 任务、fetchMigration=把远端 SQL 拉到本地、repairMigration=修历史记录。plan / apply / repair 都要 migrationName + migrationVersion；migrationDetail 只要 migrationVersion。describeRealtime / enableRealtime / modifyRealtime 管理 Realtime（见工具说明）。",
     "schema.manageSql":
       "action=execute、dryRun、planMigration、applyMigration 或 repairMigration(applied) 使用的 SQL 语句",
     "schema.manageConfirm":
@@ -48,7 +48,7 @@ export const databasePG = defineModule(
     "schema.manageStatementTimeoutMs":
       "apply 可选：单条 SQL 执行最长时间（毫秒），默认 300000。",
     "schema.manageTaskPollTimeoutMs":
-      "apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 600000（与 CLI tcb db pg migration up 的 10 分钟对齐）。范围 5000-600000。超时后务必先 describeMigrationTask(taskId) 再 listMigrations，禁止立刻重推同 version。",
+      "apply 可选：轮询 DescribeTaskResult 的最长等待（毫秒）。默认 600000（10 分钟）。范围 5000-600000。超时后务必先 describeMigrationTask(taskId) 再 listMigrations，禁止立刻重推同 version。",
     "schema.manageWaitForTask":
       "apply 可选，默认 true。设为 false 时 Push 后立即返回 TaskId（errorCode=MIGRATION_TASK_PENDING），由调用方用 describeMigrationTask 轮询任务终态，再用 listMigrations 确认是否落库；适合 MCP host 工具调用超时较短的场景。默认 true 会同步等到任务终态。",
     "schema.manageTaskId":
@@ -57,9 +57,9 @@ export const databasePG = defineModule(
       "repair 必填：applied=标记为已应用（可补录 Query），reverted=删除 history 记录。",
     "schema.manageRepairReason": "repair 必填：修复原因。",
     "schema.manageForce":
-      "fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件（对齐 CLI tcb db pg migration fetch --force）；false=跳过已存在文件。用于从远端 history 重新对齐 Git checksum。",
+      "fetchMigration 可选，默认 false。true=覆盖本地已存在的同名 SQL 文件；false=跳过已存在文件。用于从远端 history 重新对齐 Git checksum。",
     "schema.manageIncludeAll":
-      "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push，对齐 CLI tcb db pg migration up --include-all；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。",
+      "planMigration / applyMigration 可选，默认 false。true=允许 out-of-order（version 小于远端 LatestVersion）仍可 Preview/Push；仅在确认要补历史/乱序迁移时使用，日常应选更大的 migrationVersion。",
     "schema.manageAllowDdlViaExecute":
       "可选，默认 false。仅当需要故意绕过 migration history 时设为 true，才允许 schema DDL 走 execute；正常建表/改 schema 必须用 applyMigration。",
     "schema.realtimeSuspend":
@@ -320,7 +320,7 @@ export const databasePG = defineModule(
     "schema.queryLimit":
       "Optional cap on summary size, applied to objects, metadata, or SQL result rows. Defaults to 20, maximum 200.",
     "schema.manageAction":
-      "Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion. Three Realtime actions: describeRealtime=read the Realtime settings (does not indicate provisioning), enableRealtime=provision and resume, equivalent to Suspend=false (the first call on an unprovisioned environment provisions it automatically and is a no-op when already provisioned and not suspended), modifyRealtime=incremental Realtime update (requires confirm=true).",
+      "Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion. describeRealtime / enableRealtime / modifyRealtime manage Realtime (see the tool description).",
     "schema.manageSql":
       "SQL statement used when action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)",
     "schema.manageConfirm":
@@ -348,7 +348,7 @@ export const databasePG = defineModule(
     "schema.manageStatementTimeoutMs":
       "Optional for apply: maximum execution time per SQL statement in milliseconds, defaults to 300000.",
     "schema.manageTaskPollTimeoutMs":
-      "Optional for apply: maximum wait while polling DescribeTaskResult, in milliseconds. Defaults to 600000 (matching the 10 minutes of CLI tcb db pg migration up). Range 5000-600000. After a timeout always call describeMigrationTask(taskId) before listMigrations, and never re-push the same version immediately.",
+      "Optional for apply: maximum wait while polling DescribeTaskResult, in milliseconds. Defaults to 600000 (10 minutes). Range 5000-600000. After a timeout always call describeMigrationTask(taskId) before listMigrations, and never re-push the same version immediately.",
     "schema.manageWaitForTask":
       "Optional for apply, defaults to true. When set to false, Push returns the TaskId immediately (errorCode=MIGRATION_TASK_PENDING) and the caller polls the task to a terminal state with describeMigrationTask, then confirms with listMigrations whether it landed; useful when the MCP host has a short tool-call timeout. The default true waits synchronously for the terminal state.",
     "schema.manageTaskId":
@@ -357,9 +357,9 @@ export const databasePG = defineModule(
       "Required for repair: applied=mark as applied (Query can be backfilled), reverted=delete the history record.",
     "schema.manageRepairReason": "Required for repair: the repair reason.",
     "schema.manageForce":
-      "Optional for fetchMigration, defaults to false. true=overwrite the existing local SQL file with the same name (matching CLI tcb db pg migration fetch --force); false=skip existing files. Use it to realign Git checksums from the remote history.",
+      "Optional for fetchMigration, defaults to false. true=overwrite the existing local SQL file with the same name; false=skip existing files. Use it to realign Git checksums from the remote history.",
     "schema.manageIncludeAll":
-      "Optional for planMigration / applyMigration, defaults to false. true=allow out-of-order versions (older than the remote LatestVersion) to still Preview/Push, matching CLI tcb db pg migration up --include-all; use it only when intentionally backfilling or applying out-of-order migrations — normally pick a larger migrationVersion instead.",
+      "Optional for planMigration / applyMigration, defaults to false. true=allow out-of-order versions (older than the remote LatestVersion) to still Preview/Push; use it only when intentionally backfilling or applying out-of-order migrations — normally pick a larger migrationVersion instead.",
     "schema.manageAllowDdlViaExecute":
       "Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.",
     "schema.realtimeSuspend":

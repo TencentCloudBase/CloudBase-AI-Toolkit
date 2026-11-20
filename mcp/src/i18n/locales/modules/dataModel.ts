@@ -63,7 +63,7 @@ classDiagram
 `,
     "schema.modify.action": "操作类型：create=创建新模型",
     "schema.modify.publish": "是否立即发布模型",
-    "schema.modify.dbInstanceType": "数据库实例类型，可选值：MYSQL=MySQL 数据库，FLEXDB=文档型数据库（NoSQL）",
+    "schema.modify.dbInstanceType": "数据库实例类型：MySQL 数据库或文档型数据库（NoSQL）",
     "modifyDataModel.noSchemas": "无法从Mermaid图表生成数据模型Schema",
     "modifyDataModel.defaultModelDescription": "{name}数据模型",
     "modifyDataModel.noTaskId": "创建任务失败，未返回任务ID",
@@ -146,7 +146,7 @@ classDiagram
 `,
     "schema.modify.action": "Operation type: create=create a new model",
     "schema.modify.publish": "Whether to publish the model immediately",
-    "schema.modify.dbInstanceType": "Database instance type: MYSQL=MySQL database, FLEXDB=document database (NoSQL)",
+    "schema.modify.dbInstanceType": "Database instance type: MySQL database or document database (NoSQL)",
     "modifyDataModel.noSchemas":
       "Cannot generate data model Schema from the Mermaid diagram",
     "modifyDataModel.defaultModelDescription": "{name} data model",

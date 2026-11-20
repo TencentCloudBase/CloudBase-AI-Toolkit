@@ -786,13 +786,13 @@ async function fetchAccountEnvCandidates(
   }
 }
 
-type CredentialScope = "single_env" | "account";
+export type CredentialScope = "single_env" | "account";
 
 function isApiKeyCredentialMode(): boolean {
   return Boolean(getCloudBaseApiKeyFromEnv() && process.env.CLOUDBASE_ENV_ID);
 }
 
-function getCredentialScope(cloudBaseOptions?: {
+export function getCredentialScope(cloudBaseOptions?: {
   credentialScope?: string;
 }): CredentialScope {
   // 只认宿主的显式声明 credentialScope: 'env'（如 tcb-bff hosted OAuth 签发的
@@ -3711,7 +3711,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
         .optional()
         .describe("env.schema.query.endTime"),
       period: z
-        .union([z.literal(300), z.literal(3600), z.literal(86400)])
+        .literal(ENV_METRIC_PERIOD_VALUES)
         .optional()
         .describe("env.schema.query.period"),
       resourceID: z

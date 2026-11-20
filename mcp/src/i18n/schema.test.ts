@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { t } from "./index.js";
 import { en } from "./locales/en.js";
 import { zh } from "./locales/zh.js";
 import { localizeZodSchemaShape } from "./schema.js";
@@ -40,5 +41,37 @@ describe("localizeZodSchemaShape", () => {
     expect(localized.action.description).toBe(zh.storage.queryTitle);
     expect(localized.action.safeParse("list").success).toBe(true);
     expect(localized.action.safeParse(1).success).toBe(false);
+  });
+});
+
+/**
+ * localizeZodSchema rebuilds a Zod instance from its def. Zod v4 keeps
+ * `description` on the instance, not in the def, so every string description
+ * must be attached again after the rebuild — including text the caller already
+ * resolved with t() interpolation. A dictionary key is not the only valid form.
+ */
+describe("localizeZodSchemaShape keeps non-key descriptions", () => {
+  it("keeps already-resolved text with interpolation in both languages", () => {
+    for (const lang of ["zh", "en"] as const) {
+      const resolved = t("capi.schema.service", { count: 58 }, lang);
+      const localized = localizeZodSchemaShape(
+        { service: z.string().describe(resolved) },
+        lang,
+      );
+      expect(localized.service.description, lang).toBe(resolved);
+    }
+  });
+
+  it("keeps an intentionally empty description empty", () => {
+    const localized = localizeZodSchemaShape({ note: z.string().describe("") }, "zh");
+    expect(localized.note.description).toBe("");
+  });
+
+  it("emits the resolved description into the JSON Schema", () => {
+    const resolved = t("capi.schema.version", { services: "tke、mongodb" }, "zh");
+    const json = z.toJSONSchema(
+      z.object(localizeZodSchemaShape({ version: z.string().describe(resolved) }, "zh")),
+    ) as { properties?: Record<string, { description?: string }> };
+    expect(json.properties?.version.description).toBe(resolved);
   });
 });

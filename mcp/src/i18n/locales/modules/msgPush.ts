@@ -9,7 +9,7 @@ export const msgPush = defineModule(
       "action=list 同时返回 pushMode（cloudfunction|container）、containerConfig、callbacks 与 version；" +
       "云托管模式下 callbacks 可能仍存在但不生效（见 note），需 ensureCloudFunctionMode 切回云函数模式后才会按回调推送。" +
       "action=listSupportedEvents 返回全部合法约束（按消息类型分组）。" +
-      "需要微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
+      "需在 MCP 配置里显式启用 msg-push 插件；还需微信 IDE 登录态通道（宿主注入 cloudBaseOptions.requestFn）。",
     manageTitle: "管理小程序消息推送配置",
     manageDescription:
       '管理小程序云开发消息推送配置（写操作，需 confirm="yes" 确认）。' +
@@ -19,7 +19,7 @@ export const msgPush = defineModule(
       "action=subscribe 前会校验 function_name 在环境中真实存在。" +
       "action=ensureCloudFunctionMode 关闭云托管整包接收；action=ensureContainerMode 开启云托管（需 qbase_container_path/qbase_env/text_mode）；" +
       "action=setContainerCallback 更新云托管 path/env/text_mode。" +
-      "集合无变化时不发起写请求（幂等 no-op）。需要微信 IDE 登录态通道。",
+      "集合无变化时不发起写请求（幂等 no-op）。需在 MCP 配置里显式启用 msg-push 插件，并具备微信 IDE 登录态通道。",
 
     configEmptyOrInvalid: "getappconfig 返回的 config 为空或非 JSON 字符串",
     configParseFailed: "getappconfig 返回的 config 解析失败: {message}",
@@ -187,7 +187,7 @@ export const msgPush = defineModule(
       "action=list also returns pushMode (cloudfunction|container), containerConfig, callbacks and version; " +
       "in container mode callbacks may still exist but take no effect (see note); call ensureCloudFunctionMode to switch back before callbacks apply. " +
       "action=listSupportedEvents returns all supported constraints grouped by message type. " +
-      "Requires the WeChat IDE login-state channel (host injects cloudBaseOptions.requestFn).",
+      "Requires the msg-push plugin to be enabled explicitly, plus the WeChat IDE login-state channel (host injects cloudBaseOptions.requestFn).",
     manageTitle: "Manage Mini Program message push config",
     manageDescription:
       'Manage Mini Program CloudBase message push config (write ops, requires confirm="yes"). ' +
@@ -197,7 +197,7 @@ export const msgPush = defineModule(
       "action=subscribe verifies function_name actually exists in the environment. " +
       "action=ensureCloudFunctionMode disables container whole-payload receive; action=ensureContainerMode enables it (requires qbase_container_path/qbase_env/text_mode); " +
       "action=setContainerCallback updates container path/env/text_mode. " +
-      "No write request is made when the set is unchanged (idempotent no-op). Requires the WeChat IDE login-state channel.",
+      "No write request is made when the set is unchanged (idempotent no-op). Requires the msg-push plugin to be enabled explicitly and the WeChat IDE login-state channel.",
     configEmptyOrInvalid:
       "config returned by getappconfig is empty or not a JSON string",
     configParseFailed: "Failed to parse config returned by getappconfig: {message}",

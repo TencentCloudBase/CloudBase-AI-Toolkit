@@ -3,6 +3,9 @@ import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js
 import { TCB_ACTION_INDEX_MAP } from "../generated/tcb-action-index.js";
 import { t } from "../i18n/index.js";
 import { ExtendedMcpServer } from "../server.js";
+import { resolveErrorCode, resolveRequestId } from "../utils/error-guidance.js";
+import { buildAuthNextStep, buildJsonToolResult } from "../utils/tool-result.js";
+import { getCredentialScope, type CredentialScope } from "./env.js";
 
 const CATEGORY = "cloud-api";
 const CLOUDBASE_CONTROL_PLANE_DOC_URL = "https://cloud.tencent.com/document/product/876/34809";
@@ -317,6 +320,35 @@ export const CAM_AUTH_ERROR_PATTERN =
     /UnauthorizedOperation|AuthFailure|not authorized|cam.*denied|Forbidden/i;
 
 /**
+ * Credential-level rejections. An env-scoped credential is refused by
+ * account-level control-plane Actions even while the login is healthy, so these
+ * messages must not be reported as a lost login.
+ */
+export const CREDENTIAL_TOKEN_ERROR_PATTERN =
+    /Token verification failed|invalid token|token expired|token is invalid|signature.*expired/i;
+
+export type CapiErrorCategory =
+    | "credential_scope_limited"
+    | "credential_invalid"
+    | "cam_denied"
+    | "cloud_api_error";
+
+export function classifyCapiError(
+    message: string,
+    credentialScope: CredentialScope,
+): CapiErrorCategory {
+    if (CREDENTIAL_TOKEN_ERROR_PATTERN.test(message)) {
+        return credentialScope === "single_env"
+            ? "credential_scope_limited"
+            : "credential_invalid";
+    }
+    if (CAM_AUTH_ERROR_PATTERN.test(message)) {
+        return "cam_denied";
+    }
+    return "cloud_api_error";
+}
+
+/**
  * Guidance when control-plane calls fail due to CAM / API Key scope limits.
  * Shared by callCloudApi and manageCloudRun error builders.
  */
@@ -328,7 +360,12 @@ export function isCamAuthError(message: string): boolean {
     return CAM_AUTH_ERROR_PATTERN.test(message);
 }
 
-export function buildCapiErrorMessage(service: string, action: string, error: unknown): string {
+export function buildCapiErrorMessage(
+    service: string,
+    action: string,
+    error: unknown,
+    credentialScope: CredentialScope = "account",
+): string {
     const baseMessage = error instanceof Error ? error.message : String(error);
     const suggestions: string[] = [];
     const tcbEntry = service === "tcb" ? findTcbActionEntry(action) : undefined;
@@ -336,8 +373,16 @@ export function buildCapiErrorMessage(service: string, action: string, error: un
     const hasParameterError = /parameter\s+`?.+?`?\s+is not recognized|MissingParameter|missing parameter|missing required/i.test(baseMessage);
     const hasInvalidParameterValueError = /invalid parameter value/i.test(baseMessage);
     const hasCamAuthError = isCamAuthError(baseMessage);
+    const hasTokenError = CREDENTIAL_TOKEN_ERROR_PATTERN.test(baseMessage);
+    const category = classifyCapiError(baseMessage, credentialScope);
 
-    if (hasCamAuthError) {
+    if (hasTokenError) {
+        suggestions.push(
+            category === "credential_scope_limited"
+                ? t("capi.errorCredentialScopeLimited")
+                : t("capi.errorCredentialInvalid"),
+        );
+    } else if (hasCamAuthError) {
         suggestions.push(buildCamAuthGuidance());
     }
 
@@ -416,6 +461,39 @@ export function buildCapiErrorMessage(service: string, action: string, error: un
         suggestions: suggestions.join(" "),
         controlPlaneUrl: CLOUDBASE_CONTROL_PLANE_DOC_URL,
         dependencyUrl: CLOUDBASE_DEPENDENCY_API_DOC_URL,
+    });
+}
+
+/**
+ * Build the structured failure receipt for callCloudApi.
+ *
+ * The model needs the credential scope and an error category to tell an
+ * env-level permission boundary from a lost login; plain error text cannot
+ * carry that distinction. `success: false` makes the tool wrapper mark the
+ * receipt as an MCP error, while the remaining fields stay machine-readable.
+ */
+export function buildCapiFailureResult(
+    service: string,
+    action: string,
+    error: unknown,
+    credentialScope: CredentialScope,
+) {
+    const message = error instanceof Error ? error.message : String(error);
+    const category = classifyCapiError(message, credentialScope);
+    const errorCode = resolveErrorCode(error);
+    const requestId = resolveRequestId(error);
+    return buildJsonToolResult({
+        success: false,
+        ...(errorCode ? { code: errorCode } : {}),
+        error_category: category,
+        service,
+        action,
+        credential_scope: credentialScope,
+        ...(requestId ? { requestId } : {}),
+        message: buildCapiErrorMessage(service, action, error, credentialScope),
+        // Only a credential/CAM failure warrants a login re-check; pointing an
+        // ordinary API error at auth(status) would send the model down a dead end.
+        ...(category === "cloud_api_error" ? {} : { next_step: buildAuthNextStep("status") }),
     });
 }
 
@@ -552,7 +630,12 @@ export function registerCapiTools(server: ExtendedMcpServer) {
                     Param: cleanedParams,
                 });
             } catch (error) {
-                throw new Error(buildCapiErrorMessage(service, action, error));
+                return buildCapiFailureResult(
+                    service,
+                    action,
+                    error,
+                    getCredentialScope(cloudBaseOptions),
+                );
             }
             logCloudBaseResult(logger, result);
 

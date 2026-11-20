@@ -2708,12 +2708,13 @@ describe("env tools - queryEnv", () => {
     expect(tools.queryEnv.meta.inputSchema.metricName.unwrap().options).toEqual([
       ...ENV_METRIC_NAME_VALUES,
     ]);
-    expect(
-      tools.queryEnv.meta.inputSchema.period.unwrap().options.map((item: { value: number }) => item.value),
-    ).toEqual([...ENV_METRIC_PERIOD_VALUES]);
+    expect([...tools.queryEnv.meta.inputSchema.period.unwrap().values]).toEqual([
+      ...ENV_METRIC_PERIOD_VALUES,
+    ]);
+    expect(tools.queryEnv.meta.inputSchema.period.safeParse(60).success).toBe(false);
     const queryEnvDescription = t(tools.queryEnv.meta.description as MessageKey);
     expect(queryEnvDescription).toContain("action=metrics");
-    expect(queryEnvDescription).toContain("DescribeCurveData");
+    expect(queryEnvDescription).toContain("禁止用 callCloudApi 猜测监控 Action");
   });
 
   it("queryEnv(usage) should require envId", async () => {
