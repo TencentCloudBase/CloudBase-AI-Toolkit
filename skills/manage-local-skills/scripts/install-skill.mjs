@@ -15,6 +15,7 @@ function parseArgs(argv) {
     scope: 'project',
     mode: 'symlink',
     dryRun: false,
+    confirmReplace: false,
     json: false,
   };
 
@@ -47,6 +48,10 @@ function parseArgs(argv) {
     }
     if (arg === '--dry-run') {
       options.dryRun = true;
+      continue;
+    }
+    if (arg === '--confirm-replace') {
+      options.confirmReplace = true;
       continue;
     }
     if (arg === '--json') {
@@ -82,6 +87,7 @@ export function runInstallSkill(options) {
     scope: options.scope,
     mode: options.mode,
     dryRun: options.dryRun,
+    confirmReplace: options.confirmReplace,
   });
 }
 
@@ -91,6 +97,9 @@ function main() {
 
   if (options.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    if (result.requiresConfirmation) {
+      process.exitCode = 1;
+    }
     return;
   }
 
@@ -100,6 +109,14 @@ function main() {
   console.log(`Mode: ${result.mode}`);
   console.log(`Canonical: ${result.canonicalPath}`);
   console.log(`Target: ${result.targetPath}`);
+  if (result.requiresConfirmation) {
+    console.log('No files changed.');
+    console.log(`Conflict at canonical: ${result.canonicalConflict}`);
+    console.log(`Conflict at target: ${result.targetConflict}`);
+    console.log('Review the paths above, then re-run with --confirm-replace to replace them.');
+    process.exitCode = 1;
+    return;
+  }
   if (result.symlinkFailed) {
     console.log('Symlink failed, copied instead.');
   }

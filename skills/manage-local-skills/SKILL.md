@@ -60,6 +60,7 @@ Use this skill to:
 - Prefer symlinks when supported and safe. Fall back to copy when the user requests it or symlinks fail.
 - Make scope explicit: `project` means the current workspace, `global` means the user-level agent directory.
 - Ask the user to confirm before writing files, replacing existing installs, changing mappings, or converting a non-standard source into a standard skill.
+- When an install reports a conflict, review the printed paths with the user and re-run with `--confirm-replace` only after they agree to replace them.
 - If the user asks to sync multiple skills or multiple agents, summarize the planned batch operation before execution and wait for confirmation.
 - Call out differences whenever the requested behavior cannot fully match `skills` CLI.
 
@@ -69,6 +70,8 @@ Use this skill to:
 node skills/manage-local-skills/scripts/inspect-source.mjs --input <path> --json
 node skills/manage-local-skills/scripts/validate-skill.mjs --skill-dir <path>
 node skills/manage-local-skills/scripts/install-skill.mjs --source-dir skills --skill <name> --agent cursor --scope project --mode symlink
+node skills/manage-local-skills/scripts/install-skill.mjs --source-dir skills --skill <name> --agent cursor --scope project --mode symlink --dry-run
+node skills/manage-local-skills/scripts/install-skill.mjs --source-dir skills --skill <name> --agent cursor --scope project --mode symlink --confirm-replace
 ```
 
 ## Minimum self-check
