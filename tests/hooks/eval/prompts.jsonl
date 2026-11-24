@@ -83,3 +83,7 @@
 {"prompt": "用 CloudBase 的 pgsql 连接串", "expectedSkills": ["postgresql-development"], "category": "database", "note": "正例：pgsql 是 PG 的常见写法，短词边界不能把它一起排掉"}
 {"prompt": "检查 CloudBase 截图 screenshot.jpg 的文字排版", "expectedSkills": [], "category": "boundary", "note": "边界：screenshot.jpg 里的 pg 不应触发 PG skill"}
 {"prompt": "有问题造成卡住了随时问我", "expectedSkills": [], "category": "boundary", "note": "边界：条件句里的'卡住'不是故障排查，不应触发 ops-inspector"}
+{"prompt": "PG Document 插件能兼容文档型数据库吗", "expectedSkills": ["postgresql-development-cloudbase", "cloudbase-document-database-web-sdk"], "category": "database", "note": "正例：pgdoc 是 PG 上的文档插件，PG development 必须命中；文档库 Web SDK 同时命中也合理，其 description 已指向 references/pgdoc.md"}
+{"prompt": "文档型数据库的 SDK 能不能直接跑在 PG 上", "expectedSkills": ["postgresql-development-cloudbase", "cloudbase-document-database-web-sdk"], "category": "database", "note": "正例：问文档型 SDK 与 PG 的兼容性，答案是 pgdoc，代码不用改；关键是 PG development 必须命中"}
+{"prompt": "怎么开启 pgdoc 插件", "expectedSkills": ["postgresql-development-cloudbase"], "category": "database", "note": "正例：pgdoc 开通入口在 PG skill 的 references/pgdoc.md"}
+{"prompt": "这个隔离环境被建成了 PostgreSQL 模式，跑不了我们的文档型云函数，怎么处理？", "expectedSkills": ["postgresql-development-cloudbase", "cloud-functions"], "category": "database", "note": "正例：PG 模式环境跑已有文档型云函数，启用 pgdoc 即可，不该建议重建环境或改写成 app.rdb()"}

@@ -1612,7 +1612,14 @@
           "创建表",
           "mysql 存储",
           "mysql 数据库",
-          "pgsql"
+          "pgsql",
+          "pgdoc",
+          "pg document 插件",
+          "pg 文档插件",
+          "enablepgdocumentext",
+          "文档型云函数",
+          "文档库迁 pg",
+          "文档型 sdk 跑在 pg"
         ],
         "allOf": [
           [
@@ -1634,12 +1641,34 @@
           [
             "mysql",
             "存储"
+          ],
+          [
+            "文档型",
+            "postgresql"
+          ],
+          [
+            "文档",
+            "pgdoc"
+          ],
+          [
+            "db.collection",
+            "postgresql"
+          ],
+          [
+            "文档型",
+            "pg"
+          ],
+          [
+            "文档",
+            "sdk"
           ]
         ],
         "anyOf": [
           "rls",
           "create policy",
-          "queryPgDatabase"
+          "queryPgDatabase",
+          "pgdoc",
+          "pgdoc_data"
         ],
         "minScore": 6
       },
@@ -1648,24 +1677,32 @@
           "postgresql",
           "postgres",
           "cloudbase pg",
-          "pgsql"
+          "pgsql",
+          "pgdoc",
+          "pg document 插件"
         ],
         "intents": [
           "pg 数据库开发",
           "rls 权限",
-          "pg 查询"
+          "pg 查询",
+          "pg 环境跑文档型 sdk",
+          "文档型代码迁到 pg"
         ],
         "entities": [
           "RLS",
           "CREATE POLICY",
           "queryPgDatabase",
           "managePgDatabase",
-          "app.rdb()"
+          "app.rdb()",
+          "EnablePGDocumentExt",
+          "pgdoc_data"
         ],
         "examples": [
           "pg 数据库开发",
           "rls 行级权限",
-          "pg 查询"
+          "pg 查询",
+          "PG Document 插件能兼容文档型数据库吗",
+          "这个隔离环境被建成了 PostgreSQL 模式，跑不了我们的文档型云函数，怎么处理？"
         ]
       }
     },

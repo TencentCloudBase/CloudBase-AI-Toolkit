@@ -1,6 +1,6 @@
 ---
 name: cloudbase-document-database-web-sdk
-description: Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.
+description: Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead. Exception: when an existing document-database app must keep running on a PostgreSQL environment, that is the pgdoc / PG Document plugin — keep app.database() / db.collection() unchanged and read ../postgresql-development-cloudbase/references/pgdoc.md; the redirect above applies only to NEW PG business tables.
 version: 2.37.9
 license: MIT
 alwaysApply: false

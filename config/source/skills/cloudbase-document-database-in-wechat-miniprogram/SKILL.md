@@ -1,6 +1,6 @@
 ---
 name: cloudbase-document-database-in-wechat-miniprogram
-description: Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.
+description: Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries. Also use when a PostgreSQL-mode environment must run existing document-database cloud functions / wx.cloud.database() code: pgdoc / PG Document plugin (EnablePGDocumentExt) carries those requests on PG with no SDK rewrite — read ../postgresql-development-cloudbase/references/pgdoc.md before advising a rebuild or an app.rdb() rewrite.
 version: 2.37.9
 license: MIT
 alwaysApply: false
