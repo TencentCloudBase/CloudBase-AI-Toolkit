@@ -121,6 +121,13 @@ describe("error code registry", () => {
     expect(cloudCodes).toContain("InvalidParameter.Cls");
     expect(cloudCodes).toContain("EXCEED_REQUEST_LIMIT");
     expect(cloudCodes).toContain("InsufficientBalance");
+    expect(cloudCodes).toContain("AuthFailure.UnauthorizedOperation");
+  });
+
+  it("keeps CAM resource denials on the permission path", () => {
+    expect(getErrorCategory("AuthFailure.UnauthorizedOperation")).toBe("permission");
+    expect(isActionRequired("AuthFailure.UnauthorizedOperation")).toBe(false);
+    expect(ERROR_CODES["AuthFailure.UnauthorizedOperation"].origin).toBe("cloud_api");
   });
 
   it("marks the first newly registered code as next", () => {

@@ -38,6 +38,7 @@ export const ERROR_CODES = {
   "AUTH_FAIL": { category: "permission", origin: "self", since: "legacy", note: "其他 / 环境/登录 · 凭据或授权不足，改参数无效" },
   "AUTH_REQUIRED": { category: "action_required", origin: "self", since: "legacy", note: "其他 / 环境/登录 · 需要使用者确认、换凭据或开通服务" },
   "AuthFailure.TokenFailure": { category: "permission", origin: "cloud_api", since: "legacy", note: "云 API · 凭据或授权不足，改参数无效" },
+  "AuthFailure.UnauthorizedOperation": { category: "permission", origin: "cloud_api", since: "legacy", note: "云 API · CAM 资源级拒绝，凭据与目标环境不匹配，改参数无效" },
   "BUCKET_REQUIRED": { category: "invalid_argument", origin: "self", since: "legacy", note: "存储 · 参数或输入不符合要求，改参数可重试" },
   "BUILD_FAILED": { category: "internal", origin: "self", since: "legacy", note: "部署 · 服务端执行失败" },
   "BUILD_OUTPUT_NOT_FOUND": { category: "not_found", origin: "self", since: "legacy", note: "部署 · 目标资源不存在" },
