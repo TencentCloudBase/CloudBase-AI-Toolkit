@@ -7,17 +7,27 @@ on:
   pull_request:
     paths:
       - 'mcp/src/**'
+      - 'mcp/vitest.config.js'
+      - 'mcp/package.json'
+      - 'mcp/tsconfig.json'
       - 'scripts/check-error-codes.mjs'
       - '.github/workflows/check-error-codes.yml'
       - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
   push:
     branches:
       - main
     paths:
       - 'mcp/src/**'
+      - 'mcp/vitest.config.js'
+      - 'mcp/package.json'
+      - 'mcp/tsconfig.json'
       - 'scripts/check-error-codes.mjs'
       - '.github/workflows/check-error-codes.yml'
       - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
 
 permissions:
   contents: read

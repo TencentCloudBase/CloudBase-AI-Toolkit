@@ -3,12 +3,12 @@
  * 守住「错误码唯一真源」。
  *
  * 检查三件事：
- *   1) 登记表自身合法：category / origin / since 取值、自有码命名、无重复键。
- *   2) 产品源码里出现的 errorCode / code 字面量必须已登记（裸字面量数量供后续收敛）。
+ *   1) 登记表自身合法：category / origin / since 取值、自有码命名、重复键、两表交叉、解析完整性。
+ *   2) 产品源码里的错误码字面量必须已登记。覆盖字段赋值、三元条件赋值、比较式判断、switch 分支。
  *   3) 动态拼接的码只提示不阻断：这类值运行时才确定，按文本聚合必然散条。
  *
  * 约定写在 mcp/src/utils/error-codes.ts 的头部注释里。
- * 故意写一个未登记的码，本脚本必须非零退出；--self-test 会自己造这个反例并验证。
+ * --self-test 会为每种写法各造一个未登记的反例，并确认合法写法不会被误伤。
  *
  *   node scripts/check-error-codes.mjs
  *   node scripts/check-error-codes.mjs --json
@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 const SELF_PATH = fileURLToPath(import.meta.url);
 const ROOT_DIR = path.resolve(path.dirname(SELF_PATH), "..");
 const REGISTRY_PATH = path.join(ROOT_DIR, "mcp/src/utils/error-codes.ts");
+const REGISTRY_REL = path.relative(ROOT_DIR, REGISTRY_PATH);
 const SRC_DIR = path.join(ROOT_DIR, "mcp/src");
 
 const CATEGORIES = new Set([
@@ -37,16 +38,27 @@ const SELF_CODE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const EXTERNAL = new Set([
   "ENOTFOUND", "ENOENT", "ETIMEDOUT", "EACCES", "SIGINT", "SIGTERM",
 ]);
-// 三元 / 状态比较里的普通词，不是码。
+// 三元 / 状态比较里的普通词、JS 类型名，不是码。
 const NOT_A_CODE = new Set([
-  "FAILED", "SUCCEED", "SUCCESS", "UNKNOWN", "READY", "PENDING",
-  "ACTIVE", "AVAILABLE", "NORMAL", "EXPIRED", "IDLE", "RUNNING",
+  "FAILED", "SUCCEED", "SUCCESS", "READY", "PENDING", "ACTIVE", "AVAILABLE",
+  "NORMAL", "EXPIRED", "IDLE", "RUNNING", "string", "number", "boolean",
+  "object", "undefined", "function",
 ]);
+const CODE_LIKE = /^(?:[A-Z][A-Z0-9_]{4,}|[A-Z][A-Za-z0-9]*\.[A-Za-z0-9.]+|InsufficientBalance)$/;
 
-function blockBetween(text, startMarker, endMarker) {
+function isCodeLike(value) {
+  return (
+    typeof value === "string" &&
+    !NOT_A_CODE.has(value) &&
+    !value.startsWith("setup.") &&
+    CODE_LIKE.test(value)
+  );
+}
+
+function blockBetween(text, startMarker) {
   const start = text.indexOf(startMarker);
   if (start < 0) return null;
-  const end = text.indexOf(endMarker, start);
+  const end = text.indexOf("\n} as const", start);
   if (end < 0) return null;
   return text.slice(start, end);
 }
@@ -54,22 +66,24 @@ function blockBetween(text, startMarker, endMarker) {
 const ENTRY_LINE =
   /^\s*"([^"]+)":\s*\{\s*category:\s*"([^"]+)",\s*origin:\s*"([^"]+)",\s*since:\s*"([^"]+)",\s*note:\s*"[^"]*"\s*\},?\s*$/gm;
 const STATUS_LINE = /^\s*"([^"]+)":\s*\{\s*note:\s*"[^"]*"\s*\},?\s*$/gm;
+const ENTRY_START = /^\s*"[^"]+":\s*\{/gm;
 
 function parseRegistry(text) {
-  const errorBlock = blockBetween(text, "export const ERROR_CODES = {", "\n} as const satisfies");
-  const statusBlock = blockBetween(text, "export const STATUS_CODES = {", "\n} as const;");
+  const errorBlock = blockBetween(text, "export const ERROR_CODES = {");
+  const statusBlock = blockBetween(text, "export const STATUS_CODES = {");
   if (errorBlock === null || statusBlock === null) {
     throw new Error("登记表结构变了：找不到 ERROR_CODES / STATUS_CODES 块");
   }
-  const entries = [];
-  for (const match of errorBlock.matchAll(ENTRY_LINE)) {
-    entries.push({ code: match[1], category: match[2], origin: match[3], since: match[4] });
-  }
-  const statuses = [];
-  for (const match of statusBlock.matchAll(STATUS_LINE)) {
-    statuses.push(match[1]);
-  }
-  return { entries, statuses };
+  const entries = [...errorBlock.matchAll(ENTRY_LINE)].map((m) => ({
+    code: m[1], category: m[2], origin: m[3], since: m[4],
+  }));
+  const statuses = [...statusBlock.matchAll(STATUS_LINE)].map((m) => m[1]);
+  return {
+    entries,
+    statuses,
+    expectedErrors: [...errorBlock.matchAll(ENTRY_START)].length,
+    expectedStatuses: [...statusBlock.matchAll(ENTRY_START)].length,
+  };
 }
 
 function listSourceFiles(dir) {
@@ -90,28 +104,35 @@ function listSourceFiles(dir) {
 function scanSource(text, relPath) {
   const found = [];
   const lines = text.split("\n");
+  const fieldRe = /(?:errorCode|(?<![A-Za-z])code)\s*:\s*(?:"([^"]+)"|'([^']+)')/g;
+  const compareRe =
+    /(?:"([^"]+)"|'([^']+)')\s*(?:===|!==|==)\s*(?:errorCode|\bcode)|(?:errorCode|\bcode)\s*(?:===|!==|==)\s*(?:"([^"]+)"|'([^']+)')|\.includes\(\s*(?:"([^"]+)"|'([^']+)')\s*\)/g;
+  const caseRe = /case\s+(?:"([^"]+)"|'([^']+)')\s*:/g;
+
   lines.forEach((line, index) => {
-    // 字段直接赋值：errorCode: "X" / code: "X"
-    for (const match of line.matchAll(/(?:errorCode|(?<![A-Za-z])code)\s*:\s*"([A-Z][A-Za-z0-9_.]+)"/g)) {
-      found.push({ code: match[1], line: index + 1, field: true });
+    // 1) 字段赋值：errorCode: "X" / code: "X"
+    for (const m of line.matchAll(fieldRe)) {
+      const value = m[1] ?? m[2];
+      if (isCodeLike(value)) found.push({ code: value, line: index + 1 });
     }
-    // 条件赋值：errorCode: cond ? "X" : "Y"（字面量不紧跟字段名）
+    // 2) 比较式：errorCode === "X" / "X" === code / .includes("X")
+    for (const m of line.matchAll(compareRe)) {
+      const value = m[1] ?? m[2] ?? m[3] ?? m[4] ?? m[5] ?? m[6];
+      if (isCodeLike(value)) found.push({ code: value, line: index + 1 });
+    }
+    // 3) 三元 / 条件赋值行里的大写字面量（字面量不紧跟字段名）
     if (/\berrorCode\s*:/.test(line)) {
-      for (const match of line.matchAll(/"([A-Z][A-Z0-9_]{4,})"/g)) {
-        const code = match[1];
-        if (NOT_A_CODE.has(code)) continue;
-        found.push({ code, line: index + 1, field: false });
+      for (const m of line.matchAll(/"([A-Z][A-Z0-9_]{4,})"/g)) {
+        if (!NOT_A_CODE.has(m[1])) found.push({ code: m[1], line: index + 1 });
       }
     }
-    // 比较式判断：code === "FailedOperation.X" / has("X")
-    if (/\b(?:code|has)\s*(?:===|!==|\()\s*"/.test(line)) {
-      for (const match of line.matchAll(/"([A-Z][A-Za-z0-9_.]+)"/g)) {
-        const code = match[1];
-        if (NOT_A_CODE.has(code)) continue;
-        found.push({ code, line: index + 1, field: false });
-      }
+    // 4) switch 分支里的码形字面量
+    for (const m of line.matchAll(caseRe)) {
+      const value = m[1] ?? m[2];
+      if (isCodeLike(value)) found.push({ code: value, line: index + 1 });
     }
   });
+
   const seen = new Set();
   return found
     .map((item) => ({ ...item, file: relPath }))
@@ -131,39 +152,44 @@ function collect() {
   try {
     registry = parseRegistry(readFileSync(REGISTRY_PATH, "utf8"));
   } catch (error) {
-    const rel = path.relative(ROOT_DIR, REGISTRY_PATH);
-    violations.push({ file: rel, line: 0, message: String(error.message) });
+    violations.push({ file: REGISTRY_REL, line: 0, message: String(error.message) });
     return { violations, warnings, entries: 0, statuses: 0, literals: 0 };
   }
 
-  // 重复键：Map 会静默覆盖，这里按数组长度查。
+  if (registry.entries.length !== registry.expectedErrors ||
+      registry.statuses.length !== registry.expectedStatuses) {
+    violations.push({
+      file: REGISTRY_REL,
+      line: 0,
+      message: `登记表解析不完整：ERROR_CODES ${registry.entries.length}/${registry.expectedErrors}、STATUS_CODES ${registry.statuses.length}/${registry.expectedStatuses}，条目必须单行且字段顺序固定`,
+    });
+  }
+
   const codes = registry.entries.map((entry) => entry.code);
   const statusNames = registry.statuses;
   for (const [label, values] of [["ERROR_CODES", codes], ["STATUS_CODES", statusNames]]) {
-    const duplicates = values.filter((value, index) => values.indexOf(value) !== index);
-    for (const value of new Set(duplicates)) {
-      violations.push({ file: path.relative(ROOT_DIR, REGISTRY_PATH), line: 0, message: `${label}: 重复登记的码 ${value}` });
+    for (const value of new Set(values.filter((v, i) => values.indexOf(v) !== i))) {
+      violations.push({ file: REGISTRY_REL, line: 0, message: `${label}: 重复登记的码 ${value}` });
     }
   }
   for (const value of codes) {
     if (statusNames.includes(value)) {
-      violations.push({ file: path.relative(ROOT_DIR, REGISTRY_PATH), line: 0, message: `${value} 同时出现在两张表里` });
+      violations.push({ file: REGISTRY_REL, line: 0, message: `${value} 同时出现在两张表里` });
     }
   }
 
   for (const entry of registry.entries) {
-    const rel = path.relative(ROOT_DIR, REGISTRY_PATH);
     if (!CATEGORIES.has(entry.category)) {
-      violations.push({ file: rel, line: 0, message: `${entry.code}: 未知 category ${entry.category}` });
+      violations.push({ file: REGISTRY_REL, line: 0, message: `${entry.code}: 未知 category ${entry.category}` });
     }
     if (!ORIGINS.has(entry.origin)) {
-      violations.push({ file: rel, line: 0, message: `${entry.code}: 未知 origin ${entry.origin}` });
+      violations.push({ file: REGISTRY_REL, line: 0, message: `${entry.code}: 未知 origin ${entry.origin}` });
     }
     if (!SINCE.has(entry.since)) {
-      violations.push({ file: rel, line: 0, message: `${entry.code}: 未知 since ${entry.since}` });
+      violations.push({ file: REGISTRY_REL, line: 0, message: `${entry.code}: 未知 since ${entry.since}` });
     }
     if (entry.origin === "self" && !SELF_CODE_PATTERN.test(entry.code)) {
-      violations.push({ file: rel, line: 0, message: `${entry.code}: 自有码必须匹配 [A-Z][A-Z0-9_]*` });
+      violations.push({ file: REGISTRY_REL, line: 0, message: `${entry.code}: 自有码必须匹配 [A-Z][A-Z0-9_]*` });
     }
   }
 
@@ -218,21 +244,48 @@ function finish(result, asJson) {
 }
 
 function runCheckJson() {
-  const child = spawnSync(process.execPath, [SELF_PATH, "--json"], { encoding: "utf8", cwd: ROOT_DIR });
+  const child = spawnSync(process.execPath, [SELF_PATH, "--json"], {
+    encoding: "utf8", cwd: ROOT_DIR, timeout: 30000,
+  });
   let parsed = null;
   try {
     parsed = JSON.parse(child.stdout);
   } catch {
     parsed = null;
   }
-  return { status: child.status, parsed, stderr: child.stderr };
+  return { status: child.status, parsed };
 }
 
-/** CI 里可重复执行的自检：先确认基线干净，再造一个未登记的码，确认被拦且只报一处。 */
+const PROBE_CODE = "SELF_TEST_UNREGISTERED_CODE";
+const NEGATIVE_CASES = [
+  { name: "字段赋值", text: `export const p = { errorCode: "${PROBE_CODE}" };\n` },
+  { name: "比较式判断", text: `export const p = (errorCode) => errorCode === "${PROBE_CODE}";\n` },
+  { name: "三元条件赋值", text: `export const p = (ok) => ({ errorCode: ok ? "${PROBE_CODE}" : undefined });\n` },
+  { name: "code 字段", text: `export const p = { code: "${PROBE_CODE}" };\n` },
+  { name: "switch 分支", text: `export function p(c) { switch (c) { case "${PROBE_CODE}": return true; } }\n` },
+];
+const POSITIVE_CASES = [
+  { name: "已登记状态值", text: `export const p = { code: "AUTH_READY" };\n` },
+  { name: "JS 类型字符串", text: `export const p = (code) => typeof code === "string";\n` },
+];
+
+/** CI 里可重复执行的自检：每种写法各造一个反例，并确认合法写法不被误伤。 */
 function runSelfTest(asJson) {
-  const probe = path.join(SRC_DIR, "tools", `__error_codes_self_test_${process.pid}.ts`);
   const steps = [];
   let ok = false;
+  const probes = [];
+
+  const runCase = (probeName, text) => {
+    const probe = path.join(SRC_DIR, "tools", probeName);
+    probes.push(probe);
+    writeFileSync(probe, text, "utf8");
+    const result = runCheckJson();
+    const hits = (result.parsed?.violations ?? []).filter((v) => v.file.endsWith(probeName));
+    try { unlinkSync(probe); } catch { /* 交给 finally 兜底 */ }
+    probes.pop();
+    return { result, hits };
+  };
+
   try {
     const baseline = runCheckJson();
     steps.push(`baseline: exit=${baseline.status}, ok=${baseline.parsed?.ok}`);
@@ -240,18 +293,29 @@ function runSelfTest(asJson) {
       throw new Error("基线检查未通过，先修登记表或源码");
     }
 
-    writeFileSync(probe, 'export const probe = { errorCode: "SELF_TEST_UNREGISTERED_CODE" };\n', "utf8");
-    const negative = runCheckJson();
-    const hits = (negative.parsed?.violations ?? []).filter((v) => v.file.includes("__error_codes_self_test"));
-    steps.push(`negative: exit=${negative.status}, ok=${negative.parsed?.ok}, hits=${hits.length}`);
-    if (negative.status !== 1 || negative.parsed?.ok !== false || hits.length !== 1) {
-      throw new Error("未登记的码没有被正确拦下（预期 exit=1、ok=false、恰好一处命中）");
+    for (const [index, testCase] of NEGATIVE_CASES.entries()) {
+      const probeName = `__error_codes_probe_${process.pid}_n${index}.ts`;
+      const { result, hits } = runCase(probeName, testCase.text);
+      steps.push(`反例 ${testCase.name}: exit=${result.status}, hits=${hits.length}`);
+      if (result.status !== 1 || result.parsed?.ok !== false || hits.length !== 1) {
+        throw new Error(`反例「${testCase.name}」未被正确拦下（预期 exit=1、ok=false、恰好一处命中）`);
+      }
+    }
+    for (const [index, testCase] of POSITIVE_CASES.entries()) {
+      const probeName = `__error_codes_probe_${process.pid}_p${index}.ts`;
+      const { result, hits } = runCase(probeName, testCase.text);
+      steps.push(`正例 ${testCase.name}: exit=${result.status}, hits=${hits.length}`);
+      if (result.status !== 0 || result.parsed?.ok !== true || hits.length !== 0) {
+        throw new Error(`正例「${testCase.name}」被误伤（预期 exit=0、ok=true、无命中）`);
+      }
     }
     ok = true;
   } catch (error) {
     steps.push(`failed: ${error.message}`);
   } finally {
-    try { unlinkSync(probe); } catch { /* 文件可能没建成 */ }
+    for (const probe of probes) {
+      try { unlinkSync(probe); } catch { /* 已删除或没建成 */ }
+    }
   }
 
   const result = { ok, steps };
