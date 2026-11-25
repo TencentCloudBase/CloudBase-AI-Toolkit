@@ -530,6 +530,54 @@ export function getCredentialSource(): CredentialSource | null {
   return credentialSource;
 }
 
+/**
+ * 本轮生效凭据的范围与绑定环境。只回答「这把凭据属于哪个环境」，
+ * 不换证、不改登录态。判据是凭据文件里的 `authSource`：只有 `api_key`
+ * 来源才是环境级；device / web 登录态即使带 `envId`，那也只是「上次
+ * 绑定的环境」，不是权限边界。读不到或字段不明时保守返回 `account`，
+ * 宁可漏拦，也不能把账号级登录的多环境切换误判成越权。
+ *
+ * 只补旧护栏看不见的那条来源：全局 auth.json 里的 API Key 凭据（进程里
+ * 没有 CLOUDBASE_API_KEY）。环境变量、项目级文件、宿主注入这三条路径都会
+ * 写下 CLOUDBASE_API_KEY + CLOUDBASE_ENV_ID，仍由 env.ts 的兼容分支识别。
+ *
+ * 与 `getCredentialSource()` 约定一致：由 `peekLoginState()` 解析链赋值，
+ * 同步读取，避免把 `isApiKeyCredentialMode()` 改成异步波及多个调用点。
+ */
+export type CredentialBinding = {
+  scope: "env" | "account";
+  envId?: string;
+  authSource?: string;
+};
+
+let credentialBinding: CredentialBinding = { scope: "account" };
+
+export function getCredentialBinding(): CredentialBinding {
+  return credentialBinding;
+}
+
+/**
+ * 从凭据文件原文判范围。导出供单测直接覆盖三种输入；运行时只由
+ * `peekLoginState()` 调用，外部请读 `getCredentialBinding()`。
+ */
+export function deriveCredentialBinding(raw: unknown): CredentialBinding {
+  const record = raw as Record<string, unknown> | null;
+  if (!record || typeof record !== "object") {
+    return { scope: "account" };
+  }
+  // 兼容 legacy slotted credential { domestic, intl }：取有内容的那一份
+  const slot = (record.domestic ?? record.intl) as Record<string, unknown> | undefined;
+  const flat = slot && typeof slot === "object" ? slot : record;
+  if (
+    flat.authSource === "api_key" &&
+    typeof flat.envId === "string" &&
+    flat.envId.length > 0
+  ) {
+    return { scope: "env", envId: flat.envId, authSource: "api_key" };
+  }
+  return { scope: "account" };
+}
+
 // One flat credential in auth.json, shared with the CLI. Legacy slotted
 // files ({ domestic, intl }) are collapsed once on read; the other site is dropped.
 
@@ -869,6 +917,8 @@ export async function peekLoginState(options?: {
 }): Promise<LoginState | null> {
   dropStaleCredentialStoreCache();
   credentialSource = null;
+  // 每次解析登录态都重算绑定，避免进程内缓存把上一次凭据的范围带过来
+  credentialBinding = deriveCredentialBinding(await authStore.get("credential"));
   const envVarLoginState = normalizeLoginStateFromEnvVars(options);
   // 回填的那份 key 换不出临时密钥时置位：项目级文件里是同一份，不必再试一次
   let projectCredentialSkipped = false;

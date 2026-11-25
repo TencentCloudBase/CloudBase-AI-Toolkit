@@ -1428,3 +1428,41 @@ describe("global credential cache freshness", () => {
     expect(mockAuthStore.db).toBeUndefined();
   });
 });
+
+describe("credential binding derivation", () => {
+  it("只有 api_key 来源才算环境级；device 登录态带 envId 仍是账号级", async () => {
+    const { deriveCredentialBinding } = await import("./auth.js");
+
+    expect(
+      deriveCredentialBinding({ authSource: "api_key", envId: "env-637" }),
+    ).toEqual({ scope: "env", envId: "env-637", authSource: "api_key" });
+
+    // 现场回执里 credential_scope=account、auth_mode=device，但登录态同样带
+    // envId（上次绑定的环境）。这个字段不是权限边界，拦它会误伤多环境切换。
+    expect(
+      deriveCredentialBinding({ refreshToken: "rt", envId: "env-637" }),
+    ).toEqual({ scope: "account" });
+    expect(
+      deriveCredentialBinding({ authSource: "web", envId: "env-637" }),
+    ).toEqual({ scope: "account" });
+  });
+
+  it("兼容 legacy slotted 凭据；字段不明时保守回落 account", async () => {
+    const { deriveCredentialBinding } = await import("./auth.js");
+
+    expect(
+      deriveCredentialBinding({
+        domestic: { authSource: "api_key", envId: "env-domestic" },
+      }),
+    ).toEqual({
+      scope: "env",
+      envId: "env-domestic",
+      authSource: "api_key",
+    });
+    expect(deriveCredentialBinding(null)).toEqual({ scope: "account" });
+    expect(deriveCredentialBinding({ authSource: "api_key" })).toEqual({
+      scope: "account",
+    });
+    expect(deriveCredentialBinding({})).toEqual({ scope: "account" });
+  });
+});
