@@ -1,0 +1,74 @@
+name: Error Code Registry Check
+
+# 错误码必须先在 mcp/src/utils/error-codes.ts 登记，才能在工具里使用；
+# 约定写在该文件头部注释里。门禁只用 Node 内置模块，单测在独立 job 里跑。
+
+on:
+  pull_request:
+    paths:
+      - 'mcp/src/**'
+      - 'mcp/vitest.config.js'
+      - 'mcp/package.json'
+      - 'mcp/tsconfig.json'
+      - 'scripts/check-error-codes.mjs'
+      - '.github/workflows/check-error-codes.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'mcp/src/**'
+      - 'mcp/vitest.config.js'
+      - 'mcp/package.json'
+      - 'mcp/tsconfig.json'
+      - 'scripts/check-error-codes.mjs'
+      - '.github/workflows/check-error-codes.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  error-codes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Verify the guard catches an unregistered code
+        run: node scripts/check-error-codes.mjs --self-test
+
+      - name: Check error code registry
+        run: node scripts/check-error-codes.mjs
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test error code registry
+        working-directory: mcp
+        run: pnpm exec vitest run src/utils/error-codes.test.ts
