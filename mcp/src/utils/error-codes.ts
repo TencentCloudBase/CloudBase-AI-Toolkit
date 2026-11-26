@@ -89,6 +89,7 @@ export const ERROR_CODES = {
   "LOGOUT_NOT_ALLOWED": { category: "permission", origin: "self", since: "legacy", note: "环境/登录 · 凭据或授权不足，改参数无效" },
   "LOG_SERVICE_NOT_ENABLED": { category: "action_required", origin: "self", since: "legacy", note: "函数/日志 · 需要使用者确认、换凭据或开通服务" },
   "MIGRATION_API_ERROR": { category: "internal", origin: "self", since: "legacy", note: "PG · 服务端执行失败" },
+  "MIGRATION_NAME_DRIFT": { category: "invalid_argument", origin: "self", since: "next", note: "PG · 同名版本与远端历史名称不一致，改参数可重试（服务端不比对已应用版本的名称）" },
   "MIGRATION_NAME_INVALID": { category: "invalid_argument", origin: "self", since: "legacy", note: "PG · 参数或输入不符合要求，改参数可重试" },
   "MIGRATION_NAME_REQUIRED": { category: "invalid_argument", origin: "self", since: "legacy", note: "PG · 参数或输入不符合要求，改参数可重试" },
   "MIGRATION_NOT_APPLIED": { category: "precondition", origin: "self", since: "legacy", note: "PG · 环境或资源状态不满足" },
