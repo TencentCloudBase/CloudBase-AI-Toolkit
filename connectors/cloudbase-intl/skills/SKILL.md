@@ -155,7 +155,7 @@ These rules override convenience. Full rationale lives in `web-development`.
 - **Native App / Flutter / React Native** — Android CloudBase, iOS CloudBase, Flutter CloudBase, React Native CloudBase, 原生 App 接入
 - **Web projects + NoSQL Database** — Web 文档数据库, CloudBase collection, 前端查库, NoSQL Web SDK
 - **CloudBase PostgreSQL Best Practices** — PG access pattern, 数据库访问路径, N+1 查询, 批量查询, 慢查询, EXPLAIN ANALYZE, 缺索引, 活动数据库容量
-- **CloudBase PostgreSQL / PG** — CloudBase PG, PostgreSQL, Postgres, PG 模式, JS SDK v3 PostgreSQL, app.rdb(), queryPgDatabase, managePgDatabase, mysqldb OpenAPI, PostgREST, RLS, service_role, auth schema, storage schema, pgvector, 关系型数据库, 建表
+- **CloudBase PostgreSQL / PG** — CloudBase PG, PostgreSQL, Postgres, PG 模式, JS SDK v3 PostgreSQL, app.rdb(), queryPgDatabase, managePgDatabase, mysqldb OpenAPI, PostgREST, RLS, service_role, auth schema, storage schema, pgvector, 关系型数据库, 建表, pgdoc, PG Document 插件, PG 文档插件, EnablePGDocumentExt, 文档型云函数, 文档库迁 PG, 文档型 SDK 跑在 PG
 - **Existing MySQL (do not recommend)** — 已有 MySQL, 现有 MySQL 实例, queryMysqlDatabase, manageMysqlDatabase
 - **Cloud Functions** — 创建云函数, HTTP 云函数, getFunctionLogs, scf_bootstrap, runtime
 - **CloudRun backend** — CloudRun 部署, 云托管, container backend, Dockerfile

@@ -66,6 +66,8 @@ Report one of these outcomes clearly:
 Do not silently replace an existing skill path.
 Show the user the conflict summary first, then proceed only after confirmation.
 
+`install-skill.mjs` stops and prints the conflict summary when either path already exists. It changes no files in that case. Re-run with `--confirm-replace` only after the user agrees to replace them.
+
 ## Dry run
 
 Use dry run when the user wants analysis or confirmation before changing files.

@@ -174,6 +174,107 @@ test('installLocalSkill supports explicit copy mode', () => {
   expect(fs.lstatSync(result.canonicalPath).isDirectory()).toBe(true);
 });
 
+test('installLocalSkill refuses to replace an existing install without confirmation', () => {
+  const rootDir = makeTempDir('manage-local-skills-conflict-guard-');
+  const sourceDir = path.join(rootDir, 'skills', 'demo-skill');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  writeStandardSkill(sourceDir);
+
+  installLocalSkill({
+    sourceDir,
+    skillName: 'demo-skill',
+    agentKey: 'claude-code',
+    scope: 'project',
+    mode: 'symlink',
+    cwd: rootDir,
+  });
+
+  const canonicalPath = path.join(rootDir, '.agents', 'skills', 'demo-skill');
+  const targetPath = path.join(rootDir, '.claude', 'skills', 'demo-skill');
+  // The canonical entry is a symlink to the maintained source, so assert on the source itself.
+  fs.writeFileSync(path.join(sourceDir, 'user-added-file.txt'), 'keep me\n', 'utf8');
+
+  const result = installLocalSkill({
+    sourceDir,
+    skillName: 'demo-skill',
+    agentKey: 'claude-code',
+    scope: 'project',
+    mode: 'copy',
+    cwd: rootDir,
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.requiresConfirmation).toBe(true);
+  expect(result.canonicalConflict).not.toBe('none');
+  expect(fs.existsSync(path.join(sourceDir, 'user-added-file.txt'))).toBe(true);
+  expect(fs.lstatSync(canonicalPath).isSymbolicLink()).toBe(true);
+  expect(fs.lstatSync(targetPath).isSymbolicLink()).toBe(true);
+});
+
+test('installLocalSkill replaces an existing install when confirmReplace is true', () => {
+  const rootDir = makeTempDir('manage-local-skills-confirmed-replace-');
+  const sourceDir = path.join(rootDir, 'skills', 'demo-skill');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  writeStandardSkill(sourceDir);
+
+  installLocalSkill({
+    sourceDir,
+    skillName: 'demo-skill',
+    agentKey: 'claude-code',
+    scope: 'project',
+    mode: 'symlink',
+    cwd: rootDir,
+  });
+
+  const result = installLocalSkill({
+    sourceDir,
+    skillName: 'demo-skill',
+    agentKey: 'claude-code',
+    scope: 'project',
+    mode: 'copy',
+    confirmReplace: true,
+    cwd: rootDir,
+  });
+
+  expect(result.success).toBe(true);
+  expect(result.mode).toBe('copy');
+  expect(fs.lstatSync(result.canonicalPath).isDirectory()).toBe(true);
+  expect(fs.existsSync(path.join(result.canonicalPath, 'SKILL.md'))).toBe(true);
+  expect(fs.existsSync(path.join(result.targetPath, 'SKILL.md'))).toBe(true);
+});
+
+test('installLocalSkill dry run reports conflicts without changing files', () => {
+  const rootDir = makeTempDir('manage-local-skills-dry-run-conflict-');
+  const sourceDir = path.join(rootDir, 'skills', 'demo-skill');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  writeStandardSkill(sourceDir);
+
+  installLocalSkill({
+    sourceDir,
+    skillName: 'demo-skill',
+    agentKey: 'claude-code',
+    scope: 'project',
+    mode: 'symlink',
+    cwd: rootDir,
+  });
+
+  const result = installLocalSkill({
+    sourceDir,
+    skillName: 'demo-skill',
+    agentKey: 'claude-code',
+    scope: 'project',
+    mode: 'copy',
+    dryRun: true,
+    cwd: rootDir,
+  });
+
+  expect(result.success).toBe(true);
+  expect(result.dryRun).toBe(true);
+  expect(result.canonicalConflict).not.toBe('none');
+  expect(result.targetConflict).not.toBe('none');
+  expect(fs.lstatSync(path.join(rootDir, '.agents', 'skills', 'demo-skill')).isSymbolicLink()).toBe(true);
+});
+
 test('validateSkill passes for a valid skill and fails for missing references', () => {
   const validDir = makeTempDir('manage-local-skills-validate-ok-');
   writeStandardSkill(validDir);

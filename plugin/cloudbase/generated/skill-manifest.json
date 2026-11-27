@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generatedAt": "2026-11-19T06:16:26.166Z",
+  "generatedAt": "2026-11-25T12:30:56.869Z",
   "skills": {
     "ai-model-nodejs": {
       "name": "ai-model-nodejs",
@@ -1038,7 +1038,7 @@
     },
     "cloudbase-document-database-in-wechat-miniprogram": {
       "name": "cloudbase-document-database-in-wechat-miniprogram",
-      "description": "Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries.",
+      "description": "Use CloudBase document database WeChat MiniProgram SDK to query, create, update, and delete data. Supports complex queries, pagination, aggregation, and geolocation queries. Also use when a PostgreSQL-mode environment must run existing document-database cloud functions / wx.cloud.database() code: pgdoc / PG Document plugin (EnablePGDocumentExt) carries those requests on PG with no SDK rewrite — read ../postgresql-development-cloudbase/references/pgdoc.md before advising a rebuild or an app.rdb() rewrite.",
       "version": "2.37.9",
       "metadata": {
         "priority": 5
@@ -1093,7 +1093,7 @@
     },
     "cloudbase-document-database-web-sdk": {
       "name": "cloudbase-document-database-web-sdk",
-      "description": "Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead.",
+      "description": "Use CloudBase document database Web SDK only for confirmed NoSQL collection work. Query, create, update, and delete document data; if the task mentions PostgreSQL / CloudBase PG / app.rdb(), route to postgresql-development instead. Exception: when an existing document-database app must keep running on a PostgreSQL environment, that is the pgdoc / PG Document plugin — keep app.database() / db.collection() unchanged and read ../postgresql-development-cloudbase/references/pgdoc.md; the redirect above applies only to NEW PG business tables.",
       "version": "2.37.9",
       "metadata": {
         "priority": 7
@@ -1834,7 +1834,7 @@
     },
     "postgresql-development-cloudbase": {
       "name": "postgresql-development-cloudbase",
-      "description": "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG.",
+      "description": "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG. Also use when an existing document-database app (app.database() / db.collection() / wx.cloud.database() / wx-server-sdk cloud functions) must run on a PostgreSQL environment without rewriting its SDK calls — that is the pgdoc / PG Document plugin (EnablePGDocumentExt), not a PG rewrite; see references/pgdoc.md.",
       "version": "2.37.9",
       "metadata": {
         "priority": 7
@@ -1854,7 +1854,14 @@
           "创建表",
           "mysql 存储",
           "mysql 数据库",
-          "pgsql"
+          "pgsql",
+          "pgdoc",
+          "pg document 插件",
+          "pg 文档插件",
+          "enablepgdocumentext",
+          "文档型云函数",
+          "文档库迁 pg",
+          "文档型 sdk 跑在 pg"
         ],
         "allOf": [
           [
@@ -1876,12 +1883,34 @@
           [
             "mysql",
             "存储"
+          ],
+          [
+            "文档型",
+            "postgresql"
+          ],
+          [
+            "文档",
+            "pgdoc"
+          ],
+          [
+            "db.collection",
+            "postgresql"
+          ],
+          [
+            "文档型",
+            "pg"
+          ],
+          [
+            "文档",
+            "sdk"
           ]
         ],
         "anyOf": [
           "rls",
           "create policy",
-          "queryPgDatabase"
+          "queryPgDatabase",
+          "pgdoc",
+          "pgdoc_data"
         ],
         "minScore": 6
       },
@@ -1890,24 +1919,32 @@
           "postgresql",
           "postgres",
           "cloudbase pg",
-          "pgsql"
+          "pgsql",
+          "pgdoc",
+          "pg document 插件"
         ],
         "intents": [
           "pg 数据库开发",
           "rls 权限",
-          "pg 查询"
+          "pg 查询",
+          "pg 环境跑文档型 sdk",
+          "文档型代码迁到 pg"
         ],
         "entities": [
           "RLS",
           "CREATE POLICY",
           "queryPgDatabase",
           "managePgDatabase",
-          "app.rdb()"
+          "app.rdb()",
+          "EnablePGDocumentExt",
+          "pgdoc_data"
         ],
         "examples": [
           "pg 数据库开发",
           "rls 行级权限",
-          "pg 查询"
+          "pg 查询",
+          "PG Document 插件能兼容文档型数据库吗",
+          "这个隔离环境被建成了 PostgreSQL 模式，跑不了我们的文档型云函数，怎么处理？"
         ]
       },
       "pathRegexSources": [],

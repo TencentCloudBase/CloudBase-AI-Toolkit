@@ -1855,7 +1855,7 @@ describe("PG database tools", () => {
       ).toBe(false);
     });
 
-    it("applyMigration hydrates remote history into Push payload", async () => {
+    it("applyMigration sends applied versions as metadata only", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
       setupMigrationMock();
@@ -1883,36 +1883,26 @@ describe("PG database tools", () => {
 
       expect(payload).toMatchObject({
         success: true,
-        data: { hydratedRemoteCount: 1, payloadSource: "hydrate", verified: true },
+        data: { hydratedRemoteCount: 1, verified: true },
       });
-      expect(mockCommonServiceCall).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Action: "DescribePGUserMigration",
-          Param: expect.objectContaining({ MigrationVersion: "20260701000000" }),
-        }),
+      // Applied versions carry no SQL, so there is nothing to Describe.
+      expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
+        expect.objectContaining({ Action: "DescribePGUserMigration" }),
       );
-      expect(mockCommonServiceCall).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Action: "PushPGUserMigrations",
-          Param: expect.objectContaining({
-            Migrations: [
-              expect.objectContaining({
-                Version: "20260701000000",
-                Name: "init_schema",
-                Query: "CREATE TABLE public.init(id int)",
-              }),
-              expect.objectContaining({
-                Version: "20260720160000",
-                Name: "create_test_table",
-                Query: "CREATE TABLE public.test(id int)",
-              }),
-            ],
-          }),
-        }),
+      const pushCall = mockCommonServiceCall.mock.calls.find(
+        (call) => call[0]?.Action === "PushPGUserMigrations",
       );
+      expect(pushCall?.[0]?.Param?.Migrations).toEqual([
+        { Version: "20260701000000", Name: "init_schema" },
+        {
+          Version: "20260720160000",
+          Name: "create_test_table",
+          Query: "CREATE TABLE public.test(id int)",
+        },
+      ]);
     });
 
-    it("applyMigration uses local tree when it covers remote history (skips Describe hydrate)", async () => {
+    it("applyMigration ignores local files when building applied-version metadata", async () => {
       const { server, tools } = createMockServer();
       registerPGDatabaseTools(server, { createClient: vi.fn() });
       setupMigrationMock();
@@ -1947,29 +1937,54 @@ describe("PG database tools", () => {
 
       expect(payload).toMatchObject({
         success: true,
-        data: { hydratedRemoteCount: 1, payloadSource: "local", verified: true },
+        data: { hydratedRemoteCount: 1, verified: true },
       });
       expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
         expect.objectContaining({ Action: "DescribePGUserMigration" }),
       );
-      expect(mockCommonServiceCall).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Action: "PushPGUserMigrations",
-          Param: expect.objectContaining({
-            Migrations: [
-              expect.objectContaining({
-                Version: "20260701000000",
-                Name: "init_schema",
-                Query: remoteSql,
-              }),
-              expect.objectContaining({
-                Version: "20260720160000",
-                Name: "create_test_table",
-                Query: "CREATE TABLE public.test(id int)",
-              }),
-            ],
-          }),
+      // The local file for the applied version must not leak back into the payload.
+      const pushCall = mockCommonServiceCall.mock.calls.find(
+        (call) => call[0]?.Action === "PushPGUserMigrations",
+      );
+      expect(pushCall?.[0]?.Param?.Migrations).toEqual([
+        { Version: "20260701000000", Name: "init_schema" },
+        {
+          Version: "20260720160000",
+          Name: "create_test_table",
+          Query: "CREATE TABLE public.test(id int)",
+        },
+      ]);
+    });
+
+    it("applyMigration blocks renaming an already-applied version", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, { createClient: vi.fn() });
+      setupMigrationMock();
+      mockApplyMigrationCloudApis({
+        remoteMigrations: [
+          {
+            Version: "20260701000000",
+            Name: "init_schema",
+            Query: "CREATE TABLE public.init(id int)",
+          },
+        ],
+        pendingVersion: "20260701000000",
+        pendingName: "renamed_schema",
+      });
+
+      const payload = buildToolPayload(
+        await tools.managePgDatabase.handler({
+          action: "applyMigration",
+          migrationName: "renamed_schema",
+          migrationVersion: "20260701000000",
+          sql: "CREATE TABLE public.renamed(id int)",
+          confirm: true,
         }),
+      );
+
+      expect(payload).toMatchObject({ success: false, errorCode: "MIGRATION_NAME_DRIFT" });
+      expect(mockCommonServiceCall).not.toHaveBeenCalledWith(
+        expect.objectContaining({ Action: "PushPGUserMigrations" }),
       );
     });
 
@@ -2908,7 +2923,7 @@ describe("PG database tools", () => {
         expect(commonServiceCall).not.toHaveBeenCalled();
       });
 
-      it("applyMigration runs the full native chain (list→describe→preview→push→task→verify)", async () => {
+      it("applyMigration runs the full native chain (list→preview→push→task→verify)", async () => {
         const { server, tools } = createMockServer();
         registerPGDatabaseTools(server, { createClient: vi.fn() });
         const { nativeDb, commonServiceCall } = setupNativeMigrationMock();
@@ -2933,12 +2948,6 @@ describe("PG database tools", () => {
                 Total: 1,
                 LatestVersion: "20260701000000",
               };
-        });
-        nativeDb.describePGUserMigration.mockResolvedValue({
-          RequestId: "req-describe-native",
-          Version: "20260701000000",
-          Name: "init",
-          Query: "SELECT 1",
         });
         nativeDb.previewPGUserMigrations.mockResolvedValue({
           RequestId: "req-preview-native",
@@ -2974,12 +2983,17 @@ describe("PG database tools", () => {
         expect(nativeDb.pushPGUserMigrations).toHaveBeenCalledWith(
           expect.objectContaining({
             EnvId: "env-test",
-            Migrations: expect.arrayContaining([
-              expect.objectContaining({ Version: "20260701000000", Query: "SELECT 1" }),
-              expect.objectContaining({ Version: "20260720160000" }),
-            ]),
+            Migrations: [
+              { Version: "20260701000000", Name: "init" },
+              {
+                Version: "20260720160000",
+                Name: "create_test_table",
+                Query: "CREATE TABLE public.test(id int)",
+              },
+            ],
           }),
         );
+        expect(nativeDb.describePGUserMigration).not.toHaveBeenCalled();
         expect(nativeDb.describeTaskResult).toHaveBeenCalledWith(
           expect.objectContaining({ EnvId: "env-test", TaskId: "task-native-1" }),
         );

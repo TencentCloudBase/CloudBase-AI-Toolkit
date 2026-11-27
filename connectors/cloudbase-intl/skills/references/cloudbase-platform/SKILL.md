@@ -43,6 +43,7 @@ If a referenced sibling skill file is missing from this environment, ask the use
 - Official HTTP API clients -> `../http-api-cloudbase/SKILL.md`
 - Document database -> `../cloudbase-document-database-web-sdk/SKILL.md` or `../cloudbase-document-database-in-wechat-miniprogram/SKILL.md`
 - CloudBase PostgreSQL / PG -> `../postgresql-development-cloudbase/SKILL.md`
+- **Document API carried by PostgreSQL (pgdoc / PG Document plugin)** -> `../postgresql-development-cloudbase/references/pgdoc.md` — a third option when an environment was created in PostgreSQL mode but the app already uses document-database SDK calls (`app.database()` / `db.collection()` / `wx.cloud.database()` / cloud functions). Enabling the plugin keeps those calls and their HTTP API unchanged; do not rebuild the environment or rewrite to `app.rdb()`. New PG business tables still use the PG path above.
 - Realtime / live push / channels / live table change subscriptions / multiplayer sync -> `../postgresql-development-cloudbase/references/realtime.md`
   - **PG mode only.** Read its Step 0 before writing realtime code: `describeRealtime` only reads settings, so do not call `enableRealtime` as a routine step — ask the user before provisioning.
   - `app.realtime()` (Broadcast / Presence / Postgres CDC) is **not** document-database `collection.watch()`. Do not answer a realtime request with `watch()` code, or the reverse.
