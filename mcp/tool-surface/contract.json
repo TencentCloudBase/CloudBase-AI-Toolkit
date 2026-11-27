@@ -1,0 +1,4737 @@
+[
+  {
+    "name": "auth",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "env"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "status",
+            "start_auth",
+            "set_env",
+            "logout",
+            "get_temp_credentials",
+            "login_by_api_key"
+          ]
+        },
+        "authMode": {
+          "type": "string",
+          "enum": [
+            "device",
+            "web"
+          ]
+        },
+        "oauthEndpoint": {
+          "type": "string"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "oauthCustom": {
+          "type": "boolean"
+        },
+        "site": {
+          "type": "string",
+          "enum": [
+            "domestic",
+            "intl"
+          ]
+        },
+        "envId": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "lang": {
+          "type": "string",
+          "enum": [
+            "zh",
+            "en"
+          ]
+        },
+        "apiKey": {
+          "type": "string"
+        },
+        "apiKeyEnvId": {
+          "type": "string"
+        },
+        "confirm": {
+          "type": "string",
+          "const": "yes"
+        },
+        "reveal": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "name": "queryEnv",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "env"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "info",
+            "domains",
+            "usage",
+            "metrics"
+          ]
+        },
+        "alias": {
+          "type": "string"
+        },
+        "aliasExact": {
+          "type": "boolean"
+        },
+        "envId": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string",
+          "enum": [
+            "ap-shanghai",
+            "ap-guangzhou",
+            "ap-singapore"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "fields": {
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "EnvId",
+              "Alias",
+              "Status",
+              "EnvType",
+              "Region",
+              "PackageId",
+              "PackageName",
+              "IsDefault"
+            ]
+          }
+        },
+        "type": {
+          "maxItems": 19,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "FLEXDB",
+              "TDSQL",
+              "PostgreSQL",
+              "SCF",
+              "CBF",
+              "EKS",
+              "COS",
+              "AI",
+              "Token",
+              "HOSTING",
+              "Auth",
+              "Gateway",
+              "Workflow",
+              "CLS",
+              "EO",
+              "STORAGE_EO",
+              "CI",
+              "VM",
+              "Other"
+            ]
+          }
+        },
+        "startDate": {
+          "type": "string"
+        },
+        "endDate": {
+          "type": "string"
+        },
+        "needUsageDetails": {
+          "type": "boolean"
+        },
+        "metricName": {
+          "type": "string",
+          "enum": [
+            "GatewayTraceEnvQPS",
+            "EnvQPSAll",
+            "FunctionInvocation",
+            "FunctionError",
+            "FunctionTimeout",
+            "FunctionThrottle",
+            "FunctionDuration",
+            "FunctionConcurrentExecutions",
+            "DbRead",
+            "DbWrite",
+            "DbSizepkg",
+            "MysqlCpuUsageRate",
+            "MysqlMemoryUse",
+            "MysqlStorageUsage",
+            "MysqlQps",
+            "MysqlSlowQueries",
+            "MysqlDbConnections",
+            "TkeCpuUsedService",
+            "TkeMemUsedService",
+            "TkeQPSService",
+            "TkeHttpErrorService",
+            "TkeInvokeNumService"
+          ]
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "period": {
+          "type": "number",
+          "enum": [
+            300,
+            3600,
+            86400
+          ]
+        },
+        "resourceID": {
+          "type": "string"
+        },
+        "subresourceID": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "envDomainManagement",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "env"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "create",
+            "delete"
+          ]
+        },
+        "domains": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "action",
+        "domains"
+      ]
+    }
+  },
+  {
+    "name": "manageEnv",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "env"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "listPackages",
+            "create",
+            "modifyPlan",
+            "renew",
+            "addSecurityDomain",
+            "removeSecurityDomain"
+          ]
+        },
+        "domains": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alias": {
+          "type": "string"
+        },
+        "packageId": {
+          "type": "string"
+        },
+        "resources": {
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "storage",
+              "function",
+              "postgresql"
+            ]
+          }
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 36
+        },
+        "externalStorage": {
+          "type": "object",
+          "properties": {
+            "bucketName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "region": {
+              "type": "string",
+              "minLength": 1
+            },
+            "basePath": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "bucketName",
+            "region",
+            "basePath"
+          ]
+        },
+        "region": {
+          "type": "string",
+          "enum": [
+            "ap-shanghai",
+            "ap-guangzhou",
+            "ap-singapore"
+          ]
+        },
+        "envId": {
+          "type": "string"
+        },
+        "confirm": {
+          "type": "string",
+          "const": "yes"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "readNoSqlDatabaseStructure",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "NoSQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "listCollections",
+            "describeCollection",
+            "checkCollection",
+            "listIndexes",
+            "checkIndex"
+          ]
+        },
+        "limit": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "collectionName": {
+          "type": "string"
+        },
+        "indexName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "writeNoSqlDatabaseStructure",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "NoSQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "createCollection",
+            "updateCollection",
+            "deleteCollection"
+          ]
+        },
+        "collectionName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "updateOptions": {
+          "type": "object",
+          "properties": {
+            "CreateIndexes": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "IndexName": {
+                    "type": "string"
+                  },
+                  "MgoKeySchema": {
+                    "type": "object",
+                    "properties": {
+                      "MgoIsUnique": {
+                        "type": "boolean"
+                      },
+                      "MgoIndexKeys": {
+                        "maxItems": 32,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "Name": {
+                              "type": "string"
+                            },
+                            "Direction": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "Name",
+                            "Direction"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "MgoIsUnique",
+                      "MgoIndexKeys"
+                    ]
+                  }
+                },
+                "required": [
+                  "IndexName",
+                  "MgoKeySchema"
+                ]
+              }
+            },
+            "DropIndexes": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "IndexName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "IndexName"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "action",
+        "collectionName"
+      ]
+    }
+  },
+  {
+    "name": "readNoSqlDatabaseContent",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "NoSQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "collectionName": {
+          "type": "string"
+        },
+        "instanceId": {
+          "type": "string"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {}
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "projection": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {}
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "sort": {
+          "anyOf": [
+            {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "direction": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "key",
+                  "direction"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "limit": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "collectionName"
+      ]
+    }
+  },
+  {
+    "name": "writeNoSqlDatabaseContent",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "NoSQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "insert",
+            "update",
+            "delete"
+          ]
+        },
+        "collectionName": {
+          "type": "string"
+        },
+        "instanceId": {
+          "type": "string"
+        },
+        "documents": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {}
+          }
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {}
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "update": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": {}
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "isMulti": {
+          "type": "boolean"
+        },
+        "upsert": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action",
+        "collectionName"
+      ]
+    }
+  },
+  {
+    "name": "manageDataModel",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "get",
+            "list",
+            "docs"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "names": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "modifyDataModel",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "mermaidDiagram": {
+          "type": "string"
+        },
+        "action": {
+          "default": "create",
+          "type": "string",
+          "enum": [
+            "create"
+          ]
+        },
+        "publish": {
+          "default": false,
+          "type": "boolean"
+        },
+        "dbInstanceType": {
+          "default": "MYSQL",
+          "type": "string",
+          "enum": [
+            "MYSQL",
+            "FLEXDB"
+          ]
+        }
+      },
+      "required": [
+        "mermaidDiagram"
+      ]
+    }
+  },
+  {
+    "name": "queryPgDatabase",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "PostgreSQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "context",
+            "objects",
+            "metadata",
+            "schema",
+            "sql"
+          ]
+        },
+        "sql": {
+          "type": "string"
+        },
+        "objectName": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "managePgDatabase",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "PostgreSQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "execute",
+            "dryRun",
+            "planMigration",
+            "applyMigration",
+            "listMigrations",
+            "migrationDetail",
+            "describeMigrationTask",
+            "fetchMigration",
+            "repairMigration",
+            "describeRealtime",
+            "enableRealtime",
+            "modifyRealtime"
+          ]
+        },
+        "sql": {
+          "type": "string"
+        },
+        "confirm": {
+          "type": "boolean"
+        },
+        "envId": {
+          "type": "string"
+        },
+        "instanceId": {
+          "type": "string"
+        },
+        "defaultSchema": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "objectName": {
+          "type": "string"
+        },
+        "migrationName": {
+          "type": "string",
+          "pattern": "^[a-z][a-z_]*$"
+        },
+        "migrationVersion": {
+          "type": "string",
+          "pattern": "^\\d{14}$"
+        },
+        "rollbackSql": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "lockTimeoutMs": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "statementTimeoutMs": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "taskPollTimeoutMs": {
+          "type": "integer",
+          "minimum": 5000,
+          "maximum": 600000
+        },
+        "waitForTask": {
+          "type": "boolean"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "repairStatus": {
+          "type": "string",
+          "enum": [
+            "applied",
+            "reverted"
+          ]
+        },
+        "repairReason": {
+          "type": "string"
+        },
+        "force": {
+          "type": "boolean"
+        },
+        "includeAll": {
+          "type": "boolean"
+        },
+        "allowDdlViaExecute": {
+          "type": "boolean"
+        },
+        "suspend": {
+          "type": "boolean"
+        },
+        "privateOnly": {
+          "type": "boolean"
+        },
+        "presenceEnabled": {
+          "type": "boolean"
+        },
+        "maxConcurrentUsers": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15000
+        },
+        "maxEventsPerSecond": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxJoinsPerSecond": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxBytesPerSecond": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxChannelsPerClient": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxPresenceEventsPerSecond": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxPayloadSizeInKB": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "connectionPool": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "postgresChangesPool": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryPgStorage",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "PostgreSQL storage"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "buckets",
+            "config",
+            "uploadPlan",
+            "objectInfo",
+            "signUpload",
+            "signDownload",
+            "createBucket"
+          ]
+        },
+        "bucket": {
+          "type": "string"
+        },
+        "objectKey": {
+          "type": "string"
+        },
+        "objectKeys": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "objects": {
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "objectKey": {
+                "type": "string"
+              },
+              "contentType": {
+                "type": "string"
+              },
+              "sizeBytes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "objectKey"
+            ]
+          }
+        },
+        "expiresIn": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryMysqlDatabase",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "SQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "runQuery",
+            "describeCreateResult",
+            "describeTaskStatus",
+            "getInstanceInfo",
+            "describeInstance",
+            "getConnectionInfo",
+            "describeInstanceSlowQueries",
+            "describeInstanceErrorLogs"
+          ]
+        },
+        "sql": {
+          "type": "string"
+        },
+        "request": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "dbInstance": {
+          "type": "object",
+          "properties": {
+            "instanceId": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "username": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "database": {
+          "type": "string"
+        },
+        "orderBy": {
+          "type": "string",
+          "enum": [
+            "QueryTime",
+            "LockTime",
+            "RowsExamined",
+            "RowsSent",
+            "Timestamp"
+          ]
+        },
+        "orderByType": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc",
+            "ASC",
+            "DESC"
+          ]
+        },
+        "sqlText": {
+          "type": "string"
+        },
+        "logLevels": {
+          "maxItems": 3,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "note"
+            ]
+          }
+        },
+        "keyWords": {
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageMysqlDatabase",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "SQL database"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "destroyMySQL",
+            "runStatement",
+            "initializeSchema"
+          ]
+        },
+        "confirm": {
+          "type": "boolean"
+        },
+        "sql": {
+          "type": "string"
+        },
+        "request": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "statements": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requireReady": {
+          "type": "boolean"
+        },
+        "statusContext": {
+          "type": "object",
+          "properties": {
+            "createResultRequest": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "taskStatusRequest": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          }
+        },
+        "dbInstance": {
+          "type": "object",
+          "properties": {
+            "instanceId": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryFunctions",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "functions"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "listFunctions",
+            "getFunctionDetail",
+            "listFunctionLogs",
+            "getFunctionLogDetail",
+            "listFunctionLayers",
+            "listLayers",
+            "listLayerVersions",
+            "getLayerVersionDetail",
+            "listFunctionTriggers",
+            "getFunctionDownloadUrl",
+            "getFunctionDeployStatus",
+            "listVersionByFunction",
+            "getFunctionAlias",
+            "getFunctionUploadUrl"
+          ]
+        },
+        "functionName": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "codeSecret": {
+          "type": "string"
+        },
+        "revealEnvValues": {
+          "type": "boolean"
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "requestId": {
+          "type": "string"
+        },
+        "qualifier": {
+          "type": "string"
+        },
+        "context": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "searchKey": {
+          "type": "string"
+        },
+        "layerName": {
+          "type": "string"
+        },
+        "layerVersion": {
+          "type": "number"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "order": {
+          "type": "string",
+          "enum": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        "orderBy": {
+          "type": "string",
+          "enum": [
+            "AddTime",
+            "ModTime"
+          ]
+        },
+        "aliasName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageFunctions",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "functions"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "createFunction",
+            "updateFunctionCode",
+            "updateFunctionConfig",
+            "invokeFunction",
+            "deleteFunction",
+            "createFunctionTrigger",
+            "deleteFunctionTrigger",
+            "createLayerVersion",
+            "deleteLayerVersion",
+            "attachLayer",
+            "detachLayer",
+            "updateFunctionLayers",
+            "publishVersion",
+            "updateFunctionAliasConfig",
+            "incrementalDeployFunction"
+          ]
+        },
+        "func": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "Event",
+                "HTTP"
+              ]
+            },
+            "protocolType": {
+              "type": "string",
+              "enum": [
+                "WS"
+              ]
+            },
+            "protocolParams": {
+              "type": "object",
+              "properties": {
+                "wsParams": {
+                  "type": "object",
+                  "properties": {
+                    "idleTimeOut": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            },
+            "instanceConcurrencyConfig": {
+              "type": "object",
+              "properties": {
+                "dynamicEnabled": {
+                  "type": "boolean"
+                },
+                "maxConcurrency": {
+                  "type": "number"
+                }
+              }
+            },
+            "timeout": {
+              "type": "number"
+            },
+            "envVariables": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "vpc": {
+              "type": "object",
+              "properties": {
+                "vpcId": {
+                  "type": "string"
+                },
+                "subnetId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "vpcId",
+                "subnetId"
+              ]
+            },
+            "runtime": {
+              "type": "string"
+            },
+            "buildStrategy": {
+              "type": "string",
+              "enum": [
+                "zip",
+                "cloud",
+                "local",
+                "image"
+              ]
+            },
+            "imageConfig": {
+              "type": "object",
+              "properties": {
+                "imageType": {
+                  "type": "string",
+                  "enum": [
+                    "enterprise",
+                    "personal"
+                  ]
+                },
+                "registryId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "imagePort": {
+                  "type": "number",
+                  "const": 9000
+                },
+                "entryPoint": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "command": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "string"
+                },
+                "commandList": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "argsList": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "containerImageAccelerate": {
+                  "type": "boolean"
+                },
+                "imageUri": {
+                  "type": "string"
+                },
+                "build": {
+                  "type": "object",
+                  "properties": {
+                    "cwd": {
+                      "type": "string"
+                    },
+                    "dockerfile": {
+                      "type": "string"
+                    },
+                    "registryId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "namespace": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "repository": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "tag": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$"
+                    },
+                    "platform": {
+                      "type": "string",
+                      "const": "linux/amd64"
+                    },
+                    "buildArgs": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "registryCredential": {
+                      "type": "object",
+                      "properties": {
+                        "username": {
+                          "type": "string",
+                          "pattern": "^\\d{5,20}$"
+                        },
+                        "password": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 16384
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    "forceBuild": {
+                      "type": "boolean"
+                    },
+                    "retainedTags": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "cwd"
+                  ],
+                  "additionalProperties": false
+                },
+                "localFallback": {
+                  "type": "string",
+                  "enum": [
+                    "cloud",
+                    "error"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "triggers": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "timer"
+                    ]
+                  },
+                  "config": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "type",
+                  "config"
+                ]
+              }
+            },
+            "handler": {
+              "type": "string"
+            },
+            "ignore": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "maxItems": 200,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "isWaitInstall": {
+              "type": "boolean"
+            },
+            "layers": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version"
+                ]
+              }
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "functionRootPath": {
+          "type": "string"
+        },
+        "force": {
+          "type": "boolean"
+        },
+        "functionName": {
+          "type": "string"
+        },
+        "zipFile": {
+          "type": "string"
+        },
+        "code": {
+          "type": "object",
+          "properties": {
+            "cosBucketName": {
+              "type": "string"
+            },
+            "cosObjectName": {
+              "type": "string"
+            },
+            "cosBucketRegion": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cosBucketName",
+            "cosObjectName"
+          ],
+          "additionalProperties": false
+        },
+        "handler": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "number"
+        },
+        "envVariables": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "vpc": {
+          "type": "object",
+          "properties": {
+            "vpcId": {
+              "type": "string"
+            },
+            "subnetId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "vpcId",
+            "subnetId"
+          ]
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "triggers": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "timer"
+                ]
+              },
+              "config": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "type",
+              "config"
+            ]
+          }
+        },
+        "triggerName": {
+          "type": "string"
+        },
+        "replaceAll": {
+          "type": "boolean"
+        },
+        "layerName": {
+          "type": "string"
+        },
+        "layerVersion": {
+          "type": "number"
+        },
+        "contentPath": {
+          "type": "string"
+        },
+        "base64Content": {
+          "type": "string"
+        },
+        "runtimes": {
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "licenseInfo": {
+          "type": "string"
+        },
+        "layers": {
+          "maxItems": 10,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "layerName": {
+                "type": "string"
+              },
+              "layerVersion": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "layerName",
+              "layerVersion"
+            ]
+          }
+        },
+        "codeSecret": {
+          "type": "string"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "wait": {
+          "default": true,
+          "type": "boolean"
+        },
+        "autoGrant": {
+          "default": false,
+          "type": "boolean"
+        },
+        "confirm": {
+          "type": "boolean"
+        },
+        "incrementalFile": {
+          "type": "string"
+        },
+        "aliasName": {
+          "type": "string"
+        },
+        "functionVersion": {
+          "type": "string"
+        },
+        "routingConfig": {
+          "type": "object",
+          "properties": {
+            "AdditionalVersionWeights": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Version": {
+                    "type": "string"
+                  },
+                  "Weight": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "Version",
+                  "Weight"
+                ]
+              }
+            },
+            "AddtionVersionMatchs": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "Version": {
+                    "type": "string"
+                  },
+                  "Key": {
+                    "type": "string"
+                  },
+                  "Method": {
+                    "type": "string"
+                  },
+                  "Expression": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "Version",
+                  "Key",
+                  "Method",
+                  "Expression"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryHosting",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "hosting"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "websiteConfig",
+            "status",
+            "findFiles",
+            "listFiles",
+            "domainStatus"
+          ]
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "marker": {
+          "type": "string"
+        },
+        "maxKeys": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "domains": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageHosting",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "hosting"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "upload",
+            "delete",
+            "setWebsiteDocument",
+            "enableService",
+            "bindDomain",
+            "unbindDomain",
+            "updateDomain",
+            "downloadFile",
+            "downloadDirectory"
+          ]
+        },
+        "localPath": {
+          "type": "string"
+        },
+        "cloudPath": {
+          "type": "string"
+        },
+        "files": {
+          "default": [],
+          "maxItems": 500,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "localPath": {
+                "type": "string"
+              },
+              "cloudPath": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "localPath",
+              "cloudPath"
+            ]
+          }
+        },
+        "ignore": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "isDir": {
+          "default": false,
+          "type": "boolean"
+        },
+        "confirm": {
+          "default": false,
+          "type": "boolean"
+        },
+        "indexDocument": {
+          "type": "string"
+        },
+        "errorDocument": {
+          "type": "string"
+        },
+        "routingRules": {
+          "maxItems": 50,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "keyPrefixEquals": {
+                "type": "string"
+              },
+              "httpErrorCodeReturnedEquals": {
+                "type": "string"
+              },
+              "replaceKeyWith": {
+                "type": "string"
+              },
+              "replaceKeyPrefixWith": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "domain": {
+          "type": "string"
+        },
+        "certId": {
+          "type": "string"
+        },
+        "domainId": {
+          "type": "number"
+        },
+        "domainConfig": {
+          "type": "object",
+          "properties": {
+            "Refer": {
+              "type": "object",
+              "properties": {
+                "Switch": {
+                  "type": "string",
+                  "enum": [
+                    "on",
+                    "off"
+                  ]
+                },
+                "RefererRules": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "RefererType": {
+                        "type": "string",
+                        "enum": [
+                          "blacklist",
+                          "whitelist"
+                        ]
+                      },
+                      "Referers": {
+                        "maxItems": 100,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "AllowEmpty": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "RefererType",
+                      "Referers",
+                      "AllowEmpty"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "Switch"
+              ]
+            },
+            "Cache": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "RuleType": {
+                    "type": "string",
+                    "enum": [
+                      "fileType",
+                      "path"
+                    ]
+                  },
+                  "RuleValue": {
+                    "type": "string"
+                  },
+                  "CacheTtl": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "RuleType",
+                  "RuleValue",
+                  "CacheTtl"
+                ]
+              }
+            },
+            "IpFilter": {
+              "type": "object",
+              "properties": {
+                "Switch": {
+                  "type": "string",
+                  "enum": [
+                    "on",
+                    "off"
+                  ]
+                },
+                "FilterType": {
+                  "type": "string",
+                  "enum": [
+                    "blacklist",
+                    "whitelist"
+                  ]
+                },
+                "Filters": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "Switch"
+              ]
+            },
+            "IpFreqLimit": {
+              "type": "object",
+              "properties": {
+                "Switch": {
+                  "type": "string",
+                  "enum": [
+                    "on",
+                    "off"
+                  ]
+                },
+                "Qps": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "Switch"
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryStorage",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "storage"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "info",
+            "url",
+            "read"
+          ]
+        },
+        "cloudPath": {
+          "type": "string"
+        },
+        "maxAge": {
+          "default": 3600,
+          "type": "number",
+          "minimum": 1,
+          "maximum": 86400
+        }
+      },
+      "required": [
+        "action",
+        "cloudPath"
+      ]
+    }
+  },
+  {
+    "name": "manageStorage",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "storage"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "upload",
+            "download",
+            "delete"
+          ]
+        },
+        "localPath": {
+          "type": "string"
+        },
+        "cloudPath": {
+          "type": "string"
+        },
+        "force": {
+          "default": false,
+          "type": "boolean"
+        },
+        "isDirectory": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action",
+        "cloudPath"
+      ]
+    }
+  },
+  {
+    "name": "downloadTemplate",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "category": "setup"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "template": {
+          "type": "string",
+          "enum": [
+            "react",
+            "vue",
+            "miniprogram",
+            "uniapp",
+            "rules"
+          ]
+        },
+        "ide": {
+          "type": "string",
+          "enum": [
+            "all",
+            "cursor",
+            "codebuddy",
+            "claude-code",
+            "gemini-cli",
+            "opencode",
+            "qwen-code",
+            "baidu-comate",
+            "openai-codex-cli",
+            "github-copilot",
+            "roocode",
+            "tongyi-lingma",
+            "trae",
+            "qoder",
+            "antigravity",
+            "vscode",
+            "kiro",
+            "aider",
+            "iflow-cli"
+          ]
+        },
+        "overwrite": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "template",
+        "ide"
+      ]
+    }
+  },
+  {
+    "name": "searchKnowledgeBase",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": true,
+      "category": "rag"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "skill",
+            "openapi",
+            "docs"
+          ]
+        },
+        "skillName": {
+          "type": "string",
+          "enum": [
+            "ai-model-nodejs",
+            "ai-model-web",
+            "auth-nodejs-cloudbase",
+            "auth-tool-cloudbase",
+            "auth-web-cloudbase",
+            "cloud-api-operations",
+            "cloud-functions",
+            "cloud-storage-web",
+            "cloudbase-agent",
+            "cloudbase-cli",
+            "cloudbase-code-review",
+            "cloudbase-declarative-deploy",
+            "cloudbase-document-database-web-sdk",
+            "cloudbase-mcp",
+            "cloudbase-platform",
+            "cloudbase-wechat-integration",
+            "cloudrun-development",
+            "http-api-cloudbase",
+            "minimal-web-baas-demo",
+            "ops-inspector",
+            "postgresql-best-practices-cloudbase",
+            "postgresql-development-cloudbase",
+            "relational-database-mcp-cloudbase",
+            "relational-database-web-cloudbase",
+            "spec-workflow",
+            "ui-design",
+            "web-development"
+          ]
+        },
+        "apiName": {
+          "type": "string",
+          "enum": [
+            "mysqldb",
+            "pgdb",
+            "functions",
+            "auth",
+            "cloudrun",
+            "storage",
+            "nosql",
+            "ai_model"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "listModules",
+            "listModuleDocs",
+            "findByName",
+            "readDoc",
+            "searchDocs"
+          ]
+        },
+        "moduleName": {
+          "type": "string"
+        },
+        "input": {
+          "type": "string"
+        },
+        "docPath": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode"
+      ]
+    }
+  },
+  {
+    "name": "queryCloudRun",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "cloudrun"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "list",
+            "detail",
+            "templates",
+            "getDeployLog",
+            "getProcessLog",
+            "getDeployRecords",
+            "envStatus",
+            "getManageTask"
+          ]
+        },
+        "pageSize": {
+          "default": 10,
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "pageNum": {
+          "default": 1,
+          "type": "number",
+          "minimum": 1
+        },
+        "serverName": {
+          "type": "string"
+        },
+        "serverType": {
+          "type": "string",
+          "enum": [
+            "function",
+            "container"
+          ]
+        },
+        "envId": {
+          "type": "string"
+        },
+        "detailServerName": {
+          "type": "string"
+        },
+        "buildId": {
+          "type": "number"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "revealEnvParams": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageCloudRun",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "cloudrun"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "init",
+            "download",
+            "run",
+            "deploy",
+            "delete",
+            "createAgent",
+            "updateConfig",
+            "initEnv",
+            "traffic"
+          ]
+        },
+        "serverName": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{2,44}$"
+        },
+        "trafficOp": {
+          "type": "string",
+          "enum": [
+            "set",
+            "promote",
+            "rollback"
+          ]
+        },
+        "stablePercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "canaryPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "envId": {
+          "type": "string"
+        },
+        "packageType": {
+          "default": "Trial",
+          "type": "string",
+          "enum": [
+            "Trial",
+            "Standard",
+            "Professional",
+            "Enterprise"
+          ]
+        },
+        "vpcId": {
+          "type": "string"
+        },
+        "subnetIds": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "targetPath": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "envParamsReplaceAll": {
+          "default": false,
+          "type": "boolean"
+        },
+        "serverConfig": {
+          "type": "object",
+          "properties": {
+            "OpenAccessTypes": {
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "OA",
+                  "PUBLIC",
+                  "MINIAPP",
+                  "VPC"
+                ]
+              }
+            },
+            "Cpu": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "Mem": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "MinNum": {
+              "type": "number",
+              "minimum": 0
+            },
+            "MaxNum": {
+              "type": "number",
+              "minimum": 1
+            },
+            "PolicyDetails": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "PolicyType": {
+                    "type": "string",
+                    "enum": [
+                      "cpu",
+                      "mem",
+                      "cpu/mem"
+                    ]
+                  },
+                  "PolicyThreshold": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                },
+                "required": [
+                  "PolicyType",
+                  "PolicyThreshold"
+                ]
+              }
+            },
+            "CustomLogs": {
+              "type": "string"
+            },
+            "Port": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "EnvParams": {
+              "type": "string"
+            },
+            "Dockerfile": {
+              "type": "string"
+            },
+            "BuildDir": {
+              "type": "string"
+            },
+            "InternalAccess": {
+              "type": "string",
+              "enum": [
+                "open",
+                "close"
+              ]
+            },
+            "InternalDomain": {
+              "type": "string"
+            },
+            "EntryPoint": {
+              "maxItems": 100,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "Cmd": {
+              "maxItems": 100,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "InitialDelaySeconds": {
+              "type": "number",
+              "minimum": 0
+            },
+            "LogType": {
+              "type": "string"
+            },
+            "LogSetId": {
+              "type": "string"
+            },
+            "LogTopicId": {
+              "type": "string"
+            },
+            "LogParseType": {
+              "type": "string"
+            },
+            "Tag": {
+              "type": "string"
+            },
+            "OperationMode": {
+              "type": "string"
+            },
+            "SessionAffinity": {
+              "type": "string"
+            },
+            "TimerScale": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "CycleType": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "daily",
+                      "weekly",
+                      "monthly"
+                    ]
+                  },
+                  "StartDate": {
+                    "type": "string"
+                  },
+                  "EndDate": {
+                    "type": "string"
+                  },
+                  "StartTime": {
+                    "type": "string"
+                  },
+                  "EndTime": {
+                    "type": "string"
+                  },
+                  "ReplicaNum": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "CycleType",
+                  "StartTime",
+                  "EndTime",
+                  "ReplicaNum"
+                ]
+              }
+            },
+            "VpcConf": {
+              "type": "object",
+              "properties": {
+                "VpcId": {
+                  "type": "string"
+                },
+                "SubnetId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "VpcId",
+                "SubnetId"
+              ]
+            },
+            "VolumesConf": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "Type": {
+                        "type": "string",
+                        "const": "COS"
+                      },
+                      "BucketName": {
+                        "type": "string"
+                      },
+                      "DstPath": {
+                        "type": "string"
+                      },
+                      "Endpoint": {
+                        "type": "string"
+                      },
+                      "SrcPath": {
+                        "type": "string"
+                      },
+                      "ReadOnly": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "Type",
+                      "BucketName",
+                      "DstPath"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "Type": {
+                        "type": "string",
+                        "const": "CFS"
+                      },
+                      "InstanceId": {
+                        "type": "string"
+                      },
+                      "DstPath": {
+                        "type": "string"
+                      },
+                      "MountIP": {
+                        "type": "string"
+                      },
+                      "KeyID": {
+                        "type": "string"
+                      },
+                      "SrcPath": {
+                        "type": "string"
+                      },
+                      "ReadOnly": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "Type",
+                      "InstanceId",
+                      "DstPath"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "PublicNetConf": {
+              "type": "object",
+              "properties": {
+                "PublicNetStatus": {
+                  "type": "string",
+                  "enum": [
+                    "ENABLE",
+                    "DISABLE"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "template": {
+          "default": "helloworld",
+          "type": "string"
+        },
+        "runOptions": {
+          "type": "object",
+          "properties": {
+            "port": {
+              "default": 3000,
+              "type": "number",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "envParams": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "runMode": {
+              "default": "normal",
+              "type": "string",
+              "enum": [
+                "normal",
+                "agent"
+              ]
+            },
+            "agentId": {
+              "type": "string"
+            }
+          }
+        },
+        "agentConfig": {
+          "type": "object",
+          "properties": {
+            "agentName": {
+              "type": "string"
+            },
+            "botTag": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "template": {
+              "default": "blank",
+              "type": "string"
+            }
+          },
+          "required": [
+            "agentName"
+          ]
+        },
+        "force": {
+          "default": false,
+          "type": "boolean"
+        },
+        "serverType": {
+          "type": "string",
+          "enum": [
+            "function",
+            "container"
+          ]
+        },
+        "waitRegistration": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "deployBuild",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "deploy"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "cwd": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  {
+    "name": "deployPlan",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "deploy"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "cwd": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "envId": {
+          "type": "string"
+        },
+        "only": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "database",
+              "functions",
+              "app",
+              "hosting",
+              "gateway"
+            ]
+          }
+        },
+        "skip": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "database",
+              "functions",
+              "app",
+              "hosting",
+              "gateway"
+            ]
+          }
+        },
+        "yes": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "name": "deployApply",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": false,
+      "category": "deploy"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "confirm": {
+          "type": "boolean"
+        },
+        "confirmDestructive": {
+          "type": "boolean"
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "envId": {
+          "type": "string"
+        },
+        "only": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "database",
+              "functions",
+              "app",
+              "hosting",
+              "gateway"
+            ]
+          }
+        },
+        "skip": {
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "database",
+              "functions",
+              "app",
+              "hosting",
+              "gateway"
+            ]
+          }
+        },
+        "yes": {
+          "type": "boolean"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "continueOnError": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "name": "queryGateway",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "gateway"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "listRoutes",
+            "getRoute",
+            "listCustomDomains",
+            "getPrivilege",
+            "cachePurgeTask"
+          ]
+        },
+        "targetName": {
+          "type": "string"
+        },
+        "routeId": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "cacheType": {
+          "type": "string",
+          "enum": [
+            "CDN",
+            "EO"
+          ]
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "purgeType": {
+          "type": "string",
+          "enum": [
+            "PURGE_URL",
+            "PURGE_PREFIX",
+            "PURGE_HOST"
+          ]
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageGateway",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "gateway"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "createRoute",
+            "updateRoute",
+            "deleteRoute",
+            "enableRoute",
+            "disableRoute",
+            "bindCustomDomain",
+            "deleteCustomDomain",
+            "enableService",
+            "authSwitch",
+            "purgeCache"
+          ]
+        },
+        "targetName": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "upstreamResourceType": {
+          "type": "string",
+          "enum": [
+            "SCF",
+            "WEB_SCF",
+            "CBR",
+            "STATIC_STORE",
+            "LH",
+            "STORAGE"
+          ]
+        },
+        "auth": {
+          "type": "boolean"
+        },
+        "enablePathTransmission": {
+          "type": "boolean"
+        },
+        "enableSafeDomain": {
+          "type": "boolean"
+        },
+        "pathRewrite": {
+          "type": "object",
+          "properties": {
+            "prefix": {
+              "type": "string"
+            },
+            "staticStorePrefix": {
+              "type": "string"
+            }
+          }
+        },
+        "qpsPolicy": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "perClient": {
+              "type": "object",
+              "properties": {
+                "limitBy": {
+                  "type": "string",
+                  "enum": [
+                    "ClientIP",
+                    "UserID"
+                  ]
+                },
+                "limitValue": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              }
+            }
+          }
+        },
+        "extension": {
+          "type": "object",
+          "properties": {
+            "headersHandler": {
+              "type": "object",
+              "properties": {
+                "requestHeadersToAdd": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "APPEND_IF_EXISTS_OR_ADD",
+                          "ADD_IF_ABSENT",
+                          "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "OVERWRITE_IF_EXISTS"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ]
+                  }
+                },
+                "requestHeadersToRemove": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "responseHeadersToAdd": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "APPEND_IF_EXISTS_OR_ADD",
+                          "ADD_IF_ABSENT",
+                          "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "OVERWRITE_IF_EXISTS"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ]
+                  }
+                },
+                "responseHeadersToRemove": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "cache": {
+              "type": "object",
+              "properties": {
+                "rules": {
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      },
+                      "enable": {
+                        "type": "boolean"
+                      },
+                      "condition": {
+                        "type": "object",
+                        "properties": {
+                          "target": {
+                            "type": "string",
+                            "enum": [
+                              "url_path",
+                              "file_extension",
+                              "full_uri"
+                            ]
+                          },
+                          "matchType": {
+                            "type": "string",
+                            "enum": [
+                              "prefix",
+                              "suffix",
+                              "contains",
+                              "exact"
+                            ]
+                          },
+                          "values": {
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "actions": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "Cache",
+                                "CacheKey"
+                              ]
+                            },
+                            "cache": {
+                              "type": "object",
+                              "properties": {
+                                "followOrigin": {
+                                  "type": "boolean"
+                                },
+                                "noCache": {
+                                  "type": "boolean"
+                                },
+                                "cacheTime": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "maxAgeTime": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              }
+                            },
+                            "cacheKey": {
+                              "type": "object",
+                              "properties": {
+                                "fullUrlCache": {
+                                  "type": "string",
+                                  "enum": [
+                                    "on",
+                                    "off"
+                                  ]
+                                },
+                                "queryStringSwitch": {
+                                  "type": "string",
+                                  "enum": [
+                                    "on",
+                                    "off"
+                                  ]
+                                },
+                                "queryStringAction": {
+                                  "type": "string",
+                                  "enum": [
+                                    "includeCustom",
+                                    "excludeCustom"
+                                  ]
+                                },
+                                "queryStringValues": {
+                                  "maxItems": 50,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "condition",
+                      "actions"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "domainExtension": {
+          "type": "object",
+          "properties": {
+            "headersHandler": {
+              "type": "object",
+              "properties": {
+                "requestHeadersToAdd": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "APPEND_IF_EXISTS_OR_ADD",
+                          "ADD_IF_ABSENT",
+                          "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "OVERWRITE_IF_EXISTS"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ]
+                  }
+                },
+                "requestHeadersToRemove": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "responseHeadersToAdd": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": [
+                          "APPEND_IF_EXISTS_OR_ADD",
+                          "ADD_IF_ABSENT",
+                          "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "OVERWRITE_IF_EXISTS"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "value"
+                    ]
+                  }
+                },
+                "responseHeadersToRemove": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "cache": {
+              "type": "object",
+              "properties": {
+                "rules": {
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "description": {
+                        "type": "string"
+                      },
+                      "enable": {
+                        "type": "boolean"
+                      },
+                      "condition": {
+                        "type": "object",
+                        "properties": {
+                          "target": {
+                            "type": "string",
+                            "enum": [
+                              "url_path",
+                              "file_extension",
+                              "full_uri"
+                            ]
+                          },
+                          "matchType": {
+                            "type": "string",
+                            "enum": [
+                              "prefix",
+                              "suffix",
+                              "contains",
+                              "exact"
+                            ]
+                          },
+                          "values": {
+                            "maxItems": 50,
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "actions": {
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "Cache",
+                                "CacheKey"
+                              ]
+                            },
+                            "cache": {
+                              "type": "object",
+                              "properties": {
+                                "followOrigin": {
+                                  "type": "boolean"
+                                },
+                                "noCache": {
+                                  "type": "boolean"
+                                },
+                                "cacheTime": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "maxAgeTime": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              }
+                            },
+                            "cacheKey": {
+                              "type": "object",
+                              "properties": {
+                                "fullUrlCache": {
+                                  "type": "string",
+                                  "enum": [
+                                    "on",
+                                    "off"
+                                  ]
+                                },
+                                "queryStringSwitch": {
+                                  "type": "string",
+                                  "enum": [
+                                    "on",
+                                    "off"
+                                  ]
+                                },
+                                "queryStringAction": {
+                                  "type": "string",
+                                  "enum": [
+                                    "includeCustom",
+                                    "excludeCustom"
+                                  ]
+                                },
+                                "queryStringValues": {
+                                  "maxItems": 50,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "condition",
+                      "actions"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "HTTP",
+            "HTTPS",
+            "HTTP_AND_HTTPS",
+            "HTTP_TO_HTTPS",
+            "HTTPS_TO_HTTP"
+          ]
+        },
+        "route": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "serviceName": {
+              "type": "string"
+            },
+            "upstreamResourceType": {
+              "type": "string",
+              "enum": [
+                "SCF",
+                "WEB_SCF",
+                "CBR",
+                "STATIC_STORE",
+                "LH",
+                "STORAGE"
+              ]
+            },
+            "auth": {
+              "type": "boolean"
+            },
+            "enablePathTransmission": {
+              "type": "boolean"
+            },
+            "enableSafeDomain": {
+              "type": "boolean"
+            },
+            "pathRewrite": {
+              "type": "object",
+              "properties": {
+                "prefix": {
+                  "type": "string"
+                },
+                "staticStorePrefix": {
+                  "type": "string"
+                }
+              }
+            },
+            "qpsPolicy": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "perClient": {
+                  "type": "object",
+                  "properties": {
+                    "limitBy": {
+                      "type": "string",
+                      "enum": [
+                        "ClientIP",
+                        "UserID"
+                      ]
+                    },
+                    "limitValue": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                }
+              }
+            },
+            "extension": {
+              "type": "object",
+              "properties": {
+                "headersHandler": {
+                  "type": "object",
+                  "properties": {
+                    "requestHeadersToAdd": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "APPEND_IF_EXISTS_OR_ADD",
+                              "ADD_IF_ABSENT",
+                              "OVERWRITE_IF_EXISTS_OR_ADD",
+                              "OVERWRITE_IF_EXISTS"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "value"
+                        ]
+                      }
+                    },
+                    "requestHeadersToRemove": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "responseHeadersToAdd": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "APPEND_IF_EXISTS_OR_ADD",
+                              "ADD_IF_ABSENT",
+                              "OVERWRITE_IF_EXISTS_OR_ADD",
+                              "OVERWRITE_IF_EXISTS"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "value"
+                        ]
+                      }
+                    },
+                    "responseHeadersToRemove": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "cache": {
+                  "type": "object",
+                  "properties": {
+                    "rules": {
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "enable": {
+                            "type": "boolean"
+                          },
+                          "condition": {
+                            "type": "object",
+                            "properties": {
+                              "target": {
+                                "type": "string",
+                                "enum": [
+                                  "url_path",
+                                  "file_extension",
+                                  "full_uri"
+                                ]
+                              },
+                              "matchType": {
+                                "type": "string",
+                                "enum": [
+                                  "prefix",
+                                  "suffix",
+                                  "contains",
+                                  "exact"
+                                ]
+                              },
+                              "values": {
+                                "maxItems": 50,
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "actions": {
+                            "maxItems": 20,
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "Cache",
+                                    "CacheKey"
+                                  ]
+                                },
+                                "cache": {
+                                  "type": "object",
+                                  "properties": {
+                                    "followOrigin": {
+                                      "type": "boolean"
+                                    },
+                                    "noCache": {
+                                      "type": "boolean"
+                                    },
+                                    "cacheTime": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "maxAgeTime": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  }
+                                },
+                                "cacheKey": {
+                                  "type": "object",
+                                  "properties": {
+                                    "fullUrlCache": {
+                                      "type": "string",
+                                      "enum": [
+                                        "on",
+                                        "off"
+                                      ]
+                                    },
+                                    "queryStringSwitch": {
+                                      "type": "string",
+                                      "enum": [
+                                        "on",
+                                        "off"
+                                      ]
+                                    },
+                                    "queryStringAction": {
+                                      "type": "string",
+                                      "enum": [
+                                        "includeCustom",
+                                        "excludeCustom"
+                                      ]
+                                    },
+                                    "queryStringValues": {
+                                      "maxItems": 50,
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "condition",
+                          "actions"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "enable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "domain": {
+          "type": "string"
+        },
+        "certificateId": {
+          "type": "string"
+        },
+        "accessType": {
+          "type": "string",
+          "enum": [
+            "DIRECT",
+            "CDN",
+            "CUSTOM"
+          ]
+        },
+        "customCname": {
+          "type": "string"
+        },
+        "enable": {
+          "type": "boolean"
+        },
+        "cacheType": {
+          "type": "string",
+          "enum": [
+            "CDN",
+            "EO"
+          ]
+        },
+        "purgeType": {
+          "type": "string",
+          "enum": [
+            "PURGE_URL",
+            "PURGE_PREFIX",
+            "PURGE_HOST"
+          ]
+        },
+        "targets": {
+          "maxItems": 200,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryAppAuth",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "auth"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "getLoginConfig",
+            "listProviders",
+            "getProvider",
+            "getClientConfig",
+            "getPublishableKey",
+            "getStaticDomain",
+            "listApiKeys"
+          ]
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "keyType": {
+          "type": "string",
+          "enum": [
+            "publish_key",
+            "api_key"
+          ]
+        },
+        "pageNumber": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        },
+        "pageSize": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageAppAuth",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "auth"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "patchLoginStrategy",
+            "addProvider",
+            "updateProvider",
+            "deleteProvider",
+            "updateClientConfig",
+            "ensurePublishableKey",
+            "createApiKey",
+            "deleteApiKey",
+            "createCustomLoginKeys"
+          ]
+        },
+        "patch": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "providerId": {
+          "type": "string"
+        },
+        "providerType": {
+          "type": "string",
+          "enum": [
+            "OAUTH",
+            "OIDC",
+            "SAML",
+            "WX_MICRO_APP",
+            "WX_QRCODE_MICRO_APP",
+            "WX_CLOUDBASE_MICRO_APP",
+            "WX_MP",
+            "WX_OPEN",
+            "WX_WORK_INTERNAL",
+            "WX_WORK_AGENT",
+            "WX_WORK_THIRD_PARTY",
+            "WX_WORK_THIRD_PARTY_ASSOCIATION",
+            "CUSTOM",
+            "EMAIL"
+          ]
+        },
+        "displayName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          ]
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "keyType": {
+          "type": "string",
+          "enum": [
+            "publish_key",
+            "api_key"
+          ]
+        },
+        "keyName": {
+          "type": "string"
+        },
+        "expireIn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "keyId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryApps",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "apps"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "listApps",
+            "getApp",
+            "listAppVersions",
+            "getAppVersion",
+            "getBuildLog",
+            "getUploadUrl"
+          ]
+        },
+        "serviceName": {
+          "type": "string"
+        },
+        "searchKey": {
+          "type": "string"
+        },
+        "pageNo": {
+          "type": "number"
+        },
+        "pageSize": {
+          "type": "number"
+        },
+        "versionName": {
+          "type": "string"
+        },
+        "buildId": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "start": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageApps",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "apps"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "deployApp",
+            "getUploadUrl",
+            "deleteApp",
+            "deleteAppVersion"
+          ]
+        },
+        "serviceName": {
+          "type": "string"
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "cosTimestamp": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "appPath": {
+          "type": "string"
+        },
+        "buildPath": {
+          "type": "string"
+        },
+        "framework": {
+          "type": "string",
+          "enum": [
+            "vue",
+            "react",
+            "next",
+            "nuxt",
+            "vite",
+            "angular",
+            "static"
+          ]
+        },
+        "nodeJsVersion": {
+          "type": "string"
+        },
+        "installCmd": {
+          "type": "string"
+        },
+        "buildCmd": {
+          "type": "string"
+        },
+        "deployCmd": {
+          "type": "string"
+        },
+        "ignore": {
+          "maxItems": 200,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "versionName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "serviceName"
+      ]
+    }
+  },
+  {
+    "name": "queryPermissions",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "permissions"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "getResourcePermission",
+            "listResourcePermissions",
+            "listRoles",
+            "getRole",
+            "listUsers",
+            "getUser",
+            "listPolicy",
+            "getPolicy"
+          ]
+        },
+        "resourceType": {
+          "type": "string",
+          "enum": [
+            "noSqlDatabase",
+            "sqlDatabase",
+            "function",
+            "storage"
+          ]
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "resourceIds": {
+          "maxItems": 200,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleId": {
+          "type": "string"
+        },
+        "roleIdentity": {
+          "type": "string"
+        },
+        "roleName": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "pageNo": {
+          "type": "number"
+        },
+        "pageSize": {
+          "type": "number"
+        },
+        "extension": {
+          "type": "boolean"
+        },
+        "policyResourceType": {
+          "type": "string",
+          "enum": [
+            "policy"
+          ]
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "managePermissions",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "permissions"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "updateResourcePermission",
+            "createRole",
+            "updateRole",
+            "deleteRoles",
+            "addRoleMembers",
+            "removeRoleMembers",
+            "addRolePolicies",
+            "removeRolePolicies",
+            "createUser",
+            "updateUser",
+            "deleteUsers",
+            "setPolicy"
+          ]
+        },
+        "resourceType": {
+          "type": "string",
+          "enum": [
+            "noSqlDatabase",
+            "sqlDatabase",
+            "function",
+            "storage"
+          ]
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "string",
+          "enum": [
+            "READONLY",
+            "PRIVATE",
+            "ADMINWRITE",
+            "ADMINONLY",
+            "CUSTOM"
+          ]
+        },
+        "securityRule": {
+          "type": "string"
+        },
+        "roleId": {
+          "type": "string"
+        },
+        "roleIds": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roleName": {
+          "type": "string"
+        },
+        "roleIdentity": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "memberUids": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "policies": {
+          "maxItems": 20,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "policyIds": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "uid": {
+          "type": "string"
+        },
+        "uids": {
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "userStatus": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "BLOCKED"
+          ]
+        },
+        "regoContent": {
+          "type": "string"
+        },
+        "confirm": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryLogs",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "logs"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "checkLogService",
+            "searchLogs"
+          ]
+        },
+        "queryString": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string",
+          "enum": [
+            "tcb",
+            "tcbr"
+          ]
+        },
+        "startTime": {
+          "type": "string"
+        },
+        "endTime": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "number"
+        },
+        "context": {
+          "type": "string"
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageLogs",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "logs"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "createLogService"
+          ]
+        },
+        "confirm": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "queryAgents",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "agents"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "listAgents",
+            "getAgent",
+            "getAgentLogs"
+          ]
+        },
+        "agentId": {
+          "type": "string"
+        },
+        "pageNumber": {
+          "type": "number"
+        },
+        "pageSize": {
+          "type": "number"
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "manageAgents",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "agents"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "createAgent",
+            "updateAgent",
+            "deleteAgent"
+          ]
+        },
+        "agentId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "number"
+        },
+        "memorySize": {
+          "type": "number"
+        },
+        "installDependency": {
+          "type": "boolean"
+        },
+        "zipFile": {
+          "type": "string"
+        },
+        "cosBucketRegion": {
+          "type": "string"
+        },
+        "tempCosObjectName": {
+          "type": "string"
+        },
+        "sessionConfig": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "callCloudApi",
+    "annotations": {
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false,
+      "category": "cloud-api"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "service": {
+          "type": "string",
+          "enum": [
+            "tcb",
+            "tcbr",
+            "scf",
+            "sts",
+            "cam",
+            "cloudaudit",
+            "tag",
+            "billing",
+            "region",
+            "ba",
+            "cvm",
+            "lighthouse",
+            "tke",
+            "cbs",
+            "cfs",
+            "tcr",
+            "cdb",
+            "mariadb",
+            "postgres",
+            "sqlserver",
+            "redis",
+            "mongodb",
+            "cynosdb",
+            "dcdb",
+            "tcaplusdb",
+            "keewidb",
+            "vpc",
+            "clb",
+            "cdn",
+            "ecdn",
+            "dnspod",
+            "privatedns",
+            "domain",
+            "ssl",
+            "teo",
+            "gaap",
+            "kms",
+            "ssm",
+            "waf",
+            "cwp",
+            "tcss",
+            "ckafka",
+            "tdmq",
+            "tdmysql",
+            "apigateway",
+            "monitor",
+            "cls",
+            "apm",
+            "tsf",
+            "tat",
+            "hunyuan",
+            "lkeap",
+            "tts",
+            "trtc",
+            "live",
+            "vod",
+            "sms",
+            "ses"
+          ]
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        },
+        "region": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "action"
+      ]
+    }
+  },
+  {
+    "name": "prepareFeedback",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "category": "feedback"
+    },
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "channel": {
+          "type": "string",
+          "enum": [
+            "case",
+            "retrospective"
+          ]
+        }
+      },
+      "required": [
+        "channel"
+      ]
+    }
+  }
+]

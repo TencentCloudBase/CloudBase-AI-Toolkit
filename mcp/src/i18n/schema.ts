@@ -81,8 +81,10 @@ function localizeZodSchema(
 
   // zod v4 的 description 存在实例属性/注册表里，不在 def 上；用 .describe() 克隆覆盖
   const description = (schema as unknown as { description?: unknown }).description;
-  if (isMessageKey(description)) {
-    localized = localized.describe(t(description, undefined, lang));
+  if (typeof description === "string") {
+    localized = localized.describe(
+      isMessageKey(description) ? t(description, undefined, lang) : description,
+    );
     seen.set(schema, localized);
   }
 

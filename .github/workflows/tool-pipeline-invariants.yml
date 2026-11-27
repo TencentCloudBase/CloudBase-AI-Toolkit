@@ -25,3 +25,6 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Check tool pipeline invariants
         run: node mcp/scripts/check-tool-pipeline-invariants.mjs
+      - name: Check tool surface (contract, schema lint, payload budget, constraint sentences)
+        working-directory: ./mcp
+        run: pnpm run test:tool-surface
