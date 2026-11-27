@@ -1428,3 +1428,126 @@ describe("global credential cache freshness", () => {
     expect(mockAuthStore.db).toBeUndefined();
   });
 });
+
+describe("credential binding derivation", () => {
+  it("只有 api_key 来源才算环境级；device 登录态带 envId 仍是账号级", async () => {
+    const { deriveCredentialBinding } = await import("./auth.js");
+
+    expect(
+      deriveCredentialBinding({ authSource: "api_key", envId: "env-637" }),
+    ).toEqual({ scope: "env", envId: "env-637", authSource: "api_key" });
+
+    // 现场回执里 credential_scope=account、auth_mode=device，但登录态同样带
+    // envId（上次绑定的环境）。这个字段不是权限边界，拦它会误伤多环境切换。
+    expect(
+      deriveCredentialBinding({ refreshToken: "rt", envId: "env-637" }),
+    ).toEqual({ scope: "account" });
+    expect(
+      deriveCredentialBinding({ authSource: "web", envId: "env-637" }),
+    ).toEqual({ scope: "account" });
+  });
+
+  it("兼容 legacy slotted 凭据；字段不明时保守回落 account", async () => {
+    const { deriveCredentialBinding } = await import("./auth.js");
+
+    expect(
+      deriveCredentialBinding({
+        domestic: { authSource: "api_key", envId: "env-domestic" },
+      }),
+    ).toEqual({
+      scope: "env",
+      envId: "env-domestic",
+      authSource: "api_key",
+    });
+    expect(deriveCredentialBinding(null)).toEqual({ scope: "account" });
+    expect(deriveCredentialBinding({ authSource: "api_key" })).toEqual({
+      scope: "account",
+    });
+    expect(deriveCredentialBinding({})).toEqual({ scope: "account" });
+  });
+});
+
+describe("credential binding through the real resolution chain", () => {
+  it("全局槽 api_key 凭据解析后仍是环境级，envId 取自最终生效凭据", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      authSource: "api_key",
+      apiKey: "k",
+      envId: "env-a",
+    };
+    const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+    await peekLoginState();
+
+    expect(getCredentialBinding()).toEqual({
+      scope: "env",
+      envId: "env-a",
+      authSource: "api_key",
+    });
+  });
+
+  it("device 登录态即使带 envId 也是账号级，不误拦多环境切换", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      refreshToken: "rt",
+      envId: "env-a",
+    };
+    const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+    await peekLoginState();
+
+    expect(getCredentialBinding()).toEqual({ scope: "account" });
+  });
+
+  it("凭据文件没写 authSource 但有 apiKey 时仍能兜底判成环境级", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      apiKey: "k",
+      envId: "env-a",
+    };
+    const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+    await peekLoginState();
+
+    expect(getCredentialBinding()).toEqual({
+      scope: "env",
+      envId: "env-a",
+      authSource: "api_key",
+    });
+  });
+
+  it("双 slot 凭据迁移后，binding 跟最终选中的 intl slot 一致", async () => {
+    vi.stubEnv("TCB_SITE", "intl");
+    try {
+      authStoreData.credential = {
+        domestic: {
+          secretId: "d-sid",
+          secretKey: "d-skey",
+          refreshToken: "rt",
+          envId: "env-domestic",
+        },
+        intl: {
+          secretId: "i-sid",
+          secretKey: "i-skey",
+          authSource: "api_key",
+          apiKey: "k",
+          envId: "env-intl",
+        },
+      };
+      const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+      await peekLoginState();
+
+      expect(getCredentialBinding()).toEqual({
+        scope: "env",
+        envId: "env-intl",
+        authSource: "api_key",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});

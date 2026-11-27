@@ -40,6 +40,7 @@ const {
   mockResetCloudBaseManagerCache,
   mockProbeApiKeyCamCapability,
   mockResolveAuthOptions,
+  mockGetCredentialBinding,
   authStoreData,
 } = vi.hoisted(() => ({
   mockBuildAuthConfigSummary: vi.fn((options: any) => ({
@@ -97,6 +98,7 @@ const {
   mockGetCloudBaseManager: vi.fn(),
   mockResetCloudBaseManagerCache: vi.fn(),
   mockProbeApiKeyCamCapability: vi.fn().mockResolvedValue("capable"),
+  mockGetCredentialBinding: vi.fn((): any => ({ scope: "account" })),
   mockResolveAuthOptions: vi.fn((options: any = {}) => ({
     authMode: options.authMode ?? options.serverAuthOptions?.authMode ?? "device",
     clientId: options.clientId ?? options.serverAuthOptions?.clientId,
@@ -157,6 +159,7 @@ vi.mock("../auth.js", async (importOriginal) => {
     getAuthConfigValidationError: mockGetAuthConfigValidationError,
     getCloudBaseApiKeyFromEnv: () =>
       process.env.CLOUDBASE_API_KEY || process.env.CLOUDBASE_APIKEY || undefined,
+    getCredentialBinding: mockGetCredentialBinding,
     peekLoginState: mockPeekLoginState,
     getAuthProgressState: mockGetAuthProgressState,
     logout: mockLogout,
@@ -234,6 +237,7 @@ describe("env tools - auth", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
@@ -983,6 +987,131 @@ describe("env tools - auth", () => {
     delete process.env.CLOUDBASE_API_KEY;
   });
 
+  // C1/C2 是对照组：同样「切到另一个环境」，只有凭据来源不同。
+  // 现场事故里 API Key 存在全局槽，进程环境变量一个都没有，旧护栏因此漏判。
+  it("C1: 全局槽里的环境级 API Key 切环境要拦，不依赖进程环境变量", async () => {
+    mockGetCredentialBinding.mockReturnValue({
+      scope: "env",
+      envId: "env-key-owned",
+      authSource: "api_key",
+    });
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      envId: "env-key-owned",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([
+      { envId: "env-key-owned" },
+    ]);
+
+    const result = await tools.auth.handler({
+      action: "set_env",
+      envId: "env-switched",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "CREDENTIAL_SCOPE_LIMITED",
+      credential_scope: "single_env",
+      credential_env_id: "env-key-owned",
+      current_env_id: "env-key-owned",
+    });
+    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
+  });
+
+  it("C2: 账号级 device 登录态切环境不该被拦，也不该多探一次云 API", async () => {
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      refreshToken: "rt",
+      envId: "env-last-bound",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue({
+      envId: "env-switched",
+      region: "ap-shanghai",
+    });
+
+    const result = await tools.auth.handler({
+      action: "set_env",
+      envId: "env-switched",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: true,
+      code: "ENV_READY",
+      credential_scope: "account",
+      current_env_id: "env-switched",
+    });
+    expect(payload.credential_env_id).toBeNull();
+    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-switched");
+    expect(mockProbeApiKeyCamCapability).not.toHaveBeenCalled();
+  });
+
+  it("C3: 凭据带 apiKey 且目标环境被 CAM 拒绝时，绑定前就阻断", async () => {
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      apiKey: "key-of-old-env",
+      envId: "env-key-owned",
+    });
+    mockProbeApiKeyCamCapability.mockResolvedValueOnce("limited");
+    mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue({
+      envId: "env-switched",
+      region: "ap-shanghai",
+    });
+
+    const result = await tools.auth.handler({
+      action: "set_env",
+      envId: "env-switched",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload).toMatchObject({
+      ok: false,
+      code: "CREDENTIAL_SCOPE_LIMITED",
+      current_env_id: "env-switched",
+      next_step: { action: "login_by_api_key" },
+    });
+    expect(payload.message).toContain("API Key");
+    expect(payload.credential_warning).toBeUndefined();
+    expect(mockProbeApiKeyCamCapability).toHaveBeenCalledWith(
+      expect.objectContaining({ envId: "env-switched" }),
+    );
+    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
+  });
+
+  it("C4: 账号级凭据手设 CLOUDBASE_ENV_ID 时 credential_env_id 仍是 null", async () => {
+    delete process.env.CLOUDBASE_API_KEY;
+    process.env.CLOUDBASE_ENV_ID = "env-manual";
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      refreshToken: "rt",
+    });
+    mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue({
+      envId: "env-switched",
+      region: "ap-shanghai",
+    });
+
+    const result = await tools.auth.handler({
+      action: "set_env",
+      envId: "env-switched",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.credential_scope).toBe("account");
+    expect(payload.credential_env_id).toBeNull();
+    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-switched");
+  });
+
   it("auth(action=logout) should clear session state", async () => {
     const result = await tools.auth.handler({
       action: "logout",
@@ -1435,6 +1564,7 @@ describe("env tools - queryEnv", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);

@@ -530,6 +530,59 @@ export function getCredentialSource(): CredentialSource | null {
   return credentialSource;
 }
 
+/**
+ * 本轮生效凭据的范围与绑定环境。只回答「这把凭据属于哪个环境」，
+ * 不换证、不改登录态。判据是凭据文件里的 `authSource`：只有 `api_key`
+ * 来源才是环境级；device / web 登录态即使带 `envId`，那也只是「上次
+ * 绑定的环境」，不是权限边界。读不到或字段不明时保守返回 `account`，
+ * 宁可漏拦，也不能把账号级登录的多环境切换误判成越权。
+ *
+ * 只补旧护栏看不见的那条来源：全局 auth.json 里的 API Key 凭据（进程里
+ * 没有 CLOUDBASE_API_KEY）。环境变量、项目级文件、宿主注入这三条路径都会
+ * 写下 CLOUDBASE_API_KEY + CLOUDBASE_ENV_ID，仍由 env.ts 的兼容分支识别。
+ *
+ * 与 `getCredentialSource()` 约定一致：由 `peekLoginState()` 解析链赋值，
+ * 同步读取，避免把 `isApiKeyCredentialMode()` 改成异步波及多个调用点。
+ */
+export type CredentialBinding = {
+  scope: "env" | "account";
+  envId?: string;
+  authSource?: string;
+};
+
+let credentialBinding: CredentialBinding = { scope: "account" };
+
+export function getCredentialBinding(): CredentialBinding {
+  return credentialBinding;
+}
+
+/**
+ * 从凭据文件原文判范围。导出供单测直接覆盖三种输入；运行时只由
+ * `peekLoginState()` 调用，外部请读 `getCredentialBinding()`。
+ */
+export function deriveCredentialBinding(raw: unknown): CredentialBinding {
+  const record = raw as Record<string, unknown> | null;
+  if (!record || typeof record !== "object") {
+    return { scope: "account" };
+  }
+  // 兼容 legacy slotted credential { domestic, intl }：取有内容的那一份
+  const slot = (record.domestic ?? record.intl) as Record<string, unknown> | undefined;
+  const flat = slot && typeof slot === "object" ? slot : record;
+  const envId =
+    typeof flat.envId === "string" && flat.envId.length > 0
+      ? (flat.envId as string)
+      : undefined;
+  if (!envId) return { scope: "account" };
+  // apiKey 字段是凭据文件没写 authSource 时的兜底：device / web 登录态带
+  // refreshToken 但没有 apiKey，即使也带 envId 仍是账号级。
+  const hasApiKey =
+    typeof flat.apiKey === "string" && (flat.apiKey as string).length > 0;
+  if (flat.authSource === "api_key" || hasApiKey) {
+    return { scope: "env", envId, authSource: "api_key" };
+  }
+  return { scope: "account" };
+}
+
 // One flat credential in auth.json, shared with the CLI. Legacy slotted
 // files ({ domestic, intl }) are collapsed once on read; the other site is dropped.
 
@@ -862,7 +915,7 @@ function dropStaleCredentialStoreCache(): void {
   delete (authStore as unknown as { db?: unknown }).db;
 }
 
-export async function peekLoginState(options?: {
+async function resolveLoginState(options?: {
   ignoreEnvVars?: boolean;
   site?: string;
   region?: string;
@@ -933,6 +986,34 @@ export async function peekLoginState(options?: {
   const flatLoginState = await resolveFlatLoginState();
   credentialSource = flatLoginState ? "global" : null;
   return sanitizeCredentialEnvId(flatLoginState);
+}
+
+/**
+ * 对外入口：解析完成后按「本轮真正生效的那份凭据」重算绑定。
+ * 旧实现在函数开头读一次全局 auth.json，但下面五个出口分别用 env API Key、
+ * 长期密钥、项目级文件、迁移后的 flat、无凭据，范围会对不上；slotted 凭据
+ * 更是在迁移之前就算，intl 站会读错 slot。现在统一从最终 LoginState 判。
+ */
+export async function peekLoginState(options?: {
+  ignoreEnvVars?: boolean;
+  site?: string;
+  region?: string;
+}): Promise<LoginState | null> {
+  const state = await resolveLoginState(options);
+  let binding = deriveCredentialBinding(state);
+  // 环境变量 / 项目级 API Key 路径会回填进程变量，但解析后的 state 未必保留
+  // authSource；用「来源 + 进程里确有 API Key」补齐。长期密钥路径没有
+  // CLOUDBASE_API_KEY，即使全局文件残留 api_key 凭据也不会被误判成环境级。
+  if (
+    binding.scope === "account" &&
+    state?.envId &&
+    (credentialSource === "env" || credentialSource === "project") &&
+    getCloudBaseApiKeyFromEnv()
+  ) {
+    binding = { scope: "env", envId: state.envId, authSource: "api_key" };
+  }
+  credentialBinding = binding;
+  return state;
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {
