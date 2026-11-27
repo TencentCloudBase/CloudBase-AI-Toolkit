@@ -29,6 +29,10 @@ const I18N = {
     defaultHint: '默认值:',
     spec: '## 详细规格',
     fallbackGroup: '其他',
+    colName: '参数',
+    colType: '类型',
+    colRequired: '必填',
+    colDesc: '说明',
     config: [
       '## 云端 MCP 配置说明',
       '',
@@ -71,11 +75,15 @@ const I18N = {
     overview: '## Tool Overview',
     params: '#### Parameters',
     none: 'None',
-    required: 'Yes',
+    required: 'yes',
     enumHint: 'Allowed values:',
     defaultHint: 'Default:',
     spec: '## Detailed Specification',
     fallbackGroup: 'Other',
+    colName: 'Parameter',
+    colType: 'Type',
+    colRequired: 'Required',
+    colDesc: 'Description',
     config: [
       '## Hosted MCP configuration',
       '',
@@ -372,6 +380,32 @@ function flattenSchemaRows(name, schema, isRequired, lang = 'zh') {
   return rows;
 }
 
+function escapeHtml(text = '') {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderHtmlParameterTable(schema, lang = 'en') {
+  const d = dictFor(lang);
+  const rows = [];
+  const props = schema?.properties || {};
+  const requiredSet = new Set(schema?.required || []);
+  for (const [name, prop] of Object.entries(props)) {
+    rows.push(...flattenSchemaRows(name, prop, requiredSet.has(name), lang));
+  }
+  const lines = ['<table>'];
+  lines.push(`<thead><tr><th>${d.colName}</th><th>${d.colType}</th><th>${d.colRequired}</th><th>${d.colDesc}</th></tr></thead>`);
+  lines.push('<tbody>');
+  for (const r of rows) {
+    lines.push(`<tr><td><code>${escapeHtml(r.name)}</code></td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.required)}</td><td>${escapeHtml(r.desc)}</td></tr>`);
+  }
+  lines.push('</tbody>');
+  lines.push('</table>');
+  return lines.join('\n');
+}
+
 function renderToolDetails(tool, lang = 'zh') {
   const d = dictFor(lang);
   const lines = [];
@@ -391,11 +425,15 @@ function renderToolDetails(tool, lang = 'zh') {
   lines.push(d.params);
   lines.push('');
   if (schema && schema.type === 'object' && schema.properties && Object.keys(schema.properties).length > 0) {
-    lines.push('<ParameterTable');
-    lines.push('  parameters={[');
-    lines.push(schemaToParameters(schema, lang));
-    lines.push('  ]}');
-    lines.push('/>');
+    if (lang === 'en') {
+      lines.push(renderHtmlParameterTable(schema, lang));
+    } else {
+      lines.push('<ParameterTable');
+      lines.push('  parameters={[');
+      lines.push(schemaToParameters(schema, lang));
+      lines.push('  ]}');
+      lines.push('/>');
+    }
   } else {
     lines.push(d.none);
   }
@@ -408,8 +446,10 @@ export function renderDoc(toolsJson, lang = 'zh') {
   const d = dictFor(lang);
   const { tools = [] } = toolsJson;
   const lines = [];
-  lines.push("import ParameterTable from '../../api-reference/components/ApiContainer';");
-  lines.push('');
+  if (lang === 'zh') {
+    lines.push("import ParameterTable from '../../api-reference/components/ApiContainer';");
+    lines.push('');
+  }
   lines.push(d.title);
   lines.push('');
   lines.push(d.intro(tools.length));

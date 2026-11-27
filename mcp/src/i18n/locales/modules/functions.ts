@@ -476,8 +476,8 @@ export const functions = defineModule(
     noPackageJsonWarn: "Detected no package.json under HTTP function {fnName}'s directory; dependency installation skipped. If you need third-party dependencies, add a package.json and retry.",
 
     // ---- Schema parameter descriptions ----
-    "schema.vpcId": "真实数据库/网络控制台里的 VPC ID（例如 vpc-xxxxxxxx）。非原生 TCP 数据库访问时必填。不要编造或使用占位值。",
-    "schema.subnetId": "与私有数据库端点同 VPC 的子网 ID（例如 subnet-xxxxxxxx）。不要编造或使用占位值。",
+    "schema.vpcId": "VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.",
+    "schema.subnetId": "Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.",
     "schema.image.imageUri": "Full image URL (tag required), in the format {domain}/{namespace}/{image}:{tag}, for example ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001. Do not use :latest. Required when buildStrategy=image (existing image); optional for buildStrategy=cloud/local because the build process produces and returns the image URL. The target repository is determined by build.repository/build.namespace; explicit values take precedence. If omitted, manager-node fills defaults and creates or reuses the repository (namespace defaults to envId and repository defaults to the function name).",
     "schema.image.build": "Image build target. Used when buildStrategy=cloud (cloud build) or local (local Docker build); omit for buildStrategy=image (existing image). build is optional for cloud/local because missing repository coordinates can be filled automatically (namespace defaults to envId and repository defaults to the function name). Provide it only to specify build details or fields such as build.registryCredential for personal registries.",
     "schema.image.localFallback": "How to handle an unavailable local build when buildStrategy=local. Defaults to error.",

@@ -4,8 +4,6 @@ Currently includes 44 tools, grouped by function as follows.
 
 Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
-`scripts/tools.json` is the single source of truth. The generated full schema references are `doc/mcp-tools.md` (from `tools.json`) and this page (from `scripts/tools.en.json`). Run `npm run build` to refresh both: it builds the MCP server, snapshots `tools/list` with `TCB_LANG=en`, and renders this page through `generate-tools-doc.mjs --lang en`. Until that build runs, this page keeps the hand-maintained overview.
-
 ---
 
 ## Tool Overview
@@ -19,7 +17,7 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 - [`queryEnv`](#queryenv)
 - [`envDomainManagement`](#envdomainmanagement)
 
-### Others
+### Other
 
 - [`manageEnv`](#manageenv)
 - [`deployBuild`](#deploybuild)
@@ -36,7 +34,7 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 - [`readNoSqlDatabaseContent`](#readnosqldatabasecontent)
 - [`writeNoSqlDatabaseContent`](#writenosqldatabasecontent)
 
-### Data Models
+### Data Model
 
 - [`manageDataModel`](#managedatamodel)
 - [`modifyDataModel`](#modifydatamodel)
@@ -46,7 +44,7 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 - [`queryPgDatabase`](#querypgdatabase)
 - [`managePgDatabase`](#managepgdatabase)
 
-### PostgreSQL Cloud Storage
+### PostgreSQL Storage
 
 - [`queryPgStorage`](#querypgstorage)
 
@@ -78,7 +76,7 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 
 - [`searchKnowledgeBase`](#searchknowledgebase)
 
-### CloudRun
+### Cloud Run
 
 - [`queryCloudRun`](#querycloudrun)
 - [`manageCloudRun`](#managecloudrun)
@@ -119,9 +117,9 @@ Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolK
 
 ---
 
-## Remote MCP Configuration
+## Hosted MCP configuration
 
-For cloud MCP, connect directly to the **official hosted endpoint with OAuth** — no keys to configure:
+For hosted MCP, connect to the official endpoint with OAuth. No credential needs to be stored in a config file:
 
 ```json
 {
@@ -134,196 +132,200 @@ For cloud MCP, connect directly to the **official hosted endpoint with OAuth** �
 }
 ```
 
-On first connect, the client opens a browser for OAuth authorization (sign in to Tencent Cloud, pick an environment) — no keys in config files. For the international site, use `https://tcb-api.tencentcloud.com/mcp/v1`. See [Connection Modes — Remote Mode](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes#remote-mode).
+The client opens a browser on first connect for OAuth (Tencent Cloud login and environment selection), so the credential never lands in a config file. For the international site use `https://tcb-api.tencentcloud.com/mcp/v1`. See [Connection modes - Remote](https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/connection-modes#remote-mode) for the full guide.
 
-Clients without OAuth support (and CI/CD or other non-interactive scenarios) pass Tencent Cloud API keys as static credentials in request headers — the environment variables below are not needed there either.
+Clients without OAuth support (including CI/CD, where interactive authorization is impossible) pass a Tencent Cloud API key as a static credential in the request header; the environment variables below are not needed in that case either.
 
-### Environment Variable Configuration (self-hosted remote services only)
+### Environment variables (self-hosted remote server only)
 
-The following variables are for **self-hosting** the MCP service on your own server (with Cloud Mode enabled) to inject credentials; the hosted endpoint above needs none of them:
+These variables inject credentials when you **self-host** the MCP server on your own machine (Cloud Mode deployment). They are not needed for the official hosted endpoint above:
 
-| Environment Variable | Description | How to Obtain |
-|---------|------|---------|
-| `TENCENTCLOUD_SECRETID` | Tencent Cloud SecretId | [Get Tencent Cloud API Key](https://console.cloud.tencent.com/cam/capi) |
-| `TENCENTCLOUD_SECRETKEY` | Tencent Cloud SecretKey | [Get Tencent Cloud API Key](https://console.cloud.tencent.com/cam/capi) |
-| `TENCENTCLOUD_SESSIONTOKEN` | Optional, Tencent Cloud temporary key Token | Only needed when using temporary keys, can be obtained via [STS Service](https://console.cloud.tencent.com/cam/capi) |
-| `CLOUDBASE_ENV_ID` | CloudBase Environment ID | [Get CloudBase Environment ID](https://tcb.cloud.tencent.com/dev) |
+| Variable | Description | Where to get it |
+|----------|-------------|-----------------|
+| `TENCENTCLOUD_SECRETID` | Tencent Cloud SecretId | [Tencent Cloud API keys](https://console.cloud.tencent.com/cam/capi) |
+| `TENCENTCLOUD_SECRETKEY` | Tencent Cloud SecretKey | [Tencent Cloud API keys](https://console.cloud.tencent.com/cam/capi) |
+| `TENCENTCLOUD_SESSIONTOKEN` | Optional temporary STS token | Only for temporary credentials, via [STS](https://console.cloud.tencent.com/cam/capi) |
+| `CLOUDBASE_ENV_ID` | CloudBase environment ID | [CloudBase console](https://tcb.cloud.tencent.com/dev) |
 
-## Detailed Specs
+## Detailed Specification
 
 ### `auth`
-CloudBase (Tencent Cloud Development) development stage login and environment binding. Not sure where to start? Call auth(status) once (read-only, no parameters) to confirm the login state and current environment. After logging in, you can access cloud resources; an environment (env) is an isolation unit for cloud functions, databases, static hosting and other resources. After binding the environment, other MCP tools can operate on that environment. No environment yet: new users on the China site can enable a free trial environment, then bind it with set_env. Supports: query status, initiate login, API Key login, bind environment (set_env), logout. auth(status) returns credential_scope (account=account-level / single_env=environment-level API Key) and the current region; environment-level API Keys can only see the bound envId, not being able to query other regions' environments is a permission boundary, not that the environment doesn't exist. Optional site/region/lang parameters: site=site (domestic/intl), region=region, lang=output language (zh/en).
+CloudBase (Tencent CloudBase) dev-stage login and environment binding. Unsure where to start? Call auth(status) first (read-only, no arguments) to confirm the login state and the current environment. After login you can access cloud resources; an environment (env) is the isolation unit for cloud functions, databases, static hosting, etc. Other MCP tools operate on the bound environment. No environment yet? On the China site a new user can create a trial environment for free, then bind it with set_env. Supports: status, start_auth (login), login_by_api_key, set_env (bind env), logout. auth(status) returns credential_scope (account / single_env API Key) and current region; a single-env API Key can only see its bound envId — missing other-region envs is a permission boundary, not a missing environment. Optional site/region/lang params: site=domestic|intl, region=e.g. ap-shanghai|ap-singapore, lang=zh|en output language.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td></td><td>Action: status=query status, start_auth=initiate login, login_by_api_key=API Key login, set_env=bind environment (pass envId), logout=logout. Allowed values: "status", "start_auth", "set_env", "logout", "get_temp_credentials", "login_by_api_key"</td></tr>
-<tr><td><code>authMode</code></td><td>string</td><td></td><td>Authentication mode: device=device code authorization, web=browser callback authorization. Allowed values: "device", "web"</td></tr>
-<tr><td><code>oauthEndpoint</code></td><td>string</td><td></td><td>Advanced optional: Custom device-code login endpoint. When configured, oauthCustom defaults to true</td></tr>
-<tr><td><code>clientId</code></td><td>string</td><td></td><td>Advanced optional: Custom device-code login client_id, uses default value if not provided</td></tr>
-<tr><td><code>oauthCustom</code></td><td>boolean</td><td></td><td>Advanced optional: Custom endpoint return format switch. Defaults to false when endpoint not configured; defaults to true when endpoint is configured. Endpoints using the standard &#123;code,result&#125; wrapper format (e.g. the international site tcb-api.tencentcloud.com) should explicitly pass false</td></tr>
-<tr><td><code>site</code></td><td>string</td><td></td><td>Site: domestic=China site, intl=international site. When the environment is provisioned on the Tencent Cloud international site, login (start_auth/login_by_api_key) must explicitly pass intl, otherwise the China-site flow is used and international-site environments are invisible. An explicitly passed value takes precedence over the TCB_SITE environment variable / the region mapping table / project config, and affects the login endpoint, the authorization page and the API Key exchange gateway. Allowed values: "domestic", "intl"</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID (CloudBase environment unique identifier), after binding the tool will operate on this environment. Required when action=set_env</td></tr>
-<tr><td><code>region</code></td><td>string</td><td></td><td>Region (e.g. ap-shanghai / ap-guangzhou / ap-singapore). Used for region→site inference and API Key exchange gateway selection; an explicit site takes precedence</td></tr>
-<tr><td><code>lang</code></td><td>string</td><td></td><td>Output language: zh=Chinese (default), en=English. Overrides the instance-level language (createCloudBaseMcpServer lang option / TCB_LANG / project.json). Allowed values: "zh", "en"</td></tr>
-<tr><td><code>apiKey</code></td><td>string</td><td></td><td>CloudBase API Key, required when action=login_by_api_key</td></tr>
-<tr><td><code>apiKeyEnvId</code></td><td>string</td><td></td><td>CloudBase environment ID (EnvId), required when action=login_by_api_key, used to specify the environment the API Key belongs to</td></tr>
-<tr><td><code>confirm</code></td><td>string</td><td></td><td>Confirm operation when action=logout, pass yes. Allowed values: const "yes"</td></tr>
-<tr><td><code>reveal</code></td><td>boolean</td><td></td><td>Optional when action=get_temp_credentials. true=return plaintext temporary credentials; defaults to false returning masked results only</td></tr>
+<tr><td><code>action</code></td><td>string</td><td></td><td>Action: status=query status, start_auth=start login, login_by_api_key=log in with an API Key, set_env=bind an environment (pass envId), logout=log out Allowed values: "status", "start_auth", "set_env", "logout", "get_temp_credentials", "login_by_api_key"</td></tr>
+<tr><td><code>authMode</code></td><td>string</td><td></td><td>Authentication mode: device=device-code authorization, web=browser callback authorization Allowed values: "device", "web"</td></tr>
+<tr><td><code>oauthEndpoint</code></td><td>string</td><td></td><td>Advanced optional setting: custom device-code login endpoint. When configured, oauthCustom defaults to true</td></tr>
+<tr><td><code>clientId</code></td><td>string</td><td></td><td>Advanced optional setting: custom client_id for device-code login; the default is used when omitted</td></tr>
+<tr><td><code>oauthCustom</code></td><td>boolean</td><td></td><td>Advanced optional setting: toggles the custom endpoint response format. Defaults to false without an endpoint and true when an endpoint is configured. Endpoints using the standard {code,result} wrapper format (such as the international-site tcb-api.tencentcloud.com) should explicitly pass false</td></tr>
+<tr><td><code>site</code></td><td>string</td><td></td><td>Site: domestic=China site, intl=international site. For environments activated on Tencent Cloud International, login (start_auth/login_by_api_key) must explicitly pass intl; otherwise the China-site path is used and international-site environments are not visible. An explicit per-call value takes precedence over the TCB_SITE environment variable, region mapping, and project configuration, and affects the login endpoint, authorization page, and API Key exchange gateway Allowed values: "domestic", "intl"</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID (the unique CloudBase environment identifier). After binding, tools operate on this environment. Required when action=set_env</td></tr>
+<tr><td><code>region</code></td><td>string</td><td></td><td>Region (such as ap-shanghai / ap-guangzhou / ap-singapore). Used for region-to-site inference and API Key exchange gateway selection; an explicit site takes precedence</td></tr>
+<tr><td><code>lang</code></td><td>string</td><td></td><td>Output language: zh=Chinese (default), en=English. Overrides the instance language (createCloudBaseMcpServer lang option / TCB_LANG / project.json) Allowed values: "zh", "en"</td></tr>
+<tr><td><code>apiKey</code></td><td>string</td><td></td><td>CloudBase API Key; required when action=login_by_api_key</td></tr>
+<tr><td><code>apiKeyEnvId</code></td><td>string</td><td></td><td>CloudBase environment ID (EnvId); required when action=login_by_api_key to identify the environment the API Key belongs to</td></tr>
+<tr><td><code>confirm</code></td><td>string</td><td></td><td>Confirmation for action=logout; pass yes Allowed values: const "yes"</td></tr>
+<tr><td><code>reveal</code></td><td>boolean</td><td></td><td>Optional when action=get_temp_credentials. true returns plaintext temporary credentials; the default false returns only masked values</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryEnv`
-Query CloudBase environment related information, supports querying the environment list, details of a specific environment, security domains, resource usage, and monitoring metrics. (Former names: envQuery, listEnvs, getEnvInfo, getEnvAuthDomains) When action=list, it filters/lists per DescribeEnvs semantics, returning standard fields EnvId, Alias, Status, EnvType, Region, PackageId, PackageName, IsDefault, and supports trimming these fields via the fields whitelist; aliasExact=true filters by exact alias match to avoid mistaking environments with similar prefixes as candidates; even when envId is passed, action=list only returns the summary, not full resource details or expiry. Account-level login can pass region (ap-shanghai/ap-guangzhou/ap-singapore) to query corresponding regions, aligned with CLI `tcb env list -r <region>`; environment-level credentials (API Key / hosted authorization token) can only see the bound envId, returning credential_scope=single_env; in that case region is not applied and is truthfully reported in ignored_params (AppliedFilters.region is null) — do not misjudge this as the environment not existing or region filtering being broken. To query the detailed information of a known EnvId environment (including resource fields and billing info), use action=info with the target envId. action=info supplements BillingInfo (e.g. ExpireTime, PayMode, IsAutoRenew) when available.
+Query CloudBase environment information: environment list, details of a specific environment, security domains, resource usage and monitoring metrics. For action=list, even when envId is passed, action=list still returns only a summary, never full resource details or expiry. An env-level credential (API Key / hosted authorization token) can only see its bound envId and returns credential_scope=single_env; in that case region plays no part in the query and is reported as such in ignored_params (AppliedFilters.region is null) — do not mistake that for a missing environment or a region filter that failed to apply. To query details of a known EnvId (including resource fields and billing info), you must use action=info and pass the target environment's envId. action=info appends BillingInfo when available (billing fields such as ExpireTime, PayMode, IsAutoRenew).
 
-📊 action=usage returns the billing cycle and resource credit usage grouped by module. envId required; type optionally filters modules; when startDate/endDate are not passed, the current billing cycle is used automatically.
+📊 action=usage returns the billing cycle and per-module resource-point usage, grouped by module.
 
-📈 action=metrics aligns with TCB DescribeCurveData (manager.monitor.describeCurveData, not Cloud Monitor GetMonitorData): queries environment/gateway QPS, cloud function invocations and errors, database CPU/memory/disk, CloudRun CPU/QPS time series. envId and metricName required; startTime/endTime format YYYY-MM-DD HH:mm:ss, must be passed as a pair, defaults to last 24 hours when omitted; period only supports 300/3600/86400. When GatewayTraceEnvQPS is called without resourceID, environment-level all|:|all|:|all|:|all is auto-filled; CloudRun Tke* metrics must pass service name as resourceID. Do not use callCloudApi to guess monitoring Actions.
+📈 action=metrics queries time series for env/gateway QPS, cloud function invocations and errors, database CPU/memory/disk, CloudRun CPU/QPS, and more (CloudBase built-in monitoring, not Cloud Monitor GetMonitorData). startTime/endTime use the format YYYY-MM-DD HH:mm:ss and must be passed as a pair, defaulting to the last 24 hours when omitted; CloudRun Tke* metrics must pass the service name as resourceID. Do not use callCloudApi to guess monitoring Actions.
 
-🔍 action=info also derives three fields for backend selection:
-- `EnvInfo.RuntimeMode`: 'postgresql' or 'nosql', indicating the recommended default backend for new services (postgresql when PG is enabled, otherwise nosql).
-- `EnvInfo.RuntimeBackends`: three booleans `\{postgresql, nosql, mysql\}` describing which backends currently coexist in the environment.
-- `EnvInfo.RuntimeModeHints`: API/tool/skill hints for each backend.
-- `EnvInfo.PostgreSQL[].TenantType`: PG instance type — `SHARED` (SDK / gateway access only) or `DEDICATED` (private network host / direct TCP).
+🔍 action=info also derives three fields used for backend selection (PG environments carry the instance form as well):
+- `EnvInfo.RuntimeMode`: 'postgresql' or 'nosql', the backend recommended by default for new work (postgresql when PG is enabled, otherwise nosql).
+- `EnvInfo.RuntimeBackends`: the three booleans `\{postgresql, nosql, mysql\}`, describing the backends that actually coexist in the current environment.
+- `EnvInfo.RuntimeModeHints`: the API/tool/skill hints for each backend.
+- `EnvInfo.PostgreSQL[].TenantType`: the PG instance form — `SHARED` (SDK / gateway access only) or `DEDICATED` (has the private host / TCP endpoint).
 
-🌐 action=info also projects gateway route Enable status without overwriting `StaticStorages[].StaticDomain` (cloud API nominal domain): `StaticStorages[].staticDomainRouteEnabled` and `EnvInfo.staticDomainRouteEnabled` (same source as queryHosting websiteConfig). `false` means the default static domain root route is disabled (access returns GATEWAY_ROUTE_DISABLED), do not treat the nominal domain as a reachable URL.
+🌐 action=info also returns the route state of the default static domain, `StaticStorages[].staticDomainRouteEnabled` and `EnvInfo.staticDomainRouteEnabled` (same source as queryHosting websiteConfig); `StaticStorages[].StaticDomain` remains the nominal domain. `false` means the default static domain root route is disabled (requests return GATEWAY_ROUTE_DISABLED) — do not treat the nominal domain as a reachable URL.
 
-AI must check these three items before writing business/permission/storage code: In PG mode, new services should use `app.rdb()` + RLS (`managePgDatabase action=execute` to run `CREATE POLICY`) + pgstore; existing NoSQL collections / old storage / `managePermissions(resourceType="noSqlDatabase")` remain valid in classic PG environments. **Exception (pgdoc)**: when the document-database API is carried by PostgreSQL and client SDK calls stay unchanged, CUSTOM collection security rules do not take effect — use the four basic permissions or move validation into a cloud function. Do not rewrite existing document-database code into `app.rdb()`, and do not assume data was migrated automatically. `RuntimeBackends` lists provisioned resources only; it does not say who carries document requests, so confirm the enablement state with the user. What is truly inapplicable is MySQL and the data model tools: when `RuntimeBackends.mysql === false`, `manageMysqlDatabase` / `queryMysqlDatabase` / `relational-database-mcp-cloudbase` skill should not be used; `manageDataModel` / `modifyDataModel` only work in classic mode and have no PG counterpart.
+Before writing business/permission/storage code, AI must check these three items first: in PG mode, new work should prefer `app.rdb()` + RLS (`managePgDatabase action=execute` running `CREATE POLICY`) + pgstore; existing NoSQL collections / legacy storage / `managePermissions(resourceType="noSqlDatabase")` remain valid in a classic PG environment. **Exception (pgdoc)**: when the document-database API is carried by PostgreSQL and client SDK calls stay unchanged, CUSTOM collection security rules do not take effect — use the four basic permissions or move validation into a cloud function. Do not rewrite existing document-database code into `app.rdb()`, and do not assume data was migrated automatically. `RuntimeBackends` lists provisioned resources only; it does not say who carries document requests, so confirm the enablement state with the user. What truly does not apply is MySQL and the data model tools: when `RuntimeBackends.mysql === false`, none of `manageMysqlDatabase` / `queryMysqlDatabase` / the `relational-database-mcp-cloudbase` skill should be used; `manageDataModel` / `modifyDataModel` only work in classic mode and have no PG counterpart.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Query type: list=environment list/summary filter (filters per DescribeEnvs semantics, supports filtering by envId/region, returns EnvId, Alias, Status, EnvType, Region, PackageId, PackageName, IsDefault, no expiry), info=detailed info of the specified environment (envId required, returns resource fields and billing info), domains=security domain list, usage=environment resource usage (envId required, aligned with tcb env usage/info), metrics=environment monitoring time series (envId and metricName required, aligned with CloudBase DescribeCurveData). Allowed values: "list", "info", "domains", "usage", "metrics"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Query type: list=environment list/summary filtering (filter by envId / region; no expiry), info=details of a specified environment (envId required; returns resource fields and billing information), domains=security domain list, usage=environment resource usage (envId required), metrics=environment monitoring time series (envId and metricName required) Allowed values: "list", "info", "domains", "usage", "metrics"</td></tr>
 <tr><td><code>alias</code></td><td>string</td><td></td><td>Filter by environment alias. Optional when action=list</td></tr>
-<tr><td><code>aliasExact</code></td><td>boolean</td><td></td><td>Filter by exact environment alias. Optional when action=list; used with alias</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID. Optional when action=list (only filters per DescribeEnvs semantics, still returns the summary); required when action=info / action=usage / action=metrics; optional when action=domains (queries the currently bound environment when omitted, or that environment's security domains when provided).</td></tr>
-<tr><td><code>region</code></td><td>string</td><td></td><td>Query region. Only effective when action=list. Account-level credentials pass this value through to DescribeEnvs (X-TC-Region), e.g. ap-singapore. Equivalent CLI: tcb env list -r &lt;region&gt; --json. Environment-level credentials (API Key / hosted authorization token) are single-environment scoped and this parameter is ignored: the result is always the bound environment, the response has AppliedFilters.region = null, query_region takes that environment's own Region, and ignored_params explains why it was ignored — do not conclude from this that the region has no environments. ⚠️ ap-singapore belongs to both the China site and the international site; when no site is explicitly specified it is treated as the international site (site=intl): if you have logged in to both sites, passing this region silently queries the international-site account, so call auth(site="domestic") or set TCB_SITE=domestic first to pin the site. Allowed values: "ap-shanghai", "ap-guangzhou", "ap-singapore"</td></tr>
-<tr><td><code>limit</code></td><td>integer</td><td></td><td>Max number of results. Optional when action=list</td></tr>
+<tr><td><code>aliasExact</code></td><td>boolean</td><td></td><td>Filter by exact environment alias, so environments with similar prefixes are not mistaken for candidates. Optional when action=list; used together with alias</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID. Optional when action=list (filter only; still returns summaries); required when action=info / usage / metrics; optional when action=domains (omit it to query the currently bound environment).</td></tr>
+<tr><td><code>region</code></td><td>string</td><td></td><td>Query region. Only effective when action=list; account-level credentials query that region. Environment-level credentials (API Key / hosted authorization token) ignore this parameter and always return the bound environment — do not infer that the region has no environment. ⚠️ ap-singapore belongs to both the China and international sites; without an explicit site it is queried as international (site=intl). To query the China site, run auth(site="domestic") or set TCB_SITE=domestic first. Allowed values: "ap-shanghai", "ap-guangzhou", "ap-singapore"</td></tr>
+<tr><td><code>limit</code></td><td>integer</td><td></td><td>Maximum number of results. Optional when action=list</td></tr>
 <tr><td><code>offset</code></td><td>integer</td><td></td><td>Pagination offset. Optional when action=list</td></tr>
-<tr><td><code>fields</code></td><td>array of string</td><td></td><td>Return field whitelist. Only supports EnvId, Alias, Status, EnvType, Region, PackageId, PackageName, IsDefault. Optional when action=list</td></tr>
-<tr><td><code>type</code></td><td>array of string</td><td></td><td>Usage module filter. Only effective when action=usage; omitting it queries all modules. WARNING: passing it narrows the query to those modules, so credits.total is omitted and the panel stops judging sufficiency; the plan is still returned. Omit this parameter to compare against the full quota. Values follow the console usage page.</td></tr>
-<tr><td><code>startDate</code></td><td>string</td><td></td><td>Usage start date (YYYY-MM-DD). Only effective when action=usage; passed as a pair with endDate. Uses current billing cycle when omitted.</td></tr>
-<tr><td><code>endDate</code></td><td>string</td><td></td><td>Usage end date (YYYY-MM-DD). Only effective when action=usage; passed as a pair with startDate. Uses current billing cycle when omitted.</td></tr>
-<tr><td><code>needUsageDetails</code></td><td>boolean</td><td></td><td>Whether to return daily usage details. Only effective when action=usage; defaults to true.</td></tr>
-<tr><td><code>metricName</code></td><td>string</td><td></td><td>Monitoring metric name. Only effective and required when action=metrics. GatewayTraceEnvQPS/EnvQPSAll=environment and gateway QPS; FunctionInvocation/FunctionError/FunctionTimeout/FunctionThrottle=cloud function invocations, errors, timeouts, throttling; DbRead/DbWrite/DbSizepkg=document database reads, writes, and capacity; MysqlCpuUsageRate/MysqlMemoryUse/MysqlStorageUsage=SQL database CPU/memory/disk; TkeCpuUsedService/TkeQPSService/TkeHttpErrorService=CloudRun CPU/QPS/errors. Allowed values: "GatewayTraceEnvQPS", "EnvQPSAll", "FunctionInvocation", "FunctionError", "FunctionTimeout", "FunctionThrottle", "FunctionDuration", "FunctionConcurrentExecutions", "DbRead", "DbWrite", "DbSizepkg", "MysqlCpuUsageRate", "MysqlMemoryUse", "MysqlStorageUsage", "MysqlQps", "MysqlSlowQueries", "MysqlDbConnections", "TkeCpuUsedService", "TkeMemUsedService", "TkeQPSService", "TkeHttpErrorService", "TkeInvokeNumService"</td></tr>
-<tr><td><code>startTime</code></td><td>string</td><td></td><td>Monitoring start time (YYYY-MM-DD HH:mm:ss). Only effective when action=metrics; passed as a pair with endTime. Defaults to last 24 hours when omitted. End time must be at least five minutes after start time.</td></tr>
-<tr><td><code>endTime</code></td><td>string</td><td></td><td>Monitoring end time (YYYY-MM-DD HH:mm:ss). Only effective when action=metrics; passed as a pair with startTime. Defaults to last 24 hours when omitted.</td></tr>
-<tr><td><code>period</code></td><td>number</td><td></td><td>Statistics period (seconds). Only effective when action=metrics; only supports 300, 3600, 86400. Auto-selected by backend based on time range when omitted. Time range ≤1 day cannot use 86400; >3 days cannot use 300. Allowed values: 300, 3600, 86400</td></tr>
-<tr><td><code>resourceID</code></td><td>string</td><td></td><td>Resource ID. Only effective when action=metrics. Cloud functions pass function name, document database passes collection name, CloudRun must pass service name; GatewayTraceEnvQPS auto-fills environment-level all|:|all|:|all|:|all when omitted.</td></tr>
-<tr><td><code>subresourceID</code></td><td>string</td><td></td><td>Sub-resource ID. Only effective when action=metrics; pass version name when querying CloudRun version monitoring.</td></tr>
+<tr><td><code>fields</code></td><td>array of string</td><td></td><td>Returned-field allowlist. Optional when action=list</td></tr>
+<tr><td><code>type</code></td><td>array of string</td><td></td><td>Usage module filter (same set as the console usage page). Only effective when action=usage; omitting it queries all modules. WARNING: passing it narrows the query to those modules, so `credits.total` is omitted and the panel stops judging sufficiency; the plan is still returned. Omit this parameter to compare against the full quota.</td></tr>
+<tr><td><code>startDate</code></td><td>string</td><td></td><td>Usage start date (YYYY-MM-DD). Only effective when action=usage; must be paired with endDate. When omitted, the current billing cycle is used.</td></tr>
+<tr><td><code>endDate</code></td><td>string</td><td></td><td>Usage end date (YYYY-MM-DD). Only effective when action=usage; must be paired with startDate. When omitted, the current billing cycle is used.</td></tr>
+<tr><td><code>needUsageDetails</code></td><td>boolean</td><td></td><td>Whether to return four levels of usage detail. Only effective when action=usage; defaults to false, which returns the module level only (Module, CreditsValue as total spend, DeductValue as plan-included usage) plus DailyTotals for the last 7 days, a few hundred characters. true returns module -&gt; metric -&gt; resource type (ResourceType) -&gt; day (ValueDetailList[].CalcTime), about 50k characters for all modules; pass it only when reconciling day by day. Metric names are raw API codes (Capacity / Flux / CU / InputToken.&lt;model&gt;): when explaining them to a user, translate into plain words for the module (capacity, traffic, invocation count, model input tokens) instead of reading the code out; if unsure, say it is an API field name rather than guessing. The finest granularity is metric x day: there is no per-request trail, and no money or unit price.</td></tr>
+<tr><td><code>metricName</code></td><td>string</td><td></td><td>Monitoring metric name. Required and only effective when action=metrics. GatewayTraceEnvQPS/EnvQPSAll=environment and gateway QPS; FunctionInvocation/FunctionError/FunctionTimeout/FunctionThrottle=function invocations, errors, timeouts, and throttling; DbRead/DbWrite/DbSizepkg=document database reads, writes, and capacity; MysqlCpuUsageRate/MysqlMemoryUse/MysqlStorageUsage=SQL database CPU, memory, and disk; TkeCpuUsedService/TkeQPSService/TkeHttpErrorService=CloudRun CPU, QPS, and errors. Allowed values: "GatewayTraceEnvQPS", "EnvQPSAll", "FunctionInvocation", "FunctionError", "FunctionTimeout", "FunctionThrottle", "FunctionDuration", "FunctionConcurrentExecutions", "DbRead", "DbWrite", "DbSizepkg", "MysqlCpuUsageRate", "MysqlMemoryUse", "MysqlStorageUsage", "MysqlQps", "MysqlSlowQueries", "MysqlDbConnections", "TkeCpuUsedService", "TkeMemUsedService", "TkeQPSService", "TkeHttpErrorService", "TkeInvokeNumService"</td></tr>
+<tr><td><code>startTime</code></td><td>string</td><td></td><td>Monitoring start time (YYYY-MM-DD HH:mm:ss). Only effective when action=metrics; must be paired with endTime. Defaults to the last 24 hours when omitted. The end time must be at least five minutes later than the start time.</td></tr>
+<tr><td><code>endTime</code></td><td>string</td><td></td><td>Monitoring end time (YYYY-MM-DD HH:mm:ss). Only effective when action=metrics; must be paired with startTime. Defaults to the last 24 hours when omitted.</td></tr>
+<tr><td><code>period</code></td><td>number</td><td></td><td>Aggregation period in seconds. Only effective when action=metrics; when omitted, the backend selects it from the time range. 86400 cannot be used for ranges of 1 day or less; 300 cannot be used for ranges over 3 days. Allowed values: 300, 3600, 86400</td></tr>
+<tr><td><code>resourceID</code></td><td>string</td><td></td><td>Resource ID. Only effective when action=metrics. Pass a function name for cloud functions, a collection name for the document database, and a service name for CloudRun. GatewayTraceEnvQPS uses the environment-level all\|:\|all\|:\|all\|:\|all when omitted.</td></tr>
+<tr><td><code>subresourceID</code></td><td>string</td><td></td><td>Subresource ID. Only effective when action=metrics; pass the version name when querying monitoring data for a specific CloudRun version.</td></tr>
 </tbody>
 </table>
 
 ---
 
-
 ### `envDomainManagement`
-⚠️ DEPRECATED: This tool has been folded into `manageEnv`. Use `manageEnv(action="addSecurityDomain")` / `manageEnv(action="removeSecurityDomain")` instead; the `domains` parameter is identical. This alias will be removed in the next version.
+⚠️ DEPRECATED: This tool is deprecated and has been folded into manageEnv. Use manageEnv(action="addSecurityDomain") / manageEnv(action="removeSecurityDomain") instead (the domains parameter is identical). This alias will be removed in the next version.
 
-It manages **environment security domains**, which are browser CORS allowlists controlling which web origins (`host:port`) may call CloudBase resources directly. It does not provide an access domain or manage HTTPS certificates. Gateway custom domains are managed by `manageGateway` and are unrelated. Before adding or removing a domain, use `queryEnv(action="domains")` to inspect the actual browser origin; after the change, poll `queryEnv(action="domains")` about every 10 seconds until the state converges.
+Manages [environment security domains] = the browser cross-origin (CORS) allowlist: it controls which web origins (host:port) may call this environment's CloudBase resources directly from the browser. It only performs CORS origin validation; it does not provide an access domain and does not involve HTTPS certificates. ⚠️ This is completely independent from [gateway custom domains] — the two are unrelated: to bind your own domain as an HTTPS access entry (CloudRun / gateway service), that is manageGateway's job — first queryGateway(listCustomDomains); if a domain already exists, use manageGateway(createRoute) with an explicit domain (no certificate needed); only use bindCustomDomain when binding a brand-new domain for the first time (certificateId required). Do not use this tool for that.
+
+Usage guidance: (the original tool names createEnvDomain/deleteEnvDomain may still be used for compatibility with older AI rules) when a browser web app needs to access CloudBase resources directly from a local Vite / dev server, first use queryEnv(action=domains) to check whether the host:port of the actual current browser origin is already in the allowlist, then add that actual value. After adding or deleting, poll queryEnv(action=domains) about every 10 seconds to confirm the state has converged; do not sleep a full 10 minutes at once — most environments converge within a few minutes.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Operation type: create=add domain, delete=delete domain. Allowed values: "create", "delete"</td></tr>
-<tr><td><code>domains</code></td><td>array of string</td><td>Yes</td><td>Security domain array</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: create=add a security domain, delete=delete a security domain Allowed values: "create", "delete"</td></tr>
+<tr><td><code>domains</code></td><td>array of string</td><td>yes</td><td>Security domain array (host:port format, such as localhost:5173 or 127.0.0.1:4173). These are not custom domains and do not require certificates.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageEnv`
-Manage CloudBase environments, supports: listPackages=query available plan list, create=create a new environment (requires confirmation), modifyPlan=change plan (scale up/down, requires confirmation), renew=renew environment (requires confirmation).
+Manages CloudBase environments. Supports: listPackages=query available packages, create=create a new environment (confirmation required), modifyPlan=change the package (upgrade/downgrade, confirmation required), renew=renew the environment (confirmation required), addSecurityDomain=add an environment security domain (browser CORS allowlist, not billed, no confirmation needed), removeSecurityDomain=remove an environment security domain (not billed, no confirmation needed).
 
-⚠️ All fee-incurring operations (create/modifyPlan/renew) must show a configuration summary and wait for the user to confirm via confirm="yes" before execution.
+⚠️ For billed operations (create/modifyPlan/renew) you must show the configuration summary and wait for the user to confirm with confirm="yes" before executing; security domain operations (addSecurityDomain/removeSecurityDomain) are not billed and need no confirm.
+
+ℹ️ A security domain = the browser cross-origin (CORS) allowlist; it controls which web origins (host:port) may call this environment's CloudBase resources directly from the browser, does not provide an access domain, and does not involve HTTPS certificates. Binding your own domain as an HTTPS access entry (CloudRun/gateway service) is manageGateway's job (listCustomDomains/bindCustomDomain) and is unrelated to this tool.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: listPackages=query available plans, create=create environment, modifyPlan=change plan, renew=renew. Allowed values: "listPackages", "create", "modifyPlan", "renew"</td></tr>
-<tr><td><code>alias</code></td><td>string</td><td></td><td>Environment alias (required when action=create). Requirements: lowercase letters/numbers/hyphens, cannot start or end with a hyphen, max 20 characters</td></tr>
-<tr><td><code>packageId</code></td><td>string</td><td></td><td>Plan ID (required when action=create/modifyPlan). Take the PackageName returned by manageEnv(action="listPackages") — those are the plans selectable in the purchase / create menus (Personal baas_personal, Standard baas_pf_standard, Enterprise baas_pf_enterprise, Enterprise Premium baas_pf_enterprise_senior, Trial baas_trial, Integration baas_integration). Other valid packageIds are still accepted (legacy plan families, whitelisted plans); the actual creation result is authoritative. The plans on sale differ per site, so do not fill this in from memory</td></tr>
-<tr><td><code>resources</code></td><td>array of string</td><td></td><td>Enabled resource types (optional when action=create). Available values: storage, function (cloud function), postgresql; defaults to all three when omitted. CreateEnv requires a non-empty Resources field; MCP always sends it. flexdb (document database) is no longer included: newly created environments do not create a NoSQL instance, and its availability is determined by EnvInfo.RuntimeBackends returned by queryEnv(action="info")</td></tr>
-<tr><td><code>duration</code></td><td>integer</td><td></td><td>Purchase or renewal duration (months), optional when action=create/renew, default 1</td></tr>
-<tr><td><code>externalStorage</code></td><td>object</td><td></td><td>Shared Cloud Storage bucket configuration, optional for action=create. Providing this object prevents automatic allocation of a dedicated COS bucket and uses the specified bucket instead, isolating this environment from others through basePath. It affects Cloud Storage only; Static Hosting receives its bucket when hosting is enabled. All three child fields are required. ⚠️ As with region, the confirmation call (`confirm="yes"`) reads only parameters sent in that call; omitting this object creates an environment with a dedicated bucket without reporting an error.</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: listPackages=query available packages, create=create an environment, modifyPlan=change the package, renew=renew, addSecurityDomain=add a security domain (CORS allowlist entry), removeSecurityDomain=delete a security domain Allowed values: "listPackages", "create", "modifyPlan", "renew", "addSecurityDomain", "removeSecurityDomain"</td></tr>
+<tr><td><code>domains</code></td><td>array of string</td><td></td><td>Security domain array (host:port format, such as localhost:5173 or 127.0.0.1:4173). Required and only effective when action=addSecurityDomain/removeSecurityDomain. These are CORS allowlist entries, not custom domains, and do not require certificates. Before adding one, use queryEnv(action=domains) to check whether the browser's actual origin is already in the allowlist.</td></tr>
+<tr><td><code>alias</code></td><td>string</td><td></td><td>Environment alias (required when action=create). Must contain lowercase letters, digits, or hyphens; cannot start or end with a hyphen; maximum 20 characters</td></tr>
+<tr><td><code>packageId</code></td><td>string</td><td></td><td>Package ID (required when action=create/modifyPlan). Take the PackageName returned by manageEnv(action="listPackages") — those are the packages selectable in the new-purchase / new-environment menus (baas_personal, baas_pf_standard, baas_pf_enterprise, baas_pf_enterprise_senior, baas_trial, baas_integration). The platform still accepts other valid packageIds (legacy package families, whitelisted ones), so take the actual creation result as authoritative. Available packages differ per site, so do not fill it in from memory.</td></tr>
+<tr><td><code>resources</code></td><td>array of string</td><td></td><td>Resource types to enable (optional when action=create). Allowed values: storage, function, postgresql; defaults to all three when omitted. CreateEnv requires Resources to be non-empty, so MCP always sends this field. flexdb (document database) is no longer included: creating an environment does not create a NoSQL instance; its availability is reported by EnvInfo.RuntimeBackends from queryEnv(action="info").</td></tr>
+<tr><td><code>duration</code></td><td>integer</td><td></td><td>Purchase or renewal duration in months. Optional when action=create/renew; defaults to 1</td></tr>
+<tr><td><code>externalStorage</code></td><td>object</td><td></td><td>Shared COS bucket configuration for cloud storage (optional when action=create). Passing this object means the environment does not get its own dedicated COS bucket; it uses the given bucket as its cloud storage medium and is isolated from other environments in the same bucket by basePath. It applies to cloud storage only — the static hosting bucket is allocated by the platform when hosting is enabled. All three fields are required. ⚠️ Like region, the confirming call (confirm="yes") reads only its own arguments, so omitting it there silently creates the environment with a dedicated bucket.</td></tr>
 <tr><td><code>externalStorage.bucketName</code></td><td>string</td><td>yes</td><td>Shared bucket name (COS bucket name)</td></tr>
 <tr><td><code>externalStorage.region</code></td><td>string</td><td>yes</td><td>Region of the shared bucket, for example ap-shanghai</td></tr>
-<tr><td><code>externalStorage.basePath</code></td><td>string</td><td>yes</td><td>Base path prefix. It must be unique within the shared bucket and isolates this environment from other environments using the same bucket</td></tr>
-<tr><td><code>region</code></td><td>string</td><td></td><td>Creation region (only effective when action=create). Passed through with X-TC-Region semantics and determines where the new environment lives; equivalent CLI: tcb env create --region ap-shanghai. When omitted, the current session region is used (cloudBaseOptions.region → TCB_REGION → project config / rc binding → site default region: ap-shanghai for the China site, ap-singapore for the international site). Note: region is not written into the CreateEnv request body but takes effect through the request-level region context — consistent with the callCloudApi rule "do not put Region into params". ⚠️ ap-singapore belongs to both the China site and the international site; when no site is explicitly specified it is treated as the international site (site=intl). To create in that region on the China site, call auth(site="domestic") or set TCB_SITE=domestic first. Allowed values: "ap-shanghai", "ap-guangzhou", "ap-singapore"</td></tr>
+<tr><td><code>externalStorage.basePath</code></td><td>string</td><td>yes</td><td>Base path prefix. Must be unique within the shared bucket; isolates this environment from others in the same bucket</td></tr>
+<tr><td><code>region</code></td><td>string</td><td></td><td>Creation region (only effective when action=create). Passed through with X-TC-Region semantics and determines where the new environment is created; CLI equivalent: tcb env create --region ap-shanghai. When omitted, the current session region is used (cloudBaseOptions.region → TCB_REGION → project configuration / rc binding → site default: ap-shanghai for the China site, ap-singapore for the international site). region is not written into the CreateEnv request body; it takes effect through the request-layer region context, matching the callCloudApi contract not to put Region in params. ⚠️ ap-singapore belongs to both the China and international sites; without an explicit site it is inferred as international (site=intl). To create there on the China site, first use auth(site="domestic") or set TCB_SITE=domestic. Allowed values: "ap-shanghai", "ap-guangzhou", "ap-singapore"</td></tr>
 <tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID (required when action=modifyPlan/renew)</td></tr>
-<tr><td><code>confirm</code></td><td>string</td><td></td><td>Confirmation. All paid operations (create/modifyPlan/renew) must pass "yes". Allowed values: const "yes"</td></tr>
+<tr><td><code>confirm</code></td><td>string</td><td></td><td>Confirm the operation. All billed operations (create/modifyPlan/renew) require passing "yes" Allowed values: const "yes"</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `readNoSqlDatabaseStructure`
-Read NoSQL database collection and index structure, supports listing collections, viewing collection details, listing indexes, and checking if an index exists.
+Read CloudBase NoSQL database collection and index structures. Supports listing collections, describing a collection, listing indexes, and checking index existence. This is a server-side management tool for querying database structure from the admin side, not for writing client code.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>listCollections: List collection list<br/>describeCollection: Describe collection details (returns index summary)<br/>checkCollection: Check if collection exists<br/>listIndexes: List indexes of specified collection<br/>checkIndex: Check if specified index exists. Allowed values: "listCollections", "describeCollection", "checkCollection", "listIndexes", "checkIndex"</td></tr>
-<tr><td><code>limit</code></td><td>number</td><td></td><td>Return count limit (optional for listCollections operation)</td></tr>
-<tr><td><code>offset</code></td><td>number</td><td></td><td>Offset (optional for listCollections operation)</td></tr>
-<tr><td><code>collectionName</code></td><td>string</td><td></td><td>Collection name (required for describeCollection, listIndexes, checkIndex operations)</td></tr>
-<tr><td><code>indexName</code></td><td>string</td><td></td><td>Index name (required for checkIndex operation)</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>listCollections: List collections describeCollection: Describe collection details (including an index summary) checkCollection: Check whether a collection exists listIndexes: List indexes for a specified collection checkIndex: Check whether a specified index exists Allowed values: "listCollections", "describeCollection", "checkCollection", "listIndexes", "checkIndex"</td></tr>
+<tr><td><code>limit</code></td><td>number</td><td></td><td>Maximum number of results (optional for listCollections)</td></tr>
+<tr><td><code>offset</code></td><td>number</td><td></td><td>Result offset (optional for listCollections)</td></tr>
+<tr><td><code>collectionName</code></td><td>string</td><td></td><td>Collection name (required for describeCollection, listIndexes, and checkIndex)</td></tr>
+<tr><td><code>indexName</code></td><td>string</td><td></td><td>Index name (required for checkIndex)</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `writeNoSqlDatabaseStructure`
-Modify NoSQL database structure, supports creating/deleting collections, and adding/deleting indexes via updateCollection's updateOptions.CreateIndexes / updateOptions.DropIndexes.
+Create, delete, and manage CloudBase NoSQL database collections. Supports creating new collections, deleting existing collections, and adding/removing indexes via updateCollection's updateOptions.CreateIndexes / updateOptions.DropIndexes. Use action=createCollection to create a new collection. This is a server-side management tool for operating collection and index structures from the admin side, not for writing client code.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>createCollection: Create collection<br/>updateCollection: Update collection configuration; pass updateOptions.CreateIndexes to add indexes, pass updateOptions.DropIndexes to delete indexes<br/>deleteCollection: Delete collection. Allowed values: "createCollection", "updateCollection", "deleteCollection"</td></tr>
-<tr><td><code>collectionName</code></td><td>string</td><td>Yes</td><td>Collection name</td></tr>
-<tr><td><code>updateOptions</code></td><td>object</td><td></td><td>Update options (used for updateCollection). CreateIndexes for adding indexes, DropIndexes for deleting indexes.</td></tr>
-<tr><td><code>updateOptions.CreateIndexes</code></td><td>array of object</td><td></td><td>List of indexes to add</td></tr>
-<tr><td><code>updateOptions.CreateIndexes[].IndexName</code></td><td>string</td><td>Yes</td><td>Index name to create</td></tr>
-<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema</code></td><td>object</td><td>Yes</td><td>Field and constraint configuration for index to be created</td></tr>
-<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIsUnique</code></td><td>boolean</td><td>Yes</td><td>Whether unique index</td></tr>
-<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIndexKeys</code></td><td>array of object</td><td>Yes</td><td>Index field list, supports single field or compound indexes</td></tr>
-<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIndexKeys[].Name</code></td><td>string</td><td>Yes</td><td>Index field name</td></tr>
-<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIndexKeys[].Direction</code></td><td>string</td><td>Yes</td><td>Index direction, typically 1 for ascending, -1 for descending</td></tr>
-<tr><td><code>updateOptions.DropIndexes</code></td><td>array of object</td><td></td><td>List of indexes to delete</td></tr>
-<tr><td><code>updateOptions.DropIndexes[].IndexName</code></td><td>string</td><td>Yes</td><td>Index name to delete</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>createCollection: Create a collection updateCollection: Update collection configuration; pass updateOptions.CreateIndexes to add indexes and updateOptions.DropIndexes to remove indexes deleteCollection: Delete a collection Allowed values: "createCollection", "updateCollection", "deleteCollection"</td></tr>
+<tr><td><code>collectionName</code></td><td>string</td><td>yes</td><td>Collection name</td></tr>
+<tr><td><code>updateOptions</code></td><td>object</td><td></td><td>Update options for updateCollection. CreateIndexes adds indexes and DropIndexes removes indexes.</td></tr>
+<tr><td><code>updateOptions.CreateIndexes</code></td><td>array of object</td><td></td><td>Indexes to add</td></tr>
+<tr><td><code>updateOptions.CreateIndexes[].IndexName</code></td><td>string</td><td>yes</td><td>Name of the index to create</td></tr>
+<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema</code></td><td>object</td><td>yes</td><td>Field and constraint configuration for the index to create</td></tr>
+<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIsUnique</code></td><td>boolean</td><td>yes</td><td>Whether the index is unique</td></tr>
+<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIndexKeys</code></td><td>array of object</td><td>yes</td><td>Index field list supporting single-field and compound indexes</td></tr>
+<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIndexKeys[].Name</code></td><td>string</td><td>yes</td><td>Indexed field name</td></tr>
+<tr><td><code>updateOptions.CreateIndexes[].MgoKeySchema.MgoIndexKeys[].Direction</code></td><td>string</td><td>yes</td><td>Index direction; 1 usually means ascending and -1 means descending</td></tr>
+<tr><td><code>updateOptions.DropIndexes</code></td><td>array of object</td><td></td><td>Indexes to remove</td></tr>
+<tr><td><code>updateOptions.DropIndexes[].IndexName</code></td><td>string</td><td>yes</td><td>Name of the index to remove</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `readNoSqlDatabaseContent`
-Query and get NoSQL database data records
+Query data records in the CloudBase NoSQL database. Supports filtering, pagination, and sorting for admin-side data queries and operations.limit defaults to 100 with a maximum of 1000; use offset pagination beyond that.projection only supports a \{ field: 1|0 \} object (example \{"_id":1,"name":1,"createdAt":1\}); do not pass field arrays.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>collectionName</code></td><td>string</td><td>Yes</td><td>Collection name</td></tr>
-<tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional: Explicitly specify database instance ID; will be automatically resolved and cached if not provided</td></tr>
-<tr><td><code>query</code></td><td>object | string</td><td></td><td>Query conditions (object or string, object recommended)</td></tr>
-<tr><td><code>projection</code></td><td>object | string</td><td></td><td>Return field projection (object or string, object recommended)</td></tr>
-<tr><td><code>sort</code></td><td>array of object | string</td><td></td><td>Sort conditions, only supports array <code>[&#123;"key":"createdAt","direction":-1&#125;]</code> or corresponding JSON string.</td></tr>
-<tr><td><code>limit</code></td><td>number</td><td></td><td>Return count limit</td></tr>
+<tr><td><code>collectionName</code></td><td>string</td><td>yes</td><td>Collection name</td></tr>
+<tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional explicit database instance ID; when omitted, it is resolved and cached automatically</td></tr>
+<tr><td><code>query</code></td><td>object | string</td><td></td><td>Query condition as an object or string; an object is recommended</td></tr>
+<tr><td><code>projection</code></td><td>object | string</td><td></td><td>Return-field projection. Only an object or equivalent JSON string is supported, and values must be 1/0/true/false. Valid examples: {"_id":1,"name":1,"createdAt":1} (include) or {"password":0} (exclude). Do not pass field arrays such as ["name","age"], and do not mix inclusion and exclusion except for _id.</td></tr>
+<tr><td><code>sort</code></td><td>array of object | string</td><td></td><td>Sort condition. Only an array such as [{"key":"createdAt","direction":-1}] or the equivalent JSON string is supported.</td></tr>
+<tr><td><code>limit</code></td><td>number</td><td></td><td>Maximum number of results; an integer from 1 to 1000, defaulting to 100. Values above 1000 are rejected by the Cloud API MgoLimit lte validation; use offset pagination.</td></tr>
 <tr><td><code>offset</code></td><td>number</td><td></td><td>Number of records to skip</td></tr>
 </tbody>
 </table>
@@ -331,159 +333,195 @@ Query and get NoSQL database data records
 ---
 
 ### `writeNoSqlDatabaseContent`
-Modify NoSQL database data records. Can be understood using MongoDB updateOne/updateMany mental model: partial updates must use update operators like <code>$set</code>/<code>$inc</code>/<code>$push</code>; if you directly pass a plain object like <code>&#123; field: value &#125;</code>, the underlying layer treats it as replacement content, risking overwriting the entire document. When updating a field in a nested object, you must use dot notation path (e.g., <code>&#123; "$set": &#123; "address.city": "shenzhen" &#125; &#125;</code>); if written as <code>&#123; "$set": &#123; "address": &#123; "city": "shenzhen" &#125; &#125; &#125;</code>, the entire address object will be replaced and other sibling fields will be lost. If role/profile documents in a collection are read on the frontend via <code>db.collection(...).doc(uid)</code>, ensure the document <code>_id</code> is that <code>uid</code>; do not use <code>query=&#123;"uid":"..."&#125;</code> + <code>upsert=true</code> to update <code>users</code> / <code>profiles</code>, otherwise it often generates a different <code>_id</code>, causing subsequent <code>doc(uid)</code> reads to miss.
+Modify data records in the CloudBase NoSQL database. Supports insert, update (with $set/$inc/$push and other operators), delete, upsert, and more for admin-side data writes and operations.⚠️ Server-side writes do not include _openid: if the collection relies on client-side SDK (@cloudbase/js-sdk or WeChat Mini Program wx.cloud.database()) row-level security rules (e.g. doc._openid == auth.openid), you must manually add the _openid field on server-side writes, or clients will not be able to read the data.⚠️ Partial updates of nested fields must use dot paths, e.g. `$set: \{"shipping.city": "guangzhou"\}`; passing a nested object directly overwrites the whole field.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>insert: Insert data (add document)<br/>update: Update data<br/>delete: Delete data. Allowed values: "insert", "update", "delete"</td></tr>
-<tr><td><code>collectionName</code></td><td>string</td><td>Yes</td><td>Collection name</td></tr>
-<tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional: Explicitly specify database instance ID; will be automatically resolved and cached if not provided</td></tr>
-<tr><td><code>documents</code></td><td>array of object</td><td></td><td>Array of document objects to insert, each document is an object (required for insert operation)</td></tr>
-<tr><td><code>query</code></td><td>object | string</td><td></td><td>Query conditions (object or string, object recommended) (required for update/delete operations)</td></tr>
-<tr><td><code>update</code></td><td>object | string</td><td></td><td>Update content (object or string, object recommended) (required for update operation). Pass MgoUpdate using MongoDB update semantics: for partial updates use <code>$set</code>/<code>$inc</code>/<code>$unset</code>/<code>$push</code> operators, e.g., <code>&#123; "$set": &#123; "status": "pending" &#125; &#125;</code>; do not directly pass <code>&#123; "status": "pending" &#125;</code>, otherwise the entire document may be replaced. When updating nested fields, use dot notation path, e.g., <code>&#123; "$set": &#123; "address.city": "shenzhen" &#125; &#125;</code>, do not write <code>&#123; "$set": &#123; "address": &#123; "city": "shenzhen" &#125; &#125; &#125;</code> (will replace entire address object).</td></tr>
-<tr><td><code>isMulti</code></td><td>boolean</td><td></td><td>Whether to update multiple records (optional for update/delete operations)</td></tr>
-<tr><td><code>upsert</code></td><td>boolean</td><td></td><td>Whether to insert if not exists (optional for update operation)</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>insert: Insert data (add documents) update: Update data delete: Delete data Allowed values: "insert", "update", "delete"</td></tr>
+<tr><td><code>collectionName</code></td><td>string</td><td>yes</td><td>Collection name</td></tr>
+<tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional explicit database instance ID; when omitted, it is resolved and cached automatically</td></tr>
+<tr><td><code>documents</code></td><td>array of object</td><td></td><td>Array of document objects to insert; each document must be an object (required for insert)</td></tr>
+<tr><td><code>query</code></td><td>object | string</td><td></td><td>Query condition as an object or string; an object is recommended (required for update/delete)</td></tr>
+<tr><td><code>update</code></td><td>object | string</td><td></td><td>Update content as an object or string; an object is recommended (required for update). Pass MgoUpdate using MongoDB update semantics: for partial updates, use operators such as `$set`, `$inc`, `$unset`, and `$push`, for example `$set` to update `status`. Do not pass a plain field-to-value object directly, because it may replace the entire document. ⚠️ Nested fields must use dot notation (such as `shipping.city`); replacing the whole object is prohibited: - ❌ Incorrect: { "$set": { "shipping": { "city": "guangzhou" } } } — replaces all of shipping and loses existing fields such as address and province - ✅ Correct: { "$set": { "shipping.city": "guangzhou" } } — updates only city and preserves other fields under shipping</td></tr>
+<tr><td><code>isMulti</code></td><td>boolean</td><td></td><td>Whether to update multiple records (optional for update/delete)</td></tr>
+<tr><td><code>upsert</code></td><td>boolean</td><td></td><td>Whether to insert when no record exists (optional for update)</td></tr>
+</tbody>
+</table>
+
+---
+
+### `manageDataModel`
+Data model query tool that supports querying and listing data models (read-only). Distinguish operations via the action parameter: list=get the model list (without Schema, optional names parameter for filtering), get=query a single model's details (including Schema field list, formats, relations, etc.; requires the name parameter), docs=generate SDK usage documentation (requires the name parameter)
+
+#### Parameters
+
+<table>
+<thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: get=query a single model (including its Schema field list, formats, and relations; requires the name parameter), list=get the model list (without Schema; optional names parameter for filtering), docs=generate SDK usage documentation (requires the name parameter) Allowed values: "get", "list", "docs"</td></tr>
+<tr><td><code>name</code></td><td>string</td><td></td><td>Name of the data model to query. This parameter is required when action='get' or action='docs' and must identify an existing data model. Use action='list' to obtain available model names</td></tr>
+<tr><td><code>names</code></td><td>array of string</td><td></td><td>Array of model names, optionally used to filter the list operation</td></tr>
+</tbody>
+</table>
+
+---
+
+### `modifyDataModel`
+Create data models from a Mermaid classDiagram. For compatibility, the tool name remains modifyDataModel; currently only creating new models is supported, not updating existing model structures. Includes async task monitoring that polls automatically until completion or timeout.
+
+#### Parameters
+
+<table>
+<thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>mermaidDiagram</code></td><td>string</td><td>yes</td><td>Mermaid classDiagram code describing the data model structure. Example: classDiagram     class Student {         name: string &lt;&lt;Name&gt;&gt;         age: number = 18 &lt;&lt;Age&gt;&gt;         gender: x-enum = "Male" &lt;&lt;Gender&gt;&gt;         classId: string &lt;&lt;Class ID&gt;&gt;         identityId: string &lt;&lt;Identity ID&gt;&gt;         course: Course[] &lt;&lt;Courses&gt;&gt;         required() ["name"]         unique() ["name"]         enum_gender() ["Male", "Female"]         display_field() "name"     }     class Class {         className: string &lt;&lt;Class name&gt;&gt;         display_field() "className"     }     class Course {         name: string &lt;&lt;Course name&gt;&gt;         students: Student[] &lt;&lt;Students&gt;&gt;         display_field() "name"     }     class Identity {         number: string &lt;&lt;Document number&gt;&gt;         display_field() "number"     }     %% Relationships     Student "1" --&gt; "1" Identity : studentId     Student "n" --&gt; "1" Class : student2class     Student "n" --&gt; "m" Course : course     Student "n" &lt;-- "m" Course : students     %% Class names     note for Student "Student model"     note for Class "Class model"     note for Course "Course model"     note for Identity "Identity model"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td></td><td>Operation type: create=create a new model Allowed values: "create"；Default: "create"</td></tr>
+<tr><td><code>publish</code></td><td>boolean</td><td></td><td>Whether to publish the model immediately Default: false</td></tr>
+<tr><td><code>dbInstanceType</code></td><td>string</td><td></td><td>Database instance type: MySQL database or document database (NoSQL) Allowed values: "MYSQL", "FLEXDB"；Default: "MYSQL"</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryPgDatabase`
-Query CloudBase PostgreSQL databases. Supports getting the current PG context, listing schema-qualified database objects, reading lightweight metadata, inspecting a single object structure, and executing read-only SQL.
+⚠️ Read-only tool: only accepts read-only SQL such as SELECT. CREATE / ALTER / DROP / INSERT / UPDATE / DELETE are rejected outright (and a 42703/42P01 usually means a guessed table or column name — run action=objects to see the real structure instead of assuming names like schema_migrations). For writes and DDL use managePgDatabase: action=execute for DML/GRANT/RLS, action=applyMigration for schema changes.
+
+Query the CloudBase PostgreSQL database: get the current PG context, list schema-qualified database objects, read lightweight metadata, inspect a single object schema, and run read-only SQL.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: context=get current PostgreSQL context; objects=list schema-qualified database objects; metadata=get lightweight table metadata; schema=inspect a single schema-qualified object structure; sql=execute read-only SQL. Allowed values: "context", "objects", "metadata", "schema", "sql"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Action type: context=get the current PostgreSQL context; objects=list schema-qualified database objects; metadata=get lightweight table metadata; schema=inspect a single schema-qualified object structure; sql=run read-only SQL Allowed values: "context", "objects", "metadata", "schema", "sql"</td></tr>
 <tr><td><code>sql</code></td><td>string</td><td></td><td>Read-only SQL used when action=sql</td></tr>
 <tr><td><code>objectName</code></td><td>string</td><td></td><td>Schema-qualified PostgreSQL object name used when action=schema, e.g. public.users</td></tr>
-<tr><td><code>schema</code></td><td>string</td><td></td><td>Optional schema filter, used for action=objects or action=metadata</td></tr>
-<tr><td><code>limit</code></td><td>integer</td><td></td><td>Optional cap on summary rows for objects, metadata, or SQL results. Default 20, max 200</td></tr>
+<tr><td><code>schema</code></td><td>string</td><td></td><td>Optional schema filter, used with action=objects or action=metadata</td></tr>
+<tr><td><code>limit</code></td><td>integer</td><td></td><td>Optional cap on summary size, applied to objects, metadata, or SQL result rows. Defaults to 20, maximum 200.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `managePgDatabase`
-Manage CloudBase PostgreSQL: execute confirmed write SQL, SQL risk preflight, migration management, and Realtime settings. Schema changes such as CREATE/ALTER/DROP MUST use applyMigration (explicit migrationVersion; before success, it automatically writes or validates the local cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql file, consistent with the CLI `tcb db pg migration`). Do not default to execute. execute is mainly for DML and operational SQL like GRANT/RLS. Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call on an unprovisioned environment provisions it automatically and is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops all live WebSocket connections of the environment, globally; client subscriptions use app.realtime(), not collection.watch() — see references/realtime.md in the postgresql-development-cloudbase skill).
+Manage CloudBase PostgreSQL: run confirmed write SQL, pre-check SQL risk, manage migrations, and manage Realtime settings. Schema changes such as CREATE TABLE/ALTER/DROP must use applyMigration (explicit migrationVersion; the local cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql file is written or verified automatically before success, matching the CLI tcb db pg migration). Do not use execute by default. execute is mainly for DML and ops SQL such as GRANT/RLS. Three Realtime actions: describeRealtime reads the settings (the response has no provisioning flag, so success does not mean Realtime is provisioned); enableRealtime provisions and resumes the service, equivalent to setting Suspend=false (the first call on an unprovisioned environment provisions it automatically, and it is a no-op when already provisioned and not suspended); modifyRealtime applies an incremental update from the fields you pass explicitly (requires confirm=true, and changing suspend immediately drops all live WebSocket connections of the environment, globally).
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: execute=execute confirmed write SQL (DML/GRANT/RLS; schema DDL is rejected by default, requires allowDdlViaExecute=true); dryRun=only analyze SQL risk without executing; planMigration=preview migration plan (requires migrationName + migrationVersion + sql; optional includeAll=true allows out-of-order, aligned with CLI --include-all); applyMigration=apply migration, preferred for CREATE/ALTER schema (requires migrationName + migrationVersion + sql + confirm=true; optional includeAll; if the local SQL is missing it is automatically written to cloudbase/migrations/, if content mismatches it fails closed with LOCAL_MIGRATION_FILE_MISMATCH; before returning success it polls DescribeTaskResult (default max 10 minutes, adjustable via taskPollTimeoutMs / waitForTask) and verifies the migrationVersion has landed in remote history; on timeout returns MIGRATION_TASK_TIMEOUT, must first describeMigrationTask then listMigrations, do NOT immediately re-push the same version; if not applied returns success=false with errorCode=MIGRATION_NOT_APPLIED); listMigrations=query the applied Migration list (supports limit/offset paging); migrationDetail=view a single Migration detail (requires migrationVersion); describeMigrationTask=query the Push async task status by TaskId (DescribeTaskResult: Status/Phase/Reason; requires taskId; used for waitForTask=false / MIGRATION_TASK_TIMEOUT / failure diagnosis, listMigrations cannot see Reason); fetchMigration=pull SQL from remote history and write to local cloudbase/migrations/ (aligned with CLI tcb db pg migration fetch; optional migrationVersion pulls a single entry, omitted pulls all; force=true overwrites existing files, default skips); repairMigration=repair Migration history (requires migrationVersion + migrationName + repairStatus + repairReason); describeRealtime=read the Realtime settings (does not indicate provisioning); enableRealtime=provision and resume, equivalent to Suspend=false (the first call on an unprovisioned environment provisions it automatically and is a no-op when already provisioned and not suspended); modifyRealtime=incremental Realtime update (requires confirm=true). Allowed values: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration", "describeRealtime", "enableRealtime", "modifyRealtime"</td></tr>
-<tr><td><code>sql</code></td><td>string</td><td></td><td>SQL statement used by action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Must be explicitly set to true before executing any write SQL and for action=modifyRealtime; when modifyRealtime omits it nothing is sent and the tool returns the current values plus the pending changes so you can confirm with the user first</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Optional CloudBase environment ID; uses the current MCP environment when omitted</td></tr>
-<tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional PostgreSQL logical instance identifier, default cloudbase-pg</td></tr>
-<tr><td><code>defaultSchema</code></td><td>string</td><td></td><td>Optional default schema, default public</td></tr>
-<tr><td><code>role</code></td><td>string</td><td></td><td>Optional PostgreSQL role, passed to Manager SDK executePGSql; e.g. pass postgres when managing policies</td></tr>
-<tr><td><code>objectName</code></td><td>string</td><td></td><td>Optional object name, currently only used for non-migration scenarios. For migration operations use migrationName / migrationVersion</td></tr>
-<tr><td><code>migrationName</code></td><td>string</td><td></td><td>Required for plan/apply/repair: migration name, starts with a lowercase letter, only lowercase letters, digits, and underscores allowed</td></tr>
-<tr><td><code>migrationVersion</code></td><td>string</td><td></td><td>14-digit timestamp YYYYMMDDHHMMSS. Required for plan/apply/detail/repair; optional for fetchMigration (pass to pull that entry only, omit to pull all remote history); must not be silently generated server-side, to avoid diverging from local cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql. applyMigration is not incremental: always pass the complete SQL; when a run ends in a failed final state and listMigrations has not recorded it, the version number is not consumed — just resend the full SQL under a new migrationVersion (the same name with a different version does not conflict)</td></tr>
-<tr><td><code>rollbackSql</code></td><td>string</td><td></td><td>Optional for plan/apply: rollback SQL statement</td></tr>
-
-<tr><td><code>limit</code></td><td>integer</td><td></td><td>Optional for list: max number of results, 1-500, default 100</td></tr>
-<tr><td><code>offset</code></td><td>integer</td><td></td><td>Optional for list: pagination offset, default 0</td></tr>
-<tr><td><code>lockTimeoutMs</code></td><td>integer</td><td></td><td>Optional for apply: max time to acquire the database lock (ms), default 5000</td></tr>
-<tr><td><code>statementTimeoutMs</code></td><td>integer</td><td></td><td>Optional for apply: max execution time per SQL statement (ms), default 300000</td></tr>
-<tr><td><code>taskPollTimeoutMs</code></td><td>integer</td><td></td><td>Optional for apply: max wait for polling DescribeTaskResult (ms). Default 600000 (aligned with CLI tcb db pg migration up 10-minute wait). Range 5000-600000. On timeout, first describeMigrationTask(taskId) then listMigrations, do NOT immediately re-push the same version</td></tr>
-<tr><td><code>waitForTask</code></td><td>boolean</td><td></td><td>Optional for apply, default true. When false, Push returns the TaskId immediately (errorCode=MIGRATION_TASK_PENDING) and the caller polls the task final state with describeMigrationTask, then confirms persistence with listMigrations; suitable for MCP host tool calls with short timeout. Default true waits synchronously for the task final state</td></tr>
-<tr><td><code>taskId</code></td><td>string</td><td></td><td>Required for describeMigrationTask: the TaskId returned by PushPGUserMigrations / applyMigration. Used for a one-shot DescribeTaskResult (Status/Phase/Reason) query, no polling</td></tr>
-<tr><td><code>repairStatus</code></td><td>string</td><td></td><td>Required for repair: applied=mark as applied (can backfill Query), reverted=delete history record. Allowed values: "applied", "reverted"</td></tr>
-<tr><td><code>repairReason</code></td><td>string</td><td></td><td>Required for repair: repair reason</td></tr>
-<tr><td><code>force</code></td><td>boolean</td><td></td><td>Optional for fetchMigration, default false. true=overwrite an existing local SQL file with the same name (aligned with CLI tcb db pg migration fetch --force); false=skip existing files. Used to realign Git checksums from remote history</td></tr>
-<tr><td><code>includeAll</code></td><td>boolean</td><td></td><td>Optional for planMigration / applyMigration, default false. true=allow out-of-order (version lower than remote LatestVersion) Preview/Push, aligned with CLI tcb db pg migration up --include-all; only use when intentionally backfilling history/out-of-order migrations, otherwise choose a larger migrationVersion</td></tr>
-<tr><td><code>allowDdlViaExecute</code></td><td>boolean</td><td></td><td>Optional, default false. Only set true when deliberately bypassing migration history to allow schema DDL via execute; normal CREATE/ALTER schema must use applyMigration</td></tr>
-<tr><td><code>suspend</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false). Global, affects every node of the environment: true immediately drops all live WebSocket connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores the service. Any change of the suspend value triggers one disconnect, so clients must reconnect</td></tr>
-<tr><td><code>privateOnly</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime: when true only private channels are allowed; clients cannot join channels prefixed with public:</td></tr>
-<tr><td><code>presenceEnabled</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime: global presence switch. When false, client presence joins on a channel are rejected</td></tr>
-<tr><td><code>maxConcurrentUsers</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000</td></tr>
-<tr><td><code>maxEventsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum broadcast events per second across all clients; exceeding it returns a rate-limit error</td></tr>
-<tr><td><code>maxJoinsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum joins per second; new joins are throttled above it</td></tr>
-<tr><td><code>maxBytesPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum broadcast payload bytes per second across all clients; exceeding it rejects messages</td></tr>
-<tr><td><code>maxChannelsPerClient</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum channels per client; a client above it cannot join more channels</td></tr>
-<tr><td><code>maxPresenceEventsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum presence events per second across all clients (track/untrack)</td></tr>
-<tr><td><code>maxPayloadSizeInKB</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum payload size per message in KB; larger messages are rejected</td></tr>
-<tr><td><code>connectionPool</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: Realtime database connection pool size used for RLS authorization queries. This is not the PG instance connection pool</td></tr>
-<tr><td><code>postgresChangesPool</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: Realtime dedicated connection pool for CDC (postgres_changes), isolated from the broadcast/auth pool</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Action type. For everyday writes use execute (DML/GRANT/RLS; schema DDL is rejected by default and needs allowDdlViaExecute=true) or dryRun (analyze only, no execution). CREATE TABLE / schema changes must use applyMigration — see the tool description for the full flow (polling, timeout, landed-in-history check). The other six support migrations: planMigration=preview, listMigrations=list applied, migrationDetail=one record, describeMigrationTask=inspect a Push task, fetchMigration=pull remote SQL locally, repairMigration=fix history. plan / apply / repair all need migrationName + migrationVersion; migrationDetail needs only migrationVersion. describeRealtime / enableRealtime / modifyRealtime manage Realtime (see the tool description). Allowed values: "execute", "dryRun", "planMigration", "applyMigration", "listMigrations", "migrationDetail", "describeMigrationTask", "fetchMigration", "repairMigration", "describeRealtime", "enableRealtime", "modifyRealtime"</td></tr>
+<tr><td><code>sql</code></td><td>string</td><td></td><td>SQL statement used when action=execute, dryRun, planMigration, applyMigration, or repairMigration(applied)</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Must be explicitly set to true before running any write SQL (execute etc.) and for action=modifyRealtime; when modifyRealtime omits it nothing is sent and the tool returns the current values plus the pending changes so you can confirm with the user first.</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Optional CloudBase environment ID; the current MCP environment is used when omitted.</td></tr>
+<tr><td><code>instanceId</code></td><td>string</td><td></td><td>Optional PostgreSQL logical instance identifier, defaults to cloudbase-pg.</td></tr>
+<tr><td><code>defaultSchema</code></td><td>string</td><td></td><td>Optional default schema, defaults to public.</td></tr>
+<tr><td><code>role</code></td><td>string</td><td></td><td>Optional PostgreSQL role, passed as Role to the Manager SDK executePGSql (the platform issues SET ROLE). Defaults to cloudbase_postgres. Recommended values: cloudbase_postgres / anon / authenticated / service_role. Do not pass postgres, postgres_pgdb_*, platform-reserved roles (the platform management account, not exposed to users), or roles invented from the environment name; when unsure omit this field, or first run SELECT rolname FROM pg_roles with cloudbase_postgres.</td></tr>
+<tr><td><code>objectName</code></td><td>string</td><td></td><td>Optional object name, currently only used for non-migration scenarios. For migration actions use migrationName / migrationVersion instead.</td></tr>
+<tr><td><code>migrationName</code></td><td>string</td><td></td><td>Required for plan/apply/repair: migration name starting with a lowercase letter, containing only lowercase letters and underscores (no digits — the server-side PushPGUserMigrations rejects names containing digits).</td></tr>
+<tr><td><code>migrationVersion</code></td><td>string</td><td></td><td>14-digit timestamp YYYYMMDDHHMMSS. Required for plan/apply/detail/repair; optional for fetchMigration (passing it pulls only that record, omitting it pulls the full remote history). It must never be generated silently by the server, to avoid diverging from the local cloudbase/migrations/&lt;version&gt;_&lt;name&gt;.sql file. applyMigration is not incremental: send the complete SQL every time; when a task fails terminally and listMigrations shows the version did not land, that version is not consumed — just pick a new migrationVersion and re-send the full SQL (the same name with a different version does not conflict).</td></tr>
+<tr><td><code>rollbackSql</code></td><td>string</td><td></td><td>Optional for plan/apply: rollback SQL statement.</td></tr>
+<tr><td><code>limit</code></td><td>integer</td><td></td><td>Optional for list: maximum number of records returned, 1-500, defaults to 100.</td></tr>
+<tr><td><code>offset</code></td><td>integer</td><td></td><td>Optional for list: paging offset, defaults to 0.</td></tr>
+<tr><td><code>lockTimeoutMs</code></td><td>integer</td><td></td><td>Optional for apply: maximum time to acquire the database lock in milliseconds, defaults to 5000.</td></tr>
+<tr><td><code>statementTimeoutMs</code></td><td>integer</td><td></td><td>Optional for apply: maximum execution time per SQL statement in milliseconds, defaults to 300000.</td></tr>
+<tr><td><code>taskPollTimeoutMs</code></td><td>integer</td><td></td><td>Optional for apply: maximum wait while polling DescribeTaskResult, in milliseconds. Defaults to 600000 (10 minutes). Range 5000-600000. After a timeout always call describeMigrationTask(taskId) before listMigrations, and never re-push the same version immediately.</td></tr>
+<tr><td><code>waitForTask</code></td><td>boolean</td><td></td><td>Optional for apply, defaults to true. When set to false, Push returns the TaskId immediately (errorCode=MIGRATION_TASK_PENDING) and the caller polls the task to a terminal state with describeMigrationTask, then confirms with listMigrations whether it landed; useful when the MCP host has a short tool-call timeout. The default true waits synchronously for the terminal state.</td></tr>
+<tr><td><code>taskId</code></td><td>string</td><td></td><td>Required for describeMigrationTask: the TaskId returned by PushPGUserMigrations / applyMigration. Used for a one-shot DescribeTaskResult query (Status/Phase/Reason) without polling.</td></tr>
+<tr><td><code>repairStatus</code></td><td>string</td><td></td><td>Required for repair: applied=mark as applied (Query can be backfilled), reverted=delete the history record. Allowed values: "applied", "reverted"</td></tr>
+<tr><td><code>repairReason</code></td><td>string</td><td></td><td>Required for repair: the repair reason.</td></tr>
+<tr><td><code>force</code></td><td>boolean</td><td></td><td>Optional for fetchMigration, defaults to false. true=overwrite the existing local SQL file with the same name; false=skip existing files. Use it to realign Git checksums from the remote history.</td></tr>
+<tr><td><code>includeAll</code></td><td>boolean</td><td></td><td>Optional for planMigration / applyMigration, defaults to false. true=allow out-of-order versions (older than the remote LatestVersion) to still Preview/Push; use it only when intentionally backfilling or applying out-of-order migrations — normally pick a larger migrationVersion instead.</td></tr>
+<tr><td><code>allowDdlViaExecute</code></td><td>boolean</td><td></td><td>Optional, defaults to false. Set it to true only when intentionally bypassing migration history, which is the only case where schema DDL is allowed through execute; normal CREATE TABLE / schema changes must use applyMigration.</td></tr>
+<tr><td><code>suspend</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime (enableRealtime is equivalent to Suspend=false). Global, affects every node of the environment: true immediately drops all live WebSocket connections, rejects new ones (HTTP 403) and disables the server-side broadcast API; false restores the service. Any change of the suspend value triggers one disconnect, so clients must reconnect.</td></tr>
+<tr><td><code>privateOnly</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime: when true only private channels are allowed; clients cannot join channels prefixed with public:.</td></tr>
+<tr><td><code>presenceEnabled</code></td><td>boolean</td><td></td><td>Applies to action=modifyRealtime: global presence switch. When false, client presence joins on a channel are rejected.</td></tr>
+<tr><td><code>maxConcurrentUsers</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum concurrent users (multiple connections of the same user count once); new connections are rejected above it. Server-side range 0-15000.</td></tr>
+<tr><td><code>maxEventsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum broadcast events per second across all clients; exceeding it returns a rate-limit error.</td></tr>
+<tr><td><code>maxJoinsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum joins per second; new joins are throttled above it.</td></tr>
+<tr><td><code>maxBytesPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum broadcast payload bytes per second across all clients; exceeding it rejects messages.</td></tr>
+<tr><td><code>maxChannelsPerClient</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum channels per client; a client above it cannot join more channels.</td></tr>
+<tr><td><code>maxPresenceEventsPerSecond</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum presence events per second across all clients (track/untrack).</td></tr>
+<tr><td><code>maxPayloadSizeInKB</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: maximum payload size per message in KB; larger messages are rejected.</td></tr>
+<tr><td><code>connectionPool</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: Realtime database connection pool size used for RLS authorization queries. This is not the PG instance connection pool.</td></tr>
+<tr><td><code>postgresChangesPool</code></td><td>integer</td><td></td><td>Applies to action=modifyRealtime: Realtime dedicated connection pool for CDC (postgres_changes), isolated from the broadcast/auth pool.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryPgStorage`
-Query cloud storage capabilities in the CloudBase PostgreSQL environment. Returns bucket/config capability summaries, object info query plans, and upload implementation plans based on HTTP API or SDK; does not read local files and does not output large numbers of signed URLs by default.
+Query cloud storage capabilities of a CloudBase PostgreSQL environment. Returns a bucket/config capability summary, object metadata query plans, and upload implementation plans based on the HTTP API or SDK; it never reads local files and does not emit bulk signed URLs by default.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: buckets/config=query storage capability summary; createBucket=generate bucket creation plan (SQL/HTTP API/CLI); uploadPlan=generate HTTP API/SDK upload plan; objectInfo=generate object metadata query plan; signUpload/signDownload=explicit one-time signed URL request placeholders. Allowed values: "buckets", "config", "uploadPlan", "objectInfo", "signUpload", "signDownload", "createBucket"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: buckets/config=query the storage capability summary; createBucket=generate a bucket creation plan (SQL/HTTP API/CLI); uploadPlan=generate an HTTP API/SDK upload plan; objectInfo=generate an object metadata query plan; signUpload/signDownload=explicit placeholders for one-time signed URL requests Allowed values: "buckets", "config", "uploadPlan", "objectInfo", "signUpload", "signDownload", "createBucket"</td></tr>
 <tr><td><code>bucket</code></td><td>string</td><td></td><td>Cloud storage bucket name</td></tr>
 <tr><td><code>objectKey</code></td><td>string</td><td></td><td>Single object key</td></tr>
-<tr><td><code>objectKeys</code></td><td>array of string</td><td></td><td>Multiple object keys, used for object metadata query planning</td></tr>
-<tr><td><code>objects</code></td><td>array of object</td><td></td><td>Metadata of objects to upload. File byte content is not passed through MCP</td></tr>
-<tr><td><code>expiresIn</code></td><td>integer</td><td></td><td>Signed URL validity period in seconds, range 60 to 86400</td></tr>
+<tr><td><code>objectKeys</code></td><td>array of string</td><td></td><td>Multiple object keys for planning object metadata queries</td></tr>
+<tr><td><code>objects</code></td><td>array of object</td><td></td><td>Metadata for objects to upload. File bytes are not transferred through MCP.</td></tr>
+<tr><td><code>objects[].objectKey</code></td><td>string</td><td>yes</td><td></td></tr>
+<tr><td><code>objects[].contentType</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>objects[].sizeBytes</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>expiresIn</code></td><td>integer</td><td></td><td>Signed URL validity in seconds, from 60 to 86400.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryMysqlDatabase`
-Query CloudBase MySQL database information. Supports read-only SQL execution, instance-create task result lookup (tasks started from the console), MySQL task status lookup, current instance context discovery, and instance slow-query / error-log retrieval (aligned with Manager SDK describeInstanceSlowQueries / describeInstanceErrorLogs).
+Query CloudBase MySQL database information. Supports running read-only SQL, checking the result of an instance-creation task started in the console, querying MySQL task status, getting the current instance lifecycle context, and querying instance slow queries / error logs. Standard getInstanceInfo/describeInstance never returns connection credentials; only getConnectionInfo passes through the raw connection/cluster payload (possibly including credentials), and only for explicit TCP migration. Prefer the SDK or runQuery/runStatement for business CRUD.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>runQuery=execute read-only SQL; describeCreateResult=query instance-create task results (tasks started from the console); describeTaskStatus=query MySQL task status; getInstanceInfo=get current SQL instance context; describeInstance=alias of getInstanceInfo; describeInstanceSlowQueries=query instance slow-query logs; describeInstanceErrorLogs=query instance error logs. Allowed values: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo", "describeInstanceSlowQueries", "describeInstanceErrorLogs"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>runQuery=execute read-only SQL; describeCreateResult=query the result of an instance-creation task started in the console; describeTaskStatus=query MySQL task status; getInstanceInfo=get lifecycle context without connection credentials; describeInstance=alias of getInstanceInfo; getConnectionInfo=passthrough raw connection/cluster payload including possible credentials (TCP migration exception only); describeInstanceSlowQueries=query instance slow query logs; describeInstanceErrorLogs=query instance error logs Allowed values: "runQuery", "describeCreateResult", "describeTaskStatus", "getInstanceInfo", "describeInstance", "getConnectionInfo", "describeInstanceSlowQueries", "describeInstanceErrorLogs"</td></tr>
 <tr><td><code>sql</code></td><td>string</td><td></td><td>Read-only SQL used by action=runQuery</td></tr>
-<tr><td><code>request</code></td><td>object</td><td></td><td>Official request payload used by describeCreateResult/describeTaskStatus/describeInstanceSlowQueries/describeInstanceErrorLogs (may include InstanceId and similar)</td></tr>
-<tr><td><code>dbInstance</code></td><td>object</td><td></td><td>Optional SQL database instance context for runQuery / slow-query / error logs</td></tr>
+<tr><td><code>request</code></td><td>object</td><td></td><td>Official request payload used by describeCreateResult/describeTaskStatus/describeInstanceSlowQueries/describeInstanceErrorLogs (may include InstanceId, etc.)</td></tr>
+<tr><td><code>dbInstance</code></td><td>object</td><td></td><td>Optional SQL database instance context for runQuery / slow-query / error-log actions</td></tr>
 <tr><td><code>dbInstance.instanceId</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>dbInstance.schema</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>startTime</code></td><td>string</td><td></td><td>Slow-query / error-log query start time (YYYY-MM-DD HH:mm:ss)</td></tr>
 <tr><td><code>endTime</code></td><td>string</td><td></td><td>Slow-query / error-log query end time (YYYY-MM-DD HH:mm:ss)</td></tr>
-<tr><td><code>limit</code></td><td>number</td><td></td><td>Maximum number of slow-query / error-log rows to return</td></tr>
-<tr><td><code>offset</code></td><td>number</td><td></td><td>Pagination offset for slow-query / error logs</td></tr>
-<tr><td><code>username</code></td><td>string</td><td></td><td>Slow-query filter: user name</td></tr>
+<tr><td><code>limit</code></td><td>number</td><td></td><td>Max rows for slow-query / error-log results</td></tr>
+<tr><td><code>offset</code></td><td>number</td><td></td><td>Pagination offset for slow-query / error-log results</td></tr>
+<tr><td><code>username</code></td><td>string</td><td></td><td>Slow-query filter: username</td></tr>
 <tr><td><code>host</code></td><td>string</td><td></td><td>Slow-query filter: client host</td></tr>
 <tr><td><code>database</code></td><td>string</td><td></td><td>Slow-query filter: database name</td></tr>
-<tr><td><code>orderBy</code></td><td>string</td><td></td><td>Sort field. Slow queries support QueryTime/LockTime/RowsExamined/RowsSent; error logs support Timestamp. Allowed values: "QueryTime", "LockTime", "RowsExamined", "RowsSent", "Timestamp"</td></tr>
-<tr><td><code>orderByType</code></td><td>string</td><td></td><td>Sort direction: asc/desc (either case). Allowed values: "asc", "desc", "ASC", "DESC"</td></tr>
+<tr><td><code>orderBy</code></td><td>string</td><td></td><td>Sort field. Slow queries: QueryTime/LockTime/RowsExamined/RowsSent; error logs: Timestamp Allowed values: "QueryTime", "LockTime", "RowsExamined", "RowsSent", "Timestamp"</td></tr>
+<tr><td><code>orderByType</code></td><td>string</td><td></td><td>Sort direction: asc/desc (case-insensitive) Allowed values: "asc", "desc", "ASC", "DESC"</td></tr>
 <tr><td><code>sqlText</code></td><td>string</td><td></td><td>Slow-query filter: SQL text fragment</td></tr>
-<tr><td><code>logLevels</code></td><td>array of string</td><td></td><td>Error-log level filter; available values: error / warning / note</td></tr>
-<tr><td><code>keyWords</code></td><td>array of string</td><td></td><td>Fuzzy keyword search list for error logs</td></tr>
+<tr><td><code>logLevels</code></td><td>array of string</td><td></td><td>Error log level filter</td></tr>
+<tr><td><code>keyWords</code></td><td>array of string</td><td></td><td>Error log keyword fuzzy-search list</td></tr>
 </tbody>
-
 </table>
 
 ---
 
 ### `manageMysqlDatabase`
-Manage an existing CloudBase MySQL instance: destroy the instance, execute write SQL/DDL, and initialize the database schema. MySQL provisioning has been retired from the MCP tool surface, so this tool no longer creates instances — create one in the CloudBase console instead. When the environment has no instance, the tool returns MYSQL_NOT_CREATED together with the console entry point instead of provisioning guidance. Prefer CloudBase PostgreSQL for new environments (managePgDatabase / queryPgDatabase).
+Manage an existing CloudBase MySQL instance: destroy the instance, run write SQL/DDL, and initialize the database schema. Note: MySQL provisioning has been retired from this tool — it no longer creates instances, so use the CloudBase console to provision one. When the environment has no instance, the tool returns MYSQL_NOT_CREATED plus a console entry, and offers no provisioning hint. Prefer CloudBase PostgreSQL (managePgDatabase / queryPgDatabase) for new environments.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>destroyMySQL=destroy the MySQL instance; runStatement=execute write SQL or DDL; initializeSchema=run ordered schema initialization statements. Allowed values: "destroyMySQL", "runStatement", "initializeSchema"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>destroyMySQL=destroy MySQL instance; runStatement=execute write SQL or DDL; initializeSchema=run ordered schema initialization statements Allowed values: "destroyMySQL", "runStatement", "initializeSchema"</td></tr>
 <tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Explicit confirmation required for action=destroyMySQL</td></tr>
 <tr><td><code>sql</code></td><td>string</td><td></td><td>SQL statement used by action=runStatement</td></tr>
 <tr><td><code>request</code></td><td>object</td><td></td><td>Official request payload used by action=destroyMySQL</td></tr>
 <tr><td><code>statements</code></td><td>array of string</td><td></td><td>Ordered schema initialization SQL statements used by action=initializeSchema</td></tr>
 <tr><td><code>requireReady</code></td><td>boolean</td><td></td><td>Whether initializeSchema should block until MySQL is confirmed ready. Defaults to true.</td></tr>
-<tr><td><code>statusContext</code></td><td>object</td><td></td><td>Optional instance status requests used to confirm readiness before initializeSchema (for provisioning/destruction tasks started from the console)</td></tr>
+<tr><td><code>statusContext</code></td><td>object</td><td></td><td>Optional instance status requests used to confirm readiness before initializeSchema (for tasks started in the console)</td></tr>
 <tr><td><code>statusContext.createResultRequest</code></td><td>object</td><td></td><td></td></tr>
 <tr><td><code>statusContext.taskStatusRequest</code></td><td>object</td><td></td><td></td></tr>
 <tr><td><code>dbInstance</code></td><td>object</td><td></td><td>Optional SQL database instance context for runStatement/initializeSchema</td></tr>
@@ -494,324 +532,301 @@ Manage an existing CloudBase MySQL instance: destroy the instance, execute write
 
 ---
 
-### `manageDataModel`
-Data model query tool, supports querying and listing data models (read-only operations). Use the action parameter to distinguish operation types: list=get model list (without Schema, optional names parameter for filtering), get=query single model details (with Schema field list, format, relationships, etc., requires name parameter), docs=generate SDK usage documentation (requires name parameter)
-
-#### Parameters
-
-<table>
-<thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Operation type: get=query single model (with Schema field list, format, relationships, requires name parameter), list=get model list (without Schema, optional names parameter for filtering), docs=generate SDK usage documentation (requires name parameter). Allowed values: "get", "list", "docs"</td></tr>
-<tr><td><code>name</code></td><td>string</td><td></td><td>Data model name to query. When action='get' or action='docs', this parameter is required and must provide an existing data model name. Available model names can be obtained via action='list' operation</td></tr>
-<tr><td><code>names</code></td><td>array of string</td><td></td><td>Model name array (optional for list operation, for filtering)</td></tr>
-</tbody>
-</table>
-
----
-
-### `modifyDataModel`
-Create or update data model based on Mermaid classDiagram. Supports creating new models and updating existing model structures. Built-in async task monitoring, automatically polls until completion or timeout.
-
-#### Parameters
-
-<table>
-<thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>mermaidDiagram</code></td><td>string</td><td>Yes</td><td>Mermaid classDiagram code describing the data model structure.</td></tr>
-<tr><td><code>action</code></td><td>string</td><td></td><td>Operation type: create=create new model. Allowed values: "create"; Default: "create"</td></tr>
-<tr><td><code>publish</code></td><td>boolean</td><td></td><td>Whether to publish the model immediately. Default: false</td></tr>
-<tr><td><code>dbInstanceType</code></td><td>string</td><td></td><td>Database instance type. Default: "MYSQL"</td></tr>
-</tbody>
-</table>
-
-<details>
-<summary>Example</summary>
-
-```text
-classDiagram
-    class Student {
-        name: string <<Name>>
-        age: number = 18 <<Age>>
-        gender: x-enum = "Male" <<Gender>>
-        classId: string <<Class ID>>
-        identityId: string <<Identity ID>>
-        course: Course[] <<Courses>>
-        required() ["name"]
-        unique() ["name"]
-        enum_gender() ["Male", "Female"]
-        display_field() "name"
-    }
-    class Class {
-        className: string <<Class Name>>
-        display_field() "className"
-    }
-    class Course {
-        name: string <<Course Name>>
-        students: Student[] <<Students>>
-        display_field() "name"
-    }
-    class Identity {
-        number: string <<ID Number>>
-        display_field() "number"
-    }
-
-    %% Relationships
-    Student "1" --> "1" Identity : studentId
-    Student "n" --> "1" Class : student2class
-    Student "n" --> "m" Course : course
-    Student "n" <-- "m" Course : students
-    %% Class naming
-    note for Student "Student Model"
-    note for Class "Class Model"
-    note for Course "Course Model"
-    note for Identity "Identity Model"
-```
-</details>
-
----
-
 ### `queryFunctions`
-Unified read-only entry for CloudBase Functions. It queries function lists, function details, execution logs, layers, triggers, code download URLs, published versions, and traffic aliases through self-explanatory actions.
+Unified read-only entry for CloudBase cloud functions: function lists and details, execution logs, layers, triggers, code download URLs, published versions and traffic aliases, async deployment status, and code-package upload URLs.
 
-**Pagination**: `listFunctions`, `listLayers`, and `listVersionByFunction` support `limit` and `offset`.
-- `limit`: page size; the backend chooses the default
-- `offset`: pagination offset starting at 0
-- Example: `queryFunctions(action="listFunctions", offset=10, limit=10)`
+**Cloud function logs**: `listFunctionLogs` queries execution logs for one function and defaults to the last day without startTime/endTime; the span must not exceed 1 day and a single call returns at most 100 entries
+- `hasMore=true` means older logs exist: pass the returned `context` back unchanged to fetch the next page (`offset` only works within the first 100 entries)
+- Each `logs[]` item is parsed into requestId / log / statusCode / retCode / durationMs / memoryMb / timestamp
+- For the full sequence of one invocation (START, business logs, REPORT) use `getFunctionLogDetail`
+- This tool queries execution logs of a specific function; for cross-service CLS log search use `queryLogs`
 
-**Cloud Function logs**: use `action="listFunctionLogs"` with `functionName`.
-- Example: `queryFunctions(action="listFunctionLogs", functionName="my-function")`
-- For log details: `queryFunctions(action="getFunctionLogDetail", requestId="xxx")`
+**Scheduled tasks / cron / timers**: use `listFunctionTriggers` to query a function's timer trigger configuration.
 
-**Scheduled jobs / cron / timers**: use `listFunctionTriggers` to inspect timer triggers.
+**Async deployment status**: `getFunctionDeployStatus` returns data.build, data.deploy, and data.progress. While status=running, data.result and data.error are null and deployment must not be reported as complete. Keep polling until status=succeeded/failed. status=expired means the task exceeded the 2-hour retention limit; cloud deployment may still be running, so confirm with getFunctionDetail. Tasks exist only in MCP process memory and are isolated by environment; expired tasks or a restarted MCP Server return errorCode=DEPLOY_TASK_NOT_FOUND. This action is unavailable in cloud mode because real cloud/local builds cannot run there, while image deployment is synchronous and creates no taskId.
 
-**Versions and traffic routing**: `listVersionByFunction` lists published versions (aligned with `tcb fn list-function-versions`); `getFunctionAlias` retrieves aliases and traffic routing (aligned with `tcb fn get-route`, with `aliasName` defaulting to `$DEFAULT`).
+**Code package upload**: `getFunctionUploadUrl` returns a COS presigned upload URL (two-phase ZIP deployment phase A): PUT the code zip to uploadUrl (include the corresponding request headers when uploadHeaders is non-empty), then call manageFunctions createFunction/updateFunctionCode with the code triplet (phase B). The uploadUrl carries credential-bound signatures; never log or persist it; it is only usable in the environment it was minted for and is valid for 300 seconds by default.
 
-**Layers**:
-- Layers use an account-level shared namespace. The same layer name in different environments shares one version sequence, and deleting a version affects every function bound to that version.
-- Use a unique layer name containing the environment ID: `&#123;layerName&#125;_&#123;currentEnvId&#125;`, for example `common_cloud1-d9ghadgak3edf6b36`. Check `listLayers` before creating one.
-- `listLayers` / `listLayerVersions` / `getLayerVersionDetail` return an account-level view and may include layers created for other environments.
-
-**Difference from `queryLogs`**:
-- This tool queries execution logs for a specific CloudBase Function.
-- `queryLogs` searches CLS across services.
+**Layers** are account-level shared namespaces in SCF; `listLayers` / `listLayerVersions` / `getLayerVersionDetail` return the account-level view, which may include layers created by other environments.
+- When creating a layer, use a unique name with the environment suffix, in the fixed format `\{layerName\}_\{current envId\}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Do not reuse the same bare layer name across environments; check with `listLayers` before creating
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Read-only operation type: listFunctions=list CloudBase Functions; getFunctionDetail=get function details (functionName required); listFunctionLogs=query execution logs (functionName required); getFunctionLogDetail=get log details (requestId required); listFunctionLayers=list layers bound to a function; listLayers=list all layers in the account-level namespace; listLayerVersions=list layer versions; getLayerVersionDetail=get layer version details; listFunctionTriggers=list triggers, including cron/timer configuration; getFunctionDownloadUrl=get a code download URL; getFunctionDeployStatus=query async deployment status by taskId; listVersionByFunction=list published versions; getFunctionAlias=query an alias and its traffic route; getFunctionUploadUrl=get a COS presigned upload URL for a function ZIP package (stage A of two-stage deployment). PUT the code ZIP to uploadUrl, including uploadHeaders when non-empty, then call manageFunctions createFunction or updateFunctionCode with the returned code triplet (stage B). functionName is optional and is used only to generate the upload object key. The returned uploadUrl contains a credential-bearing signature and must not be logged or persisted. Allowed values: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias", "getFunctionUploadUrl"</td></tr>
-<tr><td><code>functionName</code></td><td>string</td><td></td><td>CloudBase Function name. Required for getFunctionDetail, listFunctionLogs, listFunctionLayers, listFunctionTriggers, getFunctionDownloadUrl, listVersionByFunction, and getFunctionAlias; optional for getFunctionUploadUrl, where it is used only to generate the upload object key</td></tr>
-<tr><td><code>limit</code></td><td>number</td><td></td><td>Pagination count. Optional for list-type actions</td></tr>
-<tr><td><code>offset</code></td><td>number</td><td></td><td>Pagination offset. Optional for list-type actions</td></tr>
-<tr><td><code>codeSecret</code></td><td>string</td><td></td><td>Code protection secret used to decrypt function code</td></tr>
-<tr><td><code>revealEnvValues</code></td><td>boolean</td><td></td><td>Whether getFunctionDetail / listFunctionTriggers / listFunctionLayers returns plaintext environment-variable values. Defaults to false: values are masked as ***, retaining only Key and ValueLength. When true, sensitive values enter the model context; prefer the console or CLI for plaintext inspection.</td></tr>
-<tr><td><code>startTime</code></td><td>string</td><td></td><td>Log query start time</td></tr>
-<tr><td><code>endTime</code></td><td>string</td><td></td><td>Log query end time</td></tr>
-<tr><td><code>requestId</code></td><td>string</td><td></td><td>Log requestId. Required when getting log details</td></tr>
-<tr><td><code>qualifier</code></td><td>string</td><td></td><td>Function version, optional for log queries</td></tr>
-<tr><td><code>runtime</code></td><td>string</td><td></td><td>Runtime filter for layer queries</td></tr>
-<tr><td><code>searchKey</code></td><td>string</td><td></td><td>Layer name search keyword</td></tr>
-<tr><td><code>layerName</code></td><td>string</td><td></td><td>Layer name. Required for layer-related actions</td></tr>
-<tr><td><code>layerVersion</code></td><td>number</td><td></td><td>Layer version number. Required when getting layer version details</td></tr>
-<tr><td><code>taskId</code></td><td>string</td><td></td><td>Async deployment task ID for getFunctionDeployStatus, returned by manageFunctions when wait=false. Tasks exist only in the current MCP process: completed tasks are retained for about 30 minutes and running tasks for up to two hours.</td></tr>
-<tr><td><code>order</code></td><td>string</td><td></td><td>Sort direction for listVersionByFunction, such as ASC or DESC</td></tr>
-<tr><td><code>orderBy</code></td><td>string</td><td></td><td>Sort field for listVersionByFunction, such as AddTime or ModTime</td></tr>
-<tr><td><code>aliasName</code></td><td>string</td><td></td><td>Alias name for getFunctionAlias. Defaults to `$DEFAULT`, consistent with `tcb fn get-route`</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Read-only action type. Note the layer version list is `listLayerVersions` (plural Versions); see the tool description for each action's usage and limits and the parameter descriptions for what each needs. Allowed values: "listFunctions", "getFunctionDetail", "listFunctionLogs", "getFunctionLogDetail", "listFunctionLayers", "listLayers", "listLayerVersions", "getLayerVersionDetail", "listFunctionTriggers", "getFunctionDownloadUrl", "getFunctionDeployStatus", "listVersionByFunction", "getFunctionAlias", "getFunctionUploadUrl"</td></tr>
+<tr><td><code>functionName</code></td><td>string</td><td></td><td>CloudBase cloud function name. Required for `getFunctionDetail`, `listFunctionLogs`, `listFunctionLayers`, `listFunctionTriggers`, `getFunctionDownloadUrl`, `listVersionByFunction`, and `getFunctionAlias`. Optional for `getFunctionUploadUrl` (only used to generate the upload object key).</td></tr>
+<tr><td><code>limit</code></td><td>number</td><td></td><td>Page size (limit). Optional for list actions; the backend determines the default. Log actions return at most 100 entries and default to 20.</td></tr>
+<tr><td><code>offset</code></td><td>number</td><td></td><td>Pagination offset. Optional for list actions; defaults to 0. For log actions it only works within the first 100 entries — use the returned context to page further back.</td></tr>
+<tr><td><code>codeSecret</code></td><td>string</td><td></td><td>Code protection secret used to decrypt function code.</td></tr>
+<tr><td><code>revealEnvValues</code></td><td>boolean</td><td></td><td>Whether `getFunctionDetail` / `listFunctionTriggers` / `listFunctionLayers` returns plaintext environment variable values. Defaults to false: Value is masked as ***, while Key and ValueLength remain, which is sufficient to verify configured variables and changes. true returns plaintext and may expose secrets to the model context; use cautiously. Prefer the console or CLI for plaintext values.</td></tr>
+<tr><td><code>startTime</code></td><td>string</td><td></td><td>Log query start time in YYYY-MM-DD HH:mm:ss format (for example, 2024-01-01 00:00:00, interpreted as Beijing time). The interval to endTime must not exceed one day. Defaults to the most recent day when omitted.</td></tr>
+<tr><td><code>endTime</code></td><td>string</td><td></td><td>Log query end time in YYYY-MM-DD HH:mm:ss format (for example, 2024-01-01 23:59:59, interpreted as Beijing time). The interval from startTime must not exceed one day. Defaults to the current time when omitted.</td></tr>
+<tr><td><code>requestId</code></td><td>string</td><td></td><td>Log request ID. Required for `getFunctionLogDetail`; take it from logs[].requestId returned by `listFunctionLogs`, or use the RequestId printed in a business log line.</td></tr>
+<tr><td><code>qualifier</code></td><td>string</td><td></td><td>Function version alias, such as $LATEST or $DEFAULT. Optional for log queries; used as a CLS filter.</td></tr>
+<tr><td><code>context</code></td><td>string</td><td></td><td>Log pagination cursor. Pass the `context` returned by the previous `listFunctionLogs` call back unchanged to fetch the next page; never construct it yourself. null means there are no more results.</td></tr>
+<tr><td><code>runtime</code></td><td>string</td><td></td><td>Runtime filter for layer queries, such as Nodejs18.15.</td></tr>
+<tr><td><code>searchKey</code></td><td>string</td><td></td><td>Layer name search keyword.</td></tr>
+<tr><td><code>layerName</code></td><td>string</td><td></td><td>Layer name. Required for `listLayerVersions` and `getLayerVersionDetail`. Layers use an account-level shared namespace; use the fixed format `{layerName}_{current envId}` (for example, common_cloud1-d9ghadgak3edf6b36).</td></tr>
+<tr><td><code>layerVersion</code></td><td>number</td><td></td><td>Layer version number. Required for `getLayerVersionDetail`.</td></tr>
+<tr><td><code>taskId</code></td><td>string</td><td></td><td>Async deployment task ID for `getFunctionDeployStatus` (returned by manageFunctions with wait=false). Tasks exist only in current MCP process memory: terminal tasks are retained for about 30 minutes and running tasks for at most 2 hours.</td></tr>
+<tr><td><code>order</code></td><td>string</td><td></td><td>Sort direction for `listVersionByFunction`; only ASC / DESC are supported. Allowed values: "ASC", "DESC"</td></tr>
+<tr><td><code>orderBy</code></td><td>string</td><td></td><td>Sort field for `listVersionByFunction`; only AddTime / ModTime are supported. Allowed values: "AddTime", "ModTime"</td></tr>
+<tr><td><code>aliasName</code></td><td>string</td><td></td><td>Alias name for `getFunctionAlias`. Defaults to `$DEFAULT`</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageFunctions`
-Unified write entry for CloudBase Functions. It supports creating functions, updating code and configuration, invoking functions, publishing versions, configuring traffic aliases, and managing timer triggers and layer bindings. The deployment package has a hard size limit: do not bundle static content into it — media files (video, large images, fonts), user uploads, and frequently updated static assets belong in cloud storage, referenced by URL. Otherwise every change needs a redeploy and the package may exceed the limit. To create a scheduled job, first create the function, then call createFunctionTrigger with a seven-field cron expression; delete it with deleteFunctionTrigger. `publishVersion` aligns with `tcb fn publish-version` / SDK publishVersion; `updateFunctionAliasConfig` aligns with `tcb fn config-route` / SDK updateFunctionAliasConfig and defaults `aliasName` to `$DEFAULT`. HTTP Function deployment uses func.buildStrategy: image deploys an existing image; local and cloud run the image build/deploy orchestration. Real local/cloud deployment requires dryRun=false and confirm=true. With wait=false it returns a taskId immediately; callers must poll queryFunctions/getFunctionDeployStatus until succeeded or failed. Local always requires local MCP; cloud requires local build context for real execution; Cloud Mode supports cloud dry-run and image only. Omitting buildStrategy, or setting it to zip, uses a traditional code package. Dangerous operations require confirm=true.
+Unified write entry for CloudBase cloud functions. Supports creating functions, updating code, updating configuration, invoking functions, publishing versions, configuring traffic aliases, and managing timer triggers (scheduled jobs / cron) and layer bindings. The deployment package has a hard size ceiling — do not bundle static content: media files (video, large images, fonts), user uploads, and frequently-updated static resources belong in cloud storage referenced by URL, otherwise every change forces a full function redeploy and the package can exceed the limit. To create a cron scheduled task, first create the function with createFunction, then create the timer trigger with createFunctionTrigger, and delete triggers with deleteFunctionTrigger. Publish versions with `publishVersion`; shift traffic (canary) with `updateFunctionAliasConfig`. HTTP function image deployment: createFunction / updateFunctionCode choose the path via func.buildStrategy (image = deploy an existing image, local / cloud = build then deploy, omitted or zip = traditional code package). local / cloud only produce a dry-run plan by default; pass dryRun=false with confirm=true to execute the real deployment. A real deployment may pass wait=false to return a taskId immediately; query progress and results via getFunctionDeployStatus of queryFunctions. wait=false only means this tool call does not wait for the full deployment; the caller must not finish while status=running and must keep polling until succeeded/failed before reporting to the user, unless the polling limit is reached. local always requires local MCP mode; the real execution of cloud also requires local MCP mode because it reads the local build context; cloud mode only supports cloud dry-run and the image strategy. Dangerous operations require explicit confirm=true.
 
-**Personal-edition TCR credentials**: local/cloud builds with imageType=personal require push credentials. Prefer `TCB_TCR_USERNAME` and `TCB_TCR_PASSWORD` in the MCP configuration's `env`; do not pass plaintext passwords in tool parameters. This environment-variable path works only with local stdio MCP clients that allow custom `env` values. For IDE-bundled MCP clients without that channel, use enterprise TCR or deploy an already-pushed image with buildStrategy=image.
+**Personal-edition TCR credentials**: local/cloud builds with imageType=personal need push credentials. If TCB_TCR_USERNAME and TCB_TCR_PASSWORD are set in the env of the MCP configuration, leave registryCredential empty and it is read automatically. Do not ask users for plaintext passwords, and do not put passwords into tool parameters.
+Note this env channel only works with **local stdio MCP and clients whose mcp.json supports a custom env block**: some GUI clients do not inherit shell exports, and IDE built-in MCPs usually inject credentials through a hardcoded whitelist (e.g. only TENCENTCLOUD_*), so those users have no channel to configure a custom env. For built-in MCP users, guide them instead to use the enterprise edition (imageType=enterprise, instance temporary tokens, no fixed password) or to use buildStrategy=image to deploy an already-pushed image.
+**Enterprise-edition login requirements**: cloud/local builds for enterprise require minting a TCR temporary token via CAM. Environment-level API keys and temporary credentials from OAuth carry no CAM policy and will be blocked up front with a hint to switch to account-level keys or the image strategy; personal edition logs in directly with a static password via docker login without CAM, and is the only build path that works for API-key users.
 
-**Enterprise-edition login requirement**: enterprise cloud/local builds mint temporary TCR credentials through CAM. Environment-level API Keys and OAuth temporary credentials do not carry CAM policies and are rejected before the build; use account-level credentials or image deployment. Personal-edition builds use a static registry password and do not call CAM.
-
-**Layers**: layers use an account-level shared namespace. Use names in the form `&#123;layerName&#125;_&#123;currentEnvId&#125;`, check for duplicates with listLayers, and remember that deleting a layer version affects functions in every environment bound to it.
+**Layers** are account-level shared namespaces in SCF: same-named layers created in different environments share one version sequence, and deleting a version affects every environment bound to it. When creating a layer, use a unique name with the environment suffix, in the fixed format `\{layerName\}_\{current envId\}` (e.g. `common_cloud1-d9ghadgak3edf6b36`). Do not reuse the same bare layer name across environments; check with `listLayers` before creating. Read-only queries: listLayers / listLayerVersions / getLayerVersionDetail of queryFunctions.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Write operation type, including function creation, updates, invocation, timer triggers, layer management, version publishing, and alias/traffic routing. Allowed values: "createFunction", "updateFunctionCode", "updateFunctionConfig", "invokeFunction", "deleteFunction", "createFunctionTrigger", "deleteFunctionTrigger", "createLayerVersion", "deleteLayerVersion", "attachLayer", "detachLayer", "updateFunctionLayers", "publishVersion", "updateFunctionAliasConfig", "incrementalDeployFunction"</td></tr>
-<tr><td><code>func</code></td><td>object</td><td></td><td>Function configuration for createFunction operation</td></tr>
-<tr><td><code>func.name</code></td><td>string</td><td>Yes</td><td>Function name</td></tr>
-<tr><td><code>func.type</code></td><td>string</td><td></td><td>Function type. Allowed values: "Event", "HTTP"</td></tr>
-<tr><td><code>func.protocolType</code></td><td>string</td><td></td><td>HTTP cloud function protocol type. Allowed values: "HTTP", "WS"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Write action type. createFunctionTrigger / deleteFunctionTrigger manage scheduled tasks (cron / timer); publishVersion publishes a new version; updateFunctionAliasConfig updates alias / traffic routing; incrementalDeployFunction uploads a single changed file. Allowed values: "createFunction", "updateFunctionCode", "updateFunctionConfig", "invokeFunction", "deleteFunction", "createFunctionTrigger", "deleteFunctionTrigger", "createLayerVersion", "deleteLayerVersion", "attachLayer", "detachLayer", "updateFunctionLayers", "publishVersion", "updateFunctionAliasConfig", "incrementalDeployFunction"</td></tr>
+<tr><td><code>func</code></td><td>object</td><td></td><td>Function configuration for createFunction / updateFunctionCode. Image/build deployment is selected by func.buildStrategy (zip/cloud/local/image), with image fields under func.imageConfig.</td></tr>
+<tr><td><code>func.name</code></td><td>string</td><td>yes</td><td>Function name</td></tr>
+<tr><td><code>func.type</code></td><td>string</td><td></td><td>Function type Allowed values: "Event", "HTTP"</td></tr>
+<tr><td><code>func.protocolType</code></td><td>string</td><td></td><td>HTTP function access protocol. Currently only WebSockets is supported; use WS together with protocolParams.wsParams. Do not pass this field for ordinary HTTP functions. Other values such as HTTP cause InvalidParameterValue.ProtocolType. Allowed values: "WS"</td></tr>
 <tr><td><code>func.protocolParams</code></td><td>object</td><td></td><td></td></tr>
 <tr><td><code>func.protocolParams.wsParams</code></td><td>object</td><td></td><td></td></tr>
-<tr><td><code>func.protocolParams.wsParams.idleTimeOut</code></td><td>number</td><td></td><td>WebSocket idle timeout (seconds)</td></tr>
+<tr><td><code>func.protocolParams.wsParams.idleTimeOut</code></td><td>number</td><td></td><td>WebSocket idle timeout in seconds</td></tr>
 <tr><td><code>func.instanceConcurrencyConfig</code></td><td>object</td><td></td><td></td></tr>
 <tr><td><code>func.instanceConcurrencyConfig.dynamicEnabled</code></td><td>boolean</td><td></td><td></td></tr>
 <tr><td><code>func.instanceConcurrencyConfig.maxConcurrency</code></td><td>number</td><td></td><td></td></tr>
 <tr><td><code>func.timeout</code></td><td>number</td><td></td><td>Function timeout</td></tr>
-<tr><td><code>func.envVariables</code></td><td>object</td><td></td><td>Environment variables</td></tr>
-<tr><td><code>func.vpc</code></td><td>object</td><td></td><td>VPC configuration</td></tr>
-<tr><td><code>func.vpc.vpcId</code></td><td>string</td><td>Yes</td><td></td></tr>
-<tr><td><code>func.vpc.subnetId</code></td><td>string</td><td>Yes</td><td></td></tr>
-<tr><td><code>func.runtime</code></td><td>string</td><td></td><td>Runtime environment. Event functions support multiple runtimes:<br/>  Nodejs: Nodejs24.11(Beta), Nodejs22.21(Beta), Nodejs20.19, Nodejs18.15, Nodejs16.13<br/>  Python: Python3.11, Python3.10, Python3.9, Python3.7<br/>  Php: Php8.0, Php7.4<br/>  Java: Java11<br/>  Golang: Golang1<br/>Image deployment (create HTTP function from TCR image) use "CustomImage", also provide imageConfig; no functionRootPath/zipFile needed.<br/>Recommended runtimes:<br/>  Node.js: Nodejs20.19<br/>  Python: Python3.11<br/>  PHP: Php7.4<br/>  Java: Java11<br/>  Go: Golang1</td></tr>
-<tr><td><code>func.imageConfig</code></td><td>object</td><td></td><td>Image deployment configuration (only used when runtime=CustomImage). Used for stage B of zip→COS→CloudApp custom build→TCR→SCF: creating an HTTP function from a TCR image. Once imageConfig is passed, the function is treated as image-deployed and requires no local code packaging, scf_bootstrap, or Handler.</td></tr>
-<tr><td><code>func.imageConfig.imageType</code></td><td>string</td><td></td><td>Image registry type: enterprise (Enterprise TCR) or personal (Personal TCR). Defaults to enterprise when omitted. Allowed values: "enterprise", "personal"</td></tr>
-<tr><td><code>func.imageConfig.imageUri</code></td><td>string</td><td>Yes</td><td>Full image address (must include tag), format &#123;domain&#125;/&#123;namespace&#125;/&#123;image&#125;:&#123;tag&#125;, e.g., ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001. Do not use :latest.</td></tr>
-<tr><td><code>func.imageConfig.registryId</code></td><td>string</td><td></td><td>TCR instance ID, e.g., tcr-xxxxxxxx. Required when imageType=enterprise.</td></tr>
-<tr><td><code>func.imageConfig.command</code></td><td>string</td><td></td><td>Override image ENTRYPOINT. Uses Dockerfile default if not provided, e.g., python.</td></tr>
-<tr><td><code>func.imageConfig.args</code></td><td>string</td><td></td><td>Override image CMD, space-separated, e.g., -u app.py.</td></tr>
-<tr><td><code>func.imageConfig.entryPoint</code></td><td>string</td><td></td><td>Image entry point, generally not needed.</td></tr>
-<tr><td><code>func.imageConfig.imagePort</code></td><td>number</td><td></td><td>Container listening port. Web Server functions use 9000 (default), Job-type images use -1.</td></tr>
-<tr><td><code>func.imageConfig.containerImageAccelerate</code></td><td>boolean</td><td></td><td>Whether to enable image acceleration. Recommended for large images to reduce cold start time.</td></tr>
+<tr><td><code>func.envVariables</code></td><td>object</td><td></td><td>Environment variables. If they include traditional TCP database variables such as DATABASE_URL, MYSQL_*, POSTGRES_*, or REDIS_*, also configure vpc (vpcId + subnetId), using IDs from the actual database/network configuration. Never guess them. Native app.rdb()/app.database() access does not require a VPC.</td></tr>
+<tr><td><code>func.vpc</code></td><td>object</td><td></td><td>Private network configuration (egress). Required when using a non-native SDK to access MySQL, PostgreSQL, or Redis over TCP in a VPC. vpcId/subnetId must match the private database endpoint VPC. If unknown, check the console or ask the user; never use placeholders.</td></tr>
+<tr><td><code>func.vpc.vpcId</code></td><td>string</td><td>yes</td><td>VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.</td></tr>
+<tr><td><code>func.vpc.subnetId</code></td><td>string</td><td>yes</td><td>Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.</td></tr>
+<tr><td><code>func.runtime</code></td><td>string</td><td></td><td>Runtime environment. Event functions support multiple runtimes:   Nodejs: Nodejs22.21, Nodejs20.19, Nodejs18.15, Nodejs16.13, Nodejs14.18, Nodejs12.16, Nodejs10.15, Nodejs8.9   Python: Python3.10, Python3.9, Python3.7, Python3.6, Python2.7   Php: Php8.0, Php7.4, Php7.2   Java: Java8, Java11   Golang: Golang1 Recommended runtimes:   Node.js: Nodejs18.15   Python: Python3.9   PHP: Php7.4   Java: Java11   Go: Golang1 For image deployment (creating a function from a TCR image), use "CustomImage" and provide imageConfig; functionRootPath/zipFile is not needed.</td></tr>
+<tr><td><code>func.buildStrategy</code></td><td>string</td><td></td><td>HTTP function deployment strategy: zip=code package deployment (default); image=use an existing image (imageConfig.imageUri required); cloud=cloud image build; local=local Docker image build. cloud/local use image build deployment orchestration and require imageConfig. build itself is optional because repository coordinates (namespace defaults to envId and repository defaults to the function name) can be filled automatically. Provide build only for build details or fields such as build.registryCredential for a personal registry. Allowed values: "zip", "cloud", "local", "image"</td></tr>
+<tr><td><code>func.imageConfig</code></td><td>object</td><td></td><td>Image configuration used with buildStrategy=image/cloud/local or runtime=CustomImage. All image fields are under this namespace. For image, set imageUri to use an existing image. For cloud/local, build may describe how to build; if omitted, default repository coordinates are filled automatically. Providing an existing image (imageUri) selects image deployment, so local code, scf_bootstrap, and Handler do not need to be packaged.</td></tr>
+<tr><td><code>func.imageConfig.imageType</code></td><td>string</td><td></td><td>Image registry type: enterprise=Enterprise TCR, personal=Personal CCR. If omitted, the SDK infers enterprise when registryId is present and personal otherwise. Allowed values: "enterprise", "personal"</td></tr>
+<tr><td><code>func.imageConfig.registryId</code></td><td>string</td><td></td><td>Enterprise TCR instance ID, such as tcr-xxxxxxxx. Required when imageType=enterprise; omit for personal images.</td></tr>
+<tr><td><code>func.imageConfig.imagePort</code></td><td>number</td><td></td><td>HTTP image function listening port. The SDK only permits 9000; omit to use that value and do not specify another port. Allowed values: const 9000</td></tr>
+<tr><td><code>func.imageConfig.entryPoint</code></td><td>string</td><td></td><td>Override the image entry point (ENTRYPOINT); normally unnecessary.</td></tr>
+<tr><td><code>func.imageConfig.command</code></td><td>string</td><td></td><td>Override the image startup command, such as python. Omit to use the Dockerfile default.</td></tr>
+<tr><td><code>func.imageConfig.args</code></td><td>string</td><td></td><td>Override image startup arguments, space-separated, such as -u app.py.</td></tr>
+<tr><td><code>func.imageConfig.commandList</code></td><td>array of string</td><td></td><td>Array form of the image startup command, split into arguments; useful when the command itself contains spaces.</td></tr>
+<tr><td><code>func.imageConfig.argsList</code></td><td>array of string</td><td></td><td>Array form of image startup arguments, already split; useful when an argument itself contains spaces.</td></tr>
+<tr><td><code>func.imageConfig.containerImageAccelerate</code></td><td>boolean</td><td></td><td>Whether to enable image acceleration; recommended for large images to reduce cold-start time.</td></tr>
+<tr><td><code>func.imageConfig.imageUri</code></td><td>string</td><td></td><td>Full image URL (tag required), in the format {domain}/{namespace}/{image}:{tag}, for example ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001. Do not use :latest. Required when buildStrategy=image (existing image); optional for buildStrategy=cloud/local because the build process produces and returns the image URL. The target repository is determined by build.repository/build.namespace; explicit values take precedence. If omitted, manager-node fills defaults and creates or reuses the repository (namespace defaults to envId and repository defaults to the function name).</td></tr>
+<tr><td><code>func.imageConfig.build</code></td><td>object</td><td></td><td>Image build target. Used when buildStrategy=cloud (cloud build) or local (local Docker build); omit for buildStrategy=image (existing image). build is optional for cloud/local because missing repository coordinates can be filled automatically (namespace defaults to envId and repository defaults to the function name). Provide it only to specify build details or fields such as build.registryCredential for personal registries.</td></tr>
+<tr><td><code>func.imageConfig.build.cwd</code></td><td>string</td><td>yes</td><td>Absolute directory for the image build context.</td></tr>
+<tr><td><code>func.imageConfig.build.dockerfile</code></td><td>string</td><td></td><td>Dockerfile path relative to build.cwd; defaults to Dockerfile.</td></tr>
+<tr><td><code>func.imageConfig.build.registryId</code></td><td>string</td><td></td><td>Enterprise TCR instance ID; omit for personal image builds.</td></tr>
+<tr><td><code>func.imageConfig.build.namespace</code></td><td>string</td><td></td><td>Target image namespace; defaults to current environment ID (envId).</td></tr>
+<tr><td><code>func.imageConfig.build.repository</code></td><td>string</td><td></td><td>Target repository path without tag/digest; defaults to the function name. local personal requires the full registry/namespace/repository.</td></tr>
+<tr><td><code>func.imageConfig.build.tag</code></td><td>string</td><td></td><td>Target image tag for local strategy; cloud generates it, so omit for cloud.</td></tr>
+<tr><td><code>func.imageConfig.build.platform</code></td><td>string</td><td></td><td>Target image platform; currently only linux/amd64 is supported. Allowed values: const "linux/amd64"</td></tr>
+<tr><td><code>func.imageConfig.build.buildArgs</code></td><td>object</td><td></td><td>Docker build arguments. Do not pass secrets or credentials.</td></tr>
+<tr><td><code>func.imageConfig.build.registryCredential</code></td><td>object</td><td></td><td>Personal TCR push credentials required by personal local/cloud builds. Prefer omitting the whole object and setting TCB_TCR_USERNAME and TCB_TCR_PASSWORD in the MCP configuration env, just like TENCENTCLOUD_SECRETID and other secrets. When environment variables are set, credentials do not need to be passed in request parameters. Explicit fields take precedence; missing fields fall back to environment variables.</td></tr>
+<tr><td><code>func.imageConfig.build.registryCredential.username</code></td><td>string</td><td></td><td>Personal CCR login username, which must be the Tencent Cloud account UIN. If omitted, reads TCB_TCR_USERNAME from the MCP process environment.</td></tr>
+<tr><td><code>func.imageConfig.build.registryCredential.password</code></td><td>string</td><td></td><td>Personal CCR fixed password. **Do not put a plaintext password in this field**. Set TCB_TCR_PASSWORD in the MCP configuration env and leave this field empty for automatic loading. This is sensitive and must not be logged or returned.</td></tr>
+<tr><td><code>func.imageConfig.build.forceBuild</code></td><td>boolean</td><td></td><td>Whether to ignore same-digest reuse and force a rebuild.</td></tr>
+<tr><td><code>func.imageConfig.build.retainedTags</code></td><td>integer</td><td></td><td>Number of most recent image tags retained after a Personal TCR build.</td></tr>
+<tr><td><code>func.imageConfig.localFallback</code></td><td>string</td><td></td><td>How to handle an unavailable local build when buildStrategy=local. Defaults to error. Allowed values: "cloud", "error"</td></tr>
 <tr><td><code>func.triggers</code></td><td>array of object</td><td></td><td>Trigger configuration array</td></tr>
-<tr><td><code>func.triggers[].name</code></td><td>string</td><td>Yes</td><td>Trigger name</td></tr>
-<tr><td><code>func.triggers[].type</code></td><td>string</td><td>Yes</td><td>Trigger type. Allowed values: "timer"</td></tr>
-<tr><td><code>func.triggers[].config</code></td><td>string</td><td>Yes</td><td>Trigger configuration, timer uses 7-segment cron: second minute hour day month week year</td></tr>
+<tr><td><code>func.triggers[].name</code></td><td>string</td><td>yes</td><td>Trigger name</td></tr>
+<tr><td><code>func.triggers[].type</code></td><td>string</td><td>yes</td><td>Trigger type Allowed values: "timer"</td></tr>
+<tr><td><code>func.triggers[].config</code></td><td>string</td><td>yes</td><td>Trigger configuration. timer must use the CloudBase 7-field cron format: second minute hour day month weekday year. The standard 5-field cron format is not supported (for example, */5 * * * * is invalid). Valid examples: 0 */5 * * * * * (every 5 minutes), 0 0 2 1 * * * (02:00 on the first day of every month), and 0 30 9 * * * * (09:30 every day).</td></tr>
 <tr><td><code>func.handler</code></td><td>string</td><td></td><td>Function entry point</td></tr>
-<tr><td><code>func.ignore</code></td><td>string | array of string</td><td></td><td>Ignored files</td></tr>
+<tr><td><code>func.ignore</code></td><td>string | array of string</td><td></td><td>Files to ignore</td></tr>
 <tr><td><code>func.isWaitInstall</code></td><td>boolean</td><td></td><td>Whether to wait for dependency installation</td></tr>
 <tr><td><code>func.layers</code></td><td>array of object</td><td></td><td>Layer configuration</td></tr>
-<tr><td><code>func.layers[].name</code></td><td>string</td><td>Yes</td><td></td></tr>
-<tr><td><code>func.layers[].version</code></td><td>number</td><td>Yes</td><td></td></tr>
-<tr><td><code>functionRootPath</code></td><td>string</td><td></td><td>Function root directory (parent directory absolute path)</td></tr>
-<tr><td><code>force</code></td><td>boolean</td><td></td><td>Whether to overwrite when createFunction</td></tr>
-<tr><td><code>functionName</code></td><td>string</td><td></td><td>Top-level target function name. updateFunctionCode, updateFunctionConfig, invokeFunction, publishVersion, updateFunctionAliasConfig, and similar actions use this field. createFunction uses func.name. If func.name is provided by mistake, it is also recognized as functionName.</td></tr>
-<tr><td><code>zipFile</code></td><td>string</td><td></td><td>Base64-encoded code package, retained only for special cases. For normal createFunction and updateFunctionCode operations, do not pre-compress a ZIP by default; prefer functionRootPath.</td></tr>
-<tr><td><code>code</code></td><td>object</td><td></td><td>Stage B of two-stage ZIP deployment: the code package has already been uploaded to the environment COS bucket through queryFunctions action=getFunctionUploadUrl. Pass the returned cosBucketName, cosObjectName, and cosBucketRegion values unchanged. When code is provided, createFunction and updateFunctionCode no longer read a local directory, so functionRootPath and zipFile are unnecessary. Cloud-side dependency installation is disabled by default and can be overridden with func.installDependency. The bucket and region in the code triple must belong to this environment's own storage bucket, and the object key must have the fnzip-upload/... form returned by getFunctionUploadUrl; values assembled by hand, pointing at another bucket, or reused across environments are rejected and the caller must fetch a new URL.</td></tr>
-<tr><td><code>code.cosBucketName</code></td><td>string</td><td>Yes</td><td>Environment bucket short name without the -appid suffix. Use the cosBucketName returned by getFunctionUploadUrl; do not construct it manually.</td></tr>
-<tr><td><code>code.cosObjectName</code></td><td>string</td><td>Yes</td><td>Uploaded object key. Use the cosObjectName returned by getFunctionUploadUrl.</td></tr>
-<tr><td><code>code.cosBucketRegion</code></td><td>string</td><td></td><td>Bucket region. If omitted, the current environment bucket region is used automatically.</td></tr>
+<tr><td><code>func.layers[].name</code></td><td>string</td><td>yes</td><td></td></tr>
+<tr><td><code>func.layers[].version</code></td><td>number</td><td>yes</td><td></td></tr>
+<tr><td><code>functionRootPath</code></td><td>string</td><td></td><td>Recommended local-directory input for creating or updating function code. Pass the absolute directory that directly contains function folders (e.g. /abs/path/cloudfunctions, containing &lt;functionName&gt;/index.js), not the project root or the function subdirectory. The SDK appends the function subdirectory; do not precompress ZIP or base64 content.</td></tr>
+<tr><td><code>force</code></td><td>boolean</td><td></td><td>Whether createFunction overwrites an existing function.</td></tr>
+<tr><td><code>functionName</code></td><td>string</td><td></td><td>Target function name at the top level. Used by updateFunctionCode, updateFunctionConfig, invokeFunction, publishVersion, updateFunctionAliasConfig, and similar actions. createFunction uses func.name; other actions use top-level functionName. A mistakenly supplied func.name is also recognized as functionName.</td></tr>
+<tr><td><code>zipFile</code></td><td>string</td><td></td><td>Compatibility only: base64-encoded prebuilt code package. For ordinary createFunction/updateFunctionCode, do not create a ZIP first; prefer functionRootPath.</td></tr>
+<tr><td><code>code</code></td><td>object</td><td></td><td>Two-phase ZIP deployment phase B: the code package has been uploaded to the environment COS bucket via queryFunctions action=getFunctionUploadUrl. Pass the triplet (cosBucketName/cosObjectName/cosBucketRegion) through unchanged from the getFunctionUploadUrl response. With code provided, createFunction/updateFunctionCode no longer reads local directories (functionRootPath/zipFile are unnecessary), and cloud dependency installation is skipped by default (override with func.installDependency). The triplet's bucket and region must be this environment's own bucket, and the object key must have the fnzip-upload/... form returned by getFunctionUploadUrl; hand-built triplets, a bucket from another environment, or cross-environment reuse are rejected and require fetching a new address.</td></tr>
+<tr><td><code>code.cosBucketName</code></td><td>string</td><td>yes</td><td>Environment bucket short name (without the -appid suffix); pass through the cosBucketName returned by getFunctionUploadUrl, do not invent one</td></tr>
+<tr><td><code>code.cosObjectName</code></td><td>string</td><td>yes</td><td>Uploaded object key; pass through the cosObjectName returned by getFunctionUploadUrl</td></tr>
+<tr><td><code>code.cosBucketRegion</code></td><td>string</td><td></td><td>Bucket region; defaults to the current environment bucket region when omitted</td></tr>
 <tr><td><code>handler</code></td><td>string</td><td></td><td>Function entry point</td></tr>
-<tr><td><code>timeout</code></td><td>number</td><td></td><td>Timeout for config update</td></tr>
-<tr><td><code>envVariables</code></td><td>object</td><td></td><td>Environment variables to merge for config update</td></tr>
-<tr><td><code>vpc</code></td><td>unknown</td><td></td><td>VPC info for config update</td></tr>
-<tr><td><code>params</code></td><td>object</td><td></td><td>Invocation parameters for invokeFunction</td></tr>
-<tr><td><code>triggers</code></td><td>array of unknown</td><td></td><td>Trigger list for createFunctionTrigger</td></tr>
-<tr><td><code>triggerName</code></td><td>string</td><td></td><td>Target trigger name for deleteFunctionTrigger</td></tr>
-<tr><td><code>layerName</code></td><td>string</td><td></td><td>Layer name</td></tr>
+<tr><td><code>timeout</code></td><td>number</td><td></td><td>Timeout used for configuration updates.</td></tr>
+<tr><td><code>envVariables</code></td><td>object</td><td></td><td>Environment variables to merge during a configuration update. If they contain TCP database variables such as DATABASE_URL, MYSQL_*, POSTGRES_*, or REDIS_*, also provide a real vpc (or ensure the function already has a complete VPC binding). Never guess vpcId/subnetId.</td></tr>
+<tr><td><code>vpc</code></td><td>object</td><td></td><td>VPC information for configuration updates. Real vpcId + subnetId are required for non-native TCP database access; do not use placeholders.</td></tr>
+<tr><td><code>vpc.vpcId</code></td><td>string</td><td>yes</td><td>VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.</td></tr>
+<tr><td><code>vpc.subnetId</code></td><td>string</td><td>yes</td><td>Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.</td></tr>
+<tr><td><code>params</code></td><td>object</td><td></td><td>Parameters passed to invokeFunction.</td></tr>
+<tr><td><code>triggers</code></td><td>array of object</td><td></td><td>Trigger list for createFunctionTrigger, used for scheduled jobs. timer triggers use a 7-field cron expression (second minute hour day month weekday year), such as "0 */5 * * * * *" for every 5 minutes.</td></tr>
+<tr><td><code>triggers[].name</code></td><td>string</td><td>yes</td><td>Trigger name</td></tr>
+<tr><td><code>triggers[].type</code></td><td>string</td><td>yes</td><td>Trigger type Allowed values: "timer"</td></tr>
+<tr><td><code>triggers[].config</code></td><td>string</td><td>yes</td><td>Trigger configuration. timer must use the CloudBase 7-field cron format: second minute hour day month weekday year. The standard 5-field cron format is not supported (for example, */5 * * * * is invalid). Valid examples: 0 */5 * * * * * (every 5 minutes), 0 0 2 1 * * * (02:00 on the first day of every month), and 0 30 9 * * * * (09:30 every day).</td></tr>
+<tr><td><code>triggerName</code></td><td>string</td><td></td><td>Target trigger name for deleteFunctionTrigger.</td></tr>
+<tr><td><code>replaceAll</code></td><td>boolean</td><td></td><td>Default false: if the function has timer triggers not listed in triggers, the tool refuses and lists their names. Set true to replace all timer triggers with this submission.</td></tr>
+<tr><td><code>layerName</code></td><td>string</td><td></td><td>Layer name. When creating a layer, use `{layerName}_{current envId}` (for example, common_cloud1-d9ghadgak3edf6b36). Do not reuse a bare layer name across environments; layers use an account-level shared namespace.</td></tr>
 <tr><td><code>layerVersion</code></td><td>number</td><td></td><td>Layer version number</td></tr>
-<tr><td><code>contentPath</code></td><td>string</td><td></td><td>Layer content path, can be directory or ZIP file</td></tr>
-<tr><td><code>base64Content</code></td><td>string</td><td></td><td>Layer content base64 encoding</td></tr>
-<tr><td><code>runtimes</code></td><td>array of string</td><td></td><td>List of runtimes the layer applies to</td></tr>
-<tr><td><code>description</code></td><td>string</td><td></td><td>Description. For createLayerVersion it describes the layer version; for publishVersion / updateFunctionAliasConfig it describes the function version or alias</td></tr>
-<tr><td><code>licenseInfo</code></td><td>string</td><td></td><td>Layer license information</td></tr>
-<tr><td><code>layers</code></td><td>array of object</td><td></td><td>Target layer list for updateFunctionLayers, order is final order</td></tr>
-<tr><td><code>layers[].layerName</code></td><td>string</td><td>Yes</td><td>Layer name</td></tr>
-<tr><td><code>layers[].layerVersion</code></td><td>number</td><td>Yes</td><td>Layer version number</td></tr>
-<tr><td><code>codeSecret</code></td><td>string</td><td></td><td>Code protection secret for layer binding</td></tr>
-<tr><td><code>imageConfig</code></td><td>unknown</td><td></td><td>Image deployment configuration (Runtime=CustomImage). Used with createFunction to create an HTTP function from a TCR image, or with updateFunctionCode to swap image tags only. Requires imageUri (with tag); enterprise TCR also requires registryId. Can also be provided in func.imageConfig; when both are passed, the top-level imageConfig takes precedence.</td></tr>
-<tr><td><code>incrementalFile</code></td><td>string</td><td></td><td>File path for incrementalDeployFunction incremental deployment</td></tr>
-<tr><td><code>aliasName</code></td><td>string</td><td></td><td>Alias name for updateFunctionAliasConfig. Defaults to `$DEFAULT`, consistent with `tcb fn config-route`</td></tr>
-<tr><td><code>functionVersion</code></td><td>string</td><td></td><td>Primary version for updateFunctionAliasConfig. May be a concrete version number or `$LATEST`</td></tr>
-<tr><td><code>routingConfig</code></td><td>object</td><td></td><td>Traffic-routing configuration for updateFunctionAliasConfig. AdditionalVersionWeights defines canary weights; AddtionVersionMatchs is the historical SCF/SDK field name, including its spelling</td></tr>
-<tr><td><code>routingConfig.AdditionalVersionWeights</code></td><td>array of object</td><td></td><td>Additional version weights for canary rollout</td></tr>
+<tr><td><code>contentPath</code></td><td>string</td><td></td><td>Only for createLayerVersion: path to layer content, either a directory or a ZIP file. To update function code, use functionRootPath / zipFile / code instead.</td></tr>
+<tr><td><code>base64Content</code></td><td>string</td><td></td><td>Base64-encoded layer content.</td></tr>
+<tr><td><code>runtimes</code></td><td>array of string</td><td></td><td>Runtimes supported by the layer.</td></tr>
+<tr><td><code>description</code></td><td>string</td><td></td><td>Description. Layer version description for createLayerVersion; version or alias description for publishVersion / updateFunctionAliasConfig.</td></tr>
+<tr><td><code>licenseInfo</code></td><td>string</td><td></td><td>Layer license information.</td></tr>
+<tr><td><code>layers</code></td><td>array of object</td><td></td><td>Target layer list for updateFunctionLayers; array order becomes final order.</td></tr>
+<tr><td><code>layers[].layerName</code></td><td>string</td><td>yes</td><td>Layer name</td></tr>
+<tr><td><code>layers[].layerVersion</code></td><td>number</td><td>yes</td><td>Layer version number</td></tr>
+<tr><td><code>codeSecret</code></td><td>string</td><td></td><td>Code protection secret used when binding a layer.</td></tr>
+<tr><td><code>dryRun</code></td><td>boolean</td><td></td><td>Whether image build deployment (func.buildStrategy=cloud/local) only generates a deployment plan. Defaults to true; false also requires confirm=true.</td></tr>
+<tr><td><code>wait</code></td><td>boolean</td><td></td><td>Whether a real image deployment waits for completion; false returns a taskId immediately and continues in the background. Defaults to true, but synchronous waiting can take about 15 minutes and hit the MCP Client timeout without a taskId to track, so pass wait=false explicitly for a real build deployment (buildStrategy=cloud/local, dryRun=false). Default: true</td></tr>
+<tr><td><code>autoGrant</code></td><td>boolean</td><td></td><td>Whether manager-node may automatically add the fixed allowlist of CAM policies for image deployment. Defaults to false; set true only after explicitly confirming permission changes. Default: false</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Dangerous-operation confirmation. deleteFunction, deleteFunctionTrigger, deleteLayerVersion, detachLayer, other delete actions, and real image build deployment (func.buildStrategy=cloud/local) require confirm=true.</td></tr>
+<tr><td><code>incrementalFile</code></td><td>string</td><td></td><td>Changed-file path for incrementalDeployFunction incremental deployment.</td></tr>
+<tr><td><code>aliasName</code></td><td>string</td><td></td><td>Alias name for `updateFunctionAliasConfig`. Defaults to `$DEFAULT`</td></tr>
+<tr><td><code>functionVersion</code></td><td>string</td><td></td><td>Primary version for `updateFunctionAliasConfig`. May be a concrete version number or `$LATEST`.</td></tr>
+<tr><td><code>routingConfig</code></td><td>object</td><td></td><td>Traffic routing config for `updateFunctionAliasConfig`. AdditionalVersionWeights is used for canary weights; AddtionVersionMatchs keeps the SCF/SDK historical field name (including the typo).</td></tr>
+<tr><td><code>routingConfig.AdditionalVersionWeights</code></td><td>array of object</td><td></td><td>Additional version weight list (canary release)</td></tr>
 <tr><td><code>routingConfig.AdditionalVersionWeights[].Version</code></td><td>string</td><td>yes</td><td>Additional traffic version number</td></tr>
-<tr><td><code>routingConfig.AdditionalVersionWeights[].Weight</code></td><td>number</td><td>yes</td><td>Additional traffic weight (0–1 or a percentage, following SCF conventions)</td></tr>
-<tr><td><code>routingConfig.AddtionVersionMatchs</code></td><td>array of object</td><td></td><td>Additional version match rules; field name preserved as SCF AddtionVersionMatchs</td></tr>
-<tr><td><code>routingConfig.AddtionVersionMatchs[].Version</code></td><td>string</td><td>yes</td><td>Version targeted by the match rule</td></tr>
-<tr><td><code>routingConfig.AddtionVersionMatchs[].Key</code></td><td>string</td><td>yes</td><td>Header or query key used by the rule</td></tr>
-<tr><td><code>routingConfig.AddtionVersionMatchs[].Method</code></td><td>string</td><td>yes</td><td>Match method, such as Exact or Regex</td></tr>
+<tr><td><code>routingConfig.AdditionalVersionWeights[].Weight</code></td><td>number</td><td>yes</td><td>Additional traffic weight (0-1 or percentage per SCF convention)</td></tr>
+<tr><td><code>routingConfig.AddtionVersionMatchs</code></td><td>array of object</td><td></td><td>Additional version match rules (field name keeps SCF AddtionVersionMatchs)</td></tr>
+<tr><td><code>routingConfig.AddtionVersionMatchs[].Version</code></td><td>string</td><td>yes</td><td>Version targeted by a match rule</td></tr>
+<tr><td><code>routingConfig.AddtionVersionMatchs[].Key</code></td><td>string</td><td>yes</td><td>Header/Query key for a match rule</td></tr>
+<tr><td><code>routingConfig.AddtionVersionMatchs[].Method</code></td><td>string</td><td>yes</td><td>Match method, such as Exact / Regex</td></tr>
 <tr><td><code>routingConfig.AddtionVersionMatchs[].Expression</code></td><td>string</td><td>yes</td><td>Match expression</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Dangerous operation confirmation switch</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryHosting`
-Query read-only information about CloudBase static hosting. Suitable for AI discovery before deciding next steps: action=websiteConfig queries index/error page, routing rules and site domain info; action=status queries hosting service status; action=findFiles finds files by prefix; action=listFiles lists all hosted files; action=domainStatus queries the current status and config of custom domains. This tool has no side effects.
+Read-only information about CloudBase static hosting. Lets the AI discover state first and then decide the next step: action=websiteConfig queries the index/error document, routing rules, and site domain info; action=status queries the hosting service status; action=findFiles finds files by prefix; action=listFiles lists all hosted files; action=domainStatus queries the current status and configuration of custom domains. This tool has no side effects.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Query type: websiteConfig=query static hosting website document config and site domain info, status=query static hosting service status, findFiles=find hosted files by prefix, listFiles=list all files in static hosting, domainStatus=query custom domain config and effective status. This tool is strictly read-only and does not modify any resources. Allowed values: "websiteConfig", "status", "findFiles", "listFiles", "domainStatus"</td></tr>
-<tr><td><code>prefix</code></td><td>string</td><td></td><td>File prefix filter. Only used when action=findFiles, e.g. app/ or assets/logo</td></tr>
-<tr><td><code>marker</code></td><td>string</td><td></td><td>Pagination start marker. Only used when action=findFiles, to continue fetching results after the previous page</td></tr>
-<tr><td><code>maxKeys</code></td><td>integer</td><td></td><td>Max file entries returned per call. Only used when action=findFiles</td></tr>
-<tr><td><code>domains</code></td><td>array of string</td><td></td><td>Custom domain list to query. Only used when action=domainStatus, e.g. ["www.example.com"]</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Query type: websiteConfig=query the static hosting website document config and site domain info, status=query the static hosting service status, findFiles=find hosted files by prefix, listFiles=list all files in static hosting, domainStatus=query custom domain config and effective status. This tool is strictly read-only and never modifies resources. Allowed values: "websiteConfig", "status", "findFiles", "listFiles", "domainStatus"</td></tr>
+<tr><td><code>prefix</code></td><td>string</td><td></td><td>File prefix filter, e.g. app/ or assets/logo. Recommended for action=findFiles to narrow the result; omitting it does not fail — it returns the first N files of the whole site so you can pick a real prefix.</td></tr>
+<tr><td><code>marker</code></td><td>string</td><td></td><td>Pagination start marker. Used only with action=findFiles to continue after the previous page.</td></tr>
+<tr><td><code>maxKeys</code></td><td>integer</td><td></td><td>Maximum number of files returned per call. Used only with action=findFiles.</td></tr>
+<tr><td><code>domains</code></td><td>array of string</td><td></td><td>Custom domains to query. Used only with action=domainStatus, e.g. ["www.example.com"].</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageHosting`
-Manage change operations for CloudBase static hosting. action=upload uploads local build artifacts to the shared domain (domain format: &lt;envId&gt;-&lt;appId&gt;.tcloudbaseapp.com/&lt;cloudPath&gt;); action=delete deletes hosted files or directories (must confirm=true); action=setWebsiteDocument sets index/error pages and routing rules; action=enableService enables static hosting; action=bindDomain / unbindDomain / updateDomain manage custom domains; action=downloadFile / downloadDirectory download hosted content to local. ⚠️ For new project deployments, prefer manageApps (deploys to an independent subdomain); this tool is for existing legacy projects or as a fallback for manageApps. manageApps and manageHosting use different domains; switching will break old links. If the task only needs to view config, files, or domain status, use queryHosting instead.
+Mutation operations for CloudBase static hosting. action=upload uploads local build artifacts to the shared domain (domain format: &lt;envId&gt;-&lt;appId&gt;.tcloudbaseapp.com/&lt;cloudPath&gt;); action=delete deletes hosted files or directories (confirm=true required); action=setWebsiteDocument sets the index/error document and routing rules; action=enableService enables static hosting; action=bindDomain / unbindDomain / updateDomain manage custom domains; action=downloadFile / downloadDirectory download hosted content to local disk. ⚠️ Every hosting operation calls the DescribeStaticStore control-plane API underneath (20 req/s QPS limit): when deleting multiple files, call sequentially with intervals (no more than 10 calls per second recommended); for multiple files in the same directory, prefer isDir=true to delete the whole directory in one call. If the error contains "frequency limit", rate limiting was triggered — wait 1-2 seconds and retry; do not retry in rapid succession. ⚠️ This tool has no action to disable the default domain (*.tcloudbaseapp.com); to disable that default public domain, use manageGateway(action="disableRoute", domain=the STATIC_STORE IsDefault domain, path="/") (backed by ModifyHTTPServiceRoute, not ModifyGatewayRoute). ⚠️ For new projects prefer manageApps (deploys to a dedicated subdomain); this tool suits existing legacy projects or as a fallback for manageApps. manageApps and manageHosting use different domains, so switching invalidates old links. If the task is only inspecting config, files, or domain status, use queryHosting instead.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Management type: upload=upload local build artifacts to static hosting, delete=delete hosted files or directories, setWebsiteDocument=set index/error pages and routing rules, enableService=enable static hosting service, bindDomain=bind a custom domain, unbindDomain=unbind a custom domain, updateDomain=update domain cache/anti-leech/IP rules, downloadFile=download a single hosted file locally, downloadDirectory=download a hosted directory locally. Allowed values: "upload", "delete", "setWebsiteDocument", "enableService", "bindDomain", "unbindDomain", "updateDomain", "downloadFile", "downloadDirectory"</td></tr>
-<tr><td><code>localPath</code></td><td>string</td><td></td><td>Local path. For action=upload, the local file/directory path to upload; for action=downloadFile or downloadDirectory, the local destination path. Absolute paths recommended</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>Target path in static hosting. For action=upload, the hosted path after upload; for action=delete/downloadFile/downloadDirectory, the hosted file or directory path</td></tr>
-<tr><td><code>files</code></td><td>array of object</td><td></td><td>Multi-file upload config. Optional when action=upload; when passed, each file is uploaded individually and single localPath/cloudPath is not used</td></tr>
-<tr><td><code>ignore</code></td><td>union</td><td></td><td>File patterns to ignore when uploading. Optional when action=upload, e.g. node_modules or ["**/*.map", "**/.DS_Store"]</td></tr>
-<tr><td><code>isDir</code></td><td>boolean</td><td></td><td>Whether to treat cloudPath as a directory. Only used when action=delete; true=delete directory, false=delete a single file</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Confirmation switch for high-risk operations. Must be explicitly true for action=delete and action=unbindDomain to avoid accidental file deletion or domain unbinding</td></tr>
-<tr><td><code>indexDocument</code></td><td>string</td><td></td><td>Website index document name. Required only when action=setWebsiteDocument, e.g. index.html</td></tr>
-<tr><td><code>errorDocument</code></td><td>string</td><td></td><td>Error page document name. Optional when action=setWebsiteDocument, e.g. 404.html</td></tr>
-<tr><td><code>routingRules</code></td><td>array of object</td><td></td><td>Website routing rule list. Optional when action=setWebsiteDocument. A common SPA config rewrites 404 to index.html</td></tr>
-<tr><td><code>domain</code></td><td>string</td><td></td><td>Custom domain. Used for action=bindDomain / unbindDomain / updateDomain, e.g. www.example.com</td></tr>
-<tr><td><code>certId</code></td><td>string</td><td></td><td>Certificate ID. Required only when action=bindDomain</td></tr>
-<tr><td><code>domainId</code></td><td>number</td><td></td><td>Domain ID. Required only when action=updateDomain, for precisely updating the specified domain config</td></tr>
-<tr><td><code>domainConfig</code></td><td>object</td><td></td><td>Domain config. Required only when action=updateDomain; supports cache, Referer, anti-leech, IP rules, and rate limiting</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Management type: upload=upload local build artifacts to static hosting, delete=delete hosted files or directories, setWebsiteDocument=set the index/error document and routing rules, enableService=enable the static hosting service, bindDomain=bind a custom domain, unbindDomain=unbind a custom domain, updateDomain=update domain cache/hotlink protection/IP rules, downloadFile=download a single hosted file locally, downloadDirectory=download a hosted directory locally. Allowed values: "upload", "delete", "setWebsiteDocument", "enableService", "bindDomain", "unbindDomain", "updateDomain", "downloadFile", "downloadDirectory"</td></tr>
+<tr><td><code>localPath</code></td><td>string</td><td></td><td>Local path. With action=upload it is the local file/directory to upload; with action=downloadFile or downloadDirectory it is the local download target. An absolute path is recommended.</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td></td><td>Target path in static hosting. With action=upload it is the hosted path after upload; with action=delete/downloadFile/downloadDirectory it is the hosted file or directory path.</td></tr>
+<tr><td><code>files</code></td><td>array of object</td><td></td><td>Multi-file upload config. Optional and only for action=upload; when provided, files are uploaded one by one and the single localPath/cloudPath is no longer used. Default: []</td></tr>
+<tr><td><code>files[].localPath</code></td><td>string</td><td>yes</td><td>Absolute local path of a single file to upload.</td></tr>
+<tr><td><code>files[].cloudPath</code></td><td>string</td><td>yes</td><td>Hosted path of this file after it is uploaded to static hosting.</td></tr>
+<tr><td><code>ignore</code></td><td>string | array of string</td><td></td><td>File patterns to ignore during upload. Optional and only for action=upload, e.g. node_modules or ["**/*.map", "**/.DS_Store"].</td></tr>
+<tr><td><code>isDir</code></td><td>boolean</td><td></td><td>Whether to treat cloudPath as a directory. Used only with action=delete; true=delete the directory, false=delete a single file. Default: false</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>High-risk operation confirmation switch. Must be explicitly true for action=delete and action=unbindDomain to avoid deleting files or unbinding domains by mistake. Default: false</td></tr>
+<tr><td><code>indexDocument</code></td><td>string</td><td></td><td>Website index document name. Required only with action=setWebsiteDocument, e.g. index.html.</td></tr>
+<tr><td><code>errorDocument</code></td><td>string</td><td></td><td>Error document name. Optional and only for action=setWebsiteDocument, e.g. 404.html.</td></tr>
+<tr><td><code>routingRules</code></td><td>array of object</td><td></td><td>Website routing rule list. Optional and only for action=setWebsiteDocument. A common SPA setup rewrites 404 to index.html.</td></tr>
+<tr><td><code>routingRules[].keyPrefixEquals</code></td><td>string</td><td></td><td>Prefix match rule, e.g. app/ or assets/. Use either this or httpErrorCodeReturnedEquals, or combine them per CloudBase rules.</td></tr>
+<tr><td><code>routingRules[].httpErrorCodeReturnedEquals</code></td><td>string</td><td></td><td>HTTP error code to match, e.g. 404. SPA fallback commonly uses 404.</td></tr>
+<tr><td><code>routingRules[].replaceKeyWith</code></td><td>string</td><td></td><td>Replace the match with a fixed file path, e.g. index.html.</td></tr>
+<tr><td><code>routingRules[].replaceKeyPrefixWith</code></td><td>string</td><td></td><td>Replace the matched prefix with a new prefix path.</td></tr>
+<tr><td><code>domain</code></td><td>string</td><td></td><td>Custom domain. Used with action=bindDomain / unbindDomain / updateDomain, e.g. www.example.com.</td></tr>
+<tr><td><code>certId</code></td><td>string</td><td></td><td>Certificate ID. Required only with action=bindDomain.</td></tr>
+<tr><td><code>domainId</code></td><td>number</td><td></td><td>Domain ID. Required only with action=updateDomain to update the specified domain config precisely.</td></tr>
+<tr><td><code>domainConfig</code></td><td>object</td><td></td><td>Domain config. Required only with action=updateDomain; supports cache, Referer, hotlink protection, IP rules, and rate limiting.</td></tr>
+<tr><td><code>domainConfig.Refer</code></td><td>object</td><td></td><td>Referer hotlink protection config.</td></tr>
+<tr><td><code>domainConfig.Refer.Switch</code></td><td>string</td><td>yes</td><td>Referer hotlink protection switch: on=enabled, off=disabled. Allowed values: "on", "off"</td></tr>
+<tr><td><code>domainConfig.Refer.RefererRules</code></td><td>array of object</td><td></td><td>Referer rule list.</td></tr>
+<tr><td><code>domainConfig.Refer.RefererRules[].RefererType</code></td><td>string</td><td>yes</td><td>Referer rule type: blacklist=deny list, whitelist=allow list. Allowed values: "blacklist", "whitelist"</td></tr>
+<tr><td><code>domainConfig.Refer.RefererRules[].Referers</code></td><td>array of string</td><td>yes</td><td>Referer rule values.</td></tr>
+<tr><td><code>domainConfig.Refer.RefererRules[].AllowEmpty</code></td><td>boolean</td><td>yes</td><td>Whether an empty Referer is allowed.</td></tr>
+<tr><td><code>domainConfig.Cache</code></td><td>array of object</td><td></td><td>CDN cache rule list.</td></tr>
+<tr><td><code>domainConfig.Cache[].RuleType</code></td><td>string</td><td>yes</td><td>Cache rule type: fileType=file type, path=path. Allowed values: "fileType", "path"</td></tr>
+<tr><td><code>domainConfig.Cache[].RuleValue</code></td><td>string</td><td>yes</td><td>Rule match value.</td></tr>
+<tr><td><code>domainConfig.Cache[].CacheTtl</code></td><td>number</td><td>yes</td><td>Cache TTL in seconds.</td></tr>
+<tr><td><code>domainConfig.IpFilter</code></td><td>object</td><td></td><td>IP access control config.</td></tr>
+<tr><td><code>domainConfig.IpFilter.Switch</code></td><td>string</td><td>yes</td><td>IP access control switch: on=enabled, off=disabled. Allowed values: "on", "off"</td></tr>
+<tr><td><code>domainConfig.IpFilter.FilterType</code></td><td>string</td><td></td><td>Filter type: blacklist=deny list, whitelist=allow list. Allowed values: "blacklist", "whitelist"</td></tr>
+<tr><td><code>domainConfig.IpFilter.Filters</code></td><td>array of string</td><td></td><td>IP rule list.</td></tr>
+<tr><td><code>domainConfig.IpFreqLimit</code></td><td>object</td><td></td><td>IP rate limit config.</td></tr>
+<tr><td><code>domainConfig.IpFreqLimit.Switch</code></td><td>string</td><td>yes</td><td>IP rate limit switch: on=enabled, off=disabled. Allowed values: "on", "off"</td></tr>
+<tr><td><code>domainConfig.IpFreqLimit.Qps</code></td><td>number</td><td></td><td>QPS cap per IP.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryStorage`
-Query cloud storage information, supports listing directory files, getting file information, getting temporary download links and other read-only operations. Returned file information includes file name, size, modification time, download link, etc.
+⚠️ For PG-mode environments use queryPgStorage instead of this tool (pgstore and the legacy COS are two separate systems).
+
+Query CloudBase cloud storage info: list directory files, get file details, get temporary download URLs, and other read-only operations. Returned file info includes name, size, modification time, download URL, etc. Note: the temporaryUrl returned by action=url is a temporary signed link whose validity is determined by the maxAge parameter (default 1 hour); do not treat it as a permanent public URL. The tool also derives publicUrl from the Storages[0].CdnDomain returned by DescribeEnvs. ⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read; with the default private-read-write bucket the returned publicUrl will 403 — keep using temporaryUrl, or first set the target path to public-read via the console/SDK.
+
+💡 For bucket ACL permission management use the permissions tool: query with queryPermissions(action="getResourcePermission", resourceType="storage", resourceId="bucket-name"), set with managePermissions(action="updateResourcePermission", resourceType="storage", resourceId="bucket-name", permission="READONLY").
+
+📦 CloudBase PG / pgstore environments: buckets listed in `DescribeEnvs.Storages[]` belong to the legacy NoSQL backend and are not pgstore buckets. Use this tool for regular storage; when preparing a bucket for PG browser uploads, confirm the target bucket is usable by the pgstore backend, otherwise the browser `app.storage.from().upload(...)` will fail with `STORAGE_BUCKET_NOT_FOUND` and a `PUT https://undefined/` request.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Query operation type: list=list all files in directory, info=get detailed information of specified file, url=get temporary download link for file. Allowed values: "list", "info", "url", "read"</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td>Yes</td><td>Cloud file path, e.g., files/data.txt or files/ (directory)</td></tr>
-<tr><td><code>maxAge</code></td><td>number</td><td></td><td>Temporary link validity period in seconds, range: 1-86400, default: 3600 (1 hour). Default: 3600</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Query operation: list=list all files in a directory, info=get details for a specified file, url=get a temporary file download URL, read=read text file content Allowed values: "list", "info", "url", "read"</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td>yes</td><td>Cloud file path, for example files/data.txt or files/ (directory)</td></tr>
+<tr><td><code>maxAge</code></td><td>number</td><td></td><td>Temporary URL validity in seconds, range: 1-86400, default: 3600 (1 hour) Default: 3600</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageStorage`
-Manage cloud storage files, only for COS/Storage objects, not for static website hosting. Supports uploading files/directories, downloading files/directories, deleting files/directories and other operations. Delete operation requires setting force=true for confirmation to prevent accidental deletion of important files.
+⚠️ For PG-mode environments use queryPgStorage instead of this tool (pgstore and the legacy COS are two separate systems).
+
+Manage CloudBase cloud storage files — for COS/Storage objects only, not for static website hosting. Supports uploading/downloading/deleting files and directories. Delete operations require force=true as confirmation to prevent accidental deletion. Note: the temporaryUrl returned after upload is a temporary signed link that expires in 1 hour; do not write it into configuration or persistent storage as a permanent public URL. The tool also derives publicUrl from the Storages[0].CdnDomain returned by DescribeEnvs. ⚠️ Warning: publicUrl is anonymously accessible only when the bucket ACL is public-read; with the default private-read-write bucket the returned publicUrl will 403 — keep using temporaryUrl, or first set the target path to public-read via the console/SDK.
+
+💡 For bucket ACL permission management use the permissions tool: query with queryPermissions(action="getResourcePermission", resourceType="storage", resourceId="bucket-name"), set with managePermissions(action="updateResourcePermission", resourceType="storage", resourceId="bucket-name", permission="READONLY").
+
+📦 CloudBase PG / pgstore buckets must be created before use (same as Supabase Storage: the bucket must exist before upload). The browser SDK `app.storage.from().upload(path, file)` does not create buckets automatically, and the first segment of `path` is the bucket name (e.g. `covers/foo.png` → bucket=`covers`); the argument of `from('covers')` is currently not prepended to the path. If the browser sees `STORAGE_BUCKET_NOT_FOUND` or `PUT https://undefined/` during upload (shown as `net::ERR_NAME_NOT_RESOLVED` in DevTools), first confirm / create the corresponding pgstore bucket with this tool or the console, then have the frontend retry the upload — do not let the frontend silently swallow the upload failure. Legacy NoSQL buckets returned by `DescribeEnvs.Storages[]` (shaped like `&lt;hash&gt;-&lt;envId&gt;-&lt;appId&gt;`) are not usable pgstore buckets; never use them as the default target.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Management operation type: upload=upload file or directory, download=download file or directory, delete=delete file or directory. Allowed values: "upload", "download", "delete"</td></tr>
-<tr><td><code>localPath</code></td><td>string</td><td>Yes</td><td>Local file path, absolute path recommended, e.g., /tmp/files/data.txt</td></tr>
-<tr><td><code>cloudPath</code></td><td>string</td><td>Yes</td><td>Cloud file path, e.g., files/data.txt</td></tr>
-<tr><td><code>force</code></td><td>boolean</td><td></td><td>Force operation switch, recommended to set to true for delete operations to confirm deletion, defaults to false. Default: false</td></tr>
-<tr><td><code>isDirectory</code></td><td>boolean</td><td></td><td>Whether directory operation, true=directory operation, false=file operation, defaults to false. Default: false</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Management operation: upload=upload a file or directory, download=download a file or directory, delete=delete a file or directory Allowed values: "upload", "download", "delete"</td></tr>
+<tr><td><code>localPath</code></td><td>string</td><td></td><td>Local file path; an absolute path such as /tmp/files/data.txt is recommended. Required for upload/download and not needed for delete</td></tr>
+<tr><td><code>cloudPath</code></td><td>string</td><td>yes</td><td>Cloud file path, for example files/data.txt</td></tr>
+<tr><td><code>force</code></td><td>boolean</td><td></td><td>Force-operation switch. Set to true to confirm deletion; defaults to false Default: false</td></tr>
+<tr><td><code>isDirectory</code></td><td>boolean</td><td></td><td>Whether the operation targets a directory: true=directory, false=file; defaults to false Default: false</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `downloadTemplate`
-Automatically download and deploy CloudBase project templates. ⚠️ **MANDATORY FOR NEW PROJECTS** ⚠️
-
-**CRITICAL**: This tool MUST be called FIRST when starting a new project.
+Automatically downloads and deploys CloudBase project templates.
+**Note**: Call this tool when the user requests to create a new project using a CloudBase template.
 
 Supported templates:
-- react: React + CloudBase full-stack application template
-- vue: Vue + CloudBase full-stack application template
+- react: React + CloudBase full-stack app template
+- vue: Vue + CloudBase full-stack app template
 - miniprogram: WeChat Mini Program + CloudBase template
-- uniapp: UniApp + CloudBase cross-platform application template
-- rules: Only includes AI editor configuration files (Cursor, CodeBuddy, Claude Code and other mainstream editors), suitable for supplementing AI editor configuration in existing projects
+- uniapp: UniApp + CloudBase cross-platform app template
+- rules: AI editor configuration files only (Cursor, CodeBuddy, Claude Code and other mainstream editors), suitable for adding AI editor configuration to an existing project
 
 Supported IDE types:
-- all: Download all IDE configurations
+- all: download configurations for all IDEs
 - cursor: Cursor AI editor
 - codebuddy: CodeBuddy AI editor
 - claude-code: Claude Code AI editor
@@ -831,306 +846,462 @@ Supported IDE types:
 - aider: Aider AI editor
 - iflow-cli: iFlow CLI (MCP config only, no rule files)
 
-Note: If ide parameter is not passed and IDE cannot be detected from environment, an error will be prompted and require passing ide parameter
+Note: if the ide parameter is not provided and the IDE cannot be detected from environment variables, an error will be returned asking for the ide parameter
 
-Special notes:
-- rules template will automatically include current MCP version information, which helps with later maintenance and version tracking
-- When downloading rules template, if README.md file already exists in the project, the system will automatically protect the file from being overwritten (unless overwrite=true is set)
+Notes:
+- the rules template automatically embeds the current MCP version for future maintenance and version tracking
+- when downloading the rules template, if a README.md file already exists in the project, the system protects it from being overwritten (unless overwrite=true is set)
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>template</code></td><td>string</td><td>Yes</td><td>Template type to download. Allowed values: "react", "vue", "miniprogram", "uniapp", "rules"</td></tr>
-<tr><td><code>ide</code></td><td>string</td><td>Yes</td><td>Specify the IDE type to download. Allowed values: "all", "cursor", "codebuddy", "claude-code", "gemini-cli", "opencode", "qwen-code", "baidu-comate", "openai-codex-cli", "github-copilot", "roocode", "tongyi-lingma", "trae", "qoder", "antigravity", "vscode", "kiro", "aider", "iflow-cli"</td></tr>
-<tr><td><code>overwrite</code></td><td>boolean</td><td></td><td>Whether to overwrite existing files, defaults to false (no overwrite)</td></tr>
+<tr><td><code>template</code></td><td>string</td><td>yes</td><td>The type of template to download Allowed values: "react", "vue", "miniprogram", "uniapp", "rules"</td></tr>
+<tr><td><code>ide</code></td><td>string</td><td>yes</td><td>The IDE type whose configuration should be downloaded. Allowed values: "all", "cursor", "codebuddy", "claude-code", "gemini-cli", "opencode", "qwen-code", "baidu-comate", "openai-codex-cli", "github-copilot", "roocode", "tongyi-lingma", "trae", "qoder", "antigravity", "vscode", "kiro", "aider", "iflow-cli"</td></tr>
+<tr><td><code>overwrite</code></td><td>boolean</td><td></td><td>Whether to overwrite existing files. Defaults to false (do not overwrite).</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `searchKnowledgeBase`
-CloudBase knowledge base search tool. It supports CloudBase official documentation (`docs`), curated skill documents (`skill`), and OpenAPI documents (`openapi`).
+CloudBase knowledge base search tool. Supports CloudBase official docs (docs), fixed skill docs (skill), and OpenAPI docs (openapi).
 
-      Choose the mode by scenario:
-      - If a tool error contains a specific error code such as OperationDenied.FreePackageDenied, use mode=docs + action=searchDocs with the error code as query. Read the official meaning and remediation before acting; do not retry by guesswork.
-      - If you do not know where the answer is, or need full-text search across official documentation, use mode=docs + action=searchDocs with query keywords.
-      - If you know the document title, hierarchy path, or URL, use mode=docs + action=findByName with input, or action=readDoc with docPath.
-      - For a scenario-specific implementation guide or best practice, use mode=skill + skillName.
-      - For an HTTP API definition, use mode=openapi + apiName.
+Choose mode by scenario:
+- A tool call failed with an error code in the message (e.g. OperationDenied.FreePackageDenied): mode=docs + action=searchDocs (query=error code). Look up the official meaning and guidance of the error code before acting; do not retry on guesses.
+- Unsure where the answer is and need a full-text search over official docs: mode=docs + action=searchDocs
+- You know the doc title, hierarchical path, or URL: mode=docs + action=findByName or action=readDoc
+- Need a hands-on guide / best practices for a scenario: mode=skill + skillName
+- Need an HTTP API definition: mode=openapi + apiName
 
-      ⚠️ Important: when CloudBase skills are disabled or the current IDE cannot read skill files, use searchKnowledgeBase(mode=skill, skillName=...) to retrieve the CloudBase skill documentation. Do not try to read the skill file directly; that may return a 400 error. Examples:
-      - Minimal Web + database demo: searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo)
-      - Authentication configuration guide: searchKnowledgeBase(mode=skill, skillName=auth-tool-cloudbase)
-      - Web authentication guide: searchKnowledgeBase(mode=skill, skillName=auth-web-cloudbase)
-      - CloudBase Agent guide: searchKnowledgeBase(mode=skill, skillName=cloudbase-agent)
-      - MCP connection modes (local / remote), calling tools from the shell with mcporter, or the site / plugin switches: searchKnowledgeBase(mode=skill, skillName=cloudbase-mcp)
+⚠️ Important: when CloudBase skills are disabled or the current IDE does not support reading skill files, use searchKnowledgeBase(mode=skill, skillName=...) to get CloudBase skill doc content instead of trying to read skill files directly. Direct reads may return 400 errors. Examples: searchKnowledgeBase(mode=skill, skillName=minimal-web-baas-demo) for a minimal Web+database demo; skillName=auth-tool-cloudbase for login provider setup; skillName=auth-web-cloudbase for Web frontend login; skillName=cloudbase-agent for agent development; skillName=cloudbase-mcp for MCP connection modes (local / remote), calling tools from the shell with mcporter, or the site / plugin switches.
 
-      The response contains the full SKILL.md of that skill plus the address list of every .md file for it in the remote aggregation repo (CNB raw) — SKILL.md, references/, and so on, directly fetchable over HTTP. Relative links outside code fences in the body are also rewritten to absolute addresses; if the skill does not exist in the remote repo, only the inline content is returned, clearly marked, and no dead links are returned.
+A skill response contains the full SKILL.md plus the URLs of all its .md files in the remote aggregate repo (CNB raw), fetchable over HTTP; relative links are rewritten to absolute URLs, and when the skill is absent from the remote repo only the inline content is returned and that is stated explicitly.
 
-      If you are unsure which document to choose, call mode=skill without skillName or mode=openapi without apiName. The tool returns the available items and a short description of when to use each one; then call it again with the selected name. The `skillName` and `apiName` enums below contain the same choices (33 skills and 8 APIs).
+When unsure which one to pick: call with mode=skill and no skillName, or mode=openapi and no apiName, to get the current catalog with each entry's scenario / summary (currently 32 skills, 8 APIs), then call again with the name.
 
-      OpenAPI queries need only mode="openapi" and apiName. Do not pass action; action is used only with mode="docs".
+Note: OpenAPI doc (openapi) queries only need mode="openapi" and apiName; do not pass action — action is only for mode="docs".
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>mode</code></td><td>string</td><td>Yes</td><td>Allowed values: "skill", "openapi", "docs"</td></tr>
-<tr><td><code>skillName</code></td><td>string</td><td></td><td>Specify when mode=skill. Skill name. Allowed values: "cloudbase-all-in-one", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"</td></tr>
-<tr><td><code>apiName</code></td><td>string</td><td></td><td>Specify when mode=openapi. API name. Allowed values: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"</td></tr>
-<tr><td><code>action</code></td><td>string</td><td></td><td>Specify when mode=docs. CloudBase documentation operation type: listModules=list all documentation modules, listModuleDocs=get directory structure of specified module, findByName=smart search by name/path/URL, readDoc=read specified documentation Markdown, searchDocs=full-text search official documentation. Allowed values: "listModules", "listModuleDocs", "findByName", "readDoc", "searchDocs"</td></tr>
-<tr><td><code>moduleName</code></td><td>string</td><td></td><td>Specify when mode=docs and action=listModuleDocs. Module name.</td></tr>
-<tr><td><code>input</code></td><td>string</td><td></td><td>Specify when mode=docs and action=findByName. Supports module name, document title, hierarchy path or URL.</td></tr>
-<tr><td><code>docPath</code></td><td>string</td><td></td><td>Specify when mode=docs and action=readDoc. Pass a site-relative path such as /quick-start, or a document URL returned by findByName / searchDocs. When a URL is provided, only its path is used and the hostname is ignored.</td></tr>
-<tr><td><code>query</code></td><td>string</td><td></td><td>Specify when mode=docs and action=searchDocs. Full-text search keywords.</td></tr>
-
+<tr><td><code>mode</code></td><td>string</td><td>yes</td><td>Allowed values: "skill", "openapi", "docs"</td></tr>
+<tr><td><code>skillName</code></td><td>string</td><td></td><td>Required for mode=skill. The skill name. Allowed values: "cloudbase-all-in-one", "ai-model-nodejs", "ai-model-web", "ai-model-wechat", "auth-nodejs-cloudbase", "auth-tool-cloudbase", "auth-web-cloudbase", "auth-wechat-miniprogram", "cloud-api-operations", "cloud-functions", "cloud-storage-web", "cloudbase-agent", "cloudbase-cli", "cloudbase-code-review", "cloudbase-declarative-deploy", "cloudbase-document-database-in-wechat-miniprogram", "cloudbase-document-database-web-sdk", "cloudbase-mcp", "cloudbase-platform", "cloudbase-wechat-integration", "cloudrun-development", "http-api-cloudbase", "minimal-web-baas-demo", "miniprogram-development", "ops-inspector", "postgresql-best-practices-cloudbase", "postgresql-development-cloudbase", "relational-database-mcp-cloudbase", "relational-database-web-cloudbase", "spec-workflow", "ui-design", "web-development"</td></tr>
+<tr><td><code>apiName</code></td><td>string</td><td></td><td>Required for mode=openapi. The API name. Allowed values: "mysqldb", "pgdb", "functions", "auth", "cloudrun", "storage", "nosql", "ai_model"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td></td><td>Only for mode=docs; do not pass action with mode=openapi. CloudBase documentation action: listModules lists all documentation modules; listModuleDocs gets the catalog for a module; findByName searches intelligently by name, path, or URL; readDoc reads document Markdown; searchDocs performs a full-text search of the official documentation. Allowed values: "listModules", "listModuleDocs", "findByName", "readDoc", "searchDocs"</td></tr>
+<tr><td><code>moduleName</code></td><td>string</td><td></td><td>Required when mode=docs and action=listModuleDocs. The module name.</td></tr>
+<tr><td><code>input</code></td><td>string</td><td></td><td>Required when mode=docs and action=findByName. Accepts a module name, document title, hierarchical path, or URL.</td></tr>
+<tr><td><code>docPath</code></td><td>string</td><td></td><td>Required when mode=docs and action=readDoc. A site-relative path such as /quick-start, or a document address returned by action=findByName / action=searchDocs — only the path is used; any host is ignored.</td></tr>
+<tr><td><code>query</code></td><td>string</td><td></td><td>Required when mode=docs and action=searchDocs. Full-text search keywords.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryCloudRun`
-Query CloudBase Run service information, including service lists, service details, available templates, build logs (`getDeployLog`, cloud source builds only and dependent on CODING), process logs (`getProcessLog`, available for image and source deployments without CODING), deployment records, and environment enablement status (`envStatus`). Results include service name, status, access type, configuration details, and recent deployment context.
+Query CloudRun service info: list services, get service details, list available templates, get build logs (getDeployLog, cloud source builds only / depends on CODING), get runtime logs (getProcessLog, works for both image and source deploys / no CODING needed), get deploy records, and check the env's CloudRun provisioning status (envStatus). Returned info includes service name, status, access type, config details, and latest deploy context.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Query operation type: list=get the CloudBase Run service list; detail=get service details and latest deployment status; templates=get project templates; getDeployLog=get source-build logs through CODING/DescribeCloudRunBuildLog; getProcessLog=get deployment-stage and container runtime logs through tcbr/DescribeCloudRunProcessLog; getDeployRecords=list deployment records newest first; envStatus=query whether CloudBase Run is enabled for the environment; getManageTask=query a service release task through tcbr/DescribeServerManageTask, returning task Id/Status and the latest deployment state to determine whether a deployment is progressing or stuck. When a deployment reports that another release task is running, use getManageTask before retrying. Allowed values: "list", "detail", "templates", "getDeployLog", "getProcessLog", "getDeployRecords", "envStatus", "getManageTask"</td></tr>
-<tr><td><code>pageSize</code></td><td>number</td><td></td><td>Page size, controls number of services returned per page. Range: 1-100, default: 10. Adjust based on network performance and display requirements. Default: 10</td></tr>
-<tr><td><code>pageNum</code></td><td>number</td><td></td><td>Page number, for paginated queries. Starts from 1, default: 1. Use with pageSize for paginated browsing. Default: 1</td></tr>
-<tr><td><code>serverName</code></td><td>string</td><td></td><td>Service name filter condition, supports fuzzy matching. E.g., entering "test" matches "test-service", "my-test-app", etc. Leave empty to query all services</td></tr>
-<tr><td><code>serverType</code></td><td>string</td><td></td><td>Service type filter condition: function=function-type CloudBase Run (Node.js only, with specialized development requirements), container=container service (recommended; supports Java, Go, Python, PHP, .NET, and other languages/frameworks). Allowed values: "function", "container"</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID used by action=envStatus. Uses the currently configured environment when omitted; format such as env-xxxxxx</td></tr>
-<tr><td><code>detailServerName</code></td><td>string</td><td></td><td>Service name for detail, deployment records, build logs, process logs, or release-task status. Use an existing name returned by list</td></tr>
-<tr><td><code>buildId</code></td><td>number</td><td></td><td>Build ID used only by action=getDeployLog for cloud source builds. Defaults to the latest deployment build when omitted</td></tr>
-<tr><td><code>runId</code></td><td>string</td><td></td><td>RunId used only by action=getProcessLog. Defaults to the latest deployment record's RunId, shared with detail/getDeployRecords. Process logs are available for image and source deployments</td></tr>
-<tr><td><code>revealEnvParams</code></td><td>boolean</td><td></td><td>Whether action=detail returns plaintext ServerConfig.EnvParams values. Defaults to false and masks values as "***" while retaining keys. When true, sensitive values such as password-bearing DATABASE_URL values may enter the model context; use with care</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Query action: list=list CloudRun services (supports pagination and filtering), detail=query details of a service (including service config and latest deploy status), templates=list available project templates (for initializing new projects), getDeployLog=get build logs (only meaningful for cloud source builds, backed by CODING/DescribeCloudRunBuildLog; existing-image deploys have no build phase; accounts not logged into CODING get an error), getProcessLog=get runtime logs (deploy-phase steps plus container startup/runtime logs, backed by tcbr/DescribeCloudRunProcessLog; works for both image deploys and source builds and does not depend on CODING; RunId comes from latestDeploy.RunId of detail/getDeployRecords), getDeployRecords=list deploy records of a service (newest first, including BuildId/RunId/FlowRatio/Status, useful for release history and rollback context), envStatus=check whether CloudRun is provisioned for the current env and its status (Status=creating provisioning/normal provisioned), used to poll progress after initEnv or to confirm readiness before deploy, getManageTask=query the deploy task of a service (backed by tcbr/DescribeServerManageTask); returns the task Id/Status plus the latest deploy record status, used to tell whether a deploy is progressing or stuck (e.g. a version stuck in 'creating'). Use it to confirm the real task state when you hit "a deploy task is already running" instead of blindly retrying Allowed values: "list", "detail", "templates", "getDeployLog", "getProcessLog", "getDeployRecords", "envStatus", "getManageTask"</td></tr>
+<tr><td><code>pageSize</code></td><td>number</td><td></td><td>Page size, controlling how many services are returned per page. Range: 1-100, default: 10. Adjust based on network performance and display needs Default: 10</td></tr>
+<tr><td><code>pageNum</code></td><td>number</td><td></td><td>Page number for paginated queries. Starts at 1, default: 1. Use with pageSize to browse page by page Default: 1</td></tr>
+<tr><td><code>serverName</code></td><td>string</td><td></td><td>Service name filter with fuzzy matching. For example, "test" matches service names like "test-service" and "my-test-app". Leave empty to query all services</td></tr>
+<tr><td><code>serverType</code></td><td>string</td><td></td><td>Service type filter: function=function-type CloudRun (Node.js only, with special development requirements and limits, suitable for simple API services), container=container service (recommended; supports any language and framework such as Java/Go/Python/PHP/.NET, suitable for most scenarios) Allowed values: "function", "container"</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID (used with action=envStatus; the currently configured env is used when omitted). Format: env-xxxxxx</td></tr>
+<tr><td><code>detailServerName</code></td><td>string</td><td></td><td>Name of the service whose details, deploy records, build logs, or runtime logs you want. Recommended when action is detail, getDeployLog, getProcessLog, or getDeployRecords; it must be an existing service name. Use the list action to get available service names</td></tr>
+<tr><td><code>buildId</code></td><td>number</td><td></td><td>Build ID, used only with action=getDeployLog (build logs, cloud source builds only). When omitted, the build log of the most recent deploy is returned</td></tr>
+<tr><td><code>runId</code></td><td>string</td><td></td><td>Run ID (RunId), used only with action=getProcessLog. When omitted, the RunId of the service's most recent deploy record is used (the same source as latestDeploy.RunId in detail/getDeployRecords). Runtime logs are available for both image deploys and source builds</td></tr>
+<tr><td><code>revealEnvParams</code></td><td>boolean</td><td></td><td>Whether to return plaintext service environment variables (ServerConfig.EnvParams) (effective only with action=detail). Default false, values are masked as "***" (keys are kept, which is enough to check which variables are configured and whether a change took effect); when true, plaintext is returned and sensitive variables (such as a DATABASE_URL containing a password) may be exposed to the model context — use with care Default: false</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageCloudRun`
-Manage CloudBase Run services in development order: enable CloudBase Run for the environment (`initEnv`), initialize a project from a template, download service code, run it locally (function services only), deploy code, update configuration without re-uploading code (`updateConfig`), and delete a service. `deploy` supports source builds through `targetPath` and existing-image deployment through `imageUrl`. It triggers deployment and waits briefly for task registration (up to about 45 seconds); set `waitRegistration=false` when no buildId is needed. Source builds return a buildId for getDeployLog, followed by getProcessLog. Image deployments commonly have BuildId 0; skip getDeployLog and use the returned runId/next_step or getDeployRecords before getProcessLog. When image deployment is requested, pass imageUrl rather than falling back to source merely because local source exists. Existing services use read-merge-write to preserve VpcConf, EnvParams, and OpenAccessTypes. `updateConfig` aligns with the console's service settings. Deletion requires confirmation; `force=true` is recommended. For a new environment, call the asynchronous, idempotent initEnv before the first deployment when CloudBase Run is not enabled. Before deploying, make sure the image carries no static content: media files (video, large images, fonts), user uploads, and frequently updated static assets belong in cloud storage, referenced by URL. Otherwise every deployment repushes everything and every scaled instance re-pulls it — a single demo video can turn a 30-second deploy into minutes.
+Manage CloudRun services, in development order: provision the CloudRun env (initEnv), initialize a project (optionally from a template; list templates via queryCloudRun), download service code, run locally (function services only), deploy code, update config only (updateConfig, no code upload needed), and delete the service. deploy supports two modes: 1) source build (pass targetPath; local code is packaged and uploaded, the default); 2) existing image deploy (pass imageUrl, e.g. ccr.ccs.tencentyun.com/ns/img:v1; DeployType=image container deploy, targetPath optional). deploy means "trigger deploy + lightweight wait for task registration" (up to ~45s; pass waitRegistration=false to skip the wait when you don't need the buildId). Source builds return buildId — poll getDeployLog for build progress, then getProcessLog; image deploys (imageUrl) usually have BuildId=0 — getDeployLog is skipped, and runId/next_step guide you to getProcessLog (or getDeployRecords first for RunId). If the user explicitly specifies an image or no rebuild is needed, you must pass imageUrl instead of falling back to a source build just because a local source directory exists. For existing services, deploy reads the remote config first and merges (preserving VpcConf/EnvParams/OpenAccessTypes). Deletion requires confirmation; set force=true. If a new env reports CloudRun not provisioned before the first deploy, call initEnv first (async, idempotent). Before deploying, make sure the image carries no static content: media files (video, large images, fonts), user uploads, and frequently-updated static resources belong in cloud storage referenced by URL, not in the image. Otherwise every deploy re-pushes the whole image and every scale-up instance re-pulls it — one demo video can turn a 30-second deploy into minutes.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>CloudBase Run management operation: init=initialize project code; download=download service code; run=run a function service locally; deploy=trigger deployment and briefly wait for task registration; updateConfig=update service configuration without uploading code; delete=delete a service; createAgent=create a function-type Agent; initEnv=enable CloudBase Run for the current environment; traffic=manage canary traffic with set/promote/rollback. Allowed values: "init", "download", "run", "deploy", "delete", "createAgent", "updateConfig", "initEnv", "traffic"</td></tr>
-<tr><td><code>serverName</code></td><td>string</td><td></td><td>CloudBase Run service name. It becomes the subdirectory name for init and identifies the target service for other actions. Not required for initEnv</td></tr>
-<tr><td><code>targetPath</code></td><td>string</td><td></td><td>Local code path, must be absolute path. In deploy operation specifies code directory to deploy, in download operation specifies download target directory, in init operation specifies CloudRun service parent directory (will create subdirectory named serverName under this directory). Recommended convention: cloudrun/ directory under project root, e.g., /Users/username/projects/my-project/cloudrun</td></tr>
-<tr><td><code>serverConfig</code></td><td>object</td><td></td><td>Service configuration items, used to set service runtime parameters during deployment. Includes resource specs, access permissions, environment variables and other configuration. Uses default configuration if not provided</td></tr>
-<tr><td><code>serverConfig.OpenAccessTypes</code></td><td>array of string</td><td></td><td>Public network access type configuration, controls service access permissions: OA=office network access, PUBLIC=public network access (default, accessible via HTTPS domain), MINIAPP=mini program access, VPC=VPC access (only accessible within same VPC). Can configure multiple types</td></tr>
-<tr><td><code>serverConfig.Cpu</code></td><td>number</td><td></td><td>CPU spec configuration, unit is cores. Options: 0.25, 0.5, 1, 2, 4, 8, etc. Note: Memory spec must be 2x CPU spec (e.g., CPU=0.25 then memory=0.5, CPU=1 then memory=2). Affects service performance and billing</td></tr>
-<tr><td><code>serverConfig.Mem</code></td><td>number</td><td></td><td>Memory spec configuration, unit is GB. Options: 0.5, 1, 2, 4, 8, 16, etc. Note: Must be 2x CPU spec. Affects service performance and billing</td></tr>
-<tr><td><code>serverConfig.MinNum</code></td><td>number</td><td></td><td>Minimum instance count configuration, controls minimum number of running service instances. Setting to 0 enables scale-to-zero (no cost when no requests), setting > 0 always keeps specified number of instances running (ensures fast response but increases cost). Recommended to set to 1 to reduce cold start latency and improve user experience</td></tr>
-<tr><td><code>serverConfig.MaxNum</code></td><td>number</td><td></td><td>Maximum instance count configuration, controls maximum number of running service instances. When request volume increases, service can scale up to specified number of instances, beyond which new requests will be rejected. Recommended to set based on business peak</td></tr>
-<tr><td><code>serverConfig.PolicyDetails</code></td><td>array of object</td><td></td><td>Scaling configuration array, used to configure service auto-scaling policies. Can configure multiple scaling policies</td></tr>
-<tr><td><code>serverConfig.PolicyDetails[].PolicyType</code></td><td>string</td><td>Yes</td><td>Scaling type: cpu=CPU utilization-based scaling, mem=memory utilization-based scaling, cpu/mem=CPU and memory utilization-based scaling. Allowed values: "cpu", "mem", "cpu/mem"</td></tr>
-<tr><td><code>serverConfig.PolicyDetails[].PolicyThreshold</code></td><td>number</td><td>Yes</td><td>Scaling threshold, unit is percentage. E.g., 60 means trigger scaling when resource utilization reaches 60%</td></tr>
-<tr><td><code>serverConfig.CustomLogs</code></td><td>string</td><td></td><td>Custom log configuration, used to configure service log collection and storage policies</td></tr>
-<tr><td><code>serverConfig.Port</code></td><td>number</td><td></td><td>Service listening port. Function-type services use port 3000 through the function framework; application code must not call app.listen itself. Container services can use a custom port, and application code must listen on that port</td></tr>
-<tr><td><code>serverConfig.EnvParams</code></td><td>string</td><td></td><td>Environment variable configuration, JSON string format. Used to pass configuration information to service code, e.g., <code>'&#123;"DATABASE_URL":"mysql://...","NODE_ENV":"production"&#125;'</code>. Sensitive information is recommended to use environment variables rather than hardcoding</td></tr>
-<tr><td><code>serverConfig.Dockerfile</code></td><td>string</td><td></td><td>Dockerfile filename configuration, only required for container-type services. Specifies the Dockerfile file path for building container images, defaults to Dockerfile in project root</td></tr>
-<tr><td><code>serverConfig.BuildDir</code></td><td>string</td><td></td><td>Build directory configuration, specifies the directory path for code building. Used when code structure differs from standard, defaults to project root</td></tr>
-<tr><td><code>serverConfig.InternalAccess</code></td><td>enum: open, close</td><td></td><td>Internal network access switch. <code>open</code> enables internal access (callable directly through the CloudBase SDK); <code>close</code> disables it (public access only). Values such as <code>true</code> / <code>false</code> are rejected by the schema.</td></tr>
-<tr><td><code>serverConfig.InternalDomain</code></td><td>string</td><td></td><td>Internal network domain configuration, used to configure service internal network access domain. Only effective when internal network access is enabled</td></tr>
-<tr><td><code>serverConfig.EntryPoint</code></td><td>array of string</td><td></td><td>Dockerfile EntryPoint parameter configuration, only required for container-type services. Specifies entry program array when container starts, e.g., <code>["node","app.js"]</code></td></tr>
-<tr><td><code>serverConfig.Cmd</code></td><td>array of string</td><td></td><td>Dockerfile Cmd parameter configuration, only required for container-type services. Specifies default command array when container starts, e.g., <code>["npm","start"]</code></td></tr>
-<tr><td><code>template</code></td><td>string</td><td></td><td>Project template identifier, used to specify template for project initialization. Available template list can be obtained via queryCloudRun templates operation. Common templates: helloworld=Hello World example, nodejs=Node.js project template, python=Python project template, etc. Default: "helloworld"</td></tr>
-<tr><td><code>runOptions</code></td><td>object</td><td></td><td>Local run parameter configuration, only supports function-type CloudRun services. Used to configure local development environment run parameters, does not affect cloud deployment</td></tr>
-<tr><td><code>runOptions.port</code></td><td>number</td><td></td><td>Local run port configuration, only effective for function-type services. Specifies the port number for service to listen on locally, default 3000. Ensure port is not occupied by other programs. Default: 3000</td></tr>
-<tr><td><code>runOptions.envParams</code></td><td>object</td><td></td><td>Additional environment variable configuration for local run, used for local development and debugging. Format is key-value pairs, e.g., <code>&#123;"DEBUG":"true","LOG_LEVEL":"debug"&#125;</code>. These variables only take effect when running locally</td></tr>
-<tr><td><code>runOptions.runMode</code></td><td>string</td><td></td><td>Run mode: normal=normal function mode, agent=Agent mode (for AI agent development). Allowed values: "normal", "agent"; Default: "normal"</td></tr>
-<tr><td><code>runOptions.agentId</code></td><td>string</td><td></td><td>Agent ID, used in agent mode to identify specific Agent instance</td></tr>
-<tr><td><code>agentConfig</code></td><td>object</td><td></td><td>Agent configuration items, only used in createAgent operation</td></tr>
-<tr><td><code>agentConfig.agentName</code></td><td>string</td><td>Yes</td><td>Agent name, used to generate BotId</td></tr>
-<tr><td><code>agentConfig.botTag</code></td><td>string</td><td></td><td>Bot tag, used to generate BotId, auto-generated if not provided</td></tr>
-<tr><td><code>agentConfig.description</code></td><td>string</td><td></td><td>Agent description information</td></tr>
-<tr><td><code>agentConfig.template</code></td><td>string</td><td></td><td>Agent template type, defaults to blank (blank template). Default: "blank"</td></tr>
-<tr><td><code>force</code></td><td>boolean</td><td></td><td>Force operation switch, used to skip confirmation prompts. Defaults to false (requires confirmation), set to true to skip all confirmation steps. Strongly recommended to set to true for delete operations to avoid accidental operations. Default: false</td></tr>
-<tr><td><code>serverType</code></td><td>string</td><td></td><td>Service type: function=Node.js function service for simple APIs; container=recommended container service supporting Java, Go, Python, PHP, .NET, and other languages/frameworks. If omitted, MCP detects: 1) existing service type, 2) Dockerfile → container, 3) @cloudbase/aiagent-framework dependency → function, 4) otherwise → container. Allowed values: "function", "container"</td></tr>
-<tr><td><code>waitRegistration</code></td><td>boolean</td><td></td><td>Whether deploy waits for the platform to register the release, default true, for up to about 45 seconds. Waiting obtains identifiers needed for later queries (BuildId for source builds or RunId for image deployment). When false, perform one probe and return immediately; use it when buildId is unnecessary and task status will be queried later</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>CloudRun service management action: init=initialize new CloudRun project code from a template (creates a subdirectory named after serverName under targetPath), download=download an existing service's code locally, run=run a function-type CloudRun service locally (function services only), deploy=trigger the deploy and wait lightly for task registration (does not hang for the full build; poll getDeployLog for source builds, skip getDeployLog and use getProcessLog for image deploys), updateConfig=update the service config only without re-uploading code, delete=delete a CloudRun service (irreversible, requires confirmation), createAgent=create a function-type Agent, initEnv=provision CloudRun for the current env (asynchronous and idempotent; use before the first deploy in a new env), traffic=traffic management and canary release (sub-actions in trafficOp) Allowed values: "init", "download", "run", "deploy", "delete", "createAgent", "updateConfig", "initEnv", "traffic"</td></tr>
+<tr><td><code>serverName</code></td><td>string</td><td></td><td>CloudRun service name, used to identify and manage the service. Naming rules: upper/lowercase letters, digits, hyphens, and underscores; must start with a letter; 3-45 characters. For init it is the subdirectory name created under targetPath; for other actions it is the target service name. The initEnv action does not need this parameter</td></tr>
+<tr><td><code>trafficOp</code></td><td>string</td><td></td><td>Traffic management sub-action (used with action=traffic): set=adjust the canary traffic split (deploy the new version to canary first, then set stablePercent/canaryPercent); promote=release the canary version to full traffic and turn off canary release; rollback=stop the current canary/releasing version and return to the previous stable version Allowed values: "set", "promote", "rollback"</td></tr>
+<tr><td><code>stablePercent</code></td><td>number</td><td></td><td>Stable version traffic percentage (used with trafficOp=set), range 0-100. It must sum to 100 with canaryPercent. For example, to send 90% of traffic to stable and 10% to canary, use stablePercent=90, canaryPercent=10</td></tr>
+<tr><td><code>canaryPercent</code></td><td>number</td><td></td><td>Canary version traffic percentage (used with trafficOp=set), range 0-100. It must sum to 100 with stablePercent. For example, to send 90% of traffic to stable and 10% to canary, use stablePercent=90, canaryPercent=10</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Environment ID (used with action=initEnv; the currently configured env is used when omitted). Format: env-xxxxxx</td></tr>
+<tr><td><code>packageType</code></td><td>string</td><td></td><td>CloudRun env package type (used with action=initEnv): Trial, Standard, Professional, Enterprise. Default Trial Allowed values: "Trial", "Standard", "Professional", "Enterprise"；Default: "Trial"</td></tr>
+<tr><td><code>vpcId</code></td><td>string</td><td></td><td>VPC network ID (optional with action=initEnv). Required when the platform refuses to create the network for you; format: vpc-xxxxxxxx. Passed through to VpcId/SubNetIds of CreateCloudRunEnv together with subnetIds. It can be omitted in most cases (the system creates the network)</td></tr>
+<tr><td><code>subnetIds</code></td><td>array of string</td><td></td><td>Subnet ID list (optional with action=initEnv). Required when you need to specify your own VPC, e.g. ["subnet-xxxxxxxx"]. Passed through to SubNetIds of CreateCloudRunEnv together with vpcId</td></tr>
+<tr><td><code>targetPath</code></td><td>string</td><td></td><td>Local code path; must be absolute. For deploy it is the code directory to deploy, for download the download target directory, and for init the parent directory of the CloudRun service. Recommended convention: the cloudrun/ directory under the project root. It must name a specific project directory: the filesystem root, the home directory itself, /Users itself, system directories (including /bin and /etc), and host-data directories such as .ssh, Library, or .config/.cloudbase are rejected. May be omitted for updateConfig and when deploying an existing image via imageUrl. Having a local source directory does not mean a source build is required; when the user specifies an image, prefer imageUrl.</td></tr>
+<tr><td><code>imageUrl</code></td><td>string</td><td></td><td>Existing-image deploy (used with action=deploy): the container image address, e.g. ccr.ccs.tencentyun.com/ns/img:v1 or a public registry address; no local source directory is needed when provided. Publicly pullable anonymous images can be used directly; private/login-required images (such as ghcr.io) must first be docker pull'ed locally, then docker tag/push'ed to Tencent Cloud CCR, and the CCR address used here. When omitted, a source build is used. If the user explicitly mentions a specific image, or no code rebuild is needed, you must pass imageUrl for an image deploy instead of falling back to a source build.</td></tr>
+<tr><td><code>envParamsReplaceAll</code></td><td>boolean</td><td></td><td>EnvParams merge strategy (deploy / updateConfig): false (default)=merge with the remote config by key (input overrides same-named keys, other remote keys are preserved); true=replace the remote EnvParams entirely with the input. Effective only when EnvParams is passed explicitly Default: false</td></tr>
+<tr><td><code>serverConfig</code></td><td>object</td><td></td><td>Service config for deploy / updateConfig. Includes resource specs, access permissions, environment variables, logs, network, and more. When deploy omits it, existing services still merge and preserve the remote VpcConf/EnvParams/OpenAccessTypes; updateConfig needs at least one config field</td></tr>
+<tr><td><code>serverConfig.OpenAccessTypes</code></td><td>array of string</td><td></td><td>Public access type config, controlling access permissions of the service: OA=office network access, PUBLIC=public access (default, reachable via an HTTPS domain), MINIAPP=mini program access, VPC=VPC access (reachable only within the same VPC). Multiple types can be configured</td></tr>
+<tr><td><code>serverConfig.Cpu</code></td><td>number</td><td></td><td>CPU spec in cores. Allowed values: 0.25, 0.5, 1, 2, 4, 8, and so on. Note: the memory spec must be twice the CPU spec (e.g. CPU=0.25 means memory=0.5, CPU=1 means memory=2). Affects service performance and billing</td></tr>
+<tr><td><code>serverConfig.Mem</code></td><td>number</td><td></td><td>Memory spec in GB. Allowed values: 0.5, 1, 2, 4, 8, 16, and so on. Note: it must be twice the CPU spec. Affects service performance and billing</td></tr>
+<tr><td><code>serverConfig.MinNum</code></td><td>number</td><td></td><td>Minimum instance count, controlling the minimum number of running instances. 0 allows scaling to zero (no cost when there are no requests); a value greater than 0 keeps that many instances running at all times (fast responses but higher cost). Setting 1 is recommended to reduce cold-start latency and improve user experience</td></tr>
+<tr><td><code>serverConfig.MaxNum</code></td><td>number</td><td></td><td>Maximum instance count, controlling the maximum number of running instances. As traffic grows, the service scales out up to this count and rejects new requests beyond it. Set it based on your peak traffic</td></tr>
+<tr><td><code>serverConfig.PolicyDetails</code></td><td>array of object</td><td></td><td>Autoscaling policy array, used to configure automatic scaling of the service. Multiple policies can be configured</td></tr>
+<tr><td><code>serverConfig.PolicyDetails[].PolicyType</code></td><td>string</td><td>yes</td><td>Scaling type: cpu=scale on CPU utilization, mem=scale on memory utilization, cpu/mem=scale on CPU and memory utilization Allowed values: "cpu", "mem", "cpu/mem"</td></tr>
+<tr><td><code>serverConfig.PolicyDetails[].PolicyThreshold</code></td><td>number</td><td>yes</td><td>Scaling threshold as a percentage. For example, 60 means scaling is triggered when resource utilization reaches 60%</td></tr>
+<tr><td><code>serverConfig.CustomLogs</code></td><td>string</td><td></td><td>Custom log config, used to configure log collection and storage policies of the service</td></tr>
+<tr><td><code>serverConfig.Port</code></td><td>number</td><td></td><td>Service listening port. Function services are fixed at 3000 (the function framework listens on that port itself, so business code must not call app.listen); container services can customize it, and business code must listen on this port</td></tr>
+<tr><td><code>serverConfig.EnvParams</code></td><td>string</td><td></td><td>Environment variable config as a JSON string. Used to pass configuration to the service code, e.g. '{"DATABASE_URL":"postgres://user:pass@10.x.x.x:5432/db","NODE_ENV":"production"}'. SDK v5.6.1+ automatically encrypts the passed environment variables with AES-256-CBC in transit. ⚠️ If EnvParams contains traditional TCP database variables such as DATABASE_URL / MYSQL_* / POSTGRES_* / REDIS_*, VpcConf must be configured as well, otherwise instances usually cannot reach databases inside the VPC</td></tr>
+<tr><td><code>serverConfig.Dockerfile</code></td><td>string</td><td></td><td>Dockerfile name config, needed for container services only. Specifies the Dockerfile path used to build the container image; defaults to the Dockerfile in the project root</td></tr>
+<tr><td><code>serverConfig.BuildDir</code></td><td>string</td><td></td><td>Build directory config, specifying the directory used to build the code. Use it when the code layout differs from the standard; defaults to the project root</td></tr>
+<tr><td><code>serverConfig.InternalAccess</code></td><td>string</td><td></td><td>Internal access switch: open=enable internal access (callable directly through the CloudBase SDK), close=disable internal access Allowed values: "open", "close"</td></tr>
+<tr><td><code>serverConfig.InternalDomain</code></td><td>string</td><td></td><td>Internal domain config, used to configure the internal access domain of the service. Effective only when internal access is enabled</td></tr>
+<tr><td><code>serverConfig.EntryPoint</code></td><td>array of string</td><td></td><td>Dockerfile EntryPoint config, needed for container services only. Specifies the container entry program array, e.g. ["node","app.js"]</td></tr>
+<tr><td><code>serverConfig.Cmd</code></td><td>array of string</td><td></td><td>Dockerfile Cmd config, needed for container services only. Specifies the container default command array, e.g. ["npm","start"]</td></tr>
+<tr><td><code>serverConfig.InitialDelaySeconds</code></td><td>number</td><td></td><td>Initial delay of the port health check, in seconds. After deployment, the platform waits N seconds before probing the port, then probes roughly every 5s for about 30 consecutive attempts; the deploy is only marked failed after all 30 fail (a ~150s probe window) — it does not fail immediately after N seconds. Raise it to 60–120 for slow-starting applications</td></tr>
+<tr><td><code>serverConfig.LogType</code></td><td>string</td><td></td><td>Log type config, specifying the log collection type of the service. Affects how logs are collected and stored</td></tr>
+<tr><td><code>serverConfig.LogSetId</code></td><td>string</td><td></td><td>CLS log set ID config, specifying the CLS (Cloud Log Service) log set ID. CLS must be enabled first</td></tr>
+<tr><td><code>serverConfig.LogTopicId</code></td><td>string</td><td></td><td>CLS log topic ID config, specifying the CLS (Cloud Log Service) log topic ID. CLS must be enabled first</td></tr>
+<tr><td><code>serverConfig.LogParseType</code></td><td>string</td><td></td><td>Log parse type config, specifying how logs are parsed. Used to turn raw logs into structured data</td></tr>
+<tr><td><code>serverConfig.Tag</code></td><td>string</td><td></td><td>Service tag config, used to mark the service type. For example, "function:" indicates a function-type service. The SDK generates it automatically from the config</td></tr>
+<tr><td><code>serverConfig.OperationMode</code></td><td>string</td><td></td><td>Operation mode config, specifying the running mode of the service. Affects scheduling and resource allocation</td></tr>
+<tr><td><code>serverConfig.SessionAffinity</code></td><td>string</td><td></td><td>Session affinity config, controlling whether session affinity is enabled. Once enabled, requests from the same client are routed to the same instance</td></tr>
+<tr><td><code>serverConfig.TimerScale</code></td><td>array of object</td><td></td><td>Scheduled scaling config array, used to configure scheduled automatic scaling of the service. Multiple time windows can be configured, with daily/weekly/monthly recurrence</td></tr>
+<tr><td><code>serverConfig.TimerScale[].CycleType</code></td><td>string</td><td>yes</td><td>Recurrence type: none=no recurrence, daily=daily, weekly=weekly, monthly=monthly Allowed values: "none", "daily", "weekly", "monthly"</td></tr>
+<tr><td><code>serverConfig.TimerScale[].StartDate</code></td><td>string</td><td></td><td>Recurrence start date, format: YYYY-MM-DD</td></tr>
+<tr><td><code>serverConfig.TimerScale[].EndDate</code></td><td>string</td><td></td><td>Recurrence end date, format: YYYY-MM-DD</td></tr>
+<tr><td><code>serverConfig.TimerScale[].StartTime</code></td><td>string</td><td>yes</td><td>Start time, format: HH:mm:ss</td></tr>
+<tr><td><code>serverConfig.TimerScale[].EndTime</code></td><td>string</td><td>yes</td><td>End time, format: HH:mm:ss</td></tr>
+<tr><td><code>serverConfig.TimerScale[].ReplicaNum</code></td><td>number</td><td>yes</td><td>Target replica count for scheduled scaling, minimum 0 (scale to zero)</td></tr>
+<tr><td><code>serverConfig.VpcConf</code></td><td>object</td><td></td><td>VPC network config (instance egress / private network). Used to attach CloudRun instances to a specified VPC so they can reach MySQL/PostgreSQL/Redis/CVM and other resources over the internal network. This is a different concept from OpenAccessTypes (how external callers reach this service). It is mandatory for TCP database connections. Do not guess VpcId/SubnetId; they must come from the database console, existing resource details, callCloudApi, or user confirmation. On creation it maps to the SDK vpcInfo(CreateType=2); existing services can use updateConfig or deploy (RMW preserves the remote VpcConf when it is not passed). After deploying/updating, verify ServerConfig.VpcConf with queryCloudRun detail</td></tr>
+<tr><td><code>serverConfig.VpcConf.VpcId</code></td><td>string</td><td>yes</td><td>VPC network ID, format: vpc-xxxxxxxx. It must be in the same region as the target database/Redis, and preferably the same VPC. Do not guess it or use placeholders; it must come from the database console, existing resource details, callCloudApi, or user confirmation. Configuring it at creation time is recommended; existing services can also pass it during deploy, and after deployment you must verify it took effect with queryCloudRun detail</td></tr>
+<tr><td><code>serverConfig.VpcConf.SubnetId</code></td><td>string</td><td>yes</td><td>Subnet ID, format: subnet-xxxxxxxx. CloudRun instances consume IPs from this subnet, so make sure enough IPs are available</td></tr>
+<tr><td><code>serverConfig.VolumesConf</code></td><td>array of union</td><td></td><td>Volume mount config, selected by Type: COS (object storage bucket) or CFS (cloud file storage instance). The required fields differ</td></tr>
+<tr><td><code>serverConfig.PublicNetConf</code></td><td>object</td><td></td><td>Public access config</td></tr>
+<tr><td><code>serverConfig.PublicNetConf.PublicNetStatus</code></td><td>string</td><td></td><td>Public access switch: ENABLE to turn public access on, DISABLE to turn it off Allowed values: "ENABLE", "DISABLE"</td></tr>
+<tr><td><code>template</code></td><td>string</td><td></td><td>Project template identifier, specifying the template used when initializing a project. Use the templates action of queryCloudRun to list available templates. Common templates: helloworld=Hello World example, nodejs=Node.js project template, python=Python project template, and so on Default: "helloworld"</td></tr>
+<tr><td><code>runOptions</code></td><td>object</td><td></td><td>Local run parameters, supported by function-type CloudRun services only. Used to configure the local development runtime; it does not affect cloud deployments</td></tr>
+<tr><td><code>runOptions.port</code></td><td>number</td><td></td><td>Local run port, effective for function services only. Specifies the port the service listens on locally, default 3000. Make sure the port is not already in use Default: 3000</td></tr>
+<tr><td><code>runOptions.envParams</code></td><td>object</td><td></td><td>Extra environment variables for local runs, used for local development and debugging. Key-value pairs, e.g. {"DEBUG":"true","LOG_LEVEL":"debug"}. These variables apply to local runs only</td></tr>
+<tr><td><code>runOptions.runMode</code></td><td>string</td><td></td><td>Run mode: normal=plain function mode, agent=Agent mode (for AI agent development) Allowed values: "normal", "agent"；Default: "normal"</td></tr>
+<tr><td><code>runOptions.agentId</code></td><td>string</td><td></td><td>Agent ID, used in agent mode to identify a specific Agent instance</td></tr>
+<tr><td><code>agentConfig</code></td><td>object</td><td></td><td>Agent config, used only with the createAgent action</td></tr>
+<tr><td><code>agentConfig.agentName</code></td><td>string</td><td>yes</td><td>Agent name, used to generate the BotId</td></tr>
+<tr><td><code>agentConfig.botTag</code></td><td>string</td><td></td><td>Bot tag, used to generate the BotId; generated automatically when omitted</td></tr>
+<tr><td><code>agentConfig.description</code></td><td>string</td><td></td><td>Agent description</td></tr>
+<tr><td><code>agentConfig.template</code></td><td>string</td><td></td><td>Agent template type, defaults to blank (empty template) Default: "blank"</td></tr>
+<tr><td><code>force</code></td><td>boolean</td><td></td><td>Force switch, used to skip confirmation prompts. Default false (confirmation required); true skips all confirmation steps. Setting true is strongly recommended for delete operations to avoid accidental interruptions Default: false</td></tr>
+<tr><td><code>serverType</code></td><td>string</td><td></td><td>Service type: function=function-type CloudRun (Node.js only, with special development requirements and limits, suitable for simple API services), container=container service (recommended; supports any language and framework such as Java/Go/Python/PHP/.NET, suitable for most scenarios). When omitted it is detected automatically: 1) the existing service type 2) a Dockerfile exists→container 3) a @cloudbase/aiagent-framework dependency exists→function 4) otherwise→container Allowed values: "function", "container"</td></tr>
+<tr><td><code>waitRegistration</code></td><td>boolean</td><td></td><td>Whether deploy waits for the platform to register this release (default true, up to ~45s). Waiting yields the identifier needed for follow-up queries (BuildId for source builds, RunId for image deploys). Set false to probe once and return immediately - faster, and suitable when you don't need the buildId and will query the deploy-task state on demand instead Default: true</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `deployBuild`
-Parses cloudbaserc and runs a local build for projects that declare `buildCommand` in `hosting[]` (it only executes `buildCommand` — it does not install dependencies and does not upload). Equivalent to the CLI's `tcb app build`, but it only handles `hosting[]` static hosting entries and is unrelated to the cloudbaserc `app` resource type (cloud build pipeline). Declarative hosting deployment is split into three steps — build → plan → apply — and this tool is the first step: build artifacts locally, then dry-run with deployPlan, and finally upload the artifacts with deployApply. deployApply no longer builds locally implicitly — hosting entries with a build command error out when artifacts are missing and point you here first. Pure static hosting (no `buildCommand` configured and no detectable framework) is skipped automatically. The build is a purely local operation: it does not resolve an environment, does not require login, and does not need `confirm`.
-- cwd: Project root directory; cloudbaserc is searched downward from here. Defaults to the current working directory
-- mode: Environment name; merges the corresponding override config when it matches `envOverrides.<mode>`
+Parses cloudbaserc and runs a local build for every hosting[] item that declares a buildCommand (only buildCommand runs — no dependency install, no upload). It only handles hosting[] and does NOT handle the cloudbaserc app resource — app artifacts must be built by you in the project directory (read the build command and output directory from deployPlan's buildHint), or use the CLI `tcb app deploy` for a cloud build instead. Declarative hosting deployment is split into three steps — build → plan → apply — and this tool is the first one: build the artifacts locally, preview with deployPlan, then upload them with deployApply. deployApply builds neither app nor hosting — missing artifacts fail with BUILD_OUTPUT_NOT_FOUND; for hosting run this tool, for app build it yourself. Pure static hosting (no buildCommand and no detectable framework) is skipped automatically. The build is a purely local operation: it resolves no environment, requires no login and needs no confirm.
+- cwd: project root, defaults to the current working directory
+- mode: environment name; when it matches envOverrides.&lt;mode&gt; the corresponding multi-environment overrides are merged
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>cwd</code></td><td>string</td><td></td><td>Project root directory; cloudbaserc is searched downward from here. Defaults to the current working directory</td></tr>
-<tr><td><code>mode</code></td><td>string</td><td></td><td>Environment name (e.g. production/staging); merges overrides when it matches envOverrides.&lt;mode&gt;</td></tr>
+<tr><td><code>cwd</code></td><td>string</td><td></td><td>Project root directory; cloudbaserc is searched below it. Defaults to the current working directory.</td></tr>
+<tr><td><code>mode</code></td><td>string</td><td></td><td>Environment name, such as production/staging. Matching envOverrides.&lt;mode&gt; values are merged.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `deployPlan`
-Parses cloudbaserc and computes a declarative deployment plan (dry-run — it produces no changes). This is the dry-run counterpart to deployApply: plan computes and deployApply executes the same cloudbaserc. It returns the action classification for each resource: create=new, update=overwrite update, skip=no change / will not run, conflict=conflict detected and must abort, deploy=direct upload overwrite. The plan has already been recomputed with `yes` into "the actions that will actually happen": when `yes=true` is not passed, functions that already exist in the cloud are marked `skip` (keeping `update` in `declaredStatus`), which matches what deployApply actually executes, so the dry-run never contradicts the real run.
-Applicability boundary: this tool is for project-level declarative orchestration (one cloudbaserc for plan/apply); for one-off single-resource direct uploads use manageFunctions/manageHosting/manageApps.
-- cwd: Project root directory; cloudbaserc is searched downward from here. Defaults to the current working directory
-- mode: Environment name; merges the corresponding override config when it matches `envOverrides.<mode>`
-- envId: Target environment ID; takes precedence over the `envId` in cloudbaserc. When omitted, the configured value or the currently bound environment is used
-- only: Compute the plan only for the specified resource types
-- skip: Skip the specified resource types
-- yes: Aligned with deployApply's `yes`, used to recompute the effective action for functions that already exist. true=dry-run as overwrite update; false (default)=dry-run as conservative skip
+Parse cloudbaserc and compute the declarative deployment plan (dry-run, makes no changes). This is the preview counterpart of deployApply: plan computes and deployApply executes the same cloudbaserc. Returns an action classification per resource: create=create new, update=overwrite update, skip=no change/will not run, conflict=conflict detected, abort, deploy=direct overwrite. The plan is recomputed by yes into the actions that will actually happen: without yes=true, functions already in the cloud are marked skip (with update kept in declaredStatus), consistent with deployApply's actual execution, avoiding a plan/execution mismatch.
+⚠️ app / hosting plan items are always a direct upload of existing artifacts: declarative deploy deploys but never builds; buildCommand / framework in cloudbaserc are only used to infer the output directory and are never executed.
+app / hosting plan items carry buildHint = \{ buildCommand, outputDir, artifactReady \} (machine-readable — do not parse the localized text in details): artifactReady=false means the output directory is missing or empty, and deployApply is guaranteed to fail (BUILD_OUTPUT_NOT_FOUND). Build first, then apply — for hosting call deployBuild; for app run buildHint.buildCommand in the project directory (null means no build is needed). Re-run deployPlan afterwards to confirm artifactReady=true; do not edit the config to work around it.
+Scope: this tool is for project-level declarative orchestration (one cloudbaserc for unified plan/apply); for ad-hoc single-resource direct upload use manageFunctions/manageHosting/manageApps.
+- cwd: project root, defaults to the current working directory
+- mode: environment name; when it matches envOverrides.&lt;mode&gt;, the corresponding multi-environment overrides are merged
+- envId: target environment ID, takes priority over envId in cloudbaserc; if omitted, the config value or the currently bound environment is used
+- only: compute the plan for the specified resource types only
+- skip: skip the specified resource types
+- yes: aligned with deployApply's yes, used to recompute the effective action for existing functions. true=previewed as overwrite update (update); false (default)=previewed as conservative skip (skip)
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>cwd</code></td><td>string</td><td></td><td>Project root directory; cloudbaserc is searched downward from here. Defaults to the current working directory</td></tr>
-<tr><td><code>mode</code></td><td>string</td><td></td><td>Environment name (e.g. production/staging); merges overrides when it matches envOverrides.&lt;mode&gt;</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Target environment ID; takes precedence over the envId in cloudbaserc. When omitted, the configured value or the currently bound environment is used</td></tr>
-<tr><td><code>only</code></td><td>array of string</td><td></td><td>Compute the plan only for the specified resource types. Available values: database/functions/app/hosting/gateway</td></tr>
-<tr><td><code>skip</code></td><td>array of string</td><td></td><td>Skip the specified resource types. Available values: database/functions/app/hosting/gateway</td></tr>
-<tr><td><code>yes</code></td><td>boolean</td><td></td><td>Aligned with deployApply's yes, used to recompute the effective action for functions that already exist. true=dry-run as overwrite update; false (default)=dry-run as conservative skip</td></tr>
+<tr><td><code>cwd</code></td><td>string</td><td></td><td>Project root directory; cloudbaserc is searched below it. Defaults to the current working directory.</td></tr>
+<tr><td><code>mode</code></td><td>string</td><td></td><td>Environment name, such as production/staging. Matching envOverrides.&lt;mode&gt; values are merged.</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Target environment ID. Takes precedence over envId in cloudbaserc; when omitted, uses the config value or currently bound environment.</td></tr>
+<tr><td><code>only</code></td><td>array of string</td><td></td><td>Compute the plan only for the specified resource types.</td></tr>
+<tr><td><code>skip</code></td><td>array of string</td><td></td><td>Skip the specified resource types.</td></tr>
+<tr><td><code>yes</code></td><td>boolean</td><td></td><td>Aligned with deployApply yes and used to recompute the effective action for existing functions. true previews overwrite update; false (default) previews conservative skip.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `deployApply`
-Parses cloudbaserc and executes a declarative deployment in the order database→functions→app→hosting→gateway. This is the execution counterpart to deployPlan (plan dry-runs / deployApply executes the same cloudbaserc). It is a local-form apply (reads the local cloudbaserc, builds and uploads locally) and is a write operation that changes cloud resources, so it only runs when `confirm=true` is passed explicitly. Prefer running deployPlan first, then executing once the plan checks out.
-Applicability boundary: this tool is for project-level declarative orchestration (one cloudbaserc for plan/apply); for one-off single-resource direct uploads use manageFunctions/manageHosting/manageApps.
-- confirm: Must be explicitly passed as true for the deployment to run, otherwise it is rejected outright
-- confirmDestructive: When the database migrations in this run contain destructive statements (DROP/TRUNCATE/DELETE, ALTER…DROP/RENAME), `confirmDestructive=true` must additionally be passed explicitly on top of `confirm`; otherwise it is rejected and the matching migrations and statements are listed. Has no effect when there are no destructive migrations
-- cwd: Project root directory; cloudbaserc is searched downward from here. Defaults to the current working directory
-- mode: Environment name; merges the corresponding override config when it matches `envOverrides.<mode>`
-- envId: Target environment ID; takes precedence over the `envId` in cloudbaserc. When omitted, the configured value or the currently bound environment is used
-- only: Deploy only the specified resource types
-- skip: Skip the specified resource types
-- yes: How to handle resources that already exist. true=overwrite and update directly; false (default)=conservatively skip, so existing resources are not overwritten in scenarios where interactive confirmation is impossible (consistent with deployPlan's `yes` semantics)
-- concurrency: Maximum parallelism within a resource type, default 1 (serial)
-- continueOnError: Continue deploying the remaining resources after one fails (a database failure still aborts forcibly)
+Parse cloudbaserc and execute the declarative deployment in the order database→functions→app→hosting→gateway. This is the execution counterpart of deployPlan (plan previews / deployApply executes the same cloudbaserc), a local form of apply (reads the local cloudbaserc and uploads local artifacts to the cloud). It is a write operation that changes cloud resources and requires an explicit confirm=true to execute. It is recommended to preview with deployPlan first and execute after confirming the plan.
+⚠️ Deploys but never builds: this tool runs no build command at all (neither app nor hosting). buildCommand / installCommand / framework in cloudbaserc are only used to infer the output directory and are never executed. A missing or empty output directory fails with BUILD_OUTPUT_NOT_FOUND — for hosting call deployBuild first, for app ask the user to run its build command in the project directory, then retry; do not edit the config to work around it. Before building, read buildHint.buildCommand / outputDir / artifactReady from deployPlan to see what needs to run. When app needs a cloud build, use the CLI `tcb app deploy` (this tool provides no cloud build).
+Scope: this tool is for project-level declarative orchestration (one cloudbaserc for unified plan/apply); for ad-hoc single-resource direct upload use manageFunctions/manageHosting/manageApps.
+- confirm: must be explicitly true to execute the deployment, otherwise it is rejected
+- confirmDestructive: when the pending database migrations contain destructive statements (DROP/TRUNCATE/DELETE, ALTER…DROP/RENAME), besides confirm, confirmDestructive=true must also be explicitly passed to execute; otherwise it is rejected and the matched migrations and statements are listed. This parameter has no effect when there are no destructive migrations
+- cwd: project root, defaults to the current working directory
+- mode: environment name; when it matches envOverrides.&lt;mode&gt;, the corresponding multi-environment overrides are merged
+- envId: target environment ID, takes priority over envId in cloudbaserc; if omitted, the config value or the currently bound environment is used
+- only: deploy only the specified resource types
+- skip: skip the specified resource types
+- yes: how to handle existing resources. true=overwrite directly; false (default)=conservatively skip; in non-interactive scenarios existing resources will not be overwritten (same semantics as deployPlan's yes)
+- concurrency: maximum parallelism for resources of the same type, default 1 (serial)
+- continueOnError: continue deploying the remaining resources after one fails (a database failure still aborts)
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Destructive-operation confirmation switch. Deployment changes cloud resources, so confirm=true must be passed explicitly for it to run</td></tr>
-<tr><td><code>confirmDestructive</code></td><td>boolean</td><td></td><td>Destructive database change confirmation switch. When the pending migrations contain DROP/TRUNCATE/DELETE or ALTER…DROP/RENAME, confirmDestructive=true must additionally be passed explicitly on top of confirm=true; no effect when there are no destructive migrations</td></tr>
-<tr><td><code>cwd</code></td><td>string</td><td></td><td>Project root directory; cloudbaserc is searched downward from here. Defaults to the current working directory</td></tr>
-<tr><td><code>mode</code></td><td>string</td><td></td><td>Environment name (e.g. production/staging); merges overrides when it matches envOverrides.&lt;mode&gt;</td></tr>
-<tr><td><code>envId</code></td><td>string</td><td></td><td>Target environment ID; takes precedence over the envId in cloudbaserc. When omitted, the configured value or the currently bound environment is used</td></tr>
-<tr><td><code>only</code></td><td>array of string</td><td></td><td>Deploy only the specified resource types. Available values: database/functions/app/hosting/gateway</td></tr>
-<tr><td><code>skip</code></td><td>array of string</td><td></td><td>Skip the specified resource types. Available values: database/functions/app/hosting/gateway</td></tr>
-<tr><td><code>yes</code></td><td>boolean</td><td></td><td>Whether to overwrite and update resources that already exist. true=overwrite; false (default)=conservatively skip existing resources</td></tr>
-<tr><td><code>concurrency</code></td><td>integer</td><td></td><td>Maximum parallelism within a resource type, default 1 (serial); only applies within a type, cross-type dependency order is unchanged</td></tr>
-<tr><td><code>continueOnError</code></td><td>boolean</td><td></td><td>Whether to continue deploying the remaining resources after one fails; a database failure always aborts forcibly</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Dangerous-operation confirmation. Deployment changes cloud resources and requires explicit confirm=true.</td></tr>
+<tr><td><code>confirmDestructive</code></td><td>boolean</td><td></td><td>Destructive database change confirmation. When pending migrations contain DROP/TRUNCATE/DELETE or ALTER…DROP/RENAME, explicitly pass confirmDestructive=true in addition to confirm=true. It has no effect without destructive migrations.</td></tr>
+<tr><td><code>cwd</code></td><td>string</td><td></td><td>Project root directory; cloudbaserc is searched below it. Defaults to the current working directory.</td></tr>
+<tr><td><code>mode</code></td><td>string</td><td></td><td>Environment name, such as production/staging. Matching envOverrides.&lt;mode&gt; values are merged.</td></tr>
+<tr><td><code>envId</code></td><td>string</td><td></td><td>Target environment ID. Takes precedence over envId in cloudbaserc; when omitted, uses the config value or currently bound environment.</td></tr>
+<tr><td><code>only</code></td><td>array of string</td><td></td><td>Deploy only the specified resource types.</td></tr>
+<tr><td><code>skip</code></td><td>array of string</td><td></td><td>Skip the specified resource types.</td></tr>
+<tr><td><code>yes</code></td><td>boolean</td><td></td><td>Whether to overwrite existing resources directly. true overwrites; false (default) conservatively skips existing resources.</td></tr>
+<tr><td><code>concurrency</code></td><td>integer</td><td></td><td>Maximum parallelism for resources of the same type. Defaults to 1 (serial); dependency order across resource types is unchanged.</td></tr>
+<tr><td><code>continueOnError</code></td><td>boolean</td><td></td><td>Whether to continue deploying remaining resources after one fails; database failures always abort.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryGateway`
-Unified read-only entry for the gateway domain. Query gateway domains, access entries, and target exposure status via action.
+Unified read-only entry for the CloudBase HTTP gateway (Domain/Route). Query path routes under a domain and their upstreams: WEB_SCF/SCF=cloud functions, CBR=CloudRun, STATIC_STORE=static hosting, STORAGE=cloud storage, LH=Lighthouse. The primary key is Domain + Path; listRoutes / getRoute / listCustomDomains / getPrivilege / cachePurgeTask. getPrivilege queries the HTTP gateway master switch (enableService) and access auth (enableAuth) status. cachePurgeTask queries cache purge tasks for a domain (use the TaskId from manageGateway purgeCache). Before setting up custom domain access, run listCustomDomains first: if a custom domain already exists, prefer createRoute to attach a route (no certificate ID needed); use bindCustomDomain only when no usable custom domain exists.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Read-only operation type, e.g., getAccess, listDomains. Allowed values: "getAccess", "listDomains", "listRoutes", "getRoute", "listCustomDomains"</td></tr>
-<tr><td><code>targetType</code></td><td>string</td><td></td><td>Target resource type. Currently supports function, extensible in future. Allowed values: "function"</td></tr>
-<tr><td><code>targetName</code></td><td>string</td><td></td><td>Target resource name. Required for getAccess</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Read-only action. getPrivilege needs no other parameter and returns the HTTP gateway master switch and access auth status directly. cachePurgeTask requires domain. For custom domain access, run listCustomDomains first to check whether an existing domain can be reused. Allowed values: "listRoutes", "getRoute", "listCustomDomains", "getPrivilege", "cachePurgeTask"</td></tr>
+<tr><td><code>targetName</code></td><td>string</td><td></td><td>Upstream resource name filter (UpstreamResourceName): a cloud function name, CloudRun service name, or static-hosting instance name (commonly staticstore).</td></tr>
 <tr><td><code>routeId</code></td><td>string</td><td></td><td>Route ID. Optional for getRoute</td></tr>
+<tr><td><code>path</code></td><td>string</td><td></td><td>Route path. Optional as a getRoute / listRoutes filter</td></tr>
+<tr><td><code>domain</code></td><td>string</td><td></td><td>Domain. Optional as a getRoute / listRoutes filter; required for cachePurgeTask</td></tr>
+<tr><td><code>cacheType</code></td><td>string</td><td></td><td>Cache layer (cachePurgeTask only): CDN or EO. When omitted it is matched from the domain access type (EO→EO, CDN→CDN); DIRECT / CUSTOM / NONE domains have no CloudBase-hosted cache and are rejected with an explanation. Allowed values: "CDN", "EO"</td></tr>
+<tr><td><code>taskId</code></td><td>string</td><td></td><td>Cache purge task ID (cachePurgeTask only, optional filter)</td></tr>
+<tr><td><code>purgeType</code></td><td>string</td><td></td><td>Purge type filter (cachePurgeTask only): PURGE_URL=by URL, PURGE_PREFIX=by path prefix, PURGE_HOST=whole domain Allowed values: "PURGE_URL", "PURGE_PREFIX", "PURGE_HOST"</td></tr>
+<tr><td><code>startTime</code></td><td>string</td><td></td><td>Task start time (cachePurgeTask only, optional). Format YYYY-MM-DD HH:mm:ss</td></tr>
+<tr><td><code>endTime</code></td><td>string</td><td></td><td>Task end time (cachePurgeTask only, optional). Format YYYY-MM-DD HH:mm:ss</td></tr>
+<tr><td><code>offset</code></td><td>integer</td><td></td><td>Pagination offset (cachePurgeTask only, optional)</td></tr>
+<tr><td><code>limit</code></td><td>integer</td><td></td><td>Max records to return (cachePurgeTask only, optional)</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageGateway`
-Unified write entry for the gateway domain. Create target access entries via action, with more general gateway configuration capabilities to follow.
+Unified write entry for the CloudBase HTTP gateway (Domain/Route). createRoute/updateRoute/deleteRoute forward a path under a domain to an upstream; enableRoute/disableRoute enable or disable existing routes (Routes[].Enable of ModifyHTTPServiceRoute underneath, not ModifyGatewayRoute); bindCustomDomain/deleteCustomDomain manage custom domains; enableService/authSwitch toggle the HTTP gateway master switch and access auth; purgeCache clears domain cache (returns a TaskId; check progress with queryGateway cachePurgeTask). When domain is omitted, the IsDefault default HTTP domain with DomainType=HTTPSERVICE (like *.\{region\}.app.tcloudbase.com) is used; static-hosting CDN domains (*.tcloudbaseapp.com, DomainType=STATIC_STORE) are never used. These are path routes on the gateway default domain, not STATIC_STORE upstream bindings; a STATIC_STORE upstream must pass upstreamResourceType=STATIC_STORE explicitly. To disable the static-hosting default domain (*.tcloudbaseapp.com): first queryGateway(listRoutes) to find the domain with DomainType=STATIC_STORE and IsDefault=true, then manageGateway(action="disableRoute", domain=that domain, path="/"); do not use manageHosting. After creation, verify Domain / DomainType / Path / UpstreamResourceType via queryGateway(action="listRoutes"). The upstream type uses a single parameter upstreamResourceType (or route.upstreamResourceType, route wins), together with targetName or route.serviceName for the upstream instance. createRoute only creates the gateway entry and does not change upstream permissions. ⚠️ Custom domain access: if the env already has a custom domain (queryGateway listCustomDomains first), prefer createRoute with that domain explicitly, no certificateId needed; use bindCustomDomain only when binding a brand-new custom domain for the first time. createRoute / bindCustomDomain run VerifyHTTPServiceRoute ownership pre-checks before creation; on failure, data.checks and DNS TXT guidance are returned; configure and retry. CORS/security domains (browser cross-origin allowlist, unrelated to the gateway custom domains of this tool) use manageEnv(action=addSecurityDomain/removeSecurityDomain). If access returns HTTPSERVICE_NONACTIVATED after createRoute, the master switch is usually off (query via queryGateway getPrivilege, enable via enableService). updateRoute only needs the fields you want to change — untouched CORS/rewrite/QPS/extension settings are carried over from the live route.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Write operation type, e.g., createAccess. Allowed values: "createAccess", "createRoute", "updateRoute", "deleteRoute", "bindCustomDomain", "deleteCustomDomain", "deleteAccess", "updatePathAuth"</td></tr>
-<tr><td><code>targetType</code></td><td>string</td><td></td><td>Target resource type. Currently supports function, extensible in future. Allowed values: "function"</td></tr>
-<tr><td><code>targetName</code></td><td>string</td><td></td><td>Target resource name</td></tr>
-<tr><td><code>path</code></td><td>string</td><td></td><td>Access path, defaults to /&#123;targetName&#125;</td></tr>
-<tr><td><code>type</code></td><td>string</td><td></td><td>Target function's own type (not access form). If the accessed function is Event type (default), pass Event here; only pass HTTP when the accessed function was created as HTTP function. Allowed values: "Event", "HTTP"</td></tr>
-<tr><td><code>auth</code></td><td>boolean</td><td></td><td>Whether to enable authentication</td></tr>
-<tr><td><code>route</code></td><td>object</td><td></td><td>HTTP route configuration object</td></tr>
-<tr><td><code>route.routeId</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Write action. createRoute/updateRoute must provide upstreamResourceType; enableRoute/disableRoute need path (passing domain explicitly is recommended) and locate the existing route first, so the upstream usually does not need to be repeated; enableService/authSwitch require enable; purgeCache requires domain and targets. Custom domain setup guide: https://docs.cloudbase.net/service/custom-domain Allowed values: "createRoute", "updateRoute", "deleteRoute", "enableRoute", "disableRoute", "bindCustomDomain", "deleteCustomDomain", "enableService", "authSwitch", "purgeCache"</td></tr>
+<tr><td><code>targetName</code></td><td>string</td><td></td><td>Upstream resource name (UpstreamResourceName); use either this or route.serviceName (route wins). Cloud function=function name; CloudRun=service name; static hosting=instance name (commonly staticstore). The upstream type is never inferred automatically.</td></tr>
+<tr><td><code>path</code></td><td>string</td><td></td><td>Trigger path (the gateway match prefix), defaults to /{upstream name}. Examples: cloud function /api/hello, CloudRun /api, static hosting / or /app. This only creates the gateway entry; together with enablePathTransmission it determines the path the upstream actually receives.</td></tr>
+<tr><td><code>upstreamResourceType</code></td><td>string</td><td></td><td>Upstream type (use either this or route.upstreamResourceType, route wins). For STORAGE, the upstream name is the cloud storage instance name — look it up with queryStorage first. Do not pass the manageFunctions type=HTTP\|Event value into this field. Allowed values: "SCF", "WEB_SCF", "CBR", "STATIC_STORE", "LH", "STORAGE"</td></tr>
+<tr><td><code>auth</code></td><td>boolean</td><td></td><td>Gateway path auth (EnableAuth). Usually false for anonymous/browser public access. It only controls the gateway entry; cloud function security rules, CloudRun auth, and static hosting permissions must be configured with their own tools.</td></tr>
+<tr><td><code>enablePathTransmission</code></td><td>boolean</td><td></td><td>Path transmission (EnablePathTransmission), platform default false. With path=/api and a request to /api/users: false→the upstream receives /users; true→the upstream receives /api/users. CBR CloudRun (Express and similar self-managed sub-routes) and multi-path WEB_SCF functions often need true; STATIC_STORE mapping a trigger path to the site root (e.g. /app → hosting /) is usually false; keep false for single-entry/root-path handling. route.enablePathTransmission also works (route wins).</td></tr>
+<tr><td><code>enableSafeDomain</code></td><td>boolean</td><td></td><td>CORS / legit-domain check (EnableSafeDomain), the console's "cross-origin settings". true validates the request origin; false skips the check (common for browser-to-API calls). route.enableSafeDomain also works (route wins).</td></tr>
+<tr><td><code>pathRewrite</code></td><td>object</td><td></td><td>Path rewriting (PathRewrite), e.g. {prefix:"/v1", staticStorePrefix:"app"}. prefix replaces the matched path prefix; staticStorePrefix is the target prefix for static hosting. Omit when no rewriting is needed; route.pathRewrite also works (route wins).</td></tr>
+<tr><td><code>pathRewrite.prefix</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>pathRewrite.staticStorePrefix</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>qpsPolicy</code></td><td>object</td><td></td><td>Rate limiting (QPSPolicy), the console's "frequency limit". {total: total QPS, perClient:{limitBy:"ClientIP"\|"UserID", limitValue: per-client QPS}}. Omit for no limit; route.qpsPolicy also works (route wins).</td></tr>
+<tr><td><code>qpsPolicy.total</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>qpsPolicy.perClient</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>qpsPolicy.perClient.limitBy</code></td><td>string</td><td></td><td>Allowed values: "ClientIP", "UserID"</td></tr>
+<tr><td><code>qpsPolicy.perClient.limitValue</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>extension</code></td><td>object</td><td></td><td>Route-level extension: custom request/response headers and cache rules. ⚠️ The default domain (*.{region}.app.tcloudbase.com) rejects custom response headers; a custom domain is required. route.extension also works (route wins).</td></tr>
+<tr><td><code>extension.headersHandler</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>extension.headersHandler.requestHeadersToAdd</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>extension.headersHandler.requestHeadersToAdd[].key</code></td><td>string</td><td>yes</td><td>Header name, e.g. X-Frame-Options</td></tr>
+<tr><td><code>extension.headersHandler.requestHeadersToAdd[].value</code></td><td>string</td><td>yes</td><td>Header value, e.g. SAMEORIGIN</td></tr>
+<tr><td><code>extension.headersHandler.requestHeadersToAdd[].action</code></td><td>string</td><td></td><td>Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only Allowed values: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"</td></tr>
+<tr><td><code>extension.headersHandler.requestHeadersToRemove</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>extension.headersHandler.responseHeadersToAdd</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>extension.headersHandler.responseHeadersToAdd[].key</code></td><td>string</td><td>yes</td><td>Header name, e.g. X-Frame-Options</td></tr>
+<tr><td><code>extension.headersHandler.responseHeadersToAdd[].value</code></td><td>string</td><td>yes</td><td>Header value, e.g. SAMEORIGIN</td></tr>
+<tr><td><code>extension.headersHandler.responseHeadersToAdd[].action</code></td><td>string</td><td></td><td>Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only Allowed values: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"</td></tr>
+<tr><td><code>extension.headersHandler.responseHeadersToRemove</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>extension.cache</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].description</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].enable</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].condition</code></td><td>object</td><td>yes</td><td>Cache rule match condition; values is the list of match values</td></tr>
+<tr><td><code>extension.cache.rules[].condition.target</code></td><td>string</td><td></td><td>Allowed values: "url_path", "file_extension", "full_uri"</td></tr>
+<tr><td><code>extension.cache.rules[].condition.matchType</code></td><td>string</td><td></td><td>Allowed values: "prefix", "suffix", "contains", "exact"</td></tr>
+<tr><td><code>extension.cache.rules[].condition.values</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions</code></td><td>array of object</td><td>yes</td><td>Cache action list: type=Cache with cache{followOrigin,noCache,cacheTime,maxAgeTime} (mutually exclusive — enable one); type=CacheKey with cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}</td></tr>
+<tr><td><code>extension.cache.rules[].actions[].type</code></td><td>string</td><td></td><td>Allowed values: "Cache", "CacheKey"</td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cache</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cache.followOrigin</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cache.noCache</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cache.cacheTime</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cache.maxAgeTime</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cacheKey</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cacheKey.fullUrlCache</code></td><td>string</td><td></td><td>Allowed values: "on", "off"</td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cacheKey.queryStringSwitch</code></td><td>string</td><td></td><td>Allowed values: "on", "off"</td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cacheKey.queryStringAction</code></td><td>string</td><td></td><td>Allowed values: "includeCustom", "excludeCustom"</td></tr>
+<tr><td><code>extension.cache.rules[].actions[].cacheKey.queryStringValues</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>domainExtension</code></td><td>object</td><td></td><td>Domain-level extension applied to the whole domain (all paths), same shape as extension. Cache rules usually belong here; only effective for createRoute/updateRoute/bindCustomDomain. ⚠️ Same as extension: the default domain rejects custom response headers.</td></tr>
+<tr><td><code>domainExtension.headersHandler</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.headersHandler.requestHeadersToAdd</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.headersHandler.requestHeadersToAdd[].key</code></td><td>string</td><td>yes</td><td>Header name, e.g. X-Frame-Options</td></tr>
+<tr><td><code>domainExtension.headersHandler.requestHeadersToAdd[].value</code></td><td>string</td><td>yes</td><td>Header value, e.g. SAMEORIGIN</td></tr>
+<tr><td><code>domainExtension.headersHandler.requestHeadersToAdd[].action</code></td><td>string</td><td></td><td>Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only Allowed values: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"</td></tr>
+<tr><td><code>domainExtension.headersHandler.requestHeadersToRemove</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.headersHandler.responseHeadersToAdd</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.headersHandler.responseHeadersToAdd[].key</code></td><td>string</td><td>yes</td><td>Header name, e.g. X-Frame-Options</td></tr>
+<tr><td><code>domainExtension.headersHandler.responseHeadersToAdd[].value</code></td><td>string</td><td>yes</td><td>Header value, e.g. SAMEORIGIN</td></tr>
+<tr><td><code>domainExtension.headersHandler.responseHeadersToAdd[].action</code></td><td>string</td><td></td><td>Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only Allowed values: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"</td></tr>
+<tr><td><code>domainExtension.headersHandler.responseHeadersToRemove</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].description</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].enable</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].condition</code></td><td>object</td><td>yes</td><td>Cache rule match condition; values is the list of match values</td></tr>
+<tr><td><code>domainExtension.cache.rules[].condition.target</code></td><td>string</td><td></td><td>Allowed values: "url_path", "file_extension", "full_uri"</td></tr>
+<tr><td><code>domainExtension.cache.rules[].condition.matchType</code></td><td>string</td><td></td><td>Allowed values: "prefix", "suffix", "contains", "exact"</td></tr>
+<tr><td><code>domainExtension.cache.rules[].condition.values</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions</code></td><td>array of object</td><td>yes</td><td>Cache action list: type=Cache with cache{followOrigin,noCache,cacheTime,maxAgeTime} (mutually exclusive — enable one); type=CacheKey with cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}</td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].type</code></td><td>string</td><td></td><td>Allowed values: "Cache", "CacheKey"</td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cache</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cache.followOrigin</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cache.noCache</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cache.cacheTime</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cache.maxAgeTime</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cacheKey</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cacheKey.fullUrlCache</code></td><td>string</td><td></td><td>Allowed values: "on", "off"</td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cacheKey.queryStringSwitch</code></td><td>string</td><td></td><td>Allowed values: "on", "off"</td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cacheKey.queryStringAction</code></td><td>string</td><td></td><td>Allowed values: "includeCustom", "excludeCustom"</td></tr>
+<tr><td><code>domainExtension.cache.rules[].actions[].cacheKey.queryStringValues</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>protocol</code></td><td>string</td><td></td><td>Domain protocol, effective for createRoute/updateRoute/bindCustomDomain only. Omit to keep the domain's current setting. Allowed values: "HTTP", "HTTPS", "HTTP_AND_HTTPS", "HTTP_TO_HTTPS", "HTTPS_TO_HTTP"</td></tr>
+<tr><td><code>route</code></td><td>object</td><td></td><td>Route object (an optional form). Examples: cloud function {upstreamResourceType:"WEB_SCF",serviceName:"fn",path:"/api"}; CloudRun {upstreamResourceType:"CBR",serviceName:"svc",path:"/api"}; static hosting {upstreamResourceType:"STATIC_STORE",serviceName:"staticstore",path:"/"}; disable a route {path:"/",enable:false} (with updateRoute, or use disableRoute directly).</td></tr>
 <tr><td><code>route.path</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>route.serviceType</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>route.serviceName</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>route.serviceName</code></td><td>string</td><td></td><td>Upstream instance name: cloud function name / CloudRun service name / static-hosting instance name (commonly staticstore) / LH instance. Takes precedence over the top-level targetName.</td></tr>
+<tr><td><code>route.upstreamResourceType</code></td><td>string</td><td></td><td>Same as the top-level upstreamResourceType. When set inside route, it takes precedence over the top level. Allowed values: "SCF", "WEB_SCF", "CBR", "STATIC_STORE", "LH", "STORAGE"</td></tr>
 <tr><td><code>route.auth</code></td><td>boolean</td><td></td><td></td></tr>
-<tr><td><code>domain</code></td><td>string</td><td></td><td>Custom domain</td></tr>
-<tr><td><code>certificateId</code></td><td>string</td><td></td><td>Certificate ID</td></tr>
-<tr><td><code>accessName</code></td><td>string</td><td></td><td>Access entry name, reserved field</td></tr>
+<tr><td><code>route.enablePathTransmission</code></td><td>boolean</td><td></td><td>Same as the top-level enablePathTransmission. When set inside route, it takes precedence over the top level.</td></tr>
+<tr><td><code>route.enableSafeDomain</code></td><td>boolean</td><td></td><td>Same as the top-level enableSafeDomain (CORS / legit-domain check). When set inside route, it takes precedence.</td></tr>
+<tr><td><code>route.pathRewrite</code></td><td>object</td><td></td><td>Same as the top-level pathRewrite. When set inside route, it takes precedence.</td></tr>
+<tr><td><code>route.pathRewrite.prefix</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>route.pathRewrite.staticStorePrefix</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>route.qpsPolicy</code></td><td>object</td><td></td><td>Same as the top-level qpsPolicy (rate limiting). When set inside route, it takes precedence.</td></tr>
+<tr><td><code>route.qpsPolicy.total</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>route.qpsPolicy.perClient</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>route.qpsPolicy.perClient.limitBy</code></td><td>string</td><td></td><td>Allowed values: "ClientIP", "UserID"</td></tr>
+<tr><td><code>route.qpsPolicy.perClient.limitValue</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>route.extension</code></td><td>object</td><td></td><td>Same as the top-level extension (route-level custom headers and cache rules). When set inside route, it takes precedence.</td></tr>
+<tr><td><code>route.extension.headersHandler</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.headersHandler.requestHeadersToAdd</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.headersHandler.requestHeadersToAdd[].key</code></td><td>string</td><td>yes</td><td>Header name, e.g. X-Frame-Options</td></tr>
+<tr><td><code>route.extension.headersHandler.requestHeadersToAdd[].value</code></td><td>string</td><td>yes</td><td>Header value, e.g. SAMEORIGIN</td></tr>
+<tr><td><code>route.extension.headersHandler.requestHeadersToAdd[].action</code></td><td>string</td><td></td><td>Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only Allowed values: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"</td></tr>
+<tr><td><code>route.extension.headersHandler.requestHeadersToRemove</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>route.extension.headersHandler.responseHeadersToAdd</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.headersHandler.responseHeadersToAdd[].key</code></td><td>string</td><td>yes</td><td>Header name, e.g. X-Frame-Options</td></tr>
+<tr><td><code>route.extension.headersHandler.responseHeadersToAdd[].value</code></td><td>string</td><td>yes</td><td>Header value, e.g. SAMEORIGIN</td></tr>
+<tr><td><code>route.extension.headersHandler.responseHeadersToAdd[].action</code></td><td>string</td><td></td><td>Write strategy: APPEND_IF_EXISTS_OR_ADD=append; ADD_IF_ABSENT=add only when missing; OVERWRITE_IF_EXISTS_OR_ADD=overwrite or add; OVERWRITE_IF_EXISTS=overwrite existing only Allowed values: "APPEND_IF_EXISTS_OR_ADD", "ADD_IF_ABSENT", "OVERWRITE_IF_EXISTS_OR_ADD", "OVERWRITE_IF_EXISTS"</td></tr>
+<tr><td><code>route.extension.headersHandler.responseHeadersToRemove</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules</code></td><td>array of object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].description</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].enable</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].condition</code></td><td>object</td><td>yes</td><td>Cache rule match condition; values is the list of match values</td></tr>
+<tr><td><code>route.extension.cache.rules[].condition.target</code></td><td>string</td><td></td><td>Allowed values: "url_path", "file_extension", "full_uri"</td></tr>
+<tr><td><code>route.extension.cache.rules[].condition.matchType</code></td><td>string</td><td></td><td>Allowed values: "prefix", "suffix", "contains", "exact"</td></tr>
+<tr><td><code>route.extension.cache.rules[].condition.values</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions</code></td><td>array of object</td><td>yes</td><td>Cache action list: type=Cache with cache{followOrigin,noCache,cacheTime,maxAgeTime} (mutually exclusive — enable one); type=CacheKey with cacheKey{fullUrlCache,queryStringSwitch,queryStringAction,queryStringValues}</td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].type</code></td><td>string</td><td></td><td>Allowed values: "Cache", "CacheKey"</td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cache</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cache.followOrigin</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cache.noCache</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cache.cacheTime</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cache.maxAgeTime</code></td><td>integer</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cacheKey</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cacheKey.fullUrlCache</code></td><td>string</td><td></td><td>Allowed values: "on", "off"</td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cacheKey.queryStringSwitch</code></td><td>string</td><td></td><td>Allowed values: "on", "off"</td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cacheKey.queryStringAction</code></td><td>string</td><td></td><td>Allowed values: "includeCustom", "excludeCustom"</td></tr>
+<tr><td><code>route.extension.cache.rules[].actions[].cacheKey.queryStringValues</code></td><td>array of string</td><td></td><td></td></tr>
+<tr><td><code>route.enable</code></td><td>boolean</td><td></td><td>Route-level switch. enable=false disables this Domain+Path (access returns GATEWAY_ROUTE_DISABLED); enable=true re-enables it. Takes precedence over the top-level enable.</td></tr>
+<tr><td><code>domain</code></td><td>string</td><td></td><td>Domain. When omitted, the env default HTTP domain with DomainType=HTTPSERVICE (*.{region}.app.tcloudbase.com) is used; verify it with queryGateway(action="listRoutes"). When enableRoute/disableRoute targets *.tcloudbaseapp.com, this domain must be passed explicitly. With an existing custom domain, pass it explicitly to configure routes without a certificate ID; for bindCustomDomain only, it means the new domain to bind.</td></tr>
+<tr><td><code>certificateId</code></td><td>string</td><td></td><td>Certificate ID. Used only by bindCustomDomain: passing it explicitly skips the automatic search; when omitted, describeCertificates(SearchKey=domain) is called by domain — a single certificate is selected automatically, no certificate raises an error, and multiple certificates return structured selection guidance (MCP is non-interactive). createRoute / updateRoute / deleteRoute on an existing custom domain do not need certificateId.</td></tr>
+<tr><td><code>accessType</code></td><td>string</td><td></td><td>Binding type (bindCustomDomain only, default DIRECT). DIRECT=direct connection (use this for normal domain binding); CDN=CloudBase CDN; CUSTOM=your own CDN/WAF (requires customCname). See https://docs.cloudbase.net/service/custom-domain Allowed values: "DIRECT", "CDN", "CUSTOM"</td></tr>
+<tr><td><code>customCname</code></td><td>string</td><td></td><td>Origin/backfill address of your own CDN/WAF (bindCustomDomain with accessType=CUSTOM only). This is not the CNAME the user domain should resolve to in DNS; do not pass it for DIRECT/CDN. See https://docs.cloudbase.net/service/custom-domain</td></tr>
+<tr><td><code>enable</code></td><td>boolean</td><td></td><td>Target switch state: required for enableService / authSwitch (true on / false off); optional for bindCustomDomain, where false disables the domain after binding; optional for updateRoute, mapping to Routes[].Enable (route.enable wins).</td></tr>
+<tr><td><code>cacheType</code></td><td>string</td><td></td><td>Cache layer (purgeCache only): CDN or EO. When omitted it is matched from the domain access type (EO→EO, CDN→CDN); DIRECT / CUSTOM / NONE domains have no CloudBase-hosted cache and are rejected with an explanation. Allowed values: "CDN", "EO"</td></tr>
+<tr><td><code>purgeType</code></td><td>string</td><td></td><td>Purge type (purgeCache only, default PURGE_URL): PURGE_URL=by full URL, PURGE_PREFIX=by path prefix, PURGE_HOST=whole domain Allowed values: "PURGE_URL", "PURGE_PREFIX", "PURGE_HOST"</td></tr>
+<tr><td><code>targets</code></td><td>array of string</td><td></td><td>Purge targets (purgeCache only, required): full https://domain/path URLs for PURGE_URL; prefixes such as /static/ for PURGE_PREFIX; the domain itself for PURGE_HOST</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryAppAuth`
-Read-only entry for application-side authentication configuration. Used to query login methods, providers, publishable key, API key, client configuration, and static domain authentication readiness status. If the business needs to accept plain username-style identifiers, first query action=getLoginConfig; if usernamePassword=false, the next step should immediately call manageAppAuth(action=patchLoginStrategy, patch=&#123; usernamePassword: true &#125;), do not directly write email login API.
+Read-only entry for CloudBase app-side authentication configuration. Queries login methods, providers, publishable key, API keys, client config, and static domain to check auth readiness. ⚠️ This is a management-side config query tool; it does not perform user login. When a task asks you to write client login code (e.g. "login with the JS SDK"), first confirm the configuration via this tool, then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in. If the app should accept plain username-style identifiers, query action=getLoginConfig first; if usernamePassword=false, immediately call manageAppAuth(action=patchLoginStrategy, patch=\{ usernamePassword: true \}) next — do not write email login APIs directly.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "getLoginConfig", "listProviders", "getProvider", "getClientConfig", "getPublishableKey", "getStaticDomain", "listApiKeys"</td></tr>
-<tr><td><code>providerId</code></td><td>string</td><td></td><td>Provider identifier, e.g., email, google</td></tr>
-<tr><td><code>clientId</code></td><td>string</td><td></td><td>OAuth client_id / DescribeClient Id; uses current environment ID (default client) when omitted</td></tr>
-<tr><td><code>keyType</code></td><td>string</td><td></td><td>API key type filter, optional publish_key or api_key. Allowed values: "publish_key", "api_key"</td></tr>
-<tr><td><code>pageNumber</code></td><td>integer</td><td></td><td>API key list page number, starts from 1</td></tr>
-<tr><td><code>pageSize</code></td><td>integer</td><td></td><td>API key list items per page</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "getLoginConfig", "listProviders", "getProvider", "getClientConfig", "getPublishableKey", "getStaticDomain", "listApiKeys"</td></tr>
+<tr><td><code>providerId</code></td><td>string</td><td></td><td>Provider identifier, such as email or google.</td></tr>
+<tr><td><code>clientId</code></td><td>string</td><td></td><td>OAuth client_id or DescribeClient Id. Defaults to the current environment ID (the default client) when omitted.</td></tr>
+<tr><td><code>keyType</code></td><td>string</td><td></td><td>API key type filter. Allowed values are publish_key and api_key. Allowed values: "publish_key", "api_key"</td></tr>
+<tr><td><code>pageNumber</code></td><td>integer</td><td></td><td>API key list page number, starting from 1.</td></tr>
+<tr><td><code>pageSize</code></td><td>integer</td><td></td><td>Number of API keys per page.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageAppAuth`
-Write entry for application-side authentication configuration. Used to modify login methods, providers, client configuration, ensure publishable key, and create or delete API keys and custom login keys. If the frontend needs to accept plain username-style identifiers, first execute action=patchLoginStrategy with patch=&#123; usernamePassword: true &#125;, then implement the corresponding frontend login logic.
+Write entry for CloudBase app-side authentication configuration. Modifies login methods, providers, and client config, ensures the publishable key, and creates or deletes API keys and custom login keys. ⚠️ This is a management-side config tool; it does not perform user login. When a task asks you to write client login code (e.g. "login with the JS SDK"), first complete the configuration here (e.g. enable usernamePassword, obtain the publishable key), then write @cloudbase/js-sdk client login code (e.g. auth.signInWithPassword()) in the project code instead of using this tool to log in. If the frontend should accept plain username-style identifiers, run action=patchLoginStrategy with patch=\{ usernamePassword: true \} first, then implement the corresponding frontend login logic. ⚠️ Phone SMS verification code login (patch=\{ phone: true \}) only turns the switch on: you still need to integrate your own SMS provider before any code is delivered. Prefer email verification code login to get a login flow working. See https://docs.cloudbase.net/authentication-v2/auth/custom-sms-provider for the SMS channel setup. ⚠️ The created field in the action=createApiKey response indicates whether a key was really created: created=false means an existing key in the environment was reused — the keyName/expireIn inputs take no effect, the returned keyName/expireAt are the server's real values, and warnings are attached. Never distribute it as a temporary credential.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "patchLoginStrategy", "addProvider", "updateProvider", "deleteProvider", "updateClientConfig", "ensurePublishableKey", "createApiKey", "deleteApiKey", "createCustomLoginKeys"</td></tr>
-<tr><td><code>patch</code></td><td>object</td><td></td><td>Simplified login strategy patch used by patchLoginStrategy, e.g., <code>&#123; usernamePassword: true &#125;</code></td></tr>
-<tr><td><code>providerId</code></td><td>string</td><td></td><td>Provider identifier, e.g., email, google; for addProvider can also be used as custom provider Id</td></tr>
-<tr><td><code>providerType</code></td><td>string</td><td></td><td>Provider protocol type for addProvider, e.g., OAUTH, OIDC, EMAIL</td></tr>
-<tr><td><code>displayName</code></td><td>string | object</td><td></td><td>Display name for addProvider, can pass string or multilingual object</td></tr>
-<tr><td><code>clientId</code></td><td>string</td><td></td><td>Client Id for updateClientConfig; uses current environment ID when omitted</td></tr>
-<tr><td><code>config</code></td><td>object</td><td></td><td>Provider / client configuration object</td></tr>
-<tr><td><code>keyType</code></td><td>string</td><td></td><td>API key type for createApiKey, defaults to publish_key. Allowed values: "publish_key", "api_key"</td></tr>
-<tr><td><code>keyName</code></td><td>string</td><td></td><td>API key name for createApiKey</td></tr>
-<tr><td><code>expireIn</code></td><td>integer</td><td></td><td>Validity period for createApiKey, unit is seconds; 0 means no expiration</td></tr>
-<tr><td><code>keyId</code></td><td>string</td><td></td><td>API key unique identifier for deleteApiKey</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "patchLoginStrategy", "addProvider", "updateProvider", "deleteProvider", "updateClientConfig", "ensurePublishableKey", "createApiKey", "deleteApiKey", "createCustomLoginKeys"</td></tr>
+<tr><td><code>patch</code></td><td>object</td><td></td><td>Simplified login strategy patch for patchLoginStrategy, such as { usernamePassword: true }.</td></tr>
+<tr><td><code>providerId</code></td><td>string</td><td></td><td>Provider identifier, such as email or google. For addProvider, it can also be a custom provider Id.</td></tr>
+<tr><td><code>providerType</code></td><td>string</td><td></td><td>Provider protocol type for addProvider. Allowed values: "OAUTH", "OIDC", "SAML", "WX_MICRO_APP", "WX_QRCODE_MICRO_APP", "WX_CLOUDBASE_MICRO_APP", "WX_MP", "WX_OPEN", "WX_WORK_INTERNAL", "WX_WORK_AGENT", "WX_WORK_THIRD_PARTY", "WX_WORK_THIRD_PARTY_ASSOCIATION", "CUSTOM", "EMAIL"</td></tr>
+<tr><td><code>displayName</code></td><td>string | object</td><td></td><td>Display name for addProvider; accepts a string or a localized object.</td></tr>
+<tr><td><code>clientId</code></td><td>string</td><td></td><td>Client Id for updateClientConfig. Defaults to the current environment ID when omitted.</td></tr>
+<tr><td><code>config</code></td><td>object</td><td></td><td>Configuration object for the provider or client.</td></tr>
+<tr><td><code>keyType</code></td><td>string</td><td></td><td>API key type for createApiKey; defaults to publish_key. Allowed values: "publish_key", "api_key"</td></tr>
+<tr><td><code>keyName</code></td><td>string</td><td></td><td>API key name for createApiKey. The server may ignore this value, for example when publish_key is unique per environment. The keyName in the response always reflects the name actually stored by the server.</td></tr>
+<tr><td><code>expireIn</code></td><td>integer</td><td></td><td>Lifetime in seconds for createApiKey; 0 means no expiration. This value has no effect when an existing key is reused, in which case the response includes created=false and warnings.</td></tr>
+<tr><td><code>keyId</code></td><td>string</td><td></td><td>Unique API key identifier for deleteApiKey.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryApps`
-Query CloudBase apps and versions deployed through app deployment. It can list apps and versions and retrieve their details; after deployment, poll build status with getAppVersion by buildId, and use getBuildLog to diagnose failures.
-action=getUploadUrl (read-only) returns a presigned upload URL. In cloud mode without a local filesystem, obtain uploadUrl, PUT the code ZIP, then pass the returned unixTimestamp as cosTimestamp to manageApps(action=deployApp). The uploadUrl is a one-time upload credential: do not share it or paste it into a ticket.
+Query CloudBase deployed apps and versions. Supports app list/detail and version list/detail; after deployment, poll build status by buildId with getAppVersion; getBuildLog retrieves build logs to diagnose failures.
+action=getUploadUrl (read-only) returns a pre-signed upload URL: without a local filesystem (cloud mode), fetch the uploadUrl, PUT the code zip yourself, then call manageApps(action=deployApp, cosTimestamp) with the returned unixTimestamp to trigger deployment. The uploadUrl is a one-time upload credential; do not forward it or paste it into tickets.
 
 #### Parameters
 
@@ -1138,44 +1309,44 @@ action=getUploadUrl (read-only) returns a presigned upload URL. In cloud mode wi
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
 <tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "listApps", "getApp", "listAppVersions", "getAppVersion", "getBuildLog", "getUploadUrl"</td></tr>
-<tr><td><code>serviceName</code></td><td>string</td><td></td><td>CloudBase app service name. Required for getApp / listAppVersions / getAppVersion / getBuildLog; reuse the same serviceName after redeployment to query version history</td></tr>
-<tr><td><code>searchKey</code></td><td>string</td><td></td><td>Fuzzy search keyword by app service name, only used when action=listApps</td></tr>
-<tr><td><code>pageNo</code></td><td>number</td><td></td><td>Pagination page number, starting from 1</td></tr>
-<tr><td><code>pageSize</code></td><td>number</td><td></td><td>Pagination size</td></tr>
-<tr><td><code>versionName</code></td><td>string</td><td></td><td>Version name. For getAppVersion, can be used alternatively with buildId; prefer passing it when the version number is known</td></tr>
-<tr><td><code>buildId</code></td><td>string,number</td><td></td><td>Build ID, accepted as a number or numeric string. For getAppVersion, use either buildId or versionName; after deployment returns BuildId, use it directly to poll status. Required for getBuildLog</td></tr>
-<tr><td><code>start</code></td><td>number</td><td></td><td>Build log offset for paginating subsequent logs. Only used when action=getBuildLog; when omitted, returns from the beginning</td></tr>
+<tr><td><code>serviceName</code></td><td>string</td><td></td><td>CloudBase app service name. Required for getApp, listAppVersions, getAppVersion, getBuildLog, and getUploadUrl. Reuse the same serviceName after redeployment to query its version history.</td></tr>
+<tr><td><code>searchKey</code></td><td>string</td><td></td><td>Keyword for fuzzy matching app service names; used only when action=listApps.</td></tr>
+<tr><td><code>pageNo</code></td><td>number</td><td></td><td>Page number, starting from 1.</td></tr>
+<tr><td><code>pageSize</code></td><td>number</td><td></td><td>Number of items per page.</td></tr>
+<tr><td><code>versionName</code></td><td>string</td><td></td><td>Version name. For getAppVersion, provide either this or buildId; prefer this value when the version name is known.</td></tr>
+<tr><td><code>buildId</code></td><td>string,number</td><td></td><td>Build ID, accepted as a number or numeric string. For getAppVersion, provide either this or versionName. A BuildId returned by deployment can be passed directly to poll status. Required for getBuildLog.</td></tr>
+<tr><td><code>start</code></td><td>number</td><td></td><td>Build log offset for fetching subsequent pages. Used only when action=getBuildLog; omit it to start from the beginning.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageApps`
-Deploy web apps to CloudBase, building the frontend and backend and deploying to an independent subdomain.
-Cloud upload flow (cloud mode, no local filesystem): call queryApps(action=getUploadUrl) or manageApps(action=getUploadUrl) for a presigned URL → PUT the code ZIP to uploadUrl with uploadHeaders and `Content-Type: application/zip` → pass the returned unixTimestamp as cosTimestamp to deployApp.
-action=getUploadUrl returns the presigned upload URL and cosTimestamp for cloud mode.
-action=deployApp uploads a source ZIP and triggers the remote build/deploy pipeline:
-  1. Remote npm install (can be skipped with installCmd="")
-  2. Remote npm run build (can be skipped with buildCmd="")
+Deploy web apps to CloudBase (builds frontend and backend, deploys to a dedicated subdomain).
+Cloud upload channel (cloud mode, no local filesystem): queryApps(action=getUploadUrl) or manageApps(action=getUploadUrl) returns a pre-signed upload URL → agent PUTs the code zip to uploadUrl itself (with uploadHeaders and Content-Type: application/zip) → call deployApp with the returned unixTimestamp as cosTimestamp to trigger deployment.
+action=getUploadUrl returns the pre-signed upload URL (used in cloud mode), including the upload address and cosTimestamp.
+action=deployApp uploads the source ZIP and triggers the remote build & deploy pipeline:
+  1. Remote npm install (skip with installCmd="")
+  2. Remote npm run build (skip with buildCmd="")
   3. Remote tcb hosting deploy
 
-Domain format: `&lt;serviceName&gt;-&lt;envId&gt;.webapps.tcloudbase.com` (each serviceName gets an independent subdomain)
+Domain format: `&lt;serviceName&gt;-&lt;envId&gt;.webapps.tcloudbase.com` (one dedicated subdomain per serviceName)
 
-✅ Recommended usage (new projects / web apps that need an independent domain, prefer this tool):
-  On first deployment of a new project, pass framework=static, installCmd="", buildCmd="" to skip remote build,
-  and only run tcb hosting deploy. After deployment you get an independent subdomain with version management.
+✅ Recommended usage (new projects / web apps needing a dedicated domain, prefer this tool):
+  For a new project's first deployment, pass framework=static, installCmd="", buildCmd="" to skip the remote build
+  and only run tcb hosting deploy. After deployment you get a dedicated subdomain with version management.
 
-⚠️ Compatibility notes:
+⚠️ Compatibility note:
 - If an existing project was previously deployed with manageHosting (domain format: `&lt;envId&gt;-&lt;appId&gt;.tcloudbaseapp.com`),
-  switching to manageApps produces a brand new URL and old links break. Keep the original deployment method unchanged.
-- To check: call queryHosting to see if hosted files already exist.
+  switching to manageApps produces a brand-new URL and old links break. Keep the original deployment method.
+- To check: call queryHosting to see whether hosting files already exist.
 
 Comparison with manageHosting:
-- manageApps (this tool, preferred for new projects): domain `&lt;serviceName&gt;-&lt;envId&gt;.webapps.tcloudbase.com`, independent subdomain, version management
+- manageApps (this tool, preferred for new projects): domain `&lt;serviceName&gt;-&lt;envId&gt;.webapps.tcloudbase.com`, dedicated subdomain, version management
 - manageHosting (existing projects or fallback): domain `&lt;envId&gt;-&lt;appId&gt;.tcloudbaseapp.com/&lt;path&gt;`, shared environment domain
-Both can bind custom domains.
+Both support custom domains.
 
-⚠️ If manageApps build fails, first check logs with queryApps(action="getBuildLog"); if still failing, fall back to manageHosting.
+⚠️ If the manageApps build fails, check logs with queryApps(action="getBuildLog") first; if it still fails, fall back to manageHosting.
 
 #### Parameters
 
@@ -1183,43 +1354,42 @@ Both can bind custom domains.
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
 <tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "deployApp", "getUploadUrl", "deleteApp", "deleteAppVersion"</td></tr>
-<tr><td><code>serviceName</code></td><td>string</td><td>yes</td><td>CloudBase app service name, reflected in the domain: `&lt;serviceName&gt;-&lt;envId&gt;.webapps.tcloudbase.com`. For deployApp, reusing an existing serviceName adds a new deployment version and triggers redeployment rather than delete-and-recreate. Use a new name for first deployment</td></tr>
-<tr><td><code>filePath</code></td><td>string</td><td></td><td>Absolute path to the local project root to upload and deploy. Required for deployApp in local mode; usually the source directory (containing package.json and source), not the dist directory. Specify the build output directory with buildPath. Not needed in cloud mode; use cosTimestamp instead</td></tr>
-<tr><td><code>cosTimestamp</code></td><td>string,number</td><td></td><td>COS timestamp returned as unixTimestamp by getUploadUrl; a string or number is accepted. Passing it creates the app from already-uploaded code and skips local packaging/upload. First obtain the presigned URL and PUT the ZIP. Required in cloud mode. Exactly one of filePath and cosTimestamp must be provided</td></tr>
-<tr><td><code>appPath</code></td><td>string</td><td></td><td>App online access path (hosting mount path), e.g. /my-web-app. Not a local directory path; CloudApp already has an independent subdomain, defaults to / (root) when omitted</td></tr>
-<tr><td><code>buildPath</code></td><td>string</td><td></td><td>Build output directory, relative to filePath, e.g. dist or build. ⚠️ When passed, the remote build system cds into this directory before running tcb hosting deploy, so deployCmd automatically uses . (current directory) instead of the directory name to avoid path duplication (e.g. dist/dist). Can be omitted for pure static HTML at the project root, but note deployCmd defaults to dist</td></tr>
-<tr><td><code>framework</code></td><td>string</td><td></td><td>Frontend framework type. Options: vue, react, next, nuxt, vite, angular, static. Even when passing static, it still goes through the remote build pipeline. If already built locally, consider manageHosting to upload directly and skip remote build entirely. Allowed values: "vue", "react", "next", "nuxt", "vite", "angular", "static"</td></tr>
-<tr><td><code>nodeJsVersion</code></td><td>string</td><td></td><td>Node.js version used for the build; CloudBase uses its default when omitted</td></tr>
-<tr><td><code>installCmd</code></td><td>string</td><td></td><td>Dependency install command, e.g. npm install. Defaults to npm install. If already installed locally or no install needed, pass an empty string '' to skip, but the remote still runs tcb hosting deploy</td></tr>
-<tr><td><code>buildCmd</code></td><td>string</td><td></td><td>Build command, e.g. npm run build. Defaults to npm run build. If already built locally, pass an empty string '' to skip the build step. To skip the remote pipeline entirely, use manageHosting</td></tr>
-<tr><td><code>deployCmd</code></td><td>string</td><td></td><td>Custom deploy command. Usually not needed; a tcb hosting deploy command is generated by default. With buildPath the remote already cds into that directory and uses . as the source path; without buildPath it defaults to dist</td></tr>
-<tr><td><code>ignore</code></td><td>array of string</td><td></td><td>File/directory glob patterns to ignore when uploading, e.g. **/node_modules/**</td></tr>
-<tr><td><code>versionName</code></td><td>string</td><td></td><td>Historical version name to delete, required only when action=deleteAppVersion</td></tr>
+<tr><td><code>serviceName</code></td><td>string</td><td>yes</td><td>CloudBase app service name, included in the domain as `&lt;serviceName&gt;-&lt;envId&gt;.webapps.tcloudbase.com`. Reusing an existing serviceName with deployApp creates a new deployment version and triggers redeployment instead of deleting and recreating the app. Use a new name for the first deployment.</td></tr>
+<tr><td><code>filePath</code></td><td>string</td><td></td><td>Absolute path to the local project root to upload and deploy. Required for deployApp in local mode. Usually this is the source directory containing package.json and source files, not the dist directory; specify the output directory with buildPath. Omit this in cloud mode and use cosTimestamp instead.</td></tr>
+<tr><td><code>cosTimestamp</code></td><td>string,number</td><td></td><td>COS timestamp returned as unixTimestamp by getUploadUrl; accepts a string or number. When provided, creates the app from previously uploaded code and skips local packaging and upload. Obtain a pre-signed URL with getUploadUrl and PUT the ZIP first. Required in cloud mode. Exactly one of filePath and cosTimestamp must be provided.</td></tr>
+<tr><td><code>appPath</code></td><td>string</td><td></td><td>Online hosting mount path for the app, for example /my-web-app. This is not a local directory path. CloudApp has a dedicated subdomain, so the default is / when omitted.</td></tr>
+<tr><td><code>buildPath</code></td><td>string</td><td></td><td>Build output directory relative to filePath, such as dist or build. ⚠️ When set, the remote build system changes to this directory before running tcb hosting deploy, so deployCmd automatically uses . (the current directory) instead of the directory name to avoid duplicated paths such as dist/dist. It can be omitted for static HTML in the project root, but note that deployCmd defaults to dist.</td></tr>
+<tr><td><code>framework</code></td><td>string</td><td></td><td>Frontend framework. Even static uses the remote build pipeline. If the app is already built locally, use manageHosting to upload it directly and skip the remote build entirely. Allowed values: "vue", "react", "next", "nuxt", "vite", "angular", "static"</td></tr>
+<tr><td><code>nodeJsVersion</code></td><td>string</td><td></td><td>Node.js version used for the build; when omitted, CloudBase uses its default.</td></tr>
+<tr><td><code>installCmd</code></td><td>string</td><td></td><td>Dependency installation command, for example npm install. Defaults to npm install when omitted. Pass an empty string '' when dependencies are already installed or no installation is needed, though the remote pipeline still runs tcb hosting deploy.</td></tr>
+<tr><td><code>buildCmd</code></td><td>string</td><td></td><td>Build command, for example npm run build. Defaults to npm run build when omitted. Pass an empty string '' to skip the build step when the app is already built locally. To skip the remote pipeline entirely, use manageHosting.</td></tr>
+<tr><td><code>deployCmd</code></td><td>string</td><td></td><td>Custom deployment command. Usually unnecessary; a tcb hosting deploy command is generated automatically. When buildPath is set, the remote process has already changed to that directory and defaults to . as the source path; otherwise it defaults to dist.</td></tr>
+<tr><td><code>ignore</code></td><td>array of string</td><td></td><td>Glob patterns for files and directories to exclude from upload, for example **/node_modules/**. ⚠️ Packaging starts at the project root (filePath), not the buildPath output directory. Add large build outputs at the project root, such as target/ (Rust), .next/, dist-old/, or build/, to ignore (for example **/target/**), or the entire directory will be included in the upload ZIP. By default, node_modules, .git, .DS_Store, **/target/**, .next/**, and .next.bak/** are excluded.</td></tr>
+<tr><td><code>versionName</code></td><td>string</td><td></td><td>Historical version name to delete; required only when action=deleteAppVersion.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryPermissions`
-Read-only entry for CloudBase permissions and users. It queries resource permissions for databases, functions, and storage; role lists/details; application user lists/details; and gateway OPA authorization policies aligned with `tcb policy list/get`.
+Query CloudBase permissions and user config: resource permissions (database/functions/buckets etc.), role list/detail, app user list/detail, and gateway OPA authorization policies.
 
 Examples:
-- Query storage-bucket permissions: `action="getResourcePermission", resourceType="storage", resourceId="bucket-name"`
-- List legacy gateway policies: `action="listPolicy"` (returns an empty list in PG / OPA-engine environments, consistent with the CLI)
-- Read user Rego: `action="getPolicy"`; read platform extension policy with `action="getPolicy", extension=true`
+- List legacy gateway policies: `action="listPolicy"` (an empty list only means "no policy" when the query really ran; on PG / OPA engine environments the query is skipped and returns `skipped=true` with an empty list, which does **not** mean there is no policy — use getPolicy instead)
+- Read user Rego: `action="getPolicy"`; platform extension policy: `action="getPolicy", extension=true`
 
-Before crossing backend boundaries, call `queryEnv(action="info", envId=...)` and inspect `EnvInfo.RuntimeBackends`. `resourceType="noSqlDatabase"` applies to CloudBase NoSQL collection rules and is separate from PostgreSQL row-level security. Existing NoSQL collections in a PG environment still use these rules. Inspect PG policies with `queryPgDatabase(action="sql", sql="SELECT * FROM pg_policies WHERE tablename=...")`. This tool does not manage MySQL permissions.
+📌 Cross-backend boundary note: before calling, check `EnvInfo.RuntimeBackends` via `queryEnv(action="info", envId=...)`. `resourceType="noSqlDatabase"` queries CloudBase NoSQL collection rules, which are a separate mechanism from row-level security (RLS) on CloudBase PostgreSQL (PG) tables — in the same PG environment, if NoSQL collections are still in use, querying them with this tool **remains valid**. To query PG table RLS, use `queryPgDatabase(action="sql", sql="SELECT * FROM pg_policies WHERE tablename=...")` instead. This tool does not cover MySQL permissions.
 
-On PostgreSQL environments, the platform rejects `DescribeResourcePermission`. For `resourceType="function"`, this tool falls back to Manager SDK `describeEnvAuthzConfig`, consistent with `tcb policy get`. Use `listPolicy` / `getPolicy` for explicit OPA policies.
+⚠️ PostgreSQL environments: the platform `DescribeResourcePermission` API rejects PG environments outright. When `resourceType="function"`, this tool automatically falls back to the Manager SDK `describeEnvAuthzConfig` (aligned with CLI `tcb policy get`, reading `authz.user.rego`). For explicit OPA policies use `listPolicy` / `getPolicy`.
 
-⚠️ Role actions (`listRoles` / `getRole`) are rejected for **PostgreSQL environments** with `The current API does not support PostgreSQL type environments.` This is a platform boundary, not a configuration error. Do not retry repeatedly; use PostgreSQL RLS through `managePgDatabase(action="execute")` and `CREATE POLICY`, or manage permissions in the console.
+⚠️ Role actions (`listRoles` / `getRole`) are rejected outright by the platform on **PostgreSQL environments** (`The current API does not support PostgreSQL type environments.`). This is a platform capability boundary, not a configuration problem — **do not keep retrying on PG**; use RLS (`managePgDatabase(action="execute")` with `CREATE POLICY`) or the console to manage permissions instead.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "getResourcePermission", "listResourcePermissions", "listRoles", "getRole", "listUsers", "getUser", "listPolicy", "getPolicy"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "getResourcePermission", "listResourcePermissions", "listRoles", "getRole", "listUsers", "getUser", "listPolicy", "getPolicy"</td></tr>
 <tr><td><code>resourceType</code></td><td>string</td><td></td><td>Allowed values: "noSqlDatabase", "sqlDatabase", "function", "storage"</td></tr>
 <tr><td><code>resourceId</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>resourceIds</code></td><td>array of string</td><td></td><td></td></tr>
@@ -1230,114 +1400,122 @@ On PostgreSQL environments, the platform rejects `DescribeResourcePermission`. F
 <tr><td><code>username</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>pageNo</code></td><td>number</td><td></td><td></td></tr>
 <tr><td><code>pageSize</code></td><td>number</td><td></td><td></td></tr>
-<tr><td><code>extension</code></td><td>boolean</td><td></td><td>Used only by action=getPolicy. true reads the platform extension policy (`authz.platform.extension.rego`); false, the default, reads the user policy (`authz.user.rego`), aligned with `tcb policy get --extension`</td></tr>
-<tr><td><code>policyResourceType</code></td><td>string</td><td></td><td>Used only by action=listPolicy. Filters by resource type; currently only `policy` is supported, aligned with `tcb policy list --resource-type policy`. Allowed values: "policy"</td></tr>
+<tr><td><code>extension</code></td><td>boolean</td><td></td><td>Used only when action=getPolicy. Set true to read the platform policy configured specifically for this environment (authz.platform.extension.rego); the default false reads the user policy (authz.user.rego). Aligned with CLI `tcb policy get --extension`.</td></tr>
+<tr><td><code>policyResourceType</code></td><td>string</td><td></td><td>Used only when action=listPolicy. Filters by resource type; currently only `policy` is supported. Aligned with CLI `tcb policy list --resource-type policy`. Allowed values: "policy"</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `managePermissions`
-Write entry for CloudBase permissions and users. It modifies resource permissions, manages roles, members, and policies, performs application-user CRUD, and sets gateway OPA Rego policies aligned with `tcb policy set`.
+Manage CloudBase permissions and user config: modify resource permissions (database/functions/buckets etc.), role management, member/policy add & remove, app user CRUD, and setting gateway OPA Rego policies.
 
 Examples:
-- Set a storage bucket to private: `action="updateResourcePermission", resourceType="storage", resourceId="bucket-name", permission="PRIVATE"`
-- Create a role: `action="createRole", roleName="admin", roleIdentity="admin"`
-- Allow anonymous function invocation (PG uses OPA): `action="updateResourcePermission", resourceType="function", resourceId="myFn", permission="CUSTOM", securityRule='&#123;"invoke":true&#125;'`
-- Set user Rego directly: `action="setPolicy", regoContent="package authz.user\n\ndefault allow := false\n", confirm=true` (this immediately disables legacy gateway authentication)
+- Set a bucket to private: `action="updateResourcePermission", resourceType="storage", resourceId="bucket-name", permission="PRIVATE"`
+- Open a cloud function to anonymous/unauthenticated access (PG goes through OPA): `action="updateResourcePermission", resourceType="function", resourceId="myFn", permission="CUSTOM", securityRule='\{"invoke":true\}'`
+- Set user Rego directly: `action="setPolicy", regoContent="package authz.user\n\ndefault allow := false\n", confirm=true` (⚠️ immediately disables legacy gateway authorization)
 
-`createUser` / `updateUser` are environment-side application-user management capabilities for test accounts, administrators, or pre-provisioned users; they must not replace browser-side Web SDK registration forms. Frontend username/password registration should use `auth.signUp(&#123; username, password &#125;)`, and login should use `auth.signInWithPassword(&#123; username, password &#125;)`. Browser support for `auth.signUp` depends on the SDK/provider and must be verified; otherwise use a backend or management boundary without exposing credentials in the browser. `securityRule` semantics depend on `resourceType`. NoSQL concepts such as `doc._openid`, `auth.openid`, query-condition subset validation, and `create` / `update` / `delete` JSON templates apply only to `resourceType="noSqlDatabase"`.
+Note: `createUser` / `updateUser` are environment-side app user management capabilities, suitable for test accounts, administrators, or pre-provisioned users; they should not replace the Web SDK signup form in the browser. For frontend username/password signup use `auth.signUp(\{ username, password \})` and for login `auth.signInWithPassword(\{ username, password \})`. Creating username/password users directly in the browser with `auth.signUp` depends on SDK/provider support and must be verified before use; if unsupported, go through a backend or management API boundary and never expose keys in the browser. The detailed semantics of `securityRule` depend on `resourceType`: `doc._openid`, `auth.openid`, query-condition subset validation, and the `create` / `update` / `delete` JSON templates only apply to document database security rules with `resourceType="noSqlDatabase"`; when configuring `function` or `storage`, refer to their official security rule docs instead of reusing NoSQL templates.
 
-Before crossing backend boundaries, inspect `EnvInfo.RuntimeBackends` with `queryEnv(action="info", envId=...)`:
-- `resourceType="noSqlDatabase"` applies only to CloudBase NoSQL collections. PostgreSQL table access uses RLS through `managePgDatabase(action="execute", confirm=true)` with `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `CREATE POLICY`. Existing NoSQL collections in a PG environment still use NoSQL rules.
-- `resourceType="storage"` controls the NoSQL/COS bucket ACL; it does not cover PG `pgstore` buckets.
-- MySQL permissions use MySQL GRANT/REVOKE statements through `manageMysqlDatabase`.
+📌 Cross-backend boundary note: before calling, check `EnvInfo.RuntimeBackends` via `queryEnv(action="info", envId=...)`:
+- `resourceType="noSqlDatabase"` only affects CloudBase NoSQL document database collections; row-level permissions of CloudBase PostgreSQL (PG) tables are **not** controlled by it — for PG tables use RLS instead: run `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `CREATE POLICY ...` via `managePgDatabase(action="execute", confirm=true)`. In the same PG environment, if NoSQL collections are still in use, continuing to use `noSqlDatabase` rules for those **collections** is correct — it does not mean "this tool is disabled on PG environments".
+- `resourceType="storage"` controls NoSQL/COS bucket ACLs; PG `pgstore` buckets are not covered by this `resourceType`.
+- This tool does not cover MySQL; for MySQL database permissions use MySQL's own GRANT/REVOKE statements (via `manageMysqlDatabase`).
 
-On PostgreSQL environments, the platform rejects `ModifyResourcePermission`. For `resourceType="function"`, the tool falls back to Manager SDK `modifyEnvAuthzConfig`, consistent with `tcb policy set`, writing `authz.user.rego`. `securityRule` may contain complete Rego beginning with `package authz.user` or `'&#123;"invoke":true&#125;'`, which generates a policy allowing anonymous/unauthenticated function calls. Setting Rego disables legacy gateway authentication. Prefer `action="setPolicy"` for explicit OPA policy changes.
+⚠️ PostgreSQL environments: the platform `ModifyResourcePermission` API rejects PG environments outright. When `resourceType="function"`, this tool automatically falls back to the Manager SDK `modifyEnvAuthzConfig` (writing `authz.user.rego`). `securityRule` accepts a full Rego document (`package authz.user`) or `'\{"invoke":true\}'` (auto-generates a policy allowing anonymous/unauthenticated calls to functions). Setting Rego replaces the environment-wide user policy document (it applies to the whole environment, not a single function/resource); legacy gateway authorization is disabled immediately and never rolls back, same as the CLI. Prefer `action="setPolicy"` for explicit OPA policies.
 
-⚠️ Role actions (`createRole` / `deleteRoles` / `updateRole`) are rejected for **PostgreSQL environments** with `The current API does not support PostgreSQL type environments.` This is a platform boundary, not a configuration error. Do not retry repeatedly; use PostgreSQL RLS through `managePgDatabase(action="execute")` and `CREATE POLICY`, or use the console.
+⚠️ Role actions (`createRole` / `deleteRoles` / `updateRole`) are rejected outright by the platform on **PostgreSQL environments** (`The current API does not support PostgreSQL type environments.`). This is a platform capability boundary, not a configuration problem — **do not keep retrying on PG**; use RLS (`managePgDatabase(action="execute")` with `CREATE POLICY`) or the console to manage permissions instead.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "updateResourcePermission", "createRole", "updateRole", "deleteRoles", "addRoleMembers", "removeRoleMembers", "addRolePolicies", "removeRolePolicies", "createUser", "updateUser", "deleteUsers", "setPolicy"</td></tr>
-<tr><td><code>resourceType</code></td><td>string</td><td></td><td>Target resource type. The specific semantics of `securityRule` depend on this value; `noSqlDatabase` uses collection security rules, `function` and `storage` also have their own independent security rule semantics, do not apply NoSQL rule syntax. Allowed values: "noSqlDatabase", "sqlDatabase", "function", "storage"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "updateResourcePermission", "createRole", "updateRole", "deleteRoles", "addRoleMembers", "removeRoleMembers", "addRolePolicies", "removeRolePolicies", "createUser", "updateUser", "deleteUsers", "setPolicy"</td></tr>
+<tr><td><code>resourceType</code></td><td>string</td><td></td><td>Target resource type. The exact semantics of `securityRule` depend on this value. `noSqlDatabase` uses collection security rules, while `function` and `storage` each have distinct security rule semantics; do not apply NoSQL rule syntax to them. Allowed values: "noSqlDatabase", "sqlDatabase", "function", "storage"</td></tr>
 <tr><td><code>resourceId</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>permission</code></td><td>string</td><td></td><td>Allowed values: "READONLY", "PRIVATE", "ADMINWRITE", "ADMINONLY", "CUSTOM"</td></tr>
-<tr><td><code>securityRule</code></td><td>string</td><td></td><td>Resource type-specific rule content, detailed semantics depend on `resourceType`. When `resourceType="noSqlDatabase"` and `permission="CUSTOM"`, should pass document database security rule JSON (document database rules: `https://docs.cloudbase.net/database/security-rules`); keys are typically `read` / `create` / `update` / `delete`, values are expressions. Important: `create` rule validates written data, document doesn't exist yet at this point, cannot use `doc.*`; `read` / `update` / `delete` rules can use `doc.*` to reference existing document fields. Do not misuse `doc._openid`, `auth.openid`, query condition subset validation or `create` / `update` / `delete` templates for `function`, `storage` or `sqlDatabase`. For configuring `function` or `storage`, please refer to official security rule documentation: cloud functions `https://docs.cloudbase.net/cloud-function/security-rules`, cloud storage `https://docs.cloudbase.net/storage/security-rules`. Example: `&#123;"read":"auth.uid != null","create":"auth.uid != null && auth.loginType != \"ANONYMOUS\"","update":"auth.uid != null && doc._openid == auth.openid","delete":"auth.uid != null && doc._openid == auth.openid"&#125;`</td></tr>
+<tr><td><code>securityRule</code></td><td>string</td><td></td><td>Resource-type-specific rule content whose semantics depend on `resourceType`. When `resourceType="noSqlDatabase"` and `permission="CUSTOM"`, pass document database security rules as JSON (see `https://docs.cloudbase.net/database/security-rules`); keys are typically `read`, `create`, `update`, and `delete`, with expressions as values. Important: a `create` rule validates incoming data before the document exists, so it cannot use `doc.*`; `read`, `update`, and `delete` rules may reference existing fields with `doc.*`. Do not apply `doc._openid`, `auth.openid`, query-condition subset validation, or `create` / `update` / `delete` templates to `function`, `storage`, or `sqlDatabase`. For `function` or `storage`, consult the official security rule documentation instead: functions at `https://docs.cloudbase.net/cloud-function/security-rules` and storage at `https://docs.cloudbase.net/storage/security-rules`. Example: {"read":"auth.uid != null","create":"auth.uid != null &amp;&amp; auth.loginType != "ANONYMOUS"","update":"auth.uid != null &amp;&amp; doc._openid == auth.openid","delete":"auth.uid != null &amp;&amp; doc._openid == auth.openid"}</td></tr>
 <tr><td><code>roleId</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>roleIds</code></td><td>array of string</td><td></td><td></td></tr>
 <tr><td><code>roleName</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>roleIdentity</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>roleIdentity</code></td><td>string</td><td></td><td>Role identifier using letters, numbers, or _-:@. Required when action=createRole and used to reference the role programmatically.</td></tr>
 <tr><td><code>description</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>memberUids</code></td><td>array of string</td><td></td><td></td></tr>
 <tr><td><code>policies</code></td><td>array of object</td><td></td><td></td></tr>
-<tr><td><code>policyIds</code></td><td>array of string</td><td></td><td>Policy ID list. Direct binding by ID is not currently supported; pass policy detail objects through policies instead</td></tr>
+<tr><td><code>policyIds</code></td><td>array of string</td><td></td><td>Policy ID list. Direct binding by ID is not currently supported; pass policy detail objects through policies instead.</td></tr>
 <tr><td><code>uid</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>uids</code></td><td>array of string</td><td></td><td></td></tr>
 <tr><td><code>username</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>password</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>userStatus</code></td><td>string</td><td></td><td>Allowed values: "ACTIVE", "BLOCKED"</td></tr>
-<tr><td><code>regoContent</code></td><td>string</td><td></td><td>Used only by action=setPolicy. Complete user OPA Rego text; it must start with `package authz.user`, aligned with `tcb policy set &lt;regoContent&gt;`</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Used only by action=setPolicy. Setting Rego immediately disables legacy gateway authentication, so confirm=true is required explicitly</td></tr>
+<tr><td><code>regoContent</code></td><td>string</td><td></td><td>Used only when action=setPolicy. Full user OPA Rego document; it must begin with `package authz.user`. Aligned with CLI `tcb policy set &lt;regoContent&gt;`.</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Used only when action=setPolicy. Setting Rego immediately disables legacy gateway authorization, so confirm=true must be passed explicitly, matching the CLI confirmation prompt.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `queryLogs`
-Unified read-only entry for the logs domain. Supports checking log service status and searching CLS logs.
+Unified read-only entry for the CloudBase logs domain. Supports checking log service status and searching CLS logs.
+
+**Important distinction**:
+- Query cloud function logs: use `queryFunctions(action="listFunctionLogs", functionName="xxx")`
+- Query CLS logs (cross-service log aggregation): use this tool `queryLogs(action="searchLogs")`
+- Enable the CLS log service: use `manageLogs(action="createLogService", confirm=true)`
+
+**Use cases**:
+- Check whether the CLS log service is enabled: `action="checkLogService"`
+- Cross-service log search (e.g. find all ERROR logs): `action="searchLogs"`
+- Search logs of a specific service with CLS syntax: `action="searchLogs", service="tcb|tcbr"`
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "checkLogService", "searchLogs"</td></tr>
-<tr><td><code>queryString</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>service</code></td><td>string</td><td></td><td>Allowed values: "tcb", "tcbr"</td></tr>
-<tr><td><code>startTime</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>endTime</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>limit</code></td><td>number</td><td></td><td></td></tr>
-<tr><td><code>context</code></td><td>string</td><td></td><td></td></tr>
-<tr><td><code>sort</code></td><td>string</td><td></td><td>Allowed values: "asc", "desc"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: - `checkLogService`: Check whether the CLS log service is enabled - `searchLogs`: Search CLS logs (requires queryString) Allowed values: "checkLogService", "searchLogs"</td></tr>
+<tr><td><code>queryString</code></td><td>string</td><td></td><td>CLS query statement. **Required when action="searchLogs"** and must strictly follow CLS (Cloud Log Service) syntax; see https://cloud.tencent.com/document/api/876/128127. **Cloud function queries**: - Cloud function logs: `(src:app OR src:system) AND log:"START RequestId"` - Aggregate cloud function request status: `\| select request_id, max(status_code) as status where ((request_id='44738f94-16dd-11f1-****' AND retry_num=0) AND retry_num=0) AND status_code!=202 group by request_id, retry_num` **Document database**: - Document database: `module:database` - Document database events: `module:database AND eventType:(MongoSlowQuery)` (MongoSlowQuery indicates a slow document database query) **SQL database**: - SQL database: `module:rdb` - SQL database events: `module:rdb AND eventType:(MysqlFreeze OR MysqlRecover OR MysqlSlowQuery)` (MysqlFreeze means frozen, MysqlRecover means recovered, and MysqlSlowQuery means a slow query) **Other services**: - Workflows: `module:workflow` - Models: `module:model` - User permissions: `module:auth` - LLMs: `module:llm AND logType:llm-tracelog` - Gateway service calls: `logType:accesslog` - App publish/delete events: `module:app AND eventType:(AppProdPub OR AppProdDel)` (AppProdPub is a publish event and AppProdDel is a delete event) These are examples only; adjust the query to the actual log content. **Note**: To query execution logs for a specific cloud function, prefer `queryFunctions(action="listFunctionLogs", functionName="xxx")`.</td></tr>
+<tr><td><code>service</code></td><td>string</td><td></td><td>Log source service: - `tcb`: Logs from foundational services such as cloud functions, databases, and storage - `tcbr`: CloudRun container service logs Allowed values: "tcb", "tcbr"</td></tr>
+<tr><td><code>startTime</code></td><td>string</td><td></td><td>Query start time in `YYYY-MM-DD HH:mm:ss` format, for example `2024-01-01 00:00:00`.</td></tr>
+<tr><td><code>endTime</code></td><td>string</td><td></td><td>Query end time in `YYYY-MM-DD HH:mm:ss` format, for example `2024-01-01 23:59:59`.</td></tr>
+<tr><td><code>limit</code></td><td>number</td><td></td><td>Maximum number of log entries to return; defaults to 20.</td></tr>
+<tr><td><code>context</code></td><td>string</td><td></td><td>Pagination context used to continue the previous query.</td></tr>
+<tr><td><code>sort</code></td><td>string</td><td></td><td>Time sort order: `asc` for ascending or `desc` for descending. Allowed values: "asc", "desc"</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageLogs`
-Write entry for the CloudBase logs domain. Used to enable the CLS log service (aligned with Manager SDK `log.createLogService` / CreateEnvResource Resources=['log']).
+Write entry for the CloudBase logs domain. Enables the CLS log service (aligned with Manager SDK `log.createLogService` / CreateEnvResource Resources=['log']).
 
-**When to use**:
-- Enable the CLS log service: `action="createLogService", confirm=true`
+**Use cases**:
+- Enable CLS log service: `action="createLogService", confirm=true`
 
-Enabling is asynchronous: a successful API call does not mean the service is immediately usable. Poll afterwards with `queryLogs(action="checkLogService")` to confirm.
+Provisioning is asynchronous: API success does not mean the service is immediately ready. Poll with `queryLogs(action="checkLogService")` afterward.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Operation type. createLogService=enable the CLS log service (requires confirm=true). Allowed values: "createLogService"</td></tr>
-<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Explicit confirmation before enabling the log service. `confirm=true` is required; when omitted the tool returns CONFIRM_REQUIRED.</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Operation type: - `createLogService`: Enable the CLS log service (requires `confirm=true`) Allowed values: "createLogService"</td></tr>
+<tr><td><code>confirm</code></td><td>boolean</td><td></td><td>Explicit confirmation before enabling the log service. Must pass `confirm=true`; omitting it returns CONFIRM_REQUIRED.</td></tr>
 </tbody>
 </table>
 
 ---
 
-
 ### `queryAgents`
-Unified read-only entry for the Agent domain. Supports listing, details, and log queries.
+Unified read-only entry for the CloudBase Agents domain. Supports list, detail, and log queries.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "listAgents", "getAgent", "getAgentLogs"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "listAgents", "getAgent", "getAgentLogs"</td></tr>
 <tr><td><code>agentId</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>pageNumber</code></td><td>number</td><td></td><td></td></tr>
 <tr><td><code>pageSize</code></td><td>number</td><td></td><td></td></tr>
@@ -1348,15 +1526,26 @@ Unified read-only entry for the Agent domain. Supports listing, details, and log
 ---
 
 ### `manageAgents`
-Unified write entry for the Agent domain. Supports creating, updating, and deleting remote Agents.
+Unified write entry for the CloudBase Agents domain. Supports creating, updating, and deleting remote agents.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Allowed values: "createAgent", "updateAgent", "deleteAgent"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>Allowed values: "createAgent", "updateAgent", "deleteAgent"</td></tr>
 <tr><td><code>agentId</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>name</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>description</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>runtime</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>timeout</code></td><td>number</td><td></td><td></td></tr>
+<tr><td><code>memorySize</code></td><td>number</td><td></td><td></td></tr>
+<tr><td><code>installDependency</code></td><td>boolean</td><td></td><td></td></tr>
+<tr><td><code>zipFile</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>cosBucketRegion</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>tempCosObjectName</code></td><td>string</td><td></td><td></td></tr>
+<tr><td><code>sessionConfig</code></td><td>object</td><td></td><td></td></tr>
+<tr><td><code>cwd</code></td><td>string</td><td></td><td></td></tr>
 <tr><td><code>params</code></td><td>object</td><td></td><td></td></tr>
 </tbody>
 </table>
@@ -1364,94 +1553,93 @@ Unified write entry for the Agent domain. Supports creating, updating, and delet
 ---
 
 ### `callCloudApi`
-General cloud API calling tool, mainly used for CloudBase / Tencent Cloud management plane and dependent resource related API calls. **Read the interface index before calling**: https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md (an Action-level index synced daily, including rate limits; check this index first to confirm service/Action/parameters so you never guess an Action name; for products the index does not cover, verify against that product's official API docs). If your goal is to directly integrate auth/functions/cloudrun/storage/mysqldb and other CloudBase business APIs via HTTP protocol, do not prioritize using callCloudApi, instead prioritize checking the corresponding OpenAPI / Swagger. The existing OpenAPI / Swagger capabilities are not a general management plane Action collection; for management plane APIs, please prioritize referring to CloudBase API Overview https://cloud.tencent.com/document/product/876/34809 and CloudBase Dependent Resource API Guide https://cloud.tencent.com/document/product/876/34808. For tcb service, common Action categories are as follows:
+Generic Cloud API invocation tool, mainly for CloudBase / Tencent Cloud control-plane and dependent-resource APIs. **Read the API index first** https://docs.cloudbase.net/ai/cloudbase-ai-toolkit/api-reference.md (a daily-synced Action-level index including rate limits; confirm service/Action/params there before calling instead of guessing Action names; for products not covered by the index, check the product's official API docs). If your goal is to integrate CloudBase business APIs such as auth/functions/cloudrun/storage/mysqldb directly over HTTP, prefer the corresponding OpenAPI / Swagger instead of callCloudApi. The existing OpenAPI / Swagger capabilities are not the generic control-plane Action set; for control-plane APIs refer to the CloudBase API overview https://cloud.tencent.com/document/product/876/34809 and the dependent-resource API guide https://cloud.tencent.com/document/product/876/34808. Common tcb Actions by category:
 
-**Environment Management**: `CreateEnv`, `ModifyEnv`, `DescribeEnvs`, `DestroyEnv`
-**User Management**: `CreateUser`, `ModifyUser`, `DescribeUserList`, `DeleteUsers`
-**Authentication Configuration**: `EditAuthConfig`, `DescribeAuthDomains`
-**Cloud Functions**: `DescribeFunctions`, `CreateFunction`, `UpdateFunctionCode`, `DeleteFunction`
+**Env management**: `CreateEnv`, `ModifyEnv`, `DescribeEnvs`, `DestroyEnv`
+**User management**: `CreateUser`, `ModifyUser`, `DescribeUserList`, `DeleteUsers`
+**Auth config**: `EditAuthConfig`, `DescribeAuthDomains`
+**Cloud functions**: `DescribeFunctions`, `CreateFunction`, `UpdateFunctionCode`, `DeleteFunction`
 **Database**: `CreateMySQLInstance`, `DescribeMySQLInstances`, `DestroyMySQLInstance`
 
-⚠️ CloudBase Run uses the `tcbr` service for `CreateCloudRunEnv`, `CreateCloudRunServer`, `DescribeEnvBaseInfo`, and `DescribeCloudRunEnvs` with version `2022-02-17`. Legacy small-tenant actions under `tcb`, such as CreateCloudBaseRunResource, are disabled; use manageCloudRun for deployment. Use DescribeEnvBaseInfo with required EnvId to query one environment's base information or enablement state; use DescribeCloudRunEnvs, optionally filtered by EnvId, for environment lists and resource information.
+⚠️ CloudRun (CloudBase Run) must use the tcbr service (CreateCloudRunEnv / CreateCloudRunServer / DescribeEnvBaseInfo / DescribeCloudRunEnvs, version="2022-02-17"); legacy tcb small-tenant APIs such as CreateCloudBaseRunResource are disabled; use manageCloudRun for deploys. Use DescribeEnvBaseInfo (EnvId required) to query a single env's base info / CloudRun provisioning, and DescribeCloudRunEnvs (EnvId optional filter) to query env list / resource info.
 
-⚠️ Pass Region through the tool's top-level `region` parameter, which maps to X-TC-Region / the regional endpoint. Do not place Region in params; a Region value there is stripped and treated as the top-level region.
+⚠️ Region must be passed as the tool-level `region` parameter (mapped to X-TC-Region / regional endpoint), not inside params. Region inside params is stripped and used as the top-level region.
 
-When destroying an environment, the common practice is to at least include `EnvId` and `BypassCheck: true`; if the environment is already in isolation period, add `IsForce: true` per documentation.
+When destroying an env, the common practice is to pass at least `EnvId` and `BypassCheck: true`; if the env is already in quarantine, add `IsForce: true` per the docs.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>service</code></td><td>string</td><td>Yes</td><td>Tencent Cloud product identifier. **Values may only come from this field's enum whitelist (58 in total)**, which determines the request domain https://&lt;service&gt;.tencentcloudapi.com. Values outside the list are rejected — do not invent them; COS is not part of the cloud API system. See the cloud-api-operations skill for the product-to-Action mapping. CloudRun always goes through tcbr. Allowed values: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"</td></tr>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>Specific Action name, must conform to the corresponding service's official API definition. **When unsure, check the official documentation first — do not guess from synonyms or historical names** (a wrong guess surfaces as an invalid-action server error that is hard to diagnose). See the cloud-api-operations skill for common Actions.</td></tr>
-<tr><td><code>params</code></td><td>object</td><td></td><td>Parameter object corresponding to the Action; key names match the official API definition — check the docs first when unsure. **Do not put Region here**; use the top-level region for cross-region calls. For CloudBase business APIs prefer searchKnowledgeBase(mode="openapi") rather than this tool. Examples are in the cloud-api-operations skill.</td></tr>
-<tr><td><code>version</code></td><td>string</td><td></td><td>API version (omittable in most cases). Products with **only one official version in the whitelist are auto-filled** and need not pass it; the following multi-version products must pass it explicitly, otherwise an error listing the available options is returned: tke, mongodb, teo, monitor, vod, sms. Example: service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params=&#123;EnvId:"env-xxx",PackageType:"Standard"&#125;; service="monitor" must explicitly pass "2018-07-24" (the alarm-policy Action family belongs to that version).</td></tr>
-<tr><td><code>region</code></td><td>string</td><td></td><td>Cloud API region (X-TC-Region), e.g. ap-shanghai. Cross-region calls must pass this top-level parameter — do not write it into params. ⚠️ ap-singapore belongs to both the China site and the international site; when no site is specified it is treated as the international site (site=intl): to operate on that region on the China site, call auth(action="start_auth", site="domestic") or set TCB_SITE=domestic first.</td></tr>
+<tr><td><code>service</code></td><td>string</td><td>yes</td><td>Tencent Cloud product identifier. **The value must come from this field's enum allow-list (58 entries)** and determines the request domain https://&lt;service&gt;.tencentcloudapi.com. Values outside the list are rejected; do not invent one. COS is not part of the Cloud API system. See the cloud-api-operations skill for product-to-Action mappings. Always use tcbr for CloudBase Run. Allowed values: "tcb", "tcbr", "scf", "sts", "cam", "cloudaudit", "tag", "billing", "region", "ba", "cvm", "lighthouse", "tke", "cbs", "cfs", "tcr", "cdb", "mariadb", "postgres", "sqlserver", "redis", "mongodb", "cynosdb", "dcdb", "tcaplusdb", "keewidb", "vpc", "clb", "cdn", "ecdn", "dnspod", "privatedns", "domain", "ssl", "teo", "gaap", "kms", "ssm", "waf", "cwp", "tcss", "ckafka", "tdmq", "tdmysql", "apigateway", "monitor", "cls", "apm", "tsf", "tat", "hunyuan", "lkeap", "tts", "trtc", "live", "vod", "sms", "ses"</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>The exact Action name defined by the official API for the selected service. **If uncertain, consult the official documentation first; do not guess with synonyms or legacy names** (an incorrect guess is reported by the server as action invalid and is difficult to diagnose). See the cloud-api-operations skill for common Actions.</td></tr>
+<tr><td><code>version</code></td><td>string</td><td></td><td>API version (optional in most cases). Products with **exactly one official version in the allow-list are filled automatically**, so do not pass it. These multi-version products require an explicit version; omitting it returns an error with the available options: tke、mongodb、teo、monitor、vod、sms. Examples: service="tcbr", version="2022-02-17", action="CreateCloudRunEnv", params={EnvId:"env-xxx",PackageType:"Standard"}; service="monitor" requires "2018-07-24" for the alert-policy Action family.</td></tr>
+<tr><td><code>params</code></td><td>object</td><td></td><td>Parameter object for the Action. Keys must match the official API definition; consult the documentation if uncertain. **Do not put Region here**; use the top-level region parameter for cross-region requests. For CloudBase business APIs, prefer searchKnowledgeBase(mode="openapi") instead of this tool. See the cloud-api-operations skill for examples.</td></tr>
+<tr><td><code>region</code></td><td>string</td><td></td><td>Cloud API region (X-TC-Region), such as ap-shanghai. Cross-region requests must pass this top-level parameter, not put it in params. ⚠️ ap-singapore exists on both the domestic and international sites. When the site is unspecified, the international site (site=intl) is used. To operate a domestic-site environment in that region, first call auth(action="start_auth", site="domestic") or set TCB_SITE=domestic.</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `prepareFeedback`
-Returns the new-issue page of the public repository.
+Return the public repository's new-issue page.
 
 **When to use**:
-- `channel="case"`: the work is done and the user wants to showcase it on the case wall.
-- `channel="retrospective"`: this build did not go smoothly and the user wants to feed the blockers back to the platform.
+- `channel="case"`: the work is done and the user wants it on the case wall.
+- `channel="retrospective"`: the session went badly and the user wants to report it.
 
 **How to use**:
-- Call it once only. It returns a page address, not a submitted issue.
-- Write the body in the conversation and hand the link to the user. The user logs in and submits it.
-- Do not submit on the user's behalf, and do not put an environment ID or secret into the body.
+- Call once. The result is a page URL, not a submitted issue.
+- Write the text in the chat and give the user the link. They log in and submit it.
+- Do not submit it for them. Do not put an environment ID or secrets in the text.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>channel</code></td><td>string</td><td>Yes</td><td>`case` opens the case template; `retrospective` opens the retrospective template. Allowed values: "case", "retrospective"</td></tr>
+<tr><td><code>channel</code></td><td>string</td><td>yes</td><td>`case` opens the showcase template; `retrospective` opens the retrospective template. Allowed values: "case", "retrospective"</td></tr>
 </tbody>
 </table>
 
 ---
 
-
 ### `queryMessagePush`
-Query Mini Program cloud development message push configuration (qbase getappconfig) or all valid message push event constraints (getcallbacksupportlist). There are two push modes: cloud function (default, callback per (msgType, event)) and CloudRun (qbase_open=true, receives all messages in bulk to container path). action=list also returns pushMode (cloudfunction|container), containerConfig, callbacks, and version; in CloudRun mode, callbacks may still exist but are not effective (see note), use ensureCloudFunctionMode to switch back to cloud function mode before callbacks take effect. action=listSupportedEvents returns all valid constraints (grouped by message type). Requires WeChat IDE login session channel (host-injected cloudBaseOptions.requestFn).
+Query Mini Program CloudBase message push config (qbase getappconfig) or all supported message push event constraints (getcallbacksupportlist). Two push modes: cloud function (default, per (msgType,event) callback) and CloudBase Run container (qbase_open=true, receives all messages as a whole payload at the container path). action=list also returns pushMode (cloudfunction|container), containerConfig, callbacks and version; in container mode callbacks may still exist but take no effect (see note); call ensureCloudFunctionMode to switch back before callbacks apply. action=listSupportedEvents returns all supported constraints grouped by message type. Requires the msg-push plugin to be enabled explicitly, plus the WeChat IDE login-state channel (host injects cloudBaseOptions.requestFn).
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>appid</code></td><td>string</td><td>Yes</td><td>Mini Program AppID (required, consistent with WeChat Developer Tools; used to select WeChat login session)</td></tr>
-<tr><td><code>env</code></td><td>string</td><td></td><td>Optional: Environment ID; when passed, list only returns subscription entries for that environment</td></tr>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>list: Query current message push configuration list (includes pushMode/containerConfig). listSupportedEvents: Query all valid message push event constraints (grouped by msgType). Allowed values: "list", "listSupportedEvents"</td></tr>
+<tr><td><code>appid</code></td><td>string</td><td>yes</td><td>Mini Program AppID (required; must match WeChat DevTools and is used to select the WeChat login-state session)</td></tr>
+<tr><td><code>env</code></td><td>string</td><td></td><td>Optional environment ID. When provided, list returns only subscriptions for that environment.</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>list: Query the current message push configuration (including pushMode/containerConfig) listSupportedEvents: Query all supported message push event constraints (grouped by msgType) Allowed values: "list", "listSupportedEvents"</td></tr>
 </tbody>
 </table>
 
 ---
 
 ### `manageMessagePush`
-Manage Mini Program cloud development message push configuration (write operations, requires confirm="yes" confirmation). Push modes: cloud function (default, callback per (msgType, event)) vs CloudRun (bulk reception; in CloudRun mode subscribe/unsubscribe/setEnable will be rejected, use ensureCloudFunctionMode first). Implements declarative idempotency based on "read full → merge → full overwrite (with version optimistic lock)". msg_type defaults to "event"; message types use msg_type=text|image|voice|video|miniprogrampage. action=subscribe validates that function_name actually exists in the environment before proceeding. action=ensureCloudFunctionMode disables CloudRun bulk reception; action=ensureContainerMode enables CloudRun (requires qbase_container_path/qbase_env/text_mode); action=setContainerCallback updates CloudRun path/env/text_mode. No write request is sent when the collection has no changes (idempotent no-op). Requires WeChat IDE login session channel.
+Manage Mini Program CloudBase message push config (write ops, requires confirm="yes"). Push modes: cloud function (default, per (msgType,event) callback) vs CloudBase Run container (whole-payload receive; subscribe/unsubscribe/setEnable are rejected in container mode — call ensureCloudFunctionMode first). Declarative idempotency built on read-all → merge → overwrite-all (version optimistic lock). msg_type defaults to "event"; message-type entries use msg_type=text|image|voice|video|miniprogrampage. action=subscribe verifies function_name actually exists in the environment. action=ensureCloudFunctionMode disables container whole-payload receive; action=ensureContainerMode enables it (requires qbase_container_path/qbase_env/text_mode); action=setContainerCallback updates container path/env/text_mode. No write request is made when the set is unchanged (idempotent no-op). Requires the msg-push plugin to be enabled explicitly and the WeChat IDE login-state channel.
 
 #### Parameters
 
 <table>
 <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
 <tbody>
-<tr><td><code>appid</code></td><td>string</td><td>Yes</td><td>Mini Program AppID (required, consistent with WeChat Developer Tools; used to select WeChat login session)</td></tr>
-<tr><td><code>env_id</code></td><td>string</td><td>Yes</td><td>Environment ID (cloud development environment bound to cloud function subscriptions; also serves as default CloudRun environment when qbase_env is not passed for ensureContainerMode/setContainerCallback)</td></tr>
-<tr><td><code>function_name</code></td><td>string</td><td>Yes</td><td>Cloud function name to receive message push (used by subscribe/unsubscribe/setEnable/ensureCloudFunctionMode; CloudRun-related actions can pass a placeholder)</td></tr>
-<tr><td><code>action</code></td><td>string</td><td>Yes</td><td>subscribe: Subscribe to specified cloud function (rejected in CloudRun mode). unsubscribe: Remove matching subscription (rejected in CloudRun mode). setEnable: Enable/disable matching subscription (rejected in CloudRun mode). ensureCloudFunctionMode: Switch to cloud function push mode (disable qbase_open). ensureContainerMode: Switch to CloudRun bulk reception (requires qbase_container_path + text_mode). setContainerCallback: Update CloudRun callback path/env/text_mode. Allowed values: "subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode", "ensureContainerMode", "setContainerCallback"</td></tr>
-<tr><td><code>msg_type</code></td><td>string</td><td></td><td>Message type (defaults to "event"). "event": Event-type entries, used with event_types (subscribe defaults to virtual payment 7 events when omitted). "text"|"image"|"voice"|"video"|"miniprogrampage": Message type entries (event is always empty string), do not pass event_types. Allowed values: "event", "text", "image", "voice", "video", "miniprogrampage"</td></tr>
-<tr><td><code>event_types</code></td><td>array of string</td><td></td><td>Event list to operate on (only used when msg_type="event"; can first query all constraints via queryMessagePush(action=listSupportedEvents)). subscribe defaults to subscribing to virtual payment 7 events when omitted; required for unsubscribe / setEnable when msg_type=event.</td></tr>
-<tr><td><code>enable</code></td><td>boolean</td><td></td><td>Required for setEnable: true to enable subscription / false to disable subscription</td></tr>
-<tr><td><code>qbase_container_path</code></td><td>string</td><td></td><td>CloudRun callback path/URL (required for ensureContainerMode; optional update for setContainerCallback)</td></tr>
-<tr><td><code>qbase_env</code></td><td>string</td><td></td><td>CloudRun service environment ID (optional for ensureContainerMode/setContainerCallback; defaults to env_id when omitted)</td></tr>
-<tr><td><code>text_mode</code></td><td>number</td><td></td><td>CloudRun message body encoding: 1=json, 2=xml (required for ensureContainerMode; optional update for setContainerCallback). Allowed values: 1, 2</td></tr>
-<tr><td><code>confirm</code></td><td>string</td><td></td><td>Write operation confirmation: pass confirm="yes" to confirm execution; returns a pending configuration summary (CONFIRM_REQUIRED) when omitted or other value is passed, review and retry. No confirmation needed when the collection has no changes.</td></tr>
+<tr><td><code>appid</code></td><td>string</td><td>yes</td><td>Mini Program AppID (required; must match WeChat DevTools and is used to select the WeChat login-state session)</td></tr>
+<tr><td><code>env_id</code></td><td>string</td><td>yes</td><td>Environment ID for the CloudBase environment bound to cloud function subscriptions. It is also the default CloudBase Run environment when ensureContainerMode/setContainerCallback omits qbase_env.</td></tr>
+<tr><td><code>function_name</code></td><td>string</td><td>yes</td><td>Name of the cloud function that receives message pushes. Used by subscribe/unsubscribe/setEnable/ensureCloudFunctionMode; container-related actions may pass a placeholder.</td></tr>
+<tr><td><code>action</code></td><td>string</td><td>yes</td><td>subscribe: Subscribe a specified cloud function (rejected in container mode) unsubscribe: Remove matching subscriptions (rejected in container mode) setEnable: Enable or disable matching subscriptions (rejected in container mode) ensureCloudFunctionMode: Switch to cloud function push mode (disable qbase_open) ensureContainerMode: Switch to CloudBase Run whole-payload receive (requires qbase_container_path + text_mode) setContainerCallback: Update the CloudBase Run callback path/env/text_mode Allowed values: "subscribe", "unsubscribe", "setEnable", "ensureCloudFunctionMode", "ensureContainerMode", "setContainerCallback"</td></tr>
+<tr><td><code>msg_type</code></td><td>string</td><td></td><td>Message type (defaults to "event"). "event": event entries used with event_types (subscribe may omit it to use the 7 virtual payment events). "text"\|"image"\|"voice"\|"video"\|"miniprogrampage": message-type entries whose event is fixed to an empty string; do not pass event_types. Allowed values: "event", "text", "image", "voice", "video", "miniprogrampage"</td></tr>
+<tr><td><code>event_types</code></td><td>array of string</td><td></td><td>Events to operate on (only when msg_type="event"; query all constraints first with queryMessagePush(action=listSupportedEvents)). subscribe defaults to the 7 virtual payment events when omitted; it is required for unsubscribe / setEnable when msg_type=event.</td></tr>
+<tr><td><code>enable</code></td><td>boolean</td><td></td><td>Required for setEnable: true enables the subscription; false disables it.</td></tr>
+<tr><td><code>qbase_container_path</code></td><td>string</td><td></td><td>CloudBase Run callback path/URL (required for ensureContainerMode; optional update for setContainerCallback)</td></tr>
+<tr><td><code>qbase_env</code></td><td>string</td><td></td><td>Environment ID hosting the CloudBase Run service (optional for ensureContainerMode/setContainerCallback; defaults to env_id)</td></tr>
+<tr><td><code>text_mode</code></td><td>number | number</td><td></td><td>CloudBase Run message body encoding: 1=json, 2=xml (required for ensureContainerMode; optional update for setContainerCallback)</td></tr>
+<tr><td><code>confirm</code></td><td>string</td><td></td><td>Write confirmation. Pass confirm="yes" to proceed. Omitting it or passing another value returns a pending configuration summary (CONFIRM_REQUIRED); review it and retry. No confirmation is needed when the set is unchanged.</td></tr>
 </tbody>
 </table>
 
