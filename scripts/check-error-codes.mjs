@@ -104,12 +104,24 @@ function listSourceFiles(dir) {
 function scanSource(text, relPath) {
   const found = [];
   const lines = text.split("\n");
-  const fieldRe = /(?:errorCode|(?<![A-Za-z])code)\s*:\s*(?:"([^"]+)"|'([^']+)')/g;
+  const fieldRe = /(?:errorCode|(?<![A-Za-z])code|error_category|credential_warning)\s*:\s*(?:"([^"]+)"|'([^']+)')/g;
   const compareRe =
     /(?:"([^"]+)"|'([^']+)')\s*(?:===|!==|==)\s*(?:errorCode|\bcode)|(?:errorCode|\bcode)\s*(?:===|!==|==)\s*(?:"([^"]+)"|'([^']+)')|\.includes\(\s*(?:"([^"]+)"|'([^']+)')\s*\)/g;
   const caseRe = /case\s+(?:"([^"]+)"|'([^']+)')\s*:/g;
+  const categoryRe = /error_category\s*:\s*"([^"]+)"/g;
+  const ALLOWED_CATEGORIES = new Set([
+    "credential_expired",
+    "credential_scope_limited",
+    "credential_invalid",
+    "cam_denied",
+    "cloud_api_error",
+  ]);
 
   lines.forEach((line, index) => {
+    // 0) 分类值白名单：写错分类名也要被拦下，即使它不是大写码形。
+    for (const m of line.matchAll(categoryRe)) {
+      if (!ALLOWED_CATEGORIES.has(m[1])) found.push({ code: m[1], line: index + 1 });
+    }
     // 1) 字段赋值：errorCode: "X" / code: "X"
     for (const m of line.matchAll(fieldRe)) {
       const value = m[1] ?? m[2];
@@ -263,10 +275,13 @@ const NEGATIVE_CASES = [
   { name: "三元条件赋值", text: `export const p = (ok) => ({ errorCode: ok ? "${PROBE_CODE}" : undefined });\n` },
   { name: "code 字段", text: `export const p = { code: "${PROBE_CODE}" };\n` },
   { name: "switch 分支", text: `export function p(c) { switch (c) { case "${PROBE_CODE}": return true; } }\n` },
+  { name: "分类字段", text: `export const p = { error_category: "${PROBE_CODE}" };\n` },
+  { name: "非法分类值", text: `export const p = { error_category: "SELF_TEST_BAD_CATEGORY" };\n` },
 ];
 const POSITIVE_CASES = [
   { name: "已登记状态值", text: `export const p = { code: "AUTH_READY" };\n` },
   { name: "JS 类型字符串", text: `export const p = (code) => typeof code === "string";\n` },
+  { name: "合法分类值", text: `export const p = { error_category: "credential_expired" };\n` },
 ];
 
 /** CI 里可重复执行的自检：每种写法各造一个反例，并确认合法写法不被误伤。 */

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Documentation
+
+* **mcp**: the English tool reference now describes `serverConfig.InternalAccess` as the `open` / `close` enum that the schema and the generated contract baseline already use. This is a documentation correction; no runtime schema change in this change set.
+
+### Receipt changes
+
+* **mcp**: `next_step` on credential-failure receipts is now a `ToolNextStep` object (`{ tool, action, ... }`) instead of the strings `"use_env_scoped_action"` / `"retry"`. Clients reading the field as a string should switch to `next_step.action` and `next_step.tool`.
+* **mcp**: `callCloudApi` failures can now report `error_category: "credential_expired"`. Both the thrown-error path and `callCloudApi` now use the same `credential_*` category values. `credential_env_id` is now `null` unless the credential is env-scoped, even when `CLOUDBASE_ENV_ID` is set manually.
+
 ### Features
 
 * **skills**: cloud function call examples now show how to read what the function returned. The SDK response wraps that value in `result` (which may be a JSON string until `parse: true` is used), while any `code` / `message` / `data` inside it is defined by the function, not the SDK; state checks and field reads belong on the same object. Issue reports now keep that structure — field names, nesting and types — with only the values replaced, keep the full `envId` even in a public issue, and ask for evidence according to what is missing.

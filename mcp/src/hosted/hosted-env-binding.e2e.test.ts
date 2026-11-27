@@ -124,12 +124,12 @@ describe("hosted 的环境槽跟着请求走", () => {
   beforeEach(() => {
     reportSpy = spyOnReport();
     // 进程里留一个环境变量：hosted 不读它，读了就是这个值
-    process.env.CLOUDBASE_ENV_ID = "env-leaked-from-process";
+    vi.stubEnv("CLOUDBASE_ENV_ID", "env-leaked-from-process");
   });
 
   afterEach(() => {
     reportSpy.mockRestore();
-    delete process.env.CLOUDBASE_ENV_ID;
+    vi.unstubAllEnvs();
   });
 
   it("注入 envId 的请求上报 cloudBaseOptions；没注入的报告 default，不读进程变量", async () => {
@@ -140,8 +140,9 @@ describe("hosted 的环境槽跟着请求走", () => {
       await startSession(endpoint.port);
       const events = await waitForInitialized(2);
       expect(events.length).toBe(2);
-      expect(events[0]).toMatchObject({ envId: "env-a", envIdSource: "cloudBaseOptions" });
-      expect(events[1]).toMatchObject({ envId: "unknown", envIdSource: "default" });
+      // Poll order is not guaranteed; compare the set, not array positions.
+      const byEnv = events.map((e) => `${e.envId}|${e.envIdSource}`).sort();
+      expect(byEnv).toEqual(["env-a|cloudBaseOptions", "unknown|default"]);
     } finally {
       await endpoint.close();
     }
@@ -178,11 +179,12 @@ describe("hosted 的环境槽跟着请求走", () => {
       await waitForInitialized(2);
       await startSession(endpoint.port, "env-b");
       const events = await waitForInitialized(3);
-      expect(events.map((e) => e.envId)).toEqual(["env-a", "unknown", "env-b"]);
-      expect(events.map((e) => e.envIdSource)).toEqual([
-        "cloudBaseOptions",
-        "default",
-        "cloudBaseOptions",
+      // Poll order is not guaranteed; compare the set of (envId, source) pairs.
+      const byEnv = events.map((e) => `${e.envId}|${e.envIdSource}`).sort();
+      expect(byEnv).toEqual([
+        "env-a|cloudBaseOptions",
+        "env-b|cloudBaseOptions",
+        "unknown|default",
       ]);
     } finally {
       await endpoint.close();

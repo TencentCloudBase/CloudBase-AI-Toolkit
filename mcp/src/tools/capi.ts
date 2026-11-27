@@ -3,7 +3,12 @@ import { getCloudBaseManager, logCloudBaseResult } from "../cloudbase-manager.js
 import { TCB_ACTION_INDEX_MAP } from "../generated/tcb-action-index.js";
 import { t } from "../i18n/index.js";
 import { ExtendedMcpServer } from "../server.js";
-import { resolveErrorCode, resolveRequestId } from "../utils/error-guidance.js";
+import {
+  CAM_AUTH_ERROR_PATTERN,
+  classifyCredentialFailure,
+  resolveErrorCode,
+  resolveRequestId,
+} from "../utils/error-guidance.js";
 import { buildAuthNextStep, buildJsonToolResult } from "../utils/tool-result.js";
 import { getCredentialScope, type CredentialScope } from "./env.js";
 
@@ -315,37 +320,37 @@ function buildCapiDocGuidance(service: string) {
     return `请优先核对对应官方云 API 文档；若你的场景其实是通过 HTTP 协议直接集成 auth/functions/cloudrun/storage/mysqldb 等 CloudBase 业务 API，请优先使用 OpenAPI / Swagger 或 searchKnowledgeBase(mode="openapi")，不要继续猜测管控面 Action。`;
 }
 
-/** Match CAM / authorization failures from Tencent Cloud control-plane APIs. */
-export const CAM_AUTH_ERROR_PATTERN =
-    /UnauthorizedOperation|AuthFailure|not authorized|cam.*denied|Forbidden/i;
-
-/**
- * Credential-level rejections. An env-scoped credential is refused by
- * account-level control-plane Actions even while the login is healthy, so these
- * messages must not be reported as a lost login.
- */
-export const CREDENTIAL_TOKEN_ERROR_PATTERN =
-    /Token verification failed|invalid token|token expired|token is invalid|signature.*expired/i;
-
 export type CapiErrorCategory =
+    | "credential_expired"
     | "credential_scope_limited"
     | "credential_invalid"
     | "cam_denied"
     | "cloud_api_error";
 
+/**
+ * callCloudApi failures use the same classifier as the thrown-error path, so a
+ * single error can no longer be called renewable in one receipt and a permanent
+ * permission boundary in the other. The scope is kept on the receipt, not used
+ * to guess whether a credential is invalid: account-level CAM rejections also
+ * arrive as `invalid token`.
+ */
 export function classifyCapiError(
-    message: string,
-    credentialScope: CredentialScope,
+    error: unknown,
+    credentialScope: CredentialScope = "account",
 ): CapiErrorCategory {
-    if (CREDENTIAL_TOKEN_ERROR_PATTERN.test(message)) {
-        return credentialScope === "single_env"
-            ? "credential_scope_limited"
-            : "credential_invalid";
+    void credentialScope;
+    switch (classifyCredentialFailure(error)) {
+        case "expired":
+            return "credential_expired";
+        case "scope_limited":
+            return "credential_scope_limited";
+        case "invalid":
+            return "credential_invalid";
+        case "cam_denied":
+            return "cam_denied";
+        default:
+            return "cloud_api_error";
     }
-    if (CAM_AUTH_ERROR_PATTERN.test(message)) {
-        return "cam_denied";
-    }
-    return "cloud_api_error";
 }
 
 /**
@@ -373,15 +378,14 @@ export function buildCapiErrorMessage(
     const hasParameterError = /parameter\s+`?.+?`?\s+is not recognized|MissingParameter|missing parameter|missing required/i.test(baseMessage);
     const hasInvalidParameterValueError = /invalid parameter value/i.test(baseMessage);
     const hasCamAuthError = isCamAuthError(baseMessage);
-    const hasTokenError = CREDENTIAL_TOKEN_ERROR_PATTERN.test(baseMessage);
-    const category = classifyCapiError(baseMessage, credentialScope);
+    const category = classifyCapiError(error, credentialScope);
 
-    if (hasTokenError) {
-        suggestions.push(
-            category === "credential_scope_limited"
-                ? t("capi.errorCredentialScopeLimited")
-                : t("capi.errorCredentialInvalid"),
-        );
+    if (category === "credential_expired") {
+        suggestions.push(t("capi.errorCredentialExpired"));
+    } else if (category === "credential_scope_limited") {
+        suggestions.push(t("capi.errorCredentialScopeLimited"));
+    } else if (category === "credential_invalid") {
+        suggestions.push(t("capi.errorCredentialInvalid"));
     } else if (hasCamAuthError) {
         suggestions.push(buildCamAuthGuidance());
     }
@@ -478,8 +482,7 @@ export function buildCapiFailureResult(
     error: unknown,
     credentialScope: CredentialScope,
 ) {
-    const message = error instanceof Error ? error.message : String(error);
-    const category = classifyCapiError(message, credentialScope);
+    const category = classifyCapiError(error, credentialScope);
     const errorCode = resolveErrorCode(error);
     const requestId = resolveRequestId(error);
     return buildJsonToolResult({

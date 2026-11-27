@@ -565,9 +565,16 @@ export function deriveCredentialBinding(raw: unknown): CredentialBinding {
   if (!record || typeof record !== "object") {
     return { scope: "account" };
   }
-  // 兼容 legacy slotted credential { domestic, intl }：取有内容的那一份
-  const slot = (record.domestic ?? record.intl) as Record<string, unknown> | undefined;
-  const flat = slot && typeof slot === "object" ? slot : record;
+  // 兼容 legacy slotted credential { domestic, intl }：按「槽内确有凭据字段」
+  // 择优，而不是固定取 domestic；intl 站点下 domestic 可能是空对象。
+  const slotCandidates = [record.domestic, record.intl].filter(
+    (item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object",
+  );
+  const usableSlot = slotCandidates.find((item) =>
+    Boolean(item.secretId || item.authSource || item.apiKey || item.envId),
+  );
+  const flat = usableSlot ?? record;
   const envId =
     typeof flat.envId === "string" && flat.envId.length > 0
       ? (flat.envId as string)
@@ -616,7 +623,10 @@ function readCliIsIntl(): boolean | undefined {
  * Collapse a legacy slotted credential to one flat record.
  * The rewritten file is the completion marker; a crash leaves the slotted file for the next read.
  */
-async function migrateSlottedCredentialToFlat(): Promise<void> {
+async function migrateSlottedCredentialToFlat(options?: {
+  site?: string;
+  region?: string;
+}): Promise<void> {
   const raw = await authStore.get("credential");
   if (!isSlottedCredential(raw)) {
     return;
@@ -630,7 +640,7 @@ async function migrateSlottedCredentialToFlat(): Promise<void> {
   } else if (isIntl === false && domestic) {
     site = "domestic";
   } else {
-    site = resolveSiteAndRegion().site;
+    site = resolveSiteAndRegion(options).site;
   }
   const chosen = site === "intl" ? (intl ?? domestic) : (domestic ?? intl);
   await authStore.set("credential", chosen ?? {});
@@ -982,7 +992,7 @@ async function resolveLoginState(options?: {
   }
 
   // Site selects endpoints, not which credential is stored. One flat record is shared.
-  await migrateSlottedCredentialToFlat();
+  await migrateSlottedCredentialToFlat(options);
   const flatLoginState = await resolveFlatLoginState();
   credentialSource = flatLoginState ? "global" : null;
   return sanitizeCredentialEnvId(flatLoginState);
@@ -1152,6 +1162,8 @@ export async function logout(_options?: { site?: string }): Promise<{
   }
 
   credentialSource = null;
+  // 登出后清掉上一次的环境绑定，避免显式凭据短路路径读到陈旧的 scope。
+  credentialBinding = { scope: "account" };
   resetAuthProgressState();
   return { removed };
 }

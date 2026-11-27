@@ -158,6 +158,44 @@ function isReturnedFailureResult(result: unknown): boolean {
 }
 
 /**
+ * Only credential/CAM receipts already carry their own guidance. Ordinary API
+ * failures still need the registry guidance (EXCEED_REQUEST_LIMIT,
+ * InsufficientBalance, ...), so their error_category must not suppress it.
+ */
+const STRUCTURED_CREDENTIAL_CATEGORIES = new Set([
+    "credential_expired",
+    "credential_scope_limited",
+    "credential_invalid",
+    "cam_denied",
+]);
+
+function hasStructuredFailureCategory(result: unknown): boolean {
+    if (!result || typeof result !== "object") return false;
+    const content = (result as Record<string, unknown>).content;
+    if (!Array.isArray(content)) return false;
+    for (const item of content) {
+        if (!item || (item as Record<string, unknown>).type !== "text") continue;
+        const text = (item as Record<string, unknown>).text;
+        if (typeof text !== "string") continue;
+        try {
+            const parsed = JSON.parse(text);
+            if (
+                parsed &&
+                typeof parsed === "object" &&
+                STRUCTURED_CREDENTIAL_CATEGORIES.has(
+                    (parsed as Record<string, unknown>).error_category as string,
+                )
+            ) {
+                return true;
+            }
+        } catch {
+            // Plain-text receipts carry no structured category.
+        }
+    }
+    return false;
+}
+
+/**
  * 失败时给客户端的最终文案：**抛错与"返回的失败"共用这一处构造**，
  * 所以两条路径对同一个底层错误得到的文本逐字相同（🆔 RequestId + 📦 版本页脚都在这里）。
  */
@@ -337,10 +375,12 @@ function createWrappedHandler(
             }
             if (returnedFailure && !isTestEnvironment) {
                 const failure = failureMessageOf(result);
-                errorMessage = enhanceErrorMessage(
-                    { message: failure.message, ...(failure.code ? { code: failure.code } : {}) },
-                    failure.message,
-                );
+                errorMessage = hasStructuredFailureCategory(result)
+                    ? failure.message
+                    : enhanceErrorMessage(
+                        { message: failure.message, ...(failure.code ? { code: failure.code } : {}) },
+                        failure.message,
+                    );
                 return withBusinessFailureIsError(
                     withEnhancedFailureText(result, errorMessage, requestId, server),
                 );
@@ -385,9 +425,9 @@ function createWrappedHandler(
             let credentialReceipt: Record<string, unknown> | null = null;
             if (isCredentialScopeLimitedError(error)) {
                 credentialReceipt = {
-                    error_category: "scope_limited",
+                    error_category: "credential_scope_limited",
                     need_auth: false,
-                    next_step: "use_env_scoped_action",
+                    next_step: { tool: "queryEnv", action: "info", required_params: ["envId"] },
                     code: resolveErrorCode(error) ?? "AuthFailure.UnauthorizedOperation",
                     ...(requestId ? { requestId } : {}),
                 };
@@ -404,7 +444,7 @@ function createWrappedHandler(
                     error_category: "credential_expired",
                     need_auth: false,
                     credential_refreshed: credentialRefreshed,
-                    next_step: "retry",
+                    next_step: { tool: "auth", action: "status" },
                     code: resolveErrorCode(error) ?? "AuthFailure.TokenFailure",
                     ...(requestId ? { requestId } : {}),
                 };

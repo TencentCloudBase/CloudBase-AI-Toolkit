@@ -195,8 +195,8 @@ export const functions = defineModule(
     noPackageJsonWarn: "检测到 HTTP 函数 {fnName} 目录下没有 package.json，已跳过依赖安装；如果你需要第三方依赖，请补充 package.json 后重试。",
 
     // ---- Schema parameter descriptions ----
-    "schema.vpcId": "VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.",
-    "schema.subnetId": "Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.",
+    "schema.vpcId": "真实数据库/网络控制台里的 VPC ID（例如 vpc-xxxxxxxx）。非原生 TCP 数据库访问时必填。不要编造或使用占位值。",
+    "schema.subnetId": "与私有数据库端点同 VPC 的子网 ID（例如 subnet-xxxxxxxx）。不要编造或使用占位值。",
     "schema.image.imageUri": "完整镜像地址（必须含 tag），格式 {domain}/{namespace}/{image}:{tag}，例如 ccr.ccs.tencentyun.com/your-ns/demo-app:demo-app-001。不要使用 :latest。buildStrategy=image（已有镜像）时必填；buildStrategy=cloud/local 可以不填：镜像地址由构建流程产出并回传；目标仓库由 build.repository/build.namespace 决定，显式提供时优先使用你提供的配置，省略时由 manager-node 用默认值自动补齐并创建/复用（namespace 默认 envId、repository 默认函数名）。",
     "schema.image.build": "镜像构建目标。buildStrategy=cloud（云端构建）或 local（本地 Docker 构建）时使用；buildStrategy=image（已有镜像）不填。cloud/local 下 build 非必填：缺省仓库坐标可自动补齐（namespace 默认 envId、repository 默认函数名），仅需指定构建细节或个人版 build.registryCredential 等字段时才填。",
     "schema.image.localFallback": "buildStrategy=local 时本地构建不可用的处理方式，默认 error。",

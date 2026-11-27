@@ -12,6 +12,11 @@ Snapshots of what every MCP client receives from `tools/list`, checked by
 | `budget.json` | `tools/list` bytes and description characters per language (+3% tolerance) | `npm run update:tool-surface` |
 | `constraints.json` | constraint sentences (must / do not / use X instead / confirm ...) that must stay verbatim in tool descriptions | `UPDATE_TOOL_SURFACE_CONSTRAINTS=1` (rare; the diff shows every sentence that changed) |
 
+Notes:
+
+- `scripts/tools.json` lists 44 tools while `contract.json` / `budget.json` cover 42: `queryMessagePush` and `manageMessagePush` are registered only when the corresponding plugin is enabled (`mcp/src/server.ts` DEFAULT_PLUGINS), so the baselines snapshot the default tool set only.
+- `contract-allowed-diff.json` is intentionally empty: this change set makes no structural schema change, so no `{ tool, path, reason }` waiver is required.
+
 Lint categories:
 
 - **A** description lists fixed values but the field has no `enum`
