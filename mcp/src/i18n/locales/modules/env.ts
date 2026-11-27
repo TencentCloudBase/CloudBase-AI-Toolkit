@@ -149,11 +149,11 @@ export const env = defineModule(
     "queryError.paramItem4": "4. 修正参数后重新调用 queryEnv(action=\"{action}\")",
     "queryError.authHeader": "认证错误：当前未登录或认证已过期。",
     "queryError.authAdvice":
-      "建议先执行 auth(action=\"status\") 查看状态，然后按提示完成登录。",
+      "当前凭据未通过服务端校验或已过期。请检查连接所用的凭据并重新授权；本地 MCP 可重新登录，远端托管连接请重新连接。不要反复重试同一个调用。",
     "queryError.permissionHeader": "权限错误：当前账号可能没有访问该资源的权限。",
     "queryError.permissionAdvice": "请确认：1) 已选择正确的环境 2) 账号有对应权限",
     "queryError.envHeader": "环境错误：指定的环境不存在或无法访问。",
-    "queryError.envAdvice": "请使用 queryEnv(action=\"list\") 查看可用的环境列表。",
+    "queryError.envAdvice": "请确认绑定的环境 ID 正确、凭据有权访问该环境；环境级凭据只能访问绑定环境。",
     "queryError.network": "网络错误：请检查网络连接，稍后重试。",
     "queryError.usageHeader": "查询环境资源用量失败，建议：",
     "queryError.stepAuthStatus":
@@ -506,7 +506,7 @@ export const env = defineModule(
     "queryError.authHeader":
       "Authentication error: currently not logged in, or the authentication has expired.",
     "queryError.authAdvice":
-      "Run auth(action=\"status\") first to check the state, then complete the login as prompted.",
+      "The current credential failed server-side validation or has expired. Check the credential used by this connection and re-authorize; for a local MCP sign in again, for a hosted remote connection reconnect. Do not retry the same call repeatedly.",
     "queryError.permissionHeader":
       "Permission error: the current account may not have permission to access this resource.",
     "queryError.permissionAdvice":
@@ -514,7 +514,7 @@ export const env = defineModule(
     "queryError.envHeader":
       "Environment error: the specified environment does not exist or is not accessible.",
     "queryError.envAdvice":
-      "Use queryEnv(action=\"list\") to see the list of available environments.",
+      "Confirm the bound environment ID is correct and the credential can access it; an environment-scoped credential can only reach its bound environment.",
     "queryError.network": "Network error: check the network connection and retry later.",
     "queryError.usageHeader": "Failed to query environment resource usage. Suggestions:",
     "queryError.stepAuthStatus":
