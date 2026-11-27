@@ -4,6 +4,8 @@ Currently includes 44 tools, grouped by function as follows.
 
 Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
 
+`scripts/tools.json` is the single source of truth. `doc/mcp-tools.md` is the generated full schema reference (all tools, every parameter and enum). This English page is a hand-maintained overview and does not mirror every generated row; when they differ, trust `tools.json` and the generated reference.
+
 ---
 
 ## Tool Overview

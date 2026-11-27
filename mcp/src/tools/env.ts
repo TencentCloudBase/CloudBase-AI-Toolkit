@@ -796,9 +796,13 @@ export type CredentialScope = "single_env" | "account";
  * `loginState.envId` 不参与判定——账号级登录态也带这个字段，它只是
  * 「上次绑定的环境」，不是权限边界。
  */
-function isApiKeyCredentialMode(): boolean {
+function isApiKeyCredentialMode(cloudBaseOptions?: {
+  credentialScope?: string;
+}): boolean {
   const binding = getCredentialBinding();
   if (binding.scope === "env") return true;
+  // 宿主显式声明的环境级凭据（hosted OAuth / requestFn STS）也要进护栏。
+  if (cloudBaseOptions?.credentialScope === "env") return true;
   // 进程变量只是「用户想用哪个环境」的声明，不是凭据。换证失败时
   // credentialSource 为 null，此时不能把回执说成已有环境级凭据。
   return Boolean(
@@ -815,7 +819,7 @@ export function getCredentialScope(cloudBaseOptions?: {
   // 环境级 federated STS）。账号级 DescribeEnvs（不带 EnvId）会被后端拒绝（invalid token）。
   // 注意：不能用 token 字段的有无推断范围——sessionToken 本身不携带权限范围语义。
   if (cloudBaseOptions?.credentialScope === "env") return "single_env";
-  return isApiKeyCredentialMode() ? "single_env" : "account";
+  return isApiKeyCredentialMode(cloudBaseOptions) ? "single_env" : "account";
 }
 
 function buildCredentialBoundaryPayload(
@@ -2933,7 +2937,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             cloudBaseOptions,
             outLang,
           );
-          const envCandidates = isApiKeyCredentialMode()
+          const envCandidates = isApiKeyCredentialMode(cloudBaseOptions)
             ? await fetchAvailableEnvCandidates(cloudBaseOptions, server)
             : await fetchAccountEnvCandidates(cloudBaseOptions);
           if (!envId) {
@@ -2947,7 +2951,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
           }
 
-          if (isApiKeyCredentialMode()) {
+          if (isApiKeyCredentialMode(cloudBaseOptions)) {
             // 优先凭据事实；兼容路径没有 binding.envId 时，用「凭据确实已解析」
             // 前提下声明的环境号兜底，避免护栏变成完全不拦。
             const pinnedEnvId =
@@ -3234,7 +3238,7 @@ export function registerEnvTools(server: ExtendedMcpServer) {
                   (isEnvScopedCredential ? cloudBaseOptions.envId : undefined));
               const shouldPinToEnvVar = Boolean(
                 envIdFromEnv &&
-                (isApiKeyCredentialMode() ||
+                (isApiKeyCredentialMode(cloudBaseOptions) ||
                   isEnvScopedCredential ||
                   (!region && !alias && !envId)),
               );

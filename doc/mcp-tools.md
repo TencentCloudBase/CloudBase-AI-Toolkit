@@ -1428,13 +1428,13 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
               name: "vpcId",
               type: "string",
               required: true,
-              description: `VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.`,
+              description: `真实数据库/网络控制台里的 VPC ID（例如 vpc-xxxxxxxx）。非原生 TCP 数据库访问时必填。不要编造或使用占位值。`,
             },
             {
               name: "subnetId",
               type: "string",
               required: true,
-              description: `Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.`,
+              description: `与私有数据库端点同 VPC 的子网 ID（例如 subnet-xxxxxxxx）。不要编造或使用占位值。`,
             }
           ],
         },
@@ -1712,13 +1712,13 @@ CloudBase 云函数统一写入口。支持创建函数、更新代码、更新�
           name: "vpcId",
           type: "string",
           required: true,
-          description: `VPC ID from the real database/network console (e.g. vpc-xxxxxxxx). Required for non-native TCP DB access. Do NOT invent or use placeholders.`,
+          description: `真实数据库/网络控制台里的 VPC ID（例如 vpc-xxxxxxxx）。非原生 TCP 数据库访问时必填。不要编造或使用占位值。`,
         },
         {
           name: "subnetId",
           type: "string",
           required: true,
-          description: `Subnet ID in the same VPC as the private DB endpoint (e.g. subnet-xxxxxxxx). Do NOT invent or use placeholders.`,
+          description: `与私有数据库端点同 VPC 的子网 ID（例如 subnet-xxxxxxxx）。不要编造或使用占位值。`,
         }
       ],
     },

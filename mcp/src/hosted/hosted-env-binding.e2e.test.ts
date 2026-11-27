@@ -124,12 +124,12 @@ describe("hosted 的环境槽跟着请求走", () => {
   beforeEach(() => {
     reportSpy = spyOnReport();
     // 进程里留一个环境变量：hosted 不读它，读了就是这个值
-    process.env.CLOUDBASE_ENV_ID = "env-leaked-from-process";
+    vi.stubEnv("CLOUDBASE_ENV_ID", "env-leaked-from-process");
   });
 
   afterEach(() => {
     reportSpy.mockRestore();
-    delete process.env.CLOUDBASE_ENV_ID;
+    vi.unstubAllEnvs();
   });
 
   it("注入 envId 的请求上报 cloudBaseOptions；没注入的报告 default，不读进程变量", async () => {

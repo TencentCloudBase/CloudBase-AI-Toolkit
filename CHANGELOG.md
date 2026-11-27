@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file. Follow the 
 ### Receipt changes
 
 * **mcp**: `next_step` on credential-failure receipts is now a `ToolNextStep` object (`{ tool, action, ... }`) instead of the strings `"use_env_scoped_action"` / `"retry"`. Clients reading the field as a string should switch to `next_step.action` and `next_step.tool`.
-* **mcp**: `callCloudApi` failures can now report `error_category: "credential_expired"`. The thrown-error path still uses `scope_limited` / `credential_expired` while `callCloudApi` uses `credential_*` values — both paths share one classifier, but the value sets are not identical yet. `credential_env_id` is now `null` unless the credential is env-scoped, even when `CLOUDBASE_ENV_ID` is set manually.
+* **mcp**: `callCloudApi` failures can now report `error_category: "credential_expired"`. Both the thrown-error path and `callCloudApi` now use the same `credential_*` category values. `credential_env_id` is now `null` unless the credential is env-scoped, even when `CLOUDBASE_ENV_ID` is set manually.
 
 ### Features
 

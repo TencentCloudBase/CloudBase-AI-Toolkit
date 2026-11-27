@@ -167,8 +167,6 @@ const STRUCTURED_CREDENTIAL_CATEGORIES = new Set([
     "credential_scope_limited",
     "credential_invalid",
     "cam_denied",
-    "scope_limited",
-    "expired",
 ]);
 
 function hasStructuredFailureCategory(result: unknown): boolean {
@@ -427,7 +425,7 @@ function createWrappedHandler(
             let credentialReceipt: Record<string, unknown> | null = null;
             if (isCredentialScopeLimitedError(error)) {
                 credentialReceipt = {
-                    error_category: "scope_limited",
+                    error_category: "credential_scope_limited",
                     need_auth: false,
                     next_step: { tool: "queryEnv", action: "info", required_params: ["envId"] },
                     code: resolveErrorCode(error) ?? "AuthFailure.UnauthorizedOperation",

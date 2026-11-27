@@ -30,9 +30,20 @@ vi.mock("@cloudbase/toolbox", () => ({
   getProjectDir: vi.fn(() => "/tmp/cb-capi-scope-test-project"),
 }));
 
+vi.mock("../cloudbase-manager.js", () => ({
+  getCloudBaseManager: vi.fn(async () => ({
+    commonService: () => ({
+      call: vi.fn(async () => {
+        throw new Error("invalid token");
+      }),
+    }),
+  })),
+  logCloudBaseResult: vi.fn(),
+}));
+
 import { peekLoginState } from "../auth.js";
 import { getCredentialScope } from "./env.js";
-import { buildCapiFailureResult } from "./capi.js";
+import { buildCapiFailureResult, registerCapiTools } from "./capi.js";
 
 /**
  * 跨模块回归：callCloudApi 的失败分类必须取「本轮真正生效的凭据」的范围，
@@ -94,6 +105,38 @@ describe("callCloudApi credential scope comes from the resolved credential", () 
     );
     const payload = JSON.parse(result.content[0].text);
     expect(payload.credential_scope).toBe("account");
+    expect(payload.error_category).toBe("credential_scope_limited");
+  });
+});
+
+
+describe("callCloudApi handler 自己取凭据范围", () => {
+  it("宿主声明环境级凭据时，失败回执由 handler 内部判定，不靠调用方传 scope", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      refreshToken: "rt",
+    };
+    await peekLoginState();
+
+    const handlers: Record<string, any> = {};
+    const server = {
+      cloudBaseOptions: { credentialScope: "env", envId: "env-host" },
+      logger: vi.fn(),
+      lang: "zh",
+      registerTool: (name: string, _meta: any, handler: any) => {
+        handlers[name] = handler;
+      },
+    };
+    registerCapiTools(server as any);
+
+    const result = await handlers.callCloudApi({
+      service: "tcb",
+      action: "DescribeEnvs",
+    });
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.credential_scope).toBe("single_env");
     expect(payload.error_category).toBe("credential_scope_limited");
   });
 });
