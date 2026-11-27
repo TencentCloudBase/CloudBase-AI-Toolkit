@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import fs from 'fs';
@@ -25,40 +24,38 @@ const DOC_PLUGINS = [
   'msg-push',
 ];
 
-async function generateToolsJson() {
+function parseLangArg(argv = process.argv) {
+  const i = argv.indexOf('--lang');
+  const lang = i >= 0 ? argv[i + 1] : 'zh';
+  if (lang !== 'zh' && lang !== 'en') throw new Error(`unsupported --lang: ${lang}`);
+  return lang;
+}
+
+async function generateToolsJson({ lang = 'zh' } = {}) {
+  const isEn = lang === 'en';
   console.log('🔧 正在启动 CloudBase MCP Server...');
 
   // 构建 MCP 服务器路径
   const mcpPath = path.join(__dirname, '../mcp');
   const cliPath = path.join(mcpPath, 'dist/cli.cjs');
 
-  // 检查 cli.js 是否存在，如果不存在则先构建
+  // 不在这里触发构建：root 的 build:mcp 负责产出 dist，
+  // 直接跑本脚本时缺 dist 就明确报错，避免用旧产物或半初始化的源码生成快照。
   if (!fs.existsSync(cliPath)) {
-    console.log('📦 正在构建 MCP Server...');
-    await new Promise((resolve, reject) => {
-      const buildProcess = spawn('npm', ['run', 'build'], {
-        cwd: mcpPath,
-        stdio: 'inherit'
-      });
-
-      buildProcess.on('close', (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`构建失败，退出码: ${code}`));
-        }
-      });
-    });
+    throw new Error(`MCP build output not found at ${cliPath}. Run "npm run build:mcp" first (the root build does this automatically).`);
   }
+  const command = 'node';
+  const cliArgs = [cliPath];
 
   // 创建客户端和传输（显式启用 DOC_PLUGINS，覆盖默认集合）
   const transport = new StdioClientTransport({
-    command: 'node',
-    args: [cliPath],
+    command,
+    args: cliArgs,
     cwd: mcpPath,
     env: {
       ...process.env,
       CLOUDBASE_MCP_PLUGINS_ENABLED: DOC_PLUGINS.join(','),
+      TCB_LANG: lang,
     },
   });
 
@@ -86,7 +83,9 @@ async function generateToolsJson() {
     const toolsJson = {
       name: "cloudbase-mcp",
       version: "1.8.1",
-      description: "腾讯云开发 MCP Server，支持静态托管/环境查询/云函数/云数据库等功能",
+      description: isEn
+        ? "CloudBase MCP Server: static hosting, environment queries, cloud functions, cloud databases and more"
+        : "腾讯云开发 MCP Server，支持静态托管/环境查询/云函数/云数据库等功能",
       tools: response.tools.map(tool => ({
         name: tool.name,
         description: tool.description,
@@ -95,7 +94,7 @@ async function generateToolsJson() {
     };
 
     // 写入 tools.json 文件
-    const outputPath = path.join(__dirname, 'tools.json');
+    const outputPath = path.join(__dirname, isEn ? 'tools.en.json' : 'tools.json');
     fs.writeFileSync(outputPath, JSON.stringify(toolsJson, null, 2), 'utf8');
 
     console.log(`📄 tools.json 已生成: ${outputPath}`);
@@ -121,7 +120,7 @@ async function generateToolsJson() {
 }
 
 // 运行脚本
-generateToolsJson().catch(error => {
+generateToolsJson({ lang: parseLangArg() }).catch(error => {
   console.error('❌ 脚本执行失败:', error);
   process.exit(1);
 }); 
