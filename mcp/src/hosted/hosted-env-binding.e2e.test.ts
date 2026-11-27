@@ -179,11 +179,12 @@ describe("hosted 的环境槽跟着请求走", () => {
       await waitForInitialized(2);
       await startSession(endpoint.port, "env-b");
       const events = await waitForInitialized(3);
-      expect(events.map((e) => e.envId)).toEqual(["env-a", "unknown", "env-b"]);
-      expect(events.map((e) => e.envIdSource)).toEqual([
-        "cloudBaseOptions",
-        "default",
-        "cloudBaseOptions",
+      // Poll order is not guaranteed; compare the set of (envId, source) pairs.
+      const byEnv = events.map((e) => `${e.envId}|${e.envIdSource}`).sort();
+      expect(byEnv).toEqual([
+        "env-a|cloudBaseOptions",
+        "env-b|cloudBaseOptions",
+        "unknown|default",
       ]);
     } finally {
       await endpoint.close();

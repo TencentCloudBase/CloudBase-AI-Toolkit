@@ -838,7 +838,11 @@ function buildCredentialBoundaryPayload(
     cloudBaseOptions.envId.length > 0
       ? cloudBaseOptions.envId
       : undefined;
-  const boundEnvId = binding.envId ?? hostedEnvId ?? null;
+  // 兼容路径（进程变量里确有 API Key 且凭据已解析成功）没有 binding.envId，
+  // 用声明的环境号兜底；优先级仍在 binding 与宿主声明之后。
+  const compatEnvId =
+    getCredentialSource() !== null ? process.env.CLOUDBASE_ENV_ID : undefined;
+  const boundEnvId = binding.envId ?? hostedEnvId ?? compatEnvId ?? null;
   const credentialEnvId =
     credentialScope === "single_env" ? boundEnvId : null;
   const pinnedEnvId = boundEnvId;
@@ -2944,8 +2948,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           if (isApiKeyCredentialMode()) {
-            // 钉住的环境只从凭据事实读，不再让手设的进程变量盖过它。
-            const pinnedEnvId = getCredentialBinding().envId;
+            // 优先凭据事实；兼容路径没有 binding.envId 时，用「凭据确实已解析」
+            // 前提下声明的环境号兜底，避免护栏变成完全不拦。
+            const pinnedEnvId =
+              getCredentialBinding().envId ||
+              (getCredentialSource() !== null
+                ? process.env.CLOUDBASE_ENV_ID
+                : undefined);
             if (pinnedEnvId && envId !== pinnedEnvId) {
               return buildJsonToolResult({
                 ok: false,

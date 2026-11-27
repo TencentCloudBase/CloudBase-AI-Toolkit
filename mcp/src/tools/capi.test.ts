@@ -316,6 +316,15 @@ describe("callCloudApi credential failures", () => {
     expect(classifyCapiError("some other error", "account")).toBe("cloud_api_error");
     expect(classifyCapiError("token is invalid", "account")).toBe("credential_invalid");
     expect(classifyCapiError("JWT invalid token signature", "account")).toBe("cloud_api_error");
+    expect(classifyCapiError("JWT token expired during local validation", "account")).toBe("cloud_api_error");
+    expect(classifyCapiError("ECONNRESET: token expired", "account")).toBe("cloud_api_error");
+    expect(classifyCapiError("signature expired", "account")).toBe("credential_expired");
+    expect(
+      classifyCapiError(
+        Object.assign(new Error("signature mismatch"), { code: "AuthFailure.SignatureFailure" }),
+        "account",
+      ),
+    ).toBe("cam_denied");
     expect(
       classifyCapiError(
         Object.assign(new Error("invalid token"), { code: "InvalidParameter" }),

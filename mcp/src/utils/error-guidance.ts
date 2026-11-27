@@ -76,7 +76,7 @@ const REGISTRY: ErrorGuidance[] = [
  * 也经常没有结构化 Code；只在这里作为 Code 未命中后的兜底依据。
  */
 export const CREDENTIAL_EXPIRED_PATTERN =
-  /Token verification failed|tmp secret key expire|token expired|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
+  /Token verification failed|tmp secret key expire|token expired|signature.*expired|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
 
 /**
  * An account-level control-plane Action (DescribeEnvs without EnvId, DescribeVpcs,
@@ -95,9 +95,13 @@ export type CredentialFailureKind =
   | "cam_denied"
   | "other";
 
-/** 本地校验 / 网络故障里也会出现 token 字样，不属于云 API 鉴权结论。 */
+/**
+ * 本地校验 / 网络故障里也会出现 token 字样，不属于云 API 鉴权结论。
+ * 只用于「没有结构化 Code」的错误：带鉴权 Code 的响应即使 message 含
+ * signature / network 字样，也仍是云端返回的鉴权失败。
+ */
 const NON_AUTH_TOKEN_CONTEXT =
-  /JWT|signature|format in|ECONNRESET|ETIMEDOUT|ENOTFOUND|network|timeout/i;
+  /JWT|format in|ECONNRESET|ETIMEDOUT|ENOTFOUND|network|timeout|local validation/i;
 
 const CREDENTIAL_INVALID_PATTERN = /token is invalid|invalid credential/i;
 
@@ -121,8 +125,10 @@ export function classifyCredentialFailure(error: unknown): CredentialFailureKind
   if (code && !AUTH_CODE_PATTERN.test(code)) return "other";
   // 带 AuthFailure.TokenFailure 的 invalid token 仍是可重试的过期，不是权限边界。
   if (code && EXPIRED_CODE_PATTERN.test(code)) return "expired";
+  // 无 Code 时先排掉本地校验 / 网络故障，避免 "JWT token expired"、
+  // "ECONNRESET: token expired" 被误判成云端临时密钥过期。
+  if (!code && NON_AUTH_TOKEN_CONTEXT.test(message)) return "other";
   if (CREDENTIAL_EXPIRED_PATTERN.test(message)) return "expired";
-  if (NON_AUTH_TOKEN_CONTEXT.test(message)) return "other";
   if (CREDENTIAL_SCOPE_LIMITED_PATTERN.test(message)) return "scope_limited";
   if (CREDENTIAL_INVALID_PATTERN.test(message)) return "invalid";
   if (CAM_AUTH_ERROR_PATTERN.test(message) || (code && AUTH_CODE_PATTERN.test(code))) {

@@ -158,10 +158,19 @@ function isReturnedFailureResult(result: unknown): boolean {
 }
 
 /**
- * A structured failure receipt already carries error_category and its guidance.
- * Appending a second, independently derived guidance here is what produced a
- * message telling the caller both to retry and never to retry the same request.
+ * Only credential/CAM receipts already carry their own guidance. Ordinary API
+ * failures still need the registry guidance (EXCEED_REQUEST_LIMIT,
+ * InsufficientBalance, ...), so their error_category must not suppress it.
  */
+const STRUCTURED_CREDENTIAL_CATEGORIES = new Set([
+    "credential_expired",
+    "credential_scope_limited",
+    "credential_invalid",
+    "cam_denied",
+    "scope_limited",
+    "expired",
+]);
+
 function hasStructuredFailureCategory(result: unknown): boolean {
     if (!result || typeof result !== "object") return false;
     const content = (result as Record<string, unknown>).content;
@@ -172,7 +181,13 @@ function hasStructuredFailureCategory(result: unknown): boolean {
         if (typeof text !== "string") continue;
         try {
             const parsed = JSON.parse(text);
-            if (parsed && typeof parsed === "object" && "error_category" in parsed) {
+            if (
+                parsed &&
+                typeof parsed === "object" &&
+                STRUCTURED_CREDENTIAL_CATEGORIES.has(
+                    (parsed as Record<string, unknown>).error_category as string,
+                )
+            ) {
                 return true;
             }
         } catch {

@@ -41,6 +41,7 @@ const {
   mockProbeApiKeyCamCapability,
   mockResolveAuthOptions,
   mockGetCredentialBinding,
+  mockGetCredentialSource,
   authStoreData,
 } = vi.hoisted(() => ({
   mockBuildAuthConfigSummary: vi.fn((options: any) => ({
@@ -99,6 +100,7 @@ const {
   mockResetCloudBaseManagerCache: vi.fn(),
   mockProbeApiKeyCamCapability: vi.fn().mockResolvedValue("capable"),
   mockGetCredentialBinding: vi.fn((): any => ({ scope: "account" })),
+  mockGetCredentialSource: vi.fn((): string | null => null),
   mockResolveAuthOptions: vi.fn((options: any = {}) => ({
     authMode: options.authMode ?? options.serverAuthOptions?.authMode ?? "device",
     clientId: options.clientId ?? options.serverAuthOptions?.clientId,
@@ -160,6 +162,7 @@ vi.mock("../auth.js", async (importOriginal) => {
     getCloudBaseApiKeyFromEnv: () =>
       process.env.CLOUDBASE_API_KEY || process.env.CLOUDBASE_APIKEY || undefined,
     getCredentialBinding: mockGetCredentialBinding,
+    getCredentialSource: mockGetCredentialSource,
     peekLoginState: mockPeekLoginState,
     getAuthProgressState: mockGetAuthProgressState,
     logout: mockLogout,
@@ -238,6 +241,7 @@ describe("env tools - auth", () => {
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
     mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockGetCredentialSource.mockReturnValue(null);
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);
@@ -1086,14 +1090,33 @@ describe("env tools - auth", () => {
     process.env.CLOUDBASE_API_KEY = "stale-key";
     process.env.CLOUDBASE_ENV_ID = "env-E";
     mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    // 显式钉住换取失败后的来源状态，避免只测到模块级变量的初始值。
+    mockGetCredentialSource.mockReturnValue(null);
     mockPeekLoginState.mockResolvedValue(null);
 
     const result = await tools.auth.handler({ action: "status" });
     const payload = JSON.parse(result.content[0].text);
 
+    expect(mockPeekLoginState).toHaveBeenCalled();
     expect(payload.credential_source).toBeNull();
     expect(payload.credential_scope).toBe("account");
     expect(payload.credential_env_id).toBeNull();
+    delete process.env.CLOUDBASE_API_KEY;
+  });
+
+  it("C5: 凭据确实解析成功时，兼容分支才认进程里的 API Key", async () => {
+    process.env.CLOUDBASE_API_KEY = "live-key";
+    process.env.CLOUDBASE_ENV_ID = "env-E";
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockGetCredentialSource.mockReturnValue("env");
+    mockPeekLoginState.mockResolvedValue({ secretId: "sid", secretKey: "skey" });
+
+    const result = await tools.auth.handler({ action: "status" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.credential_source).toBe("env");
+    expect(payload.credential_scope).toBe("single_env");
+    expect(payload.credential_env_id).toBe("env-E");
     delete process.env.CLOUDBASE_API_KEY;
   });
 
@@ -1550,6 +1573,7 @@ describe("env tools - queryEnv", () => {
     vi.clearAllMocks();
     delete process.env.CLOUDBASE_ENV_ID;
     mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockGetCredentialSource.mockReturnValue(null);
     mockGetCachedEnvId.mockReturnValue(null);
     mockListAvailableEnvCandidates.mockResolvedValue([]);
     mockResolveEnvCandidateByEnvId.mockResolvedValue(undefined);

@@ -4,9 +4,14 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
-### Breaking changes
+### Documentation
 
-* **mcp**: `manageCloudRun` `serverConfig.InternalAccess` now accepts only `open` / `close`, matching `ICloudrunServerBaseConfig`. The old free-form `string` schema and the `true` / `false` documentation were wrong; callers passing `"true"` must switch to `"open"`. `auth(status)` and `callCloudApi` now share one credential-failure classifier, so an expired token is never reported as a permanent permission boundary.
+* **mcp**: the English tool reference now describes `serverConfig.InternalAccess` as the `open` / `close` enum that the schema and the generated contract baseline already use. This is a documentation correction; no runtime schema change in this change set.
+
+### Receipt changes
+
+* **mcp**: `next_step` on credential-failure receipts is now a `ToolNextStep` object (`{ tool, action, ... }`) instead of the strings `"use_env_scoped_action"` / `"retry"`. Clients reading the field as a string should switch to `next_step.action` and `next_step.tool`.
+* **mcp**: `callCloudApi` failures can now report `error_category: "credential_expired"`. The thrown-error path still uses `scope_limited` / `credential_expired` while `callCloudApi` uses `credential_*` values — both paths share one classifier, but the value sets are not identical yet. `credential_env_id` is now `null` unless the credential is env-scoped, even when `CLOUDBASE_ENV_ID` is set manually.
 
 ### Features
 
