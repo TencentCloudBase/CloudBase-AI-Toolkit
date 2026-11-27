@@ -1466,3 +1466,88 @@ describe("credential binding derivation", () => {
     expect(deriveCredentialBinding({})).toEqual({ scope: "account" });
   });
 });
+
+describe("credential binding through the real resolution chain", () => {
+  it("全局槽 api_key 凭据解析后仍是环境级，envId 取自最终生效凭据", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      authSource: "api_key",
+      apiKey: "k",
+      envId: "env-a",
+    };
+    const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+    await peekLoginState();
+
+    expect(getCredentialBinding()).toEqual({
+      scope: "env",
+      envId: "env-a",
+      authSource: "api_key",
+    });
+  });
+
+  it("device 登录态即使带 envId 也是账号级，不误拦多环境切换", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      refreshToken: "rt",
+      envId: "env-a",
+    };
+    const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+    await peekLoginState();
+
+    expect(getCredentialBinding()).toEqual({ scope: "account" });
+  });
+
+  it("凭据文件没写 authSource 但有 apiKey 时仍能兜底判成环境级", async () => {
+    authStoreData.credential = {
+      secretId: "sid",
+      secretKey: "skey",
+      apiKey: "k",
+      envId: "env-a",
+    };
+    const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+    await peekLoginState();
+
+    expect(getCredentialBinding()).toEqual({
+      scope: "env",
+      envId: "env-a",
+      authSource: "api_key",
+    });
+  });
+
+  it("双 slot 凭据迁移后，binding 跟最终选中的 intl slot 一致", async () => {
+    vi.stubEnv("TCB_SITE", "intl");
+    try {
+      authStoreData.credential = {
+        domestic: {
+          secretId: "d-sid",
+          secretKey: "d-skey",
+          refreshToken: "rt",
+          envId: "env-domestic",
+        },
+        intl: {
+          secretId: "i-sid",
+          secretKey: "i-skey",
+          authSource: "api_key",
+          apiKey: "k",
+          envId: "env-intl",
+        },
+      };
+      const { peekLoginState, getCredentialBinding } = await import("./auth.js");
+
+      await peekLoginState();
+
+      expect(getCredentialBinding()).toEqual({
+        scope: "env",
+        envId: "env-intl",
+        authSource: "api_key",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});

@@ -256,7 +256,7 @@ export const env = defineModule(
       "当前为环境级 API Key 登录，只能绑定已授权环境 {pinnedEnvId}，不能切换到 {envId}。这是凭据权限边界，不是目标环境不存在。",
     "auth.envReady": "环境设置成功，当前环境: {envId}",
     "auth.credentialCamRejected":
-      "\n\n⚠️ 用当前凭据访问 {envId} 被拒绝。如果刚换过环境，请用 {envId} 自己的 API Key 重新连接（Key 和环境 ID 要一起换）。",
+      "当前凭据访问 {envId} 被拒绝。如果刚换过环境，请用 {envId} 自己的 API Key 重新连接（Key 和环境 ID 要一起换）。",
     "auth.credentialCamRejectedAction":
       "用目标环境自己的 API Key 重新连接，Key 和环境 ID 要一起换",
     "auth.envReadyWithHint": "环境设置成功，当前环境: {envId}{regionHint}",
@@ -637,7 +637,7 @@ export const env = defineModule(
       "Currently logged in with an env-level API Key, which can only bind the authorized environment {pinnedEnvId} and cannot switch to {envId}. This is a credential permission boundary, not a missing target environment.",
     "auth.envReady": "Environment bound successfully. Current env: {envId}",
     "auth.credentialCamRejected":
-      "\n\n⚠️ Access to {envId} with the current credential was denied. If you just switched environments, reconnect with the API Key that belongs to {envId} (the Key and env ID must be changed together).",
+      "Access to {envId} with the current credential was denied. If you just switched environments, reconnect with the API Key that belongs to {envId} (the Key and env ID must be changed together).",
     "auth.credentialCamRejectedAction":
       "Reconnect with the API Key of the target environment; change the Key and the env ID together",
     "auth.envReadyWithHint": "Environment bound successfully. Current env: {envId}{regionHint}",

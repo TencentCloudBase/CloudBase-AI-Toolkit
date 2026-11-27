@@ -824,9 +824,12 @@ function buildCredentialBoundaryPayload(
   const credentialScope = getCredentialScope(cloudBaseOptions);
   const currentRegion = resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
   // 凭据实际绑定的环境：回执里要能自证「Key 和 envId 是否配套」。
-  // 账号级登录态没有这个概念，返回 null 而不是省略字段。
+  // 账号级登录态没有这个概念，恒为 null；手设 CLOUDBASE_ENV_ID 只说明
+  // 想查哪个环境，不代表凭据属于它。
   const credentialEnvId =
-    process.env.CLOUDBASE_ENV_ID || binding.envId || null;
+    credentialScope === "single_env"
+      ? process.env.CLOUDBASE_ENV_ID || binding.envId || null
+      : null;
   const pinnedEnvId =
     process.env.CLOUDBASE_ENV_ID ||
     cloudBaseOptions?.envId ||
@@ -1027,55 +1030,46 @@ async function appendApiKeyCamWarningIfNeeded(
   }
 }
 
-type TargetEnvCamWarning = {
-  credential_warning?: string;
-  next_step?: Record<string, unknown>;
-  messageSuffix: string;
-};
-
 /**
- * 切换目标环境后探一次 CAM。只在「凭据里记着旧环境、目标环境不同」时跑——
- * 这是 Key 与环境 ID 可能对不上的形状。capable / unknown 静默放行，
- * limited 才给换 Key 的动作。不猜内部原因，只写客户能自查的一步。
+ * 目标环境是否被 CAM 明确拒绝。只在「凭据看起来是 API Key 换出来的」时探测：
+ * 账号级 device 登录态带 refreshToken、不带 apiKey，即使也带 loginState.envId
+ * 也不该为每次 set_env 多发一次 DescribeEnvInfo。
+ * binding.scope === "env" 的路径已在护栏处拦下，这里兜的是凭据文件没写
+ * authSource、范围判定保守回落 account 的场景。
  */
-async function probeTargetEnvCamCapability(
+async function probeTargetEnvCamDenial(
   loginState: any,
   targetEnvId: string,
-  lang: Lang,
-): Promise<TargetEnvCamWarning> {
-  const empty: TargetEnvCamWarning = { messageSuffix: "" };
-  const previousEnvId = loginState?.envId;
+): Promise<boolean> {
+  const record = loginState as
+    | (Record<string, unknown> & {
+        authSource?: string;
+        apiKey?: string;
+        envId?: string;
+      })
+    | null;
+  const previousEnvId = record?.envId;
+  const looksLikeApiKey =
+    Boolean(record?.apiKey) || record?.authSource === "api_key";
   if (
+    !looksLikeApiKey ||
     typeof previousEnvId !== "string" ||
     previousEnvId.length === 0 ||
     previousEnvId === targetEnvId
   ) {
-    return empty;
+    return false;
   }
   try {
     const probe = await probeApiKeyCamCapability({
       ...loginState,
       envId: targetEnvId,
     });
-    if (probe !== "limited") return empty;
-    return {
-      credential_warning: "CAM_REJECTED_ON_TARGET_ENV",
-      next_step: {
-        tool: "auth",
-        action: "login_by_api_key",
-        reason: t("env.auth.credentialCamRejectedAction", undefined, lang),
-      },
-      messageSuffix: t(
-        "env.auth.credentialCamRejected",
-        { envId: targetEnvId },
-        lang,
-      ),
-    };
+    return probe === "limited";
   } catch (e) {
-    debug("probeTargetEnvCamCapability: probe threw", {
+    debug("probeTargetEnvCamDenial: probe threw", {
       error: e instanceof Error ? e.message : String(e),
     });
-    return empty;
+    return false;
   }
 }
 
@@ -3019,6 +3013,27 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             });
           }
 
+          // 绑定之前先探：CAM 明确拒绝就别把用户绑到一个用不了的环境上。
+          // 只有「凭据看起来是 API Key」且确实记着旧环境时才会发这次请求。
+          if (await probeTargetEnvCamDenial(loginState, envId)) {
+            return buildJsonToolResult({
+              ok: false,
+              code: "CREDENTIAL_SCOPE_LIMITED",
+              message: t("env.auth.credentialCamRejected", { envId }, outLang),
+              ...credentialBoundary,
+              current_env_id: envId,
+              next_step: {
+                tool: "auth",
+                action: "login_by_api_key",
+                reason: t(
+                  "env.auth.credentialCamRejectedAction",
+                  undefined,
+                  outLang,
+                ),
+              },
+            });
+          }
+
           await envManager.setEnvId(envId);
           // 跨客户端通用事件推送（MCP 协议 notification，无 id）：任何客户端
           // （如 dsh-plugin 面板）都能通过 notifications/cloudbase/env_changed
@@ -3040,28 +3055,13 @@ export function registerEnvTools(server: ExtendedMcpServer) {
             : target
               ? ""
               : t("env.auth.regionHintUnverified", undefined, outLang);
-          // 凭据记着旧环境时才探：这是「Key 与环境 ID 可能不配套」的形状。
-          // 探测在 setEnvId 之后做，失败只给提示，不回滚已生效的绑定。
-          const camWarning = await probeTargetEnvCamCapability(
-            loginState,
-            envId,
-            outLang,
-          );
           return buildJsonToolResult({
             ok: true,
             code: "ENV_READY",
-            message:
-              t("env.auth.envReadyWithHint", { envId, regionHint }, outLang) +
-              camWarning.messageSuffix,
+            message: t("env.auth.envReadyWithHint", { envId, regionHint }, outLang),
             ...credentialBoundary,
             current_env_id: envId,
             current_region: target?.region || credentialBoundary.current_region,
-            ...(camWarning.credential_warning
-              ? {
-                  credential_warning: camWarning.credential_warning,
-                  next_step: camWarning.next_step,
-                }
-              : {}),
           });
         }
 

@@ -568,12 +568,17 @@ export function deriveCredentialBinding(raw: unknown): CredentialBinding {
   // 兼容 legacy slotted credential { domestic, intl }：取有内容的那一份
   const slot = (record.domestic ?? record.intl) as Record<string, unknown> | undefined;
   const flat = slot && typeof slot === "object" ? slot : record;
-  if (
-    flat.authSource === "api_key" &&
-    typeof flat.envId === "string" &&
-    flat.envId.length > 0
-  ) {
-    return { scope: "env", envId: flat.envId, authSource: "api_key" };
+  const envId =
+    typeof flat.envId === "string" && flat.envId.length > 0
+      ? (flat.envId as string)
+      : undefined;
+  if (!envId) return { scope: "account" };
+  // apiKey 字段是凭据文件没写 authSource 时的兜底：device / web 登录态带
+  // refreshToken 但没有 apiKey，即使也带 envId 仍是账号级。
+  const hasApiKey =
+    typeof flat.apiKey === "string" && (flat.apiKey as string).length > 0;
+  if (flat.authSource === "api_key" || hasApiKey) {
+    return { scope: "env", envId, authSource: "api_key" };
   }
   return { scope: "account" };
 }
@@ -910,15 +915,13 @@ function dropStaleCredentialStoreCache(): void {
   delete (authStore as unknown as { db?: unknown }).db;
 }
 
-export async function peekLoginState(options?: {
+async function resolveLoginState(options?: {
   ignoreEnvVars?: boolean;
   site?: string;
   region?: string;
 }): Promise<LoginState | null> {
   dropStaleCredentialStoreCache();
   credentialSource = null;
-  // 每次解析登录态都重算绑定，避免进程内缓存把上一次凭据的范围带过来
-  credentialBinding = deriveCredentialBinding(await authStore.get("credential"));
   const envVarLoginState = normalizeLoginStateFromEnvVars(options);
   // 回填的那份 key 换不出临时密钥时置位：项目级文件里是同一份，不必再试一次
   let projectCredentialSkipped = false;
@@ -983,6 +986,34 @@ export async function peekLoginState(options?: {
   const flatLoginState = await resolveFlatLoginState();
   credentialSource = flatLoginState ? "global" : null;
   return sanitizeCredentialEnvId(flatLoginState);
+}
+
+/**
+ * 对外入口：解析完成后按「本轮真正生效的那份凭据」重算绑定。
+ * 旧实现在函数开头读一次全局 auth.json，但下面五个出口分别用 env API Key、
+ * 长期密钥、项目级文件、迁移后的 flat、无凭据，范围会对不上；slotted 凭据
+ * 更是在迁移之前就算，intl 站会读错 slot。现在统一从最终 LoginState 判。
+ */
+export async function peekLoginState(options?: {
+  ignoreEnvVars?: boolean;
+  site?: string;
+  region?: string;
+}): Promise<LoginState | null> {
+  const state = await resolveLoginState(options);
+  let binding = deriveCredentialBinding(state);
+  // 环境变量 / 项目级 API Key 路径会回填进程变量，但解析后的 state 未必保留
+  // authSource；用「来源 + 进程里确有 API Key」补齐。长期密钥路径没有
+  // CLOUDBASE_API_KEY，即使全局文件残留 api_key 凭据也不会被误判成环境级。
+  if (
+    binding.scope === "account" &&
+    state?.envId &&
+    (credentialSource === "env" || credentialSource === "project") &&
+    getCloudBaseApiKeyFromEnv()
+  ) {
+    binding = { scope: "env", envId: state.envId, authSource: "api_key" };
+  }
+  credentialBinding = binding;
+  return state;
 }
 
 export async function ensureLogin(options?: EnsureLoginOptions) {

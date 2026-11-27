@@ -1020,7 +1020,7 @@ describe("env tools - auth", () => {
     expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
   });
 
-  it("C2: 账号级 device 登录态切环境不该被拦", async () => {
+  it("C2: 账号级 device 登录态切环境不该被拦，也不该多探一次云 API", async () => {
     mockGetCredentialBinding.mockReturnValue({ scope: "account" });
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
@@ -1048,13 +1048,15 @@ describe("env tools - auth", () => {
     });
     expect(payload.credential_env_id).toBeNull();
     expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-switched");
+    expect(mockProbeApiKeyCamCapability).not.toHaveBeenCalled();
   });
 
-  it("C3: 凭据记着旧环境时，目标环境 CAM 拒绝要给换 Key 的动作", async () => {
+  it("C3: 凭据带 apiKey 且目标环境被 CAM 拒绝时，绑定前就阻断", async () => {
     mockGetCredentialBinding.mockReturnValue({ scope: "account" });
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
+      apiKey: "key-of-old-env",
       envId: "env-key-owned",
     });
     mockProbeApiKeyCamCapability.mockResolvedValueOnce("limited");
@@ -1071,17 +1073,43 @@ describe("env tools - auth", () => {
     const payload = JSON.parse(result.content[0].text);
 
     expect(payload).toMatchObject({
-      ok: true,
-      code: "ENV_READY",
-      credential_warning: "CAM_REJECTED_ON_TARGET_ENV",
+      ok: false,
+      code: "CREDENTIAL_SCOPE_LIMITED",
+      current_env_id: "env-switched",
+      next_step: { action: "login_by_api_key" },
     });
+    expect(payload.message).toContain("API Key");
+    expect(payload.credential_warning).toBeUndefined();
     expect(mockProbeApiKeyCamCapability).toHaveBeenCalledWith(
       expect.objectContaining({ envId: "env-switched" }),
     );
-    expect(payload.message).toContain("API Key");
-    expect(payload.next_step).toMatchObject({
-      action: "login_by_api_key",
+    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
+  });
+
+  it("C4: 账号级凭据手设 CLOUDBASE_ENV_ID 时 credential_env_id 仍是 null", async () => {
+    delete process.env.CLOUDBASE_API_KEY;
+    process.env.CLOUDBASE_ENV_ID = "env-manual";
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockPeekLoginState.mockResolvedValue({
+      secretId: "sid",
+      secretKey: "skey",
+      refreshToken: "rt",
     });
+    mockListAvailableEnvCandidates.mockResolvedValue([]);
+    mockResolveEnvCandidateByEnvId.mockResolvedValue({
+      envId: "env-switched",
+      region: "ap-shanghai",
+    });
+
+    const result = await tools.auth.handler({
+      action: "set_env",
+      envId: "env-switched",
+    });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.credential_scope).toBe("account");
+    expect(payload.credential_env_id).toBeNull();
+    expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-switched");
   });
 
   it("auth(action=logout) should clear session state", async () => {
