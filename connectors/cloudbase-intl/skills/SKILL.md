@@ -3,7 +3,7 @@ name: cloudbase
 description: "Use this skill when you develop, design, build, deploy, debug, migrate, or troubleshoot CloudBase (腾讯云开发, 云开发, TCB, 微信云开发) projects — Web, 微信小程序, 小程序, uni-app, mobile (iOS, Android, Flutter, React Native). Covers UI (页面, 界面, 表单, dashboard, prototype, 原型); auth (登录, 注册, OAuth, publishable key); databases (NoSQL 文档数据库, PostgreSQL/CloudBase PG, 已有 MySQL, app.rdb(), queryPgDatabase/managePgDatabase, CRUD, security rules); 云函数/cloud functions (serverless, scf_bootstrap); CloudRun (云托管, Dockerfile); 云存储; built-in AI (内置大模型, AI 对话, streaming, 流式输出, 图片生成, generateText, streamText, createModel, generateImage, TokenHub, Hunyuan, DeepSeek, GLM, Kimi, Token Credits 资源包, 小程序成长计划); third-party/custom model onboarding (第三方大模型接入, 大模型调用, LLM API); AI agent (智能体, AG-UI, LangGraph); ops troubleshooting (巡检, 诊断, 日志); spec workflow (需求文档, 技术方案, requirements, tasks.md). Do NOT use for non-CloudBase projects, pure frontend without CloudBase, or self-hosted backends without CloudBase."
 description_zh: 为你的小程序和 Web/H5 提供一体化运行与部署环境，包括数据库、云函数、云存储、身份权限和静态托管
 description_en: An all-in-one runtime and deployment environment for WeChat Mini Programs and Web/H5 apps, including database, cloud functions, cloud storage, identity and access control, and static hosting.
-version: 2.37.7
+version: 2.37.9
 license: MIT
 ---
 
@@ -155,7 +155,7 @@ These rules override convenience. Full rationale lives in `web-development`.
 - **Native App / Flutter / React Native** — Android CloudBase, iOS CloudBase, Flutter CloudBase, React Native CloudBase, 原生 App 接入
 - **Web projects + NoSQL Database** — Web 文档数据库, CloudBase collection, 前端查库, NoSQL Web SDK
 - **CloudBase PostgreSQL Best Practices** — PG access pattern, 数据库访问路径, N+1 查询, 批量查询, 慢查询, EXPLAIN ANALYZE, 缺索引, 活动数据库容量
-- **CloudBase PostgreSQL / PG** — CloudBase PG, PostgreSQL, Postgres, PG 模式, JS SDK v3 PostgreSQL, app.rdb(), queryPgDatabase, managePgDatabase, mysqldb OpenAPI, PostgREST, RLS, service_role, auth schema, storage schema, pgvector, 关系型数据库, 建表
+- **CloudBase PostgreSQL / PG** — CloudBase PG, PostgreSQL, Postgres, PG 模式, JS SDK v3 PostgreSQL, app.rdb(), queryPgDatabase, managePgDatabase, mysqldb OpenAPI, PostgREST, RLS, service_role, auth schema, storage schema, pgvector, 关系型数据库, 建表, pgdoc, PG Document 插件, PG 文档插件, EnablePGDocumentExt, 文档型云函数, 文档库迁 PG, 文档型 SDK 跑在 PG
 - **Existing MySQL (do not recommend)** — 已有 MySQL, 现有 MySQL 实例, queryMysqlDatabase, manageMysqlDatabase
 - **Cloud Functions** — 创建云函数, HTTP 云函数, getFunctionLogs, scf_bootstrap, runtime
 - **CloudRun backend** — CloudRun 部署, 云托管, container backend, Dockerfile

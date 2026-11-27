@@ -63,10 +63,17 @@ jobs:
 
       - name: Resolve published DSH version
         id: host
+        env:
+          REQUESTED_VERSION: ${{ inputs.dsh_version }}
         run: |
-          VERSION="${{ inputs.dsh_version }}"
+          set -euo pipefail
+          VERSION="${REQUESTED_VERSION:-}"
           if [ -z "$VERSION" ]; then
             VERSION=$(npm view @deepseek-ai/dsh dist-tags.latest)
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Unexpected DSH version: $VERSION"
+            exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -77,11 +84,13 @@ jobs:
           npm run build
 
       - name: Install the published host
+        env:
+          HOST_VERSION: ${{ steps.host.outputs.version }}
         run: |
           mkdir -p "$RUNNER_TEMP/dsh-host"
           cd "$RUNNER_TEMP/dsh-host"
           npm init -y >/dev/null
-          npm install "@deepseek-ai/dsh@${{ steps.host.outputs.version }}" \
+          npm install "@deepseek-ai/dsh@$HOST_VERSION" \
             --ignore-scripts --no-audit --no-fund
           test -x node_modules/.bin/dsh
 

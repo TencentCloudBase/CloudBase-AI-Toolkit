@@ -13,7 +13,6 @@
     "probe": "node probe.mjs"
   },
   "dependencies": {
-    "@cloudbase/aiagent-framework": "1.0.0-beta.27",
     "@cloudbase/cloudbase-mcp": "^2.36.1",
     "@modelcontextprotocol/sdk": "^1.22.0"
   }

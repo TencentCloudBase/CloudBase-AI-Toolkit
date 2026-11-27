@@ -90,6 +90,7 @@ export function installLocalSkill(options) {
     scope = 'project',
     mode = 'symlink',
     dryRun = false,
+    confirmReplace = false,
     cwd = process.cwd(),
   } = options;
 
@@ -100,6 +101,7 @@ export function installLocalSkill(options) {
     : getAgentSkillPath(agentKey, skillName, scope, cwd);
   const canonicalConflict = detectConflict(canonicalPath);
   const targetConflict = targetPath === canonicalPath ? canonicalConflict : detectConflict(targetPath);
+  const hasConflict = canonicalConflict !== 'none' || targetConflict !== 'none';
   const canonicalPointsToSource = mode === 'symlink';
   let canonicalSymlinkFailed = false;
   let canonicalSymlinkError = null;
@@ -122,6 +124,18 @@ export function installLocalSkill(options) {
     return {
       success: true,
       dryRun: true,
+      mode,
+      ...plan,
+    };
+  }
+
+  // Replacing an existing install deletes its directory tree. Require an explicit
+  // confirmation so a real install can never silently destroy an existing skill.
+  if (hasConflict && !confirmReplace) {
+    return {
+      success: false,
+      dryRun: false,
+      requiresConfirmation: true,
       mode,
       ...plan,
     };

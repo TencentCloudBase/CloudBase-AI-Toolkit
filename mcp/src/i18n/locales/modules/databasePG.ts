@@ -183,6 +183,8 @@ export const databasePG = defineModule(
       "action={action} 时必须提供 migrationVersion。{rule}",
     "migration.versionInvalid":
       "migrationVersion={version} 不是一个真实的时间（{reason}）。14 位必须是 YYYYMMDDHHMMSS 并落在真实日历上：时 ≤23、分 ≤59、秒 ≤59、日不超过当月天数。例如 minute=64 就是把分字段写成了 64。请改用当前时间的 14 位，或直接沿用本地 cloudbase/migrations/<version>_<name>.sql 里已有的版本号。",
+    "migration.nameDrift":
+      "migrationVersion={version} 已在远端应用，但名称为 \"{remoteName}\"，与本次传入的 \"{localName}\" 不一致。已应用的版本不允许改名（服务端不比对名称，改名会被静默跳过）。请沿用远端名称 \"{remoteName}\" 重试，或为本次变更分配新的 14 位版本号。",
     "migration.taskIdRequired":
       "action=describeMigrationTask 时必须提供 taskId（来自 applyMigration Push / MIGRATION_TASK_PENDING / MIGRATION_TASK_TIMEOUT 的 data.taskResult.TaskId）。",
     "localFile.readFailed": "读取本地迁移文件 {path} 失败：{reason}",
@@ -197,8 +199,6 @@ export const databasePG = defineModule(
       "远端迁移版本号 \"{version}\"（name={name}）无效。版本号必须匹配 /^\\d{14}$/（YYYYMMDDHHMMSS，与 applyMigration.migrationVersion 相同）。请修复远端历史记录后重试 fetchMigration。",
     "localFile.emptyQuery":
       "DescribePGUserMigration 对 version={version}（{name}）返回了空 Query。拒绝写入空的本地迁移文件（会污染 Git checksum）。",
-    "localFile.hydrateEmptyQuery":
-      "DescribePGUserMigration 对 version={version}（{name}）返回了空 Query。无法为 PushPGUserMigrations 补全远端历史。",
     "fetch.none": "没有可拉取的远端迁移。本地 cloudbase/migrations/ 未变化。",
     "fetch.fetched":
       "已拉取 {total} 条远端迁移：写入 {written} 条，跳过 {skipped} 条{suffix}。目录：{dir}/。",
@@ -206,10 +206,6 @@ export const databasePG = defineModule(
     "fetch.rerunWithForce":
       "使用 force=true 重新执行，从远端历史覆盖被跳过的本地文件（重新对齐 checksum）。",
     "fetch.failed": "fetchMigration 失败：{reason}",
-    "payloadSource.noRemoteHistory": "无远端历史",
-    "payloadSource.localCovered":
-      "本地文件树已覆盖 {count} 条远端迁移（CLI 对齐，跳过 Describe 补全）",
-    "payloadSource.hydrated": "通过 Describe 补全了 {count} 条远端迁移（本地文件树不完整）",
     "task.pollTimeout":
       "DescribeTaskResult 在 {seconds}s 后超时（TaskId={taskId}，最后 Status={status}，Phase={phase}）。",
     "task.pendingFirst":
@@ -227,9 +223,9 @@ export const databasePG = defineModule(
     "planMigration.nameRequired":
       "action=planMigration 时必须提供 migrationName（小写字母和下划线，字母开头）。",
     "planMigration.executable":
-      "已通过 PreviewPGUserMigrations 生成迁移计划（{source}{includeAll}）。请在 applyMigration 复用 migrationVersion={version}。请确保本地文件 {localFileHint} 存在且内容一致。",
+      "已通过 PreviewPGUserMigrations 生成迁移计划{includeAll}。请在 applyMigration 复用 migrationVersion={version}。请确保本地文件 {localFileHint} 存在且内容一致。",
     "planMigration.notExecutable":
-      "迁移计划不可执行（PreviewPGUserMigrations.Executable=false，{source}{includeAll}）。applyMigration 前请检查 apiResult.Conflicts。常见原因：版本旧于远端最新版本（{latest}）——如确有意乱序，请携带 includeAll=true（CLI --include-all）重试，或选择更新的版本；checksum 不一致。",
+      "迁移计划不可执行（PreviewPGUserMigrations.Executable=false{includeAll}）。applyMigration 前请检查 apiResult.Conflicts。常见原因：版本旧于远端最新版本（{latest}）——如确有意乱序，请携带 includeAll=true（CLI --include-all）重试，或选择更新的版本；本地历史与远端历史漂移（同一版本名称不一致，或远端历史缺失）。",
     "planMigration.reviewPlan":
       "请检查上方计划。确认无误后，使用相同 migrationVersion 调用 applyMigration。",
     "planMigration.resolveConflicts":
@@ -243,7 +239,7 @@ export const databasePG = defineModule(
     "applyMigration.previewAgain":
       "将本地 SQL 文件与 sql 参数对齐后（或选择新的 migrationVersion），请重新 preview。",
     "applyMigration.notExecutable":
-      "PreviewPGUserMigrations 报告 migrationVersion={version} Executable=false（远端最新={latest}，{source}，includeAll={includeAll}）。Push 未提交。请检查 previewResult.Conflicts——常见原因：local_migration_before_latest_remote（选择更新的 14 位版本，或设置 includeAll=true / CLI --include-all 表示有意乱序）或 checksum_mismatch。若 schema 变更紧急，可退回 action=execute 并 allowDdlViaExecute=true，但这会绕过迁移历史。",
+      "PreviewPGUserMigrations 报告 migrationVersion={version} Executable=false（远端最新={latest}，includeAll={includeAll}）。Push 未提交。请检查 previewResult.Conflicts——常见原因：local_migration_before_latest_remote（选择更新的 14 位版本，或设置 includeAll=true / CLI --include-all 表示有意乱序）或远端历史漂移（同一版本名称不一致，或远端历史缺失）。若 schema 变更紧急，可退回 action=execute 并 allowDdlViaExecute=true，但这会绕过迁移历史。",
     "applyMigration.checkLatest":
       "请检查 LatestVersion，并选择严格更新的 migrationVersion。",
     "applyMigration.rerunPlan":
@@ -264,7 +260,7 @@ export const databasePG = defineModule(
       "PushPGUserMigrations 已提交，但对 migrationVersion={version} 的远端历史校验失败：{reason}。迁移可能已应用也可能未应用——运行任何依赖 SQL 前，请先用 action=listMigrations 验证。",
     "applyMigration.manuallyVerify": "请手动验证远端迁移历史是否记录了该 migrationVersion。",
     "applyMigration.success":
-      "迁移已通过 PushPGUserMigrations 应用（{source}{includeAll}），任务{task}已校验存在于远端迁移历史。本地 SQL 已{localAction}：{localPath}。",
+      "迁移已通过 PushPGUserMigrations 应用{includeAll}，任务{task}已校验存在于远端迁移历史。本地 SQL 已{localAction}：{localPath}。",
     "applyMigration.localWritten": "写入",
     "applyMigration.localMatched": "匹配",
     "applyMigration.failed": "PushPGUserMigrations 失败：{reason}",
@@ -508,6 +504,8 @@ export const databasePG = defineModule(
       "Provide migrationVersion when action={action}. {rule}",
     "migration.versionInvalid":
       "migrationVersion={version} is not a real timestamp ({reason}). The 14 digits must be YYYYMMDDHHMMSS on a real calendar: hour ≤23, minute ≤59, second ≤59, and day within that month. For example minute=64 means the minute field was written as 64. Use the current time in 14 digits, or reuse a version that already exists in cloudbase/migrations/<version>_<name>.sql.",
+    "migration.nameDrift":
+      "migrationVersion={version} is already applied remotely as \"{remoteName}\", which does not match \"{localName}\". Renaming an applied version is not supported (the server does not compare names and silently skips it). Reuse \"{remoteName}\", or assign a new 14-digit version.",
     "migration.taskIdRequired":
       "Provide taskId when action=describeMigrationTask (from applyMigration Push / MIGRATION_TASK_PENDING / MIGRATION_TASK_TIMEOUT data.taskResult.TaskId).",
     "localFile.readFailed":
@@ -524,8 +522,6 @@ export const databasePG = defineModule(
       "Remote migration version \"{version}\" (name={name}) is invalid. Versions must match /^\\d{14}$/ (YYYYMMDDHHMMSS, same as applyMigration.migrationVersion). Repair the remote history record, then retry fetchMigration.",
     "localFile.emptyQuery":
       "DescribePGUserMigration returned empty Query for version={version} ({name}). Refuse to write an empty local migration file (would poison Git checksums).",
-    "localFile.hydrateEmptyQuery":
-      "DescribePGUserMigration returned empty Query for version={version} ({name}). Cannot hydrate remote history for PushPGUserMigrations.",
     "fetch.none":
       "No remote migrations to fetch. Local cloudbase/migrations/ unchanged.",
     "fetch.fetched":
@@ -535,11 +531,6 @@ export const databasePG = defineModule(
     "fetch.rerunWithForce":
       "Re-run with force=true to overwrite skipped local files from remote history (checksum realign).",
     "fetch.failed": "fetchMigration failed: {reason}",
-    "payloadSource.noRemoteHistory": "no remote history",
-    "payloadSource.localCovered":
-      "local tree covered {count} remote migration(s) (CLI parity, skipped Describe hydrate)",
-    "payloadSource.hydrated":
-      "hydrated {count} remote migration(s) via Describe (local tree incomplete)",
     "task.pollTimeout":
       "DescribeTaskResult timed out after {seconds}s for TaskId={taskId} (last Status={status}, Phase={phase}).",
     "task.pendingFirst":
@@ -562,9 +553,9 @@ export const databasePG = defineModule(
     "planMigration.nameRequired":
       "Provide migrationName (lowercase letters and underscores, starting with a letter) when action=planMigration.",
     "planMigration.executable":
-      "Migration plan generated via PreviewPGUserMigrations ({source}{includeAll}). Reuse migrationVersion={version} on applyMigration. Ensure local file {localFileHint} exists and matches.",
+      "Migration plan generated via PreviewPGUserMigrations{includeAll}. Reuse migrationVersion={version} on applyMigration. Ensure local file {localFileHint} exists and matches.",
     "planMigration.notExecutable":
-      "Migration plan is NOT executable (PreviewPGUserMigrations.Executable=false after {source}{includeAll}). Inspect apiResult.Conflicts before applyMigration. Common causes: version older than latest remote ({latest}) — retry with includeAll=true (CLI --include-all) if intentionally out-of-order, or pick a newer version; checksum mismatch.",
+      "Migration plan is NOT executable (PreviewPGUserMigrations.Executable=false{includeAll}). Inspect apiResult.Conflicts before applyMigration. Common causes: version older than latest remote ({latest}) — retry with includeAll=true (CLI --include-all) if intentionally out-of-order, or pick a newer version; local history diverges from remote (same version with a different name, or missing remote history).",
     "planMigration.reviewPlan":
       "Review the plan above. If it looks correct, call applyMigration with the same migrationVersion.",
     "planMigration.resolveConflicts":
@@ -579,7 +570,7 @@ export const databasePG = defineModule(
     "applyMigration.previewAgain":
       "After aligning the local SQL file with the sql argument (or choosing a new migrationVersion), preview again.",
     "applyMigration.notExecutable":
-      "PreviewPGUserMigrations reported Executable=false for migrationVersion={version} (latest remote={latest}, {source}, includeAll={includeAll}). Push was NOT submitted. Inspect previewResult.Conflicts — common reasons: local_migration_before_latest_remote (pick a newer 14-digit version, or set includeAll=true / CLI --include-all for intentional out-of-order) or checksum_mismatch. If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
+      "PreviewPGUserMigrations reported Executable=false for migrationVersion={version} (latest remote={latest}, includeAll={includeAll}). Push was NOT submitted. Inspect previewResult.Conflicts — common reasons: local_migration_before_latest_remote (pick a newer 14-digit version, or set includeAll=true / CLI --include-all for intentional out-of-order) or remote history drift (same version with a different name, or missing remote history). If the schema change is urgent you may fall back to action=execute with allowDdlViaExecute=true, but that bypasses migration history.",
     "applyMigration.checkLatest":
       "Check LatestVersion and pick a migrationVersion strictly newer than it.",
     "applyMigration.rerunPlan":
@@ -605,7 +596,7 @@ export const databasePG = defineModule(
     "applyMigration.manuallyVerify":
       "Manually verify whether the remote migration history records this migrationVersion.",
     "applyMigration.success":
-      "Migrations applied via PushPGUserMigrations ({source}{includeAll}), task {task}verified present in the remote migration history. Local SQL {localAction} at {localPath}.",
+      "Migrations applied via PushPGUserMigrations{includeAll}, task {task}verified present in the remote migration history. Local SQL {localAction} at {localPath}.",
     "applyMigration.localWritten": "written",
     "applyMigration.localMatched": "matched",
     "applyMigration.failed": "PushPGUserMigrations failed: {reason}",

@@ -52,6 +52,9 @@ await upstream.connect(st);
 const client = new Client({ name: 'wrapper', version: '1.0.0' }, { capabilities: {} });
 await client.connect(ct);
 
+// 工具白名单：企业策略决定暴露哪些工具，tools/list 与 tools/call 用同一份
+const ALLOW_TOOLS = new Set(['manageApps', 'queryApps']);
+
 // 危险动作：官方二次确认清单的删除类，按语义前缀兜底
 const isDenied = (tool, action) =>
   /^(delete|destroy|remove|clear|truncate|drop)/i.test(action ?? '');
@@ -62,6 +65,7 @@ wrapper.setRequestHandler(ListToolsRequestSchema, async () => {
   const { tools } = await client.listTools();
   const visible = [];
   for (const tool of tools) {
+    if (!ALLOW_TOOLS.has(tool.name)) continue;   // 列表与调用按同一份白名单收口
     // 被禁动作从参数 enum 里剪掉，模型在参数定义层就看不见
     const p = tool.inputSchema?.properties?.action;
     if (p?.enum) {
@@ -75,6 +79,9 @@ wrapper.setRequestHandler(ListToolsRequestSchema, async () => {
 
 wrapper.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args = {} } = req.params;
+  if (!ALLOW_TOOLS.has(name)) {
+    return { content: [{ type: 'text', text: `工具 ${name} 未对该业务开放，重试无效。` }], isError: true };
+  }
   if (isDenied(name, args.action)) {
     return { content: [{ type: 'text', text: `${name}.${args.action} 被平台策略禁止，重试无效。` }], isError: true };
   }
@@ -90,19 +97,32 @@ console.error('[cbw] ready');
 
 ### 2. 凭证自检：只有环境级作用域才放行
 
-环境 API Key 的生效条件是「Key 与 `CLOUDBASE_ENV_ID` **同时**在环境变量」，且换证失败会被静默吞掉、回落到机器上可能存在的全局登录态——wrapper 会带着账号级权限继续跑而不自知。启动时自检一次：
+环境 API Key 的生效条件是「Key 与 `CLOUDBASE_ENV_ID` **同时**在环境变量」，且换证失败会被静默吞掉、回落到机器上可能存在的全局登录态——wrapper 会带着账号级权限继续跑而不自知。启动时自检一次：`auth(action="status")` 返回 JSON，直接解析取字段。
 
 ```js
 const res = await client.callTool({ name: 'auth', arguments: { action: 'status' } });
 const text = (res.content ?? []).map((c) => c.text ?? '').join('\n');
-const scope = /credential_scope["'=:\s]+(\w+)/i.exec(text)?.[1];
-if (scope && scope !== 'single_env') {
-  console.error(`[cbw] 凭证作用域异常（${scope}），API Key 未生效，拒绝服务`);
+let status;
+try {
+  status = JSON.parse(text);          // 返回的是 JSON，直接取字段，别用正则从文本里抠
+} catch {
+  console.error('[cbw] auth(status) 返回的不是 JSON，无法确认凭证状态，拒绝服务');
+  process.exit(1);
+}
+// 三个条件缺一不可：真的登录了、作用域是环境级、凭证来自环境变量
+if (status.auth_status !== 'READY' ||
+    status.credential_scope !== 'single_env' ||
+    status.credential_source !== 'env') {
+  console.error(`[cbw] 凭证未生效（auth_status=${status.auth_status}, scope=${status.credential_scope}, source=${status.credential_source}），拒绝服务`);
   process.exit(1);
 }
 ```
 
-`single_env` 且来源为 env 才放行；看到 `account` 说明回落到了全局登录态，直接拒绝服务。三个变量（envId、Key）由平台按人下发到员工配置的 `env` 块，员工不编辑。
+三个条件必须同时成立：`auth_status=READY`（真的登录了）、`credential_scope=single_env`（环境级作用域）、`credential_source=env`（凭证来自进程环境变量，不是机器上的全局登录态）。
+
+`credential_scope` 只回答「配置里有没有成对的环境变量」，**不验证 Key 是否有效**——只查这一项，一把无效 Key 配齐两个变量也会报 `single_env`，自检会放行一个根本没登录的 wrapper。反过来 `account` 只说明两个变量没配齐，不等于回落到了全局登录态；env 注入的 Key 换证失败时换证函数直接返回空，不会回落。
+
+`envId` 与 Key 由平台按人下发到员工配置的 `env` 块，员工不编辑。
 
 **交付给 AI 的凭证形态只有一种：环境 ID + API Key。** API Key 是长期根凭证，MCP 内部用它换 30 分钟有效的 STS 临时凭证出网，过期自动重换。STS 三件套（`TmpSecretId` / `TmpSecretKey` / `Token`）是换证**产物**，不是交付物——只把 STS 交给 AI 或写进配置，过期后整条链路挂掉且无法自愈；拿到 Key + envId 就永远能重新换证。
 
@@ -197,10 +217,11 @@ await queryApps({ action: 'getBuildLog',  serviceName, buildId });
 ## 踩坑清单
 
 - **入口用 CJS**（`dist/index.cjs`）：ESM 入口引用了未声明的内部依赖，装不上直接报模块找不到
+- **别二次打包官方 MCP**：`dist/index.cjs` 是 12MB 的 webpack bundle，用 esbuild 卷进自己的产物会破坏内部模块包装（启动时报 `i.default is not a constructor`）；把 `@cloudbase/cloudbase-mcp` 标成 external，运行时用 `createRequire` 直接 require。CJS 入口是具名导出，不需要 `.default` fallback；bundle 自包含，不用额外装依赖
 - **stdout 只写 JSON-RPC**：所有日志 `console.error`。多一个 `console.log` 客户端握手就崩
 - **`pluginsEnabled` 显式传**：只收窄工具面，减少暴露与误调用；权限边界由 API Key 的 CAM 权限决定，是环境级别，`capi` 能调什么仍受这把 Key 的策略约束
 - **enum 剪空要下架整个工具**：留下一个「没有任何合法参数」的工具，模型会反复空参重试
-- **两个环境变量必须同时给**：只给 Key 不给 `CLOUDBASE_ENV_ID`，Key 根本不参与解析，静默回落全局登录态
+- **两个环境变量必须同时给**：只给 Key 不给 `CLOUDBASE_ENV_ID`，Key 根本不参与解析；换证失败也会跳过这把 Key，继续读机器上可能存在的全局登录态
 - **错误返回带原因**：拦截时写明「平台策略禁止，重试无效」，不带说明的报错会诱使模型换个姿势再试
 - **只交 STS 不交 API Key**：临时凭证会过期，过期后没有根凭证可重换；`ak-` 与 `ApiKey` / `service_role` JWT 都能换出 STS，MCP 与 CLI 都支持，交付物用 `envId + API Key` 对
 - **接口名与参数凭记忆猜**：Action 名、参数结构、默认值一律以文档索引（api-reference）与官方文档为准；记忆推断的内容必须标注并先验证再用
@@ -210,7 +231,7 @@ await queryApps({ action: 'getBuildLog',  serviceName, buildId });
 1. `initialize` 握手成功（stdout 无杂物）
 2. `tools/list` 数量与插件组合一致、被禁 action 不在任何 enum 里
 3. 拦截表动作全部返回 `isError: true` 且文案明确
-4. `auth(action="status")` 返回 `credential_scope=single_env`（假凭证 + 临时跳过自检可先验协议层）
+4. `auth(action="status")` 三项同时成立：`auth_status=READY`、`credential_scope=single_env`、`credential_source=env`（假凭证 + 临时跳过自检可先验协议层）
 5. 真环境部署一次（例 1 最小路径），确认域名可访问、审计日志有记录
 
 配套：完整教程（三层选型、远端差异表）见文档站「企业平台接入 CloudBase MCP：封装自有 MCP」。

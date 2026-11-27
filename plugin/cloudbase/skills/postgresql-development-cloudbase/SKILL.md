@@ -1,7 +1,7 @@
 ---
 name: postgresql-development-cloudbase
-description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG."
-version: 2.37.7
+description: "Use when building, debugging, or evaluating CloudBase PostgreSQL / CloudBase PG / PG mode apps, including Postgres schema setup, queryPgDatabase/managePgDatabase, JS SDK v3 app.rdb() CRUD/RPC, PG HTTP API fallback, RLS-style permissions, username-password auth, and Web CMS/admin CRUD flows backed by CloudBase PG. Also use when an existing document-database app (app.database() / db.collection() / wx.cloud.database() / wx-server-sdk cloud functions) must run on a PostgreSQL environment without rewriting its SDK calls — that is the pgdoc / PG Document plugin (EnablePGDocumentExt), not a PG rewrite; see references/pgdoc.md."
+version: 2.37.9
 license: MIT
 alwaysApply: false
 ---

@@ -113,12 +113,14 @@ scenarios:
   beforeAction:
   - 先确认是 Web SDK 场景。
   - 确认登录态与数据库访问权限模型。
+  - 若环境是 PostgreSQL 模式，不要判定文档型代码跑不了：pgdoc 插件承载文档型请求，SDK 调用不变，读 `postgresql-development-cloudbase/references/pgdoc.md`。
   doNotUse:
   - relational-database-mcp-cloudbase
   - http-api-cloudbase
   commonMistakes:
   - 把前端查文档库误导到 MySQL 管理工具。
   - 未确认登录态就直接写数据库代码。
+  - 用户说「PG 环境跑不了文档型云函数」就跟着建议重建环境或改写成 SQL。
   label: Web projects + NoSQL Database
   mustCheckBeforeAction:
   - Login state and database access permission model
@@ -167,6 +169,13 @@ scenarios:
   - pgvector
   - 关系型数据库
   - 建表
+  - pgdoc
+  - PG Document 插件
+  - PG 文档插件
+  - EnablePGDocumentExt
+  - 文档型云函数
+  - 文档库迁 PG
+  - 文档型 SDK 跑在 PG
   firstRead: postgresql-development-cloudbase
   thenRead:
   - auth-tool-cloudbase
@@ -180,11 +189,13 @@ scenarios:
   - 用户名密码登录先用 `queryAppAuth` / `manageAppAuth` 确认或开启。
   - Web 业务数据优先用 JS SDK v3 `app.rdb()`，HTTP API 只在查过 `mysqldb` OpenAPI 后使用。
   - 业务数据必须落到 CloudBase PG。新的关系型数据库用 PostgreSQL，不要建议开通 MySQL。
+  - 已有文档型 SDK / 云函数代码要在 PG 环境继续跑，先读 `postgresql-development-cloudbase/references/pgdoc.md`：这是 pgdoc，代码不用改。
   doNotUse:
   - relational-database-mcp-cloudbase
   - cloudbase-document-database-web-sdk
   commonMistakes:
   - 把新的关系型需求做成 MySQL，或把 CloudBase PG 写成 NoSQL 集合接口。
+  - 环境建成 PG 模式就判定文档型云函数跑不了，建议重建环境或把 `db.collection()` 改写成 `app.rdb()` —— pgdoc 插件让文档型请求由 PG 承载，代码不变。
   - 只做前端按钮隐藏，没有后端或数据库层权限。
   - 猜 `/api/v1/rdb/rest` 这类 HTTP 路径，导致浏览器 404 后继续调试业务逻辑。
   - 写非法 Vite/TypeScript 动态 import，导致页面 500 后仍继续调试业务逻辑。
