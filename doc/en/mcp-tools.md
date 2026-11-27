@@ -2,7 +2,7 @@
 
 Currently includes 44 tools, grouped by function as follows.
 
-Source data: [tools.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.json)
+Source data: [tools.en.json](https://github.com/TencentCloudBase/CloudBase-AI-ToolKit/blob/main/scripts/tools.en.json)
 
 ---
 

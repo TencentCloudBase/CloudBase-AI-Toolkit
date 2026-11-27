@@ -71,7 +71,7 @@ const I18N = {
     output: ['..', 'doc', 'en', 'mcp-tools.md'],
     title: '# MCP Tools',
     intro: (n) => `Currently includes ${n} tools, grouped by function as follows.`,
-    source: (url) => `Source data: [tools.json](${url})`,
+    source: (url) => `Source data: [tools.en.json](${url.replace('tools.json', 'tools.en.json')})`,
     overview: '## Tool Overview',
     params: '#### Parameters',
     none: 'None',
