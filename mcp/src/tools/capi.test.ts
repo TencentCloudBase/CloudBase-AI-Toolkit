@@ -307,25 +307,39 @@ describe("removeEmptyStringParams", () => {
 });
 
 describe("callCloudApi credential failures", () => {
-  it("classifies token rejections by credential scope", () => {
-    expect(classifyCapiError("Token verification failed", "single_env")).toBe("credential_scope_limited");
+  it("classifies one error once, regardless of credential scope", () => {
+    expect(classifyCapiError("Token verification failed", "single_env")).toBe("credential_expired");
     expect(classifyCapiError("invalid token", "single_env")).toBe("credential_scope_limited");
-    expect(classifyCapiError("Token verification failed", "account")).toBe("credential_invalid");
-    expect(classifyCapiError("AuthFailure: token expired", "account")).toBe("credential_invalid");
+    expect(classifyCapiError("Token verification failed", "account")).toBe("credential_expired");
+    expect(classifyCapiError("AuthFailure: token expired", "account")).toBe("credential_expired");
     expect(classifyCapiError("UnauthorizedOperation: denied", "account")).toBe("cam_denied");
     expect(classifyCapiError("some other error", "account")).toBe("cloud_api_error");
+    expect(classifyCapiError("token is invalid", "account")).toBe("credential_invalid");
+    expect(classifyCapiError("JWT invalid token signature", "account")).toBe("cloud_api_error");
+    expect(
+      classifyCapiError(
+        Object.assign(new Error("invalid token"), { code: "InvalidParameter" }),
+        "account",
+      ),
+    ).toBe("cloud_api_error");
+    expect(
+      classifyCapiError(
+        Object.assign(new Error("invalid token"), { code: "AuthFailure.TokenFailure" }),
+        "account",
+      ),
+    ).toBe("credential_expired");
   });
 
-  it("tells the model to re-check status instead of reconnecting", () => {
+  it("treats an expired token as renewable, not as a permission boundary", () => {
     const message = buildCapiErrorMessage(
       "tcb",
       "DescribeEnvs",
       new Error("Token verification failed"),
       "single_env",
     );
-    expect(message).toContain('auth(action="status")');
+    expect(message).toContain("临时密钥已过期");
     expect(message).toContain("不要解绑");
-    expect(message).toContain("权限边界");
+    expect(message).not.toContain("重试同一请求都不会成功");
     expect(message).not.toContain("这是 CAM 权限不足");
   });
 
@@ -346,7 +360,7 @@ describe("callCloudApi credential failures", () => {
     const result = buildCapiFailureResult("tcb", "DescribeEnvs", error, "single_env");
     const payload = JSON.parse(result.content[0].text);
     expect(payload.success).toBe(false);
-    expect(payload.error_category).toBe("credential_scope_limited");
+    expect(payload.error_category).toBe("credential_expired");
     expect(payload.credential_scope).toBe("single_env");
     expect(payload.code).toBe("AuthFailure.TokenInvalid");
     expect(payload.requestId).toBe("req-123");
@@ -355,7 +369,7 @@ describe("callCloudApi credential failures", () => {
       action: "status",
       suggested_args: { action: "status" },
     });
-    expect(payload.message).toContain('auth(action="status")');
+    expect(payload.message).toContain("临时密钥已过期");
   });
 
   it("does not send ordinary API errors to a login re-check", () => {

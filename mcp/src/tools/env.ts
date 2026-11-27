@@ -799,7 +799,13 @@ export type CredentialScope = "single_env" | "account";
 function isApiKeyCredentialMode(): boolean {
   const binding = getCredentialBinding();
   if (binding.scope === "env") return true;
-  return Boolean(getCloudBaseApiKeyFromEnv() && process.env.CLOUDBASE_ENV_ID);
+  // 进程变量只是「用户想用哪个环境」的声明，不是凭据。换证失败时
+  // credentialSource 为 null，此时不能把回执说成已有环境级凭据。
+  return Boolean(
+    getCredentialSource() !== null &&
+      getCloudBaseApiKeyFromEnv() &&
+      process.env.CLOUDBASE_ENV_ID,
+  );
 }
 
 export function getCredentialScope(cloudBaseOptions?: {
@@ -823,18 +829,19 @@ function buildCredentialBoundaryPayload(
   const binding = getCredentialBinding();
   const credentialScope = getCredentialScope(cloudBaseOptions);
   const currentRegion = resolveSiteAndRegion(cloudBaseOptions ?? {}).region;
-  // 凭据实际绑定的环境：回执里要能自证「Key 和 envId 是否配套」。
-  // 账号级登录态没有这个概念，恒为 null；手设 CLOUDBASE_ENV_ID 只说明
-  // 想查哪个环境，不代表凭据属于它。
+  // 凭据边界只认 binding.envId（或宿主显式声明的环境级 envId）：
+  // 手设 CLOUDBASE_ENV_ID 只说明想查哪个环境，不能盖过凭据真正绑定的环境。
+  // 账号级登录态没有这个概念，恒为 null。
+  const hostedEnvId =
+    cloudBaseOptions?.credentialScope === "env" &&
+    typeof cloudBaseOptions.envId === "string" &&
+    cloudBaseOptions.envId.length > 0
+      ? cloudBaseOptions.envId
+      : undefined;
+  const boundEnvId = binding.envId ?? hostedEnvId ?? null;
   const credentialEnvId =
-    credentialScope === "single_env"
-      ? process.env.CLOUDBASE_ENV_ID || binding.envId || null
-      : null;
-  const pinnedEnvId =
-    process.env.CLOUDBASE_ENV_ID ||
-    cloudBaseOptions?.envId ||
-    binding.envId ||
-    null;
+    credentialScope === "single_env" ? boundEnvId : null;
+  const pinnedEnvId = boundEnvId;
   const scopeNote =
     credentialScope === "single_env"
       ? t(
@@ -1031,47 +1038,11 @@ async function appendApiKeyCamWarningIfNeeded(
 }
 
 /**
- * 目标环境是否被 CAM 明确拒绝。只在「凭据看起来是 API Key 换出来的」时探测：
- * 账号级 device 登录态带 refreshToken、不带 apiKey，即使也带 loginState.envId
- * 也不该为每次 set_env 多发一次 DescribeEnvInfo。
- * binding.scope === "env" 的路径已在护栏处拦下，这里兜的是凭据文件没写
- * authSource、范围判定保守回落 account 的场景。
+ * 这里曾有一段「绑定前探 CAM」的兜底。它的触发前提（凭据带 apiKey 且记着旧环境）
+ * 与 binding 判环境级的前提完全重合：环境级已在护栏处提前 return，账号级不带
+ * apiKey，实测 0/72 组合可达。护栏本身已能确定拦截跨环境切换，云端探测没有增量
+ * 信息，故删除，避免为每次 set_env 多发一次 DescribeEnvInfo。
  */
-async function probeTargetEnvCamDenial(
-  loginState: any,
-  targetEnvId: string,
-): Promise<boolean> {
-  const record = loginState as
-    | (Record<string, unknown> & {
-        authSource?: string;
-        apiKey?: string;
-        envId?: string;
-      })
-    | null;
-  const previousEnvId = record?.envId;
-  const looksLikeApiKey =
-    Boolean(record?.apiKey) || record?.authSource === "api_key";
-  if (
-    !looksLikeApiKey ||
-    typeof previousEnvId !== "string" ||
-    previousEnvId.length === 0 ||
-    previousEnvId === targetEnvId
-  ) {
-    return false;
-  }
-  try {
-    const probe = await probeApiKeyCamCapability({
-      ...loginState,
-      envId: targetEnvId,
-    });
-    return probe === "limited";
-  } catch (e) {
-    debug("probeTargetEnvCamDenial: probe threw", {
-      error: e instanceof Error ? e.message : String(e),
-    });
-    return false;
-  }
-}
 
 async function prepareAuthEnvironment(params: {
   server: ExtendedMcpServer;
@@ -2973,10 +2944,8 @@ export function registerEnvTools(server: ExtendedMcpServer) {
           }
 
           if (isApiKeyCredentialMode()) {
-            // 全局槽 / 项目级 API Key 凭据没有进程环境变量，钉住的环境只能从
-            // 凭据文件里读；两者都在时以显式注入的进程变量为准。
-            const pinnedEnvId =
-              process.env.CLOUDBASE_ENV_ID || getCredentialBinding().envId;
+            // 钉住的环境只从凭据事实读，不再让手设的进程变量盖过它。
+            const pinnedEnvId = getCredentialBinding().envId;
             if (pinnedEnvId && envId !== pinnedEnvId) {
               return buildJsonToolResult({
                 ok: false,
@@ -3012,27 +2981,6 @@ export function registerEnvTools(server: ExtendedMcpServer) {
               envId,
               cloudBaseOptions,
               loginState,
-            });
-          }
-
-          // 绑定之前先探：CAM 明确拒绝就别把用户绑到一个用不了的环境上。
-          // 只有「凭据看起来是 API Key」且确实记着旧环境时才会发这次请求。
-          if (await probeTargetEnvCamDenial(loginState, envId)) {
-            return buildJsonToolResult({
-              ok: false,
-              code: "CREDENTIAL_SCOPE_LIMITED",
-              message: t("env.auth.credentialCamRejected", { envId }, outLang),
-              ...credentialBoundary,
-              current_env_id: envId,
-              next_step: {
-                tool: "auth",
-                action: "login_by_api_key",
-                reason: t(
-                  "env.auth.credentialCamRejectedAction",
-                  undefined,
-                  outLang,
-                ),
-              },
             });
           }
 

@@ -963,6 +963,11 @@ describe("env tools - auth", () => {
   it("auth(action=set_env) should reject other envIds in API Key mode", async () => {
     process.env.CLOUDBASE_API_KEY = "test-api-key";
     process.env.CLOUDBASE_ENV_ID = "env-pinned";
+    mockGetCredentialBinding.mockReturnValue({
+      scope: "env",
+      envId: "env-pinned",
+      authSource: "api_key",
+    });
     mockPeekLoginState.mockResolvedValue({
       secretId: "sid",
       secretKey: "skey",
@@ -1051,42 +1056,7 @@ describe("env tools - auth", () => {
     expect(mockProbeApiKeyCamCapability).not.toHaveBeenCalled();
   });
 
-  it("C3: 凭据带 apiKey 且目标环境被 CAM 拒绝时，绑定前就阻断", async () => {
-    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
-    mockPeekLoginState.mockResolvedValue({
-      secretId: "sid",
-      secretKey: "skey",
-      apiKey: "key-of-old-env",
-      envId: "env-key-owned",
-    });
-    mockProbeApiKeyCamCapability.mockResolvedValueOnce("limited");
-    mockListAvailableEnvCandidates.mockResolvedValue([]);
-    mockResolveEnvCandidateByEnvId.mockResolvedValue({
-      envId: "env-switched",
-      region: "ap-shanghai",
-    });
-
-    const result = await tools.auth.handler({
-      action: "set_env",
-      envId: "env-switched",
-    });
-    const payload = JSON.parse(result.content[0].text);
-
-    expect(payload).toMatchObject({
-      ok: false,
-      code: "CREDENTIAL_SCOPE_LIMITED",
-      current_env_id: "env-switched",
-      next_step: { action: "login_by_api_key" },
-    });
-    expect(payload.message).toContain("API Key");
-    expect(payload.credential_warning).toBeUndefined();
-    expect(mockProbeApiKeyCamCapability).toHaveBeenCalledWith(
-      expect.objectContaining({ envId: "env-switched" }),
-    );
-    expect(mockEnvManagerSetEnvId).not.toHaveBeenCalled();
-  });
-
-  it("C4: 账号级凭据手设 CLOUDBASE_ENV_ID 时 credential_env_id 仍是 null", async () => {
+  it("C3: 账号级凭据手设 CLOUDBASE_ENV_ID 时 credential_env_id 仍是 null", async () => {
     delete process.env.CLOUDBASE_API_KEY;
     process.env.CLOUDBASE_ENV_ID = "env-manual";
     mockGetCredentialBinding.mockReturnValue({ scope: "account" });
@@ -1110,6 +1080,21 @@ describe("env tools - auth", () => {
     expect(payload.credential_scope).toBe("account");
     expect(payload.credential_env_id).toBeNull();
     expect(mockEnvManagerSetEnvId).toHaveBeenCalledWith("env-switched");
+  });
+
+  it("C4: 用户自设 API Key 换取失败时，回执不说成已有环境级凭据", async () => {
+    process.env.CLOUDBASE_API_KEY = "stale-key";
+    process.env.CLOUDBASE_ENV_ID = "env-E";
+    mockGetCredentialBinding.mockReturnValue({ scope: "account" });
+    mockPeekLoginState.mockResolvedValue(null);
+
+    const result = await tools.auth.handler({ action: "status" });
+    const payload = JSON.parse(result.content[0].text);
+
+    expect(payload.credential_source).toBeNull();
+    expect(payload.credential_scope).toBe("account");
+    expect(payload.credential_env_id).toBeNull();
+    delete process.env.CLOUDBASE_API_KEY;
   });
 
   it("auth(action=logout) should clear session state", async () => {
@@ -3315,7 +3300,7 @@ describe("env tools - queryEnv", () => {
       })
     ).content[0].text;
 
-    expect(text).toContain("认证错误");
+    expect(text).toContain("临时密钥已过期");
     expect(text).toContain("重新授权");
     // Hosted remote mode does not register auth; the message must not point at it.
     expect(text).not.toContain("auth(action=");

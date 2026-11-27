@@ -72,7 +72,9 @@ describe("callCloudApi credential scope comes from the resolved credential", () 
     expect(payload.error_category).toBe("credential_scope_limited");
   });
 
-  it("device 登录态：同样的 invalid token 判为 credential_invalid", async () => {
+  // 账号级凭据调用管控面接口被 CAM 拒绝时，网关同样返回 invalid token；
+  // 不能因为 scope 是 account 就把它说成「凭据无效，去重新登录」。
+  it("device 登录态：同样的 invalid token 仍判为权限边界", async () => {
     authStoreData.credential = {
       secretId: "sid",
       secretKey: "skey",
@@ -92,6 +94,6 @@ describe("callCloudApi credential scope comes from the resolved credential", () 
     );
     const payload = JSON.parse(result.content[0].text);
     expect(payload.credential_scope).toBe("account");
-    expect(payload.error_category).toBe("credential_invalid");
+    expect(payload.error_category).toBe("credential_scope_limited");
   });
 });

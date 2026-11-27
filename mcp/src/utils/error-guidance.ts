@@ -76,7 +76,7 @@ const REGISTRY: ErrorGuidance[] = [
  * 也经常没有结构化 Code；只在这里作为 Code 未命中后的兜底依据。
  */
 export const CREDENTIAL_EXPIRED_PATTERN =
-  /Token verification failed|tmp secret key expire|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
+  /Token verification failed|tmp secret key expire|token expired|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
 
 /**
  * An account-level control-plane Action (DescribeEnvs without EnvId, DescribeVpcs,
@@ -87,9 +87,49 @@ export const CREDENTIAL_EXPIRED_PATTERN =
  */
 export const CREDENTIAL_SCOPE_LIMITED_PATTERN = /invalid token(?!\s+[a-z]+\s+config)/i;
 
+/** 一条凭据失败只能落入一个分类；tool-wrapper 与 callCloudApi 共用这一组取值。 */
+export type CredentialFailureKind =
+  | "expired"
+  | "scope_limited"
+  | "invalid"
+  | "cam_denied"
+  | "other";
+
+/** 本地校验 / 网络故障里也会出现 token 字样，不属于云 API 鉴权结论。 */
+const NON_AUTH_TOKEN_CONTEXT =
+  /JWT|signature|format in|ECONNRESET|ETIMEDOUT|ENOTFOUND|network|timeout/i;
+
+const CREDENTIAL_INVALID_PATTERN = /token is invalid|invalid credential/i;
+
+/** 与 callCloudApi 共用，避免两处各写一份 CAM 正则。 */
+export const CAM_AUTH_ERROR_PATTERN =
+  /UnauthorizedOperation|AuthFailure|not authorized|cam.*denied|Forbidden/i;
+
 const AUTH_CODE_PATTERN =
   /AuthFailure|11014|\b213\b|TokenFailure|SignatureFailure|InvalidCredential|UnauthorizedOperation/i;
 const EXPIRED_CODE_PATTERN = /AuthFailure\.TokenFailure|11014|\b213\b/i;
+
+/**
+ * 唯一的凭据失败判据。抛异常路径与结构化返回路径都调它，
+ * 保证同一条错误只得到一个分类、一份指引。code 优先于 message。
+ */
+export function classifyCredentialFailure(error: unknown): CredentialFailureKind {
+  const code = resolveErrorCode(error);
+  const message = errorMessageOf(error);
+
+  // 结构化非鉴权码优先：参数错误里偶然出现 token 字样不该被当成鉴权失败。
+  if (code && !AUTH_CODE_PATTERN.test(code)) return "other";
+  // 带 AuthFailure.TokenFailure 的 invalid token 仍是可重试的过期，不是权限边界。
+  if (code && EXPIRED_CODE_PATTERN.test(code)) return "expired";
+  if (CREDENTIAL_EXPIRED_PATTERN.test(message)) return "expired";
+  if (NON_AUTH_TOKEN_CONTEXT.test(message)) return "other";
+  if (CREDENTIAL_SCOPE_LIMITED_PATTERN.test(message)) return "scope_limited";
+  if (CREDENTIAL_INVALID_PATTERN.test(message)) return "invalid";
+  if (CAM_AUTH_ERROR_PATTERN.test(message) || (code && AUTH_CODE_PATTERN.test(code))) {
+    return "cam_denied";
+  }
+  return "other";
+}
 
 const CREDENTIAL_EXPIRED_GUIDANCE: ErrorGuidance = {
   code: "AuthFailure.TokenFailure",
@@ -110,34 +150,15 @@ const CREDENTIAL_SCOPE_LIMITED_GUIDANCE: ErrorGuidance = {
 
 /** 是否属于「临时密钥过期」而非账号登录失效。 */
 export function isCredentialExpiredError(error: unknown): boolean {
-  const code = resolveErrorCode(error);
-  if (code && !AUTH_CODE_PATTERN.test(code)) {
-    return false;
-  }
-  if (code && EXPIRED_CODE_PATTERN.test(code)) {
-    return true;
-  }
-  return CREDENTIAL_EXPIRED_PATTERN.test(errorMessageOf(error));
+  return classifyCredentialFailure(error) === "expired";
 }
 
 /**
- * Whether the failure is a credential permission boundary rather than an expired token.
- * A structured expiration code or an explicit expiration message always wins, so a
- * payload carrying both signals still follows the renewable path.
+ * 是否属于凭据权限边界。判定委托给同一分类函数，
+ * 因此「过期」与「范围受限」在布尔层和指引层都互斥。
  */
 export function isCredentialScopeLimitedError(error: unknown): boolean {
-  const code = resolveErrorCode(error);
-  if (code && !AUTH_CODE_PATTERN.test(code)) {
-    return false;
-  }
-  if (code && EXPIRED_CODE_PATTERN.test(code)) {
-    return false;
-  }
-  const message = errorMessageOf(error);
-  if (CREDENTIAL_EXPIRED_PATTERN.test(message)) {
-    return false;
-  }
-  return CREDENTIAL_SCOPE_LIMITED_PATTERN.test(message);
+  return classifyCredentialFailure(error) === "scope_limited";
 }
 
 /**
@@ -199,20 +220,17 @@ export function findErrorGuidance(error: unknown): ErrorGuidance | null {
     if (matched) {
       return matched;
     }
-    // A structured non-auth code wins over an incidental token phrase.
-    if (!AUTH_CODE_PATTERN.test(code)) {
+  }
+  // 指引与凭据分类同源：带过期 Code 的 invalid token 只拿到过期指引，
+  // 不会再追加一条「重试同一请求都不会成功」。
+  switch (classifyCredentialFailure(error)) {
+    case "expired":
+      return CREDENTIAL_EXPIRED_GUIDANCE;
+    case "scope_limited":
+      return CREDENTIAL_SCOPE_LIMITED_GUIDANCE;
+    default:
       return null;
-    }
   }
-  // Token failures rejected at the access layer often carry no structured Code.
-  // Only the fixed authentication phrases above can produce guidance in that case.
-  if (CREDENTIAL_EXPIRED_PATTERN.test(message)) {
-    return CREDENTIAL_EXPIRED_GUIDANCE;
-  }
-  if (CREDENTIAL_SCOPE_LIMITED_PATTERN.test(message)) {
-    return CREDENTIAL_SCOPE_LIMITED_GUIDANCE;
-  }
-  return null;
 }
 
 /**

@@ -104,7 +104,7 @@ function listSourceFiles(dir) {
 function scanSource(text, relPath) {
   const found = [];
   const lines = text.split("\n");
-  const fieldRe = /(?:errorCode|(?<![A-Za-z])code)\s*:\s*(?:"([^"]+)"|'([^']+)')/g;
+  const fieldRe = /(?:errorCode|(?<![A-Za-z])code|error_category|credential_warning)\s*:\s*(?:"([^"]+)"|'([^']+)')/g;
   const compareRe =
     /(?:"([^"]+)"|'([^']+)')\s*(?:===|!==|==)\s*(?:errorCode|\bcode)|(?:errorCode|\bcode)\s*(?:===|!==|==)\s*(?:"([^"]+)"|'([^']+)')|\.includes\(\s*(?:"([^"]+)"|'([^']+)')\s*\)/g;
   const caseRe = /case\s+(?:"([^"]+)"|'([^']+)')\s*:/g;
@@ -263,6 +263,7 @@ const NEGATIVE_CASES = [
   { name: "三元条件赋值", text: `export const p = (ok) => ({ errorCode: ok ? "${PROBE_CODE}" : undefined });\n` },
   { name: "code 字段", text: `export const p = { code: "${PROBE_CODE}" };\n` },
   { name: "switch 分支", text: `export function p(c) { switch (c) { case "${PROBE_CODE}": return true; } }\n` },
+  { name: "分类字段", text: `export const p = { error_category: "${PROBE_CODE}" };\n` },
 ];
 const POSITIVE_CASES = [
   { name: "已登记状态值", text: `export const p = { code: "AUTH_READY" };\n` },

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. Follow the 
 
 ## Unreleased
 
+### Breaking changes
+
+* **mcp**: `manageCloudRun` `serverConfig.InternalAccess` now accepts only `open` / `close`, matching `ICloudrunServerBaseConfig`. The old free-form `string` schema and the `true` / `false` documentation were wrong; callers passing `"true"` must switch to `"open"`. `auth(status)` and `callCloudApi` now share one credential-failure classifier, so an expired token is never reported as a permanent permission boundary.
+
 ### Features
 
 * **skills**: cloud function call examples now show how to read what the function returned. The SDK response wraps that value in `result` (which may be a JSON string until `parse: true` is used), while any `code` / `message` / `data` inside it is defined by the function, not the SDK; state checks and field reads belong on the same object. Issue reports now keep that structure — field names, nesting and types — with only the values replaced, keep the full `envId` even in a public issue, and ask for evidence according to what is missing.
