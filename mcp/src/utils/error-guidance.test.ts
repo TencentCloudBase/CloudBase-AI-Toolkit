@@ -66,7 +66,11 @@ describe("error-guidance", () => {
       );
       expect(guidance).not.toBeNull();
       expect(guidance?.summary).toContain("不一定是账户欠费");
-      expect(guidance?.summary).toContain("充值不会恢复环境资源点");
+      expect(guidance?.summary).toContain("不会恢复环境资源点");
+      expect(guidance?.summary).toContain("环境删除");
+      expect(guidance?.summary).toContain("AvailableStatus");
+      expect(guidance?.summary).toContain("不能判定");
+      expect(guidance?.summary).toContain("删除记录和隔离状态证据");
     });
 
     it("matches InsufficientBalance case-insensitively", () => {
