@@ -3296,7 +3296,7 @@ describe("env tools - queryEnv", () => {
     expect(text).not.toContain("auth");
   });
 
-  it("queryEnv should keep auth guidance for real authentication errors", async () => {
+  it("queryEnv should keep credential guidance without naming unavailable tools", async () => {
     mockGetCloudBaseManager.mockResolvedValue({
       monitor: {
         describeCurveData: vi
@@ -3315,7 +3315,9 @@ describe("env tools - queryEnv", () => {
     ).content[0].text;
 
     expect(text).toContain("认证错误");
-    expect(text).toContain("auth(action=\"status\")");
+    expect(text).toContain("重新授权");
+    // Hosted remote mode does not register auth; the message must not point at it.
+    expect(text).not.toContain("auth(action=");
   });
 
   it("queryEnv(metrics) should call monitor.describeCurveData and summarize the curve", async () => {

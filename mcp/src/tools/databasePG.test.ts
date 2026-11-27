@@ -370,6 +370,26 @@ describe("PG database tools", () => {
       expect(mockQueryEnvRuntimeBackends).toHaveBeenCalledTimes(2);
       expect(query).toHaveBeenCalledTimes(2);
     });
+
+    it("reports an account-level invalid token rejection as a credential scope boundary", async () => {
+      const { server, tools } = createMockServer();
+      registerPGDatabaseTools(server, {
+        createClient: vi.fn(() =>
+          createFakeClient(async () => {
+            throw new Error("[DescribeEnvs] [request id:0]invalid token");
+          }),
+        ),
+      });
+
+      const payload = buildToolPayload(
+        await tools.queryPgDatabase.handler({ action: "objects", limit: 5 }),
+      );
+
+      expect(payload.errorCode).toBe("CREDENTIAL_SCOPE_LIMITED");
+      expect(payload.message).toMatch(/权限边界|permission boundary/);
+      expect(payload.message).not.toMatch(/稍后重试|retry later/);
+      expect(mockQueryEnvRuntimeBackends).not.toHaveBeenCalled();
+    });
   });
 
   it("queryPgDatabase(sql) rejects mutating SQL without init", async () => {

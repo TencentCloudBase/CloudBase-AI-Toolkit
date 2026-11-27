@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   CREDENTIAL_EXPIRED_PATTERN,
+  CREDENTIAL_SCOPE_LIMITED_PATTERN,
   enhanceErrorMessage,
   findErrorGuidance,
   isCredentialExpiredError,
+  isCredentialScopeLimitedError,
 } from "./error-guidance.js";
 
 describe("temporary credential failures", () => {
@@ -12,7 +14,6 @@ describe("temporary credential failures", () => {
       "Token verification failed. Please check your Token is correct.",
       "[DescribeEnvInfo] Token verification failed. Please check your Token is correct.",
       "[request id:cc76683d-592-47be-9ddb-82e0fbdfe861]tmp secret key expire",
-      "[DescribeEnvs] invalid token",
       "Token验证失败，请检查您的Token是否正确。",
     ];
     for (const message of samples) {
@@ -86,6 +87,58 @@ describe("access-layer error codes and message scope", () => {
 
   it("does not match token phrases used as ordinary configuration text", () => {
     expect(isCredentialExpiredError(new Error("invalid token bucket config"))).toBe(false);
-    expect(isCredentialExpiredError(new Error("invalid token"))).toBe(true);
+    expect(isCredentialScopeLimitedError(new Error("invalid token bucket config"))).toBe(false);
+  });
+});
+
+describe("credential scope boundary (invalid token)", () => {
+  it("classifies account-level rejection as a scope boundary, not an expired token", () => {
+    const samples = [
+      "[tcb/DescribeEnvs] [request id:0]invalid token",
+      "[DescribeVpcs] [request id:17f4580c-a94d-407e-900d-854c44b88af2]invalid token",
+      "[queryEnv/list] [DescribeEnvs] [request id:0]invalid token",
+      "[DescribeCertificates] `[request id:149838507]invalid token`",
+    ];
+    for (const message of samples) {
+      const error = new Error(message);
+      expect(isCredentialExpiredError(error)).toBe(false);
+      expect(isCredentialScopeLimitedError(error)).toBe(true);
+    }
+  });
+
+  it("gives action-oriented guidance instead of a retry hint", () => {
+    const error = new Error("[DescribeEnvs] invalid token");
+    const guidance = findErrorGuidance(error);
+    expect(guidance?.code).toBe("AuthFailure.UnauthorizedOperation");
+    expect(guidance?.summary).toContain("凭据权限边界");
+    expect(guidance?.summary).toContain("重试同一请求都不会成功");
+    expect(guidance?.summary).not.toContain("临时密钥已过期：这是短期凭据到期");
+    expect(enhanceErrorMessage(error, error.message)).toContain("改用带 EnvId 的接口");
+  });
+
+  it("lets an explicit expiration signal win over an invalid-token phrase", () => {
+    const mixed = new Error("invalid token; AuthServer 11014 tmp secret key expire");
+    expect(isCredentialExpiredError(mixed)).toBe(true);
+    expect(isCredentialScopeLimitedError(mixed)).toBe(false);
+
+    const coded = Object.assign(new Error("invalid token"), {
+      code: "AuthFailure.TokenFailure",
+    });
+    expect(isCredentialExpiredError(coded)).toBe(true);
+    expect(isCredentialScopeLimitedError(coded)).toBe(false);
+  });
+
+  it("keeps the structured non-auth code short-circuit", () => {
+    const error = Object.assign(new Error("invalid token"), {
+      code: "EXCEED_REQUEST_LIMIT",
+    });
+    expect(isCredentialExpiredError(error)).toBe(false);
+    expect(isCredentialScopeLimitedError(error)).toBe(false);
+  });
+
+  it("keeps the pattern scoped to the gateway phrase", () => {
+    expect(CREDENTIAL_EXPIRED_PATTERN.test("invalid token")).toBe(false);
+    expect(CREDENTIAL_SCOPE_LIMITED_PATTERN.test("invalid token")).toBe(true);
+    expect(CREDENTIAL_SCOPE_LIMITED_PATTERN.test("token bucket is empty")).toBe(false);
   });
 });
