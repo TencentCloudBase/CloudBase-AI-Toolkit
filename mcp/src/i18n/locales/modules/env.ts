@@ -149,11 +149,11 @@ export const env = defineModule(
     "queryError.paramItem4": "4. 修正参数后重新调用 queryEnv(action=\"{action}\")",
     "queryError.authHeader": "认证错误：当前未登录或认证已过期。",
     "queryError.authAdvice":
-      "建议先执行 auth(action=\"status\") 查看状态，然后按提示完成登录。",
+      "当前凭据未通过服务端校验或已过期。请检查连接所用的凭据并重新授权；本地 MCP 可重新登录，远端托管连接请重新连接。不要反复重试同一个调用。",
     "queryError.permissionHeader": "权限错误：当前账号可能没有访问该资源的权限。",
     "queryError.permissionAdvice": "请确认：1) 已选择正确的环境 2) 账号有对应权限",
     "queryError.envHeader": "环境错误：指定的环境不存在或无法访问。",
-    "queryError.envAdvice": "请使用 queryEnv(action=\"list\") 查看可用的环境列表。",
+    "queryError.envAdvice": "请确认绑定的环境 ID 正确、凭据有权访问该环境；环境级凭据只能访问绑定环境。",
     "queryError.network": "网络错误：请检查网络连接，稍后重试。",
     "queryError.usageHeader": "查询环境资源用量失败，建议：",
     "queryError.stepAuthStatus":
@@ -255,6 +255,10 @@ export const env = defineModule(
     "auth.credentialScopeLimited":
       "当前为环境级 API Key 登录，只能绑定已授权环境 {pinnedEnvId}，不能切换到 {envId}。这是凭据权限边界，不是目标环境不存在。",
     "auth.envReady": "环境设置成功，当前环境: {envId}",
+    "auth.credentialCamRejected":
+      "当前凭据访问 {envId} 被拒绝。如果刚换过环境，请用 {envId} 自己的 API Key 重新连接（Key 和环境 ID 要一起换）。",
+    "auth.credentialCamRejectedAction":
+      "用目标环境自己的 API Key 重新连接，Key 和环境 ID 要一起换",
     "auth.envReadyWithHint": "环境设置成功，当前环境: {envId}{regionHint}",
     "auth.regionHint": "，地域: {region}",
     "auth.regionHintUnverified":
@@ -506,7 +510,7 @@ export const env = defineModule(
     "queryError.authHeader":
       "Authentication error: currently not logged in, or the authentication has expired.",
     "queryError.authAdvice":
-      "Run auth(action=\"status\") first to check the state, then complete the login as prompted.",
+      "The current credential failed server-side validation or has expired. Check the credential used by this connection and re-authorize; for a local MCP sign in again, for a hosted remote connection reconnect. Do not retry the same call repeatedly.",
     "queryError.permissionHeader":
       "Permission error: the current account may not have permission to access this resource.",
     "queryError.permissionAdvice":
@@ -514,7 +518,7 @@ export const env = defineModule(
     "queryError.envHeader":
       "Environment error: the specified environment does not exist or is not accessible.",
     "queryError.envAdvice":
-      "Use queryEnv(action=\"list\") to see the list of available environments.",
+      "Confirm the bound environment ID is correct and the credential can access it; an environment-scoped credential can only reach its bound environment.",
     "queryError.network": "Network error: check the network connection and retry later.",
     "queryError.usageHeader": "Failed to query environment resource usage. Suggestions:",
     "queryError.stepAuthStatus":
@@ -632,6 +636,10 @@ export const env = defineModule(
     "auth.credentialScopeLimited":
       "Currently logged in with an env-level API Key, which can only bind the authorized environment {pinnedEnvId} and cannot switch to {envId}. This is a credential permission boundary, not a missing target environment.",
     "auth.envReady": "Environment bound successfully. Current env: {envId}",
+    "auth.credentialCamRejected":
+      "Access to {envId} with the current credential was denied. If you just switched environments, reconnect with the API Key that belongs to {envId} (the Key and env ID must be changed together).",
+    "auth.credentialCamRejectedAction":
+      "Reconnect with the API Key of the target environment; change the Key and the env ID together",
     "auth.envReadyWithHint": "Environment bound successfully. Current env: {envId}{regionHint}",
     "auth.regionHint": ", region: {region}",
     "auth.regionHintUnverified":

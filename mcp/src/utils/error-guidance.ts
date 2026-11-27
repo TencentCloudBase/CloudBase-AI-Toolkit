@@ -62,10 +62,11 @@ const REGISTRY: ErrorGuidance[] = [
   {
     code: "InsufficientBalance",
     summary:
-      "余额不足不一定是账户欠费：云开发环境的可用量取决于环境资源点与套餐状态，与账户余额是两个独立维度，" +
-      "给账户充值不会恢复环境资源点。请先区分三种情形——环境资源点耗尽、套餐到期、账户欠费——再决定动作，" +
-      "不要直接引导充值。判别可用只读查询对照：manageEnv(action=\"usage\") 查环境当期资源点用量，" +
-      "callCloudApi 查账户余额（billing DescribeAccountBalance）。",
+      "余额不足不一定是账户欠费：充值只解决账户欠费，不会恢复环境资源点；不要直接引导充值。" +
+      "先查 manageEnv(action=\"usage\")、queryFunctions(action=\"getFunctionDetail\") 的 AvailableStatus、" +
+      "callCloudApi 查账户余额（billing DescribeAccountBalance）。" +
+      "函数 Status=Active 但 AvailableStatus=InsufficientBalance、调用返回 410 时，只说明 SCF 侧计费/可用状态异常；" +
+      "不能判定账户欠费或环境删除残留。环境删除残留需删除记录和隔离状态证据，确认后再换新环境或联系平台核查。",
     docsUrl: "https://cloud.tencent.com/document/product/876/136006",
   },
 ];
@@ -75,7 +76,16 @@ const REGISTRY: ErrorGuidance[] = [
  * 也经常没有结构化 Code；只在这里作为 Code 未命中后的兜底依据。
  */
 export const CREDENTIAL_EXPIRED_PATTERN =
-  /Token verification failed|invalid token(?!\s+[a-z]+\s+config)|tmp secret key expire|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
+  /Token verification failed|tmp secret key expire|AuthFailure\.TokenFailure|Token验证失败|\b(?:11014|213)\b/i;
+
+/**
+ * An account-level control-plane Action (DescribeEnvs without EnvId, DescribeVpcs,
+ * DescribeCertificates, ...) rejected for an env-level credential is reported by the
+ * gateway as `invalid token`. This is a credential permission boundary, not an expired
+ * STS token: renewing the credential and retrying cannot change the outcome.
+ * The negative lookahead keeps ordinary configuration text out of this class.
+ */
+export const CREDENTIAL_SCOPE_LIMITED_PATTERN = /invalid token(?!\s+[a-z]+\s+config)/i;
 
 const AUTH_CODE_PATTERN =
   /AuthFailure|11014|\b213\b|TokenFailure|SignatureFailure|InvalidCredential|UnauthorizedOperation/i;
@@ -89,6 +99,15 @@ const CREDENTIAL_EXPIRED_GUIDANCE: ErrorGuidance = {
   docsUrl: "https://docs.cloudbase.net/error-code/AuthFailure.TokenFailure",
 };
 
+const CREDENTIAL_SCOPE_LIMITED_GUIDANCE: ErrorGuidance = {
+  code: "AuthFailure.UnauthorizedOperation",
+  summary:
+    "凭据权限边界：环境级凭据（API Key 或托管授权）调用账号级管控面接口被拒。" +
+    "这不是临时密钥过期，重新换取密钥或重试同一请求都不会成功；不要解绑重连。" +
+    "改用带 EnvId 的接口（如 DescribeEnvInfo），或换用账号级凭据。",
+  docsUrl: "https://cloud.tencent.com/document/product/876/34809",
+};
+
 /** 是否属于「临时密钥过期」而非账号登录失效。 */
 export function isCredentialExpiredError(error: unknown): boolean {
   const code = resolveErrorCode(error);
@@ -99,6 +118,26 @@ export function isCredentialExpiredError(error: unknown): boolean {
     return true;
   }
   return CREDENTIAL_EXPIRED_PATTERN.test(errorMessageOf(error));
+}
+
+/**
+ * Whether the failure is a credential permission boundary rather than an expired token.
+ * A structured expiration code or an explicit expiration message always wins, so a
+ * payload carrying both signals still follows the renewable path.
+ */
+export function isCredentialScopeLimitedError(error: unknown): boolean {
+  const code = resolveErrorCode(error);
+  if (code && !AUTH_CODE_PATTERN.test(code)) {
+    return false;
+  }
+  if (code && EXPIRED_CODE_PATTERN.test(code)) {
+    return false;
+  }
+  const message = errorMessageOf(error);
+  if (CREDENTIAL_EXPIRED_PATTERN.test(message)) {
+    return false;
+  }
+  return CREDENTIAL_SCOPE_LIMITED_PATTERN.test(message);
 }
 
 /**
@@ -169,6 +208,9 @@ export function findErrorGuidance(error: unknown): ErrorGuidance | null {
   // Only the fixed authentication phrases above can produce guidance in that case.
   if (CREDENTIAL_EXPIRED_PATTERN.test(message)) {
     return CREDENTIAL_EXPIRED_GUIDANCE;
+  }
+  if (CREDENTIAL_SCOPE_LIMITED_PATTERN.test(message)) {
+    return CREDENTIAL_SCOPE_LIMITED_GUIDANCE;
   }
   return null;
 }

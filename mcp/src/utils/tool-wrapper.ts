@@ -7,7 +7,7 @@ import { debug } from './logger.js';
 import { reportToolCall, readMcpClientInfoFromServer, readClientCapabilitiesFromServer } from './telemetry.js';
 import { isBusinessFailureToolResult, isToolPayloadError, ToolPayloadError, withBusinessFailureIsError } from "./tool-result.js";
 import { applyRepeatGuardToPayload, resetRepeatGuard } from "./repeat-error-guard.js";
-import { enhanceErrorMessage, isCredentialExpiredError, resolveErrorCode, resolveRequestId } from "./error-guidance.js";
+import { enhanceErrorMessage, isCredentialExpiredError, isCredentialScopeLimitedError, resolveErrorCode, resolveRequestId } from "./error-guidance.js";
 import { forceRefreshCredential } from "../auth.js";
 import { resolveSiteAndRegion } from "./site-map.js";
 import { guardDestructiveAction, type ConfirmationServer } from "./confirmation-guard.js";
@@ -380,8 +380,18 @@ function createWrappedHandler(
             // 临时密钥过期不是登录态丢失：换一把新密钥，并把稳定信号写进失败回执，
             // 让上层重试该操作而不是引导用户解绑重连。不自动重放工具本身——
             // 写操作重复执行的代价远高于一次显式重试。
+            // A permission boundary is not renewable: do not refresh the credential
+            // and do not tell the caller to retry the same request.
             let credentialReceipt: Record<string, unknown> | null = null;
-            if (isCredentialExpiredError(error)) {
+            if (isCredentialScopeLimitedError(error)) {
+                credentialReceipt = {
+                    error_category: "scope_limited",
+                    need_auth: false,
+                    next_step: "use_env_scoped_action",
+                    code: resolveErrorCode(error) ?? "AuthFailure.UnauthorizedOperation",
+                    ...(requestId ? { requestId } : {}),
+                };
+            } else if (isCredentialExpiredError(error)) {
                 let credentialRefreshed = false;
                 if (!isTestEnvironment) {
                     try {
