@@ -52,6 +52,7 @@
     "test:hosted-mcp:e2e": "vitest run tests/hosted-mcp-e2e/",
     "check:doc-en": "node scripts/check-doc-en-parity.mjs",
     "check:usage-modules": "node scripts/check-usage-modules.mjs",
+    "check:error-codes": "node scripts/check-error-codes.mjs",
     "analyze:skill-usage": "node scripts/analyze-skill-usage.mjs"
   },
   "devDependencies": {
@@ -64,7 +65,7 @@
     "vitest": "4.1.12"
   },
   "dependencies": {
-    "@cloudbase/manager-node": "5.10.0"
+    "@cloudbase/manager-node": "5.10.6"
   },
   "pnpm": {
     "overrides": {
